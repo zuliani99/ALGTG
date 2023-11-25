@@ -68,6 +68,8 @@ def accuracy_score(output, label):
     output_class = torch.argmax(torch.softmax(output, dim=1), dim=1)
     return (output_class == label).sum().item()/len(output)
 
+
+
 def get_resnet18(n_classes):
     resnet18 = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', weights='DEFAULT')
 
@@ -76,18 +78,24 @@ def get_resnet18(n_classes):
 
     return resnet18
 
+
+
 def plot_loss_curves(results, n_lab_obs):
 
     fig, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
-
-    ax[0].plot(n_lab_obs, results['test_loss'], label = 'test_loss')
+    
+    for n_samples, results in results.items():
+        ax[0].plot(n_lab_obs, results['test_loss'], label = f'test_loss - {n_samples}')
+        
     ax[0].set_title('Loss - # Labeled Obs')
     ax[0].set_xlabel('# Labeled Obs')
     ax[0].set_ylabel('Loss')
     ax[0].grid()
     ax[0].legend()
 
-    ax[1].plot(n_lab_obs, results['test_accuracy'], label = 'test_accuracy')
+    for n_samples, results in results.items():
+        ax[1].plot(n_lab_obs, results['test_accuracy'], label = f'test_accuracy - {n_samples}')
+    
     ax[1].set_title('Accuracy Score - # Labeled Obs')
     ax[1].set_ylabel('Accuracy Score')
     ax[1].set_xlabel('# Labeled Obs')

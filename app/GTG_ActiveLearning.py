@@ -2,8 +2,6 @@ from cifar10 import CIFAR10
 from utils import get_overall_top_k
 
 import numpy as np
-from scipy.stats import entropy
-from sklearn.metrics.pairwise import cosine_similarity
 import warnings
 
 import torch
@@ -18,7 +16,7 @@ from tqdm import tqdm
 class GTG_ActiveLearning():
 
 
-    def __init__(self, n_classes, batch_size, model, optimizer, train_dl, test_dl, splitted_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, scheduler, device, patience):
+    def __init__(self, n_classes, batch_size, model, optimizer, train_dl, test_dl, splitted_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, scheduler, device, patience, affinity_method):
         self.n_classes = n_classes
         self.model = model.to(device)
         self.batch_size = batch_size
@@ -32,6 +30,7 @@ class GTG_ActiveLearning():
         self.score_fn = score_fn
         self.scheduler = scheduler
         self.device = device
+        self.affinity_method = affinity_method
         self.patience = patience
         self.best_check_filename = './checkpoints/best_checkpoint.pth.tar'
         self.init_check_filename = './checkpoints/init_checkpoint.pth.tar'
@@ -41,8 +40,8 @@ class GTG_ActiveLearning():
         self.unlabeled_embeddings = torch.empty(0, list(self.model.children())[-1].in_features).to(self.device)
 
         self.embed_model = nn.Sequential(*list(self.model.children())[:-1]).to(self.device)
-
-
+        
+        
 
     def __reintialize_model(self):
         self.__load_checkpoint(self.init_check_filename, 'Initial')
@@ -102,7 +101,7 @@ class GTG_ActiveLearning():
     def fit(self, epochs):
         self.model.train()
 
-        best_val_loss, best_train_accuracy = float('inf'), float('-inf')
+        best_val_loss = float('inf')
         actual_patience = 0
 
         for epoch in range(epochs):  # loop over the dataset multiple times
@@ -178,7 +177,7 @@ class GTG_ActiveLearning():
 
         # again no gradients needed
         with torch.inference_mode():
-            for _, (inputs, labels) in pbar:
+            for _, (inputs, _) in pbar:
                 pbar.set_description(f'Getting {mode_type} Embeddings')
                 embed = self.embed_model(inputs.to(self.device))
 
@@ -211,23 +210,29 @@ class GTG_ActiveLearning():
 
 
 
-    def get_A(self, sigma = 1):
+    def get_A(self):
         
         print('Obtaining Affinity Matrix')
         print(self.labeled_embeddings.shape, self.unlabeled_embeddings.shape)
         
         embeddings_cat = torch.cat((self.labeled_embeddings, self.unlabeled_embeddings), dim=0).to(self.device)
 
-        # Computing Cosaine Similarity -> MEMORY EXPLOSION
-        #self.A = F.cosine_similarity(embeddings_cat[None,:,:], embeddings_cat[:,None,:], dim=-1)
-        #normalized_embedding = F.normalize(self.embeddings, p=2, dim=-1).to(self.device)
-        #self.A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device)
+        # Computing Cosine Similarity
+        if(self.affinity_method == 'cosine_similarity'):
+            normalized_embedding = F.normalize(embeddings_cat, p=2, dim=-1).to(self.device)
+            self.A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device)
 
         # Calculate Gaussian kernel
-        self.A = torch.exp(-(torch.cdist(embeddings_cat, embeddings_cat)).pow(2) / (2.0 * sigma**2))
+        elif(self.affinity_method == 'gaussian_kernel'):
+            self.A = torch.exp(-(torch.cdist(embeddings_cat, embeddings_cat)).pow(2) / (2.0 * 1**2))
 
         # Calculate the Euclidean Distance
-        #self.A = torch.cdist(embeddings_cat, embeddings_cat).to(self.device)
+        elif(self.affinity_method == 'eucliden_distance'):
+            self.A = torch.cdist(embeddings_cat, embeddings_cat).to(self.device)
+        
+        else:
+            raise ValueError('Invalid Affinity Method, please insert one of the cosine_similarity, gaussian_kernel, or eucliden_distance')
+            
         print(self.A.shape)
         print(f' => DONE with memory usage {self.A.element_size() * self.A.nelement()} bytes\n')
 
@@ -352,50 +357,55 @@ class GTG_ActiveLearning():
 
 
 
-    def train_evaluate_AL_GTG(self, epochs, al_iters, gtg_tol, gtg_max_iter, top_k_obs, n_samples):
+    #def train_evaluate_AL_GTG(self, epochs, al_iters, gtg_tol, gtg_max_iter, top_k_obs, n_samples):
+    def train_evaluate_AL_GTG(self, epochs, al_iters, gtg_tol, gtg_max_iter, top_k_obs, list_n_samples):
 
-        results = { 'test_loss': [], 'test_accuracy': [] }
+        results = { }
         n_lab_obs = []
 
         iter = 0
+        
+        for n_samples in list_n_samples:
+            
+            results[n_samples] = { 'test_loss': [], 'test_accuracy': [] }
 
-        while iter < al_iters:
-            print(f'----------------------- START TRAINING ACTIVE LEARNING ITERATION {iter + 1} / {al_iters} -----------------------')
-            self.__reintialize_model()
-            self.fit(epochs) # train in the labeled observations
-            self.get_unlabeled_samples(n_samples)
-            self.get_embeddings('Labeled', self.lab_train_dl)
+            while iter < al_iters:
+                print(f'----------------------- START TRAINING ACTIVE LEARNING ITERATION {iter + 1} / {al_iters} -----------------------')
+                self.__reintialize_model()
+                self.fit(epochs) # train in the labeled observations
+                self.get_unlabeled_samples(n_samples)
+                self.get_embeddings('Labeled', self.lab_train_dl)
 
-            ds_top_k = []
+                ds_top_k = []
 
-            for idx, (_, unlab_sample_dl) in enumerate(self.unlab_samp_list):
+                for idx, (_, unlab_sample_dl) in enumerate(self.unlab_samp_list):
 
-                print(f'----------- STARTING WORKING WITH UNLABELED SAMPLE # {idx + 1} -----------')
+                    print(f'----------- STARTING WORKING WITH UNLABELED SAMPLE # {idx + 1} -----------')
 
-                self.get_embeddings('Sampled', unlab_sample_dl)
+                    self.get_embeddings('Sampled', unlab_sample_dl)
 
-                self.get_A()
-                self.get_X()
-                self.gtg(gtg_tol, gtg_max_iter)
+                    self.get_A()
+                    self.get_X()
+                    self.gtg(gtg_tol, gtg_max_iter)
 
-                self.get_topK_obs(top_k_obs) # top k for the matrix X composed with the ds of labeled and unlabeled, so the index are referred to these two sets
+                    self.get_topK_obs(top_k_obs) # top k for the matrix X composed with the ds of labeled and unlabeled, so the index are referred to these two sets
 
-                ds_top_k.append(self.topk_idx_val_obs)
+                    ds_top_k.append(self.topk_idx_val_obs)
 
-                print(f'----------- ENDING WORKING WITH UNLABELED SAMPLE # {idx + 1} -----------\n')
+                    print(f'----------- ENDING WORKING WITH UNLABELED SAMPLE # {idx + 1} -----------\n')
 
-            overall_topk = get_overall_top_k(ds_top_k, top_k_obs)
+                overall_topk = get_overall_top_k(ds_top_k, top_k_obs)
 
-            self.get_new_dataloader(overall_topk, n_samples)
+                self.get_new_dataloader(overall_topk, n_samples)
 
-            test_loss, test_accuracy = self.test_AL_GTG()
+                test_loss, test_accuracy = self.test_AL_GTG()
 
-            results['test_loss'].append(test_loss)
-            results['test_accuracy'].append(test_accuracy)
+                results[n_samples]['test_loss'].append(test_loss)
+                results[n_samples]['test_accuracy'].append(test_accuracy)
 
-            n_lab_obs.append(len(self.lab_train_ds))
+                n_lab_obs.append(len(self.lab_train_ds))
 
-            print(f'----------------------- END TRAINING ACTIVE LEARNING ITERATION {iter + 1} / {al_iters} -----------------------\n')
-            iter += 1
+                print(f'----------------------- END TRAINING ACTIVE LEARNING ITERATION {iter + 1} / {al_iters} -----------------------\n')
+                iter += 1
 
         return results, n_lab_obs

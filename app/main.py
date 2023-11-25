@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-
 import os
 import torch
 import torch.nn as nn
@@ -32,9 +31,10 @@ def main():
     optimizer = torch.optim.Adam(resnet18.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=2, verbose=True)
 
-    epochs = 20
+    epochs = 1#20
 
     GTG_AL = GTG_ActiveLearning(
+        affinity_method = 'cosine_similarity', #cosine_similarity, gaussian_kernel, eucliden_distance
         n_classes = len(classes),
         batch_size=batch_size,
         model = resnet18,
@@ -48,10 +48,12 @@ def main():
         score_fn = accuracy_score,
         scheduler = scheduler,
         device = device,
-        patience = 7
+        patience = 7,
     )
 
-    results, n_lab_obs = GTG_AL.train_evaluate_AL_GTG(epochs=epochs, al_iters=20, gtg_tol=0.001, gtg_max_iter=100, top_k_obs=320, n_samples=10)
+    #results, n_lab_obs = GTG_AL.train_evaluate_AL_GTG(epochs=epochs, al_iters=20, gtg_tol=0.001, gtg_max_iter=100, top_k_obs=320, n_samples=10)
+    #results, n_lab_obs = GTG_AL.train_evaluate_AL_GTG(epochs=epochs, al_iters=20, gtg_tol=0.001, gtg_max_iter=100, top_k_obs=320, n_samples=10)
+    results, n_lab_obs = GTG_AL.train_evaluate_AL_GTG(epochs=epochs, al_iters=20, gtg_tol=0.001, gtg_max_iter=100, top_k_obs=320, list_n_samples=[5, 10, 15, 20, 25, 30])
 
     plot_loss_curves(results, n_lab_obs)
     
