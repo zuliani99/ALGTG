@@ -51,9 +51,7 @@ def main():
         patience = 7,
     )
 
-    #results, n_lab_obs = GTG_AL.train_evaluate_AL_GTG(epochs=epochs, al_iters=20, gtg_tol=0.001, gtg_max_iter=100, top_k_obs=320, n_samples=10)
-    #results, n_lab_obs = GTG_AL.train_evaluate_AL_GTG(epochs=epochs, al_iters=20, gtg_tol=0.001, gtg_max_iter=100, top_k_obs=320, n_samples=10)
-    results, n_lab_obs = GTG_AL.train_evaluate_AL_GTG(epochs=epochs, al_iters=20, gtg_tol=0.001, gtg_max_iter=100, top_k_obs=320, list_n_samples=[5, 10, 15, 20, 25, 30])
+    results, n_lab_obs = GTG_AL.train_evaluate_AL_GTG(epochs=epochs, al_iters=1, gtg_tol=0.001, gtg_max_iter=100, top_k_obs=320, list_n_samples=[5])#, 10, 15, 20, 25, 30])
 
     plot_loss_curves(results, n_lab_obs)
     
