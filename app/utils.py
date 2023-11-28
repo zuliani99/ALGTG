@@ -80,7 +80,7 @@ def get_resnet18(n_classes):
 
 
 
-def plot_loss_curves(n_samples_results, n_lab_obs):
+def plot_loss_curves(n_samples_results, n_lab_obs, save_plot, plot_png_name = None):
 
     fig, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
     
@@ -103,5 +103,7 @@ def plot_loss_curves(n_samples_results, n_lab_obs):
     ax[1].legend()
 
     plt.suptitle('Results', fontsize = 30)
-    plt.show()
+    
+    if save_plot: plt.savefig(plot_png_name)
+    else: plt.show()
 

@@ -11,6 +11,7 @@ conda activate your_env
 
 ## Applciation Start Up
 ```
+ssh rzuliani@157.138.20.71
 cd app
 python main.py 
 ```
