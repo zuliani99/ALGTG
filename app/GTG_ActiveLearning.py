@@ -32,8 +32,8 @@ class GTG_ActiveLearning():
         self.device = device
         self.affinity_method = affinity_method
         self.patience = patience
-        self.best_check_filename = './checkpoints/best_checkpoint.pth.tar'
-        self.init_check_filename = './checkpoints/init_checkpoint.pth.tar'
+        self.best_check_filename = '/checkpoints/best_checkpoint.pth.tar'
+        self.init_check_filename = '/checkpoints/init_checkpoint.pth.tar'
         self.__save_checkpoint(self.init_check_filename)
 
         self.labeled_embeddings = torch.empty(0, list(self.model.children())[-1].in_features).to(self.device)
