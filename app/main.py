@@ -37,7 +37,7 @@ def main():
     top_k_obs = 320
 
     GTG_AL = GTG_ActiveLearning(
-        affinity_method = 'cosine_similarity', #cosine_similarity, gaussian_kernel, eucliden_distance
+        affinity_method = 'cosine_similarity', # possiible choices are: cosine_similarity, gaussian_kernel, eucliden_distance
         n_classes = len(classes),
         batch_size=batch_size,
         model = resnet18,

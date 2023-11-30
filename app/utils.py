@@ -82,8 +82,7 @@ def get_resnet18(n_classes):
 
 def plot_loss_curves(n_samples_results, n_lab_obs, save_plot, plot_png_name = None):
 
-    fig, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
-    
+    _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
     for n_samples, results in n_samples_results.items():
         ax[0].plot(n_lab_obs, results['test_loss'], label = f'test_loss - {str(n_samples)}')
         
@@ -93,6 +92,7 @@ def plot_loss_curves(n_samples_results, n_lab_obs, save_plot, plot_png_name = No
     ax[0].grid()
     ax[0].legend()
 
+    
     for n_samples, results in n_samples_results.items():
         ax[1].plot(n_lab_obs, results['test_accuracy'], label = f'test_accuracy - {str(n_samples)}')
     

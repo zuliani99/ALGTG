@@ -357,20 +357,24 @@ class GTG_ActiveLearning():
 
 
 
-    #def train_evaluate_AL_GTG(self, epochs, al_iters, gtg_tol, gtg_max_iter, top_k_obs, n_samples):
     def train_evaluate_AL_GTG(self, epochs, al_iters, gtg_tol, gtg_max_iter, top_k_obs, list_n_samples):
 
         results = { }
-        n_lab_obs = []
-
-        iter = 0
+        n_lab_obs =  [len(self.lab_train_ds) + (iter * top_k_obs) for iter in range(al_iters)]
         
+        print(f'----------------------- START TRAINING ACTIVE LEARNING -----------------------\n')
+        
+
         for n_samples in list_n_samples:
             
+            print(f'----------------------- START {n_samples} unalbeled samples of equal dimension  -----------------------\n')
+            
+            iter = 0
+
             results[n_samples] = { 'test_loss': [], 'test_accuracy': [] }
 
             while iter < al_iters:
-                print(f'----------------------- START TRAINING ACTIVE LEARNING ITERATION {iter + 1} / {al_iters} -----------------------')
+                print(f'----------------------- START ITERATION {iter + 1} / {al_iters} -----------------------\n')
                 self.__reintialize_model()
                 self.fit(epochs) # train in the labeled observations
                 self.get_unlabeled_samples(n_samples)
@@ -380,7 +384,7 @@ class GTG_ActiveLearning():
 
                 for idx, (_, unlab_sample_dl) in enumerate(self.unlab_samp_list):
 
-                    print(f'----------- STARTING WORKING WITH UNLABELED SAMPLE # {idx + 1} -----------')
+                    print(f'----------- STARTING WORKING WITH UNLABELED SAMPLE # {idx + 1} -----------\n')
 
                     self.get_embeddings('Sampled', unlab_sample_dl)
 
@@ -402,10 +406,14 @@ class GTG_ActiveLearning():
 
                 results[n_samples]['test_loss'].append(test_loss)
                 results[n_samples]['test_accuracy'].append(test_accuracy)
+                
+                #n_lab_obs.append(len(self.lab_train_ds))
+                
+                #print(results, n_lab_obs)
 
-                n_lab_obs.append(len(self.lab_train_ds))
-
-                print(f'----------------------- END TRAINING ACTIVE LEARNING ITERATION {iter + 1} / {al_iters} -----------------------\n')
+                print(f'----------------------- END ITERATION {iter + 1} / {al_iters} -----------------------\n')
                 iter += 1
+                
+            print(f'----------------------- START {n_samples} unalbeled samples of equal dimension  -----------------------\n')
 
         return results, n_lab_obs
