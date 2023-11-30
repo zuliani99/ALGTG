@@ -12,6 +12,7 @@ echo "Running Training Cifar"
 
 date
 
+conda init bash
 conda activate test
 
 python app/main.py
