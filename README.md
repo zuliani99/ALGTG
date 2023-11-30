@@ -5,8 +5,8 @@ Active Learning Strategy using Graph Trusduction Algorithm
 
 Change the last row of **requirements.yml** to the path of yout conda enviroments. Then type in the bash the following lines.
 ```
-conda your_env create -f requirements.yml
-conda activate your_env
+conda create --name test -f requirements.yml
+conda activate test
 ```
 
 ## Applciation Start Up

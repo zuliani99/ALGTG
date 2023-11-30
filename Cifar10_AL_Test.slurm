@@ -14,8 +14,6 @@ date
 
 conda activate test
 
-python ./app/main.py
+python /app/main.py
 
 date
-
-C:/Users/ricca/Desktop/UNI/Magistrale/Anno3/Active_Learning_GTG/Cifar10_AL_Test.slurm
