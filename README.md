@@ -15,3 +15,8 @@ ssh rzuliani@157.138.20.71
 cd app
 python main.py 
 ```
+
+GitHub Token
+```
+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
+```
