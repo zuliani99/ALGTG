@@ -14,6 +14,6 @@ date
 
 conda activate test
 
-python /app/main.py
+python app/main.py
 
 date
