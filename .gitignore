@@ -1,3 +1,5 @@
 
 *.pyc
 *.tar
+*.csv
+*.png

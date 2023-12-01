@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
+import csv
+import os
 
 
 def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
@@ -32,6 +34,8 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
     unlabeled_test_dl = DataLoader(unlabeled_set, batch_size=batch_size, shuffle=True, num_workers=2)
 
     return (labeled_train_dl, unlabeled_test_dl), (labeled_set, unlabeled_set), train_dl, val_dl
+
+
 
 def get_overall_top_k(topk_list, top_k):
 
@@ -107,3 +111,18 @@ def plot_loss_curves(n_samples_results, n_lab_obs, save_plot, plot_png_name = No
     if save_plot: plt.savefig(plot_png_name)
     else: plt.show()
 
+
+
+def write_csv(al_iter, n_samples, test_accuracy, test_loss):
+    if (not os.path.exists('../test_res.csv')):
+        
+        with open('../test_res.csv', 'w', encoding='UTF8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['al_iter', 'n_samples', 'test_accuracy', 'test_loss'])
+            f.close()
+        
+    
+    with open('../test_res.csv', 'a', encoding='UTF8') as f:
+        writer = csv.writer(f)
+        writer.writerow([al_iter, n_samples, test_accuracy, test_loss])
+        f.close()

@@ -1,5 +1,5 @@
 from cifar10 import CIFAR10
-from utils import get_overall_top_k
+from utils import get_overall_top_k, write_csv
 
 import numpy as np
 import warnings
@@ -32,8 +32,8 @@ class GTG_ActiveLearning():
         self.device = device
         self.affinity_method = affinity_method
         self.patience = patience
-        self.best_check_filename = 'app/checkpoints/best_checkpoint.pth.tar'
-        self.init_check_filename = 'app/checkpoints/init_checkpoint.pth.tar'
+        self.best_check_filename = 'app/checkpoints/best_checkpoint.pth.tar' #app
+        self.init_check_filename = 'app/checkpoints/init_checkpoint.pth.tar' #app
         self.__save_checkpoint(self.init_check_filename)
 
         self.labeled_embeddings = torch.empty(0, list(self.model.children())[-1].in_features).to(self.device)
@@ -50,21 +50,21 @@ class GTG_ActiveLearning():
 
     def __save_checkpoint(self, filename):
 
-        print(f'=> Saving Checkpoint to {filename}')
+        #print(f'=> Saving Checkpoint to {filename}')
         checkpoint = { 'state_dict': self.model.state_dict(), 'optimizer': self.optimizer.state_dict(), 'scheduler': self.scheduler.state_dict() }
         torch.save(checkpoint, filename)
-        print(' DONE\n')
+        #print(' DONE\n')
 
 
 
     def __load_checkpoint(self, filename, type_load):
 
-        print(f'=> Loading {type_load} Checkpoint')
+        #print(f'=> Loading {type_load} Checkpoint')
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['scheduler'])
-        print(' DONE\n')
+        #print(' DONE\n')
 
 
 
@@ -164,7 +164,7 @@ class GTG_ActiveLearning():
 
     def get_embeddings(self, mode_type, dataloader):
 
-        print(f'{mode_type} Embedding Computation')
+        #print(f'{mode_type} Embedding Computation')
 
         if mode_type == 'Sampled':
             self.unlabeled_embeddings = torch.empty(0, list(self.model.children())[-1].in_features).to(self.device)
@@ -186,7 +186,7 @@ class GTG_ActiveLearning():
                 else:
                     self.unlabeled_embeddings = torch.cat((self.unlabeled_embeddings, embed.squeeze()), dim=0)
 
-        print(' => DONE\n')
+        #print(' => DONE\n')
 
 
 
@@ -212,8 +212,8 @@ class GTG_ActiveLearning():
 
     def get_A(self):
         
-        print('Obtaining Affinity Matrix')
-        print(self.labeled_embeddings.shape, self.unlabeled_embeddings.shape)
+        #print('Obtaining Affinity Matrix')
+        #print(self.labeled_embeddings.shape, self.unlabeled_embeddings.shape)
         
         embeddings_cat = torch.cat((self.labeled_embeddings, self.unlabeled_embeddings), dim=0).to(self.device)
 
@@ -233,13 +233,13 @@ class GTG_ActiveLearning():
         else:
             raise ValueError('Invalid Affinity Method, please insert one of the cosine_similarity, gaussian_kernel, or eucliden_distance')
             
-        print(self.A.shape)
-        print(f' => DONE with memory usage {self.A.element_size() * self.A.nelement()} bytes\n')
+        #print(self.A.shape)
+        #print(f' => DONE with memory usage {self.A.element_size() * self.A.nelement()} bytes\n')
 
 
 
     def get_X(self):
-        print('Obtaining Initial X Matrix')
+        #print('Obtaining Initial X Matrix')
 
         self.X = torch.empty(0, self.n_classes).to(self.device)
 
@@ -250,8 +250,8 @@ class GTG_ActiveLearning():
             self.X = torch.cat((self.X, arr_one_zeros), dim=0)
 
         self.X = torch.cat((self.X, torch.full((len(self.unlabeled_embeddings), self.n_classes), 1/self.n_classes).to(self.device)), dim=0)
-        print(self.X.shape)
-        print(f' => DONE with memory usage {self.X.element_size() * self.X.nelement()} bytes\n')
+        #print(self.X.shape)
+        #print(f' => DONE with memory usage {self.X.element_size() * self.X.nelement()} bytes\n')
 
 
 
@@ -259,7 +259,7 @@ class GTG_ActiveLearning():
         err = float('Inf')
         i = 0
 
-        print('Runnning GTG Algorithm')
+        #print('Runnning GTG Algorithm')
 
         while err > tol and i < max_iter:
             X_old = self.X.clone()
@@ -272,24 +272,24 @@ class GTG_ActiveLearning():
         if i == max_iter:
             warnings.warn('Max number of iterations reached.')
 
-        print(f' => DONE with {i} iterations\n')
+        #print(f' => DONE with {i} iterations\n')
 
         return i
 
 
 
     def get_topK_obs(self, top_k):
-        print('Obtaining the top_k most interesting observations')
+        #print('Obtaining the top_k most interesting observations')
 
         self.topk_idx_val_obs = torch.topk(-torch.sum(self.X * torch.log2(self.X + 1e-20), dim=1), top_k)
 
-        print(' => DONE\n')
+        #print(' => DONE\n')
 
 
 
     def get_new_dataloader(self, overall_topk, n_samples):
 
-        print('Copying the labeled train dataset')
+        #print('Copying the labeled train dataset')
         new_lab_train_ds = np.array([
             np.array([
                 self.lab_train_ds[i][0] if isinstance(self.lab_train_ds[i][0], np.ndarray) else self.lab_train_ds[i][0].numpy(),
@@ -298,9 +298,9 @@ class GTG_ActiveLearning():
         
         #new_lab_train_ds = torch.tensor([self.lab_train_ds[i][::1]] for i in tqdm(range(len(self.lab_train_ds))))
         
-        print(' => DONE\n')
+        #print(' => DONE\n')
 
-        print('Copying the unlabeled train dataset')
+        #print('Copying the unlabeled train dataset')
         new_unlab_train_ds = np.array([
             np.array([
                 self.unlab_train_ds[i][0] if isinstance(self.unlab_train_ds[i][0], np.ndarray) else self.unlab_train_ds[i][0].numpy(),
@@ -309,12 +309,12 @@ class GTG_ActiveLearning():
         
         #new_unlab_train_ds = torch.tensor([self.unlab_train_ds[i][::1]] for i in tqdm(range(len(self.unlab_train_ds))))
         
-        print(' => DONE\n')
+        #print(' => DONE\n')
 
 
         l = len(new_lab_train_ds)
 
-        print(f'Expanding the labeled train dataset {len(new_lab_train_ds)}')
+        #print(f'Expanding the labeled train dataset {len(new_lab_train_ds)}')
         for list_index, topk_index_value in overall_topk:
             new_lab_train_ds = np.vstack((new_lab_train_ds, np.expand_dims(
                 np.array([
@@ -326,18 +326,18 @@ class GTG_ActiveLearning():
             
             #new_lab_train_ds = torch.cat((new_lab_train_ds, torch.tensor([self.unlab_samp_list[list_index][0][topk_index_value][::1]])), dim = 0)
             
-        print(new_lab_train_ds.shape)
-        print(f' => DONE {len(new_lab_train_ds)}\n')
+        #print(new_lab_train_ds.shape)
+        #print(f' => DONE {len(new_lab_train_ds)}\n')
 
-        print(f'Reducing the unlabeled train dataset {len(new_unlab_train_ds)}')
+        #print(f'Reducing the unlabeled train dataset {len(new_unlab_train_ds)}')
         for list_index, topk_index_value in overall_topk:
             new_unlab_train_ds = np.delete(new_unlab_train_ds, (list_index * n_samples) + topk_index_value, axis = 0)
             
             #new_unlab_train_ds = torch.cat((new_unlab_train_ds[ : ((list_index * n_samples) + topk_index_value)],
             #                                new_unlab_train_ds[((list_index * n_samples) + topk_index_value + 1) : ]))
             
-        print(new_unlab_train_ds.shape)
-        print(f' => DONE {len(new_unlab_train_ds)}\n')
+        #print(new_unlab_train_ds.shape)
+        #print(f' => DONE {len(new_unlab_train_ds)}\n')
 
 
         self.lab_train_ds = CIFAR10(None, new_lab_train_ds)
@@ -362,19 +362,19 @@ class GTG_ActiveLearning():
         results = { }
         n_lab_obs =  [len(self.lab_train_ds) + (iter * top_k_obs) for iter in range(al_iters)]
         
-        print(f'----------------------- START TRAINING ACTIVE LEARNING -----------------------\n')
+        print(f'----------------------- TRAINING ACTIVE LEARNING -----------------------\n')
         
 
         for n_samples in list_n_samples:
             
-            print(f'----------------------- START {n_samples} unalbeled samples of equal dimension  -----------------------\n')
+            print(f'----------------------- {n_samples} unalbeled samples of equal dimension  -----------------------\n')
             
             iter = 0
 
             results[n_samples] = { 'test_loss': [], 'test_accuracy': [] }
 
-            while iter < al_iters:
-                print(f'----------------------- START ITERATION {iter + 1} / {al_iters} -----------------------\n')
+            while len(self.unlab_train_ds) > 0 and iter < al_iters:
+                print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')
                 self.__reintialize_model()
                 self.fit(epochs) # train in the labeled observations
                 self.get_unlabeled_samples(n_samples)
@@ -384,7 +384,7 @@ class GTG_ActiveLearning():
 
                 for idx, (_, unlab_sample_dl) in enumerate(self.unlab_samp_list):
 
-                    print(f'----------- STARTING WORKING WITH UNLABELED SAMPLE # {idx + 1} -----------\n')
+                    print(f'----------- WORKING WITH UNLABELED SAMPLE # {idx + 1} -----------\n')
 
                     self.get_embeddings('Sampled', unlab_sample_dl)
 
@@ -396,24 +396,25 @@ class GTG_ActiveLearning():
 
                     ds_top_k.append(self.topk_idx_val_obs)
 
-                    print(f'----------- ENDING WORKING WITH UNLABELED SAMPLE # {idx + 1} -----------\n')
+                    #print(f'----------- ENDING WORKING WITH UNLABELED SAMPLE # {idx + 1} -----------\n')
 
                 overall_topk = get_overall_top_k(ds_top_k, top_k_obs)
 
-                self.get_new_dataloader(overall_topk, n_samples)
+                self.get_new_dataloader(oversall_topk, n_samples)
 
                 test_loss, test_accuracy = self.test_AL_GTG()
+                
+                
+                write_csv(iter, n_samples, test_accuracy, test_loss)
+                
 
                 results[n_samples]['test_loss'].append(test_loss)
                 results[n_samples]['test_accuracy'].append(test_accuracy)
                 
-                #n_lab_obs.append(len(self.lab_train_ds))
                 
-                #print(results, n_lab_obs)
-
-                print(f'----------------------- END ITERATION {iter + 1} / {al_iters} -----------------------\n')
+                #print(f'----------------------- END ITERATION {iter + 1} / {al_iters} -----------------------\n')
                 iter += 1
                 
-            print(f'----------------------- START {n_samples} unalbeled samples of equal dimension  -----------------------\n')
+            #print(f'----------------------- START {n_samples} unalbeled samples of equal dimension  -----------------------\n')
 
         return results, n_lab_obs
