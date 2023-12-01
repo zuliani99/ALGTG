@@ -400,7 +400,7 @@ class GTG_ActiveLearning():
 
                 overall_topk = get_overall_top_k(ds_top_k, top_k_obs)
 
-                self.get_new_dataloader(oversall_topk, n_samples)
+                self.get_new_dataloader(overall_topk, n_samples)
 
                 test_loss, test_accuracy = self.test_AL_GTG()
                 
