@@ -82,13 +82,18 @@ def get_resnet18(n_classes):
 
     return resnet18
 
+    
 
-
-def plot_loss_curves(n_samples_results, n_lab_obs, save_plot, plot_png_name = None):
+def plot_loss_curves(methods_results, n_lab_obs, save_plot, plot_png_name = None):
 
     _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
-    for n_samples, results in n_samples_results.items():
-        ax[0].plot(n_lab_obs, results['test_loss'], label = f'test_loss - {str(n_samples)}')
+    for method_str, values in methods_results.items():
+        if(type(list(values.keys()[0])) == 'int'):
+            for n_samples, results in values.items():
+                ax[0].plot(n_lab_obs, results['test_loss'], label = f'{method_str} - {str(n_samples)} splits')
+        else:
+            ax[0].plot(n_lab_obs, values['test_loss'], label = f'{method_str}')
+
         
     ax[0].set_title('Loss - # Labeled Obs')
     ax[0].set_xlabel('# Labeled Obs')
@@ -97,8 +102,13 @@ def plot_loss_curves(n_samples_results, n_lab_obs, save_plot, plot_png_name = No
     ax[0].legend()
 
     
-    for n_samples, results in n_samples_results.items():
-        ax[1].plot(n_lab_obs, results['test_accuracy'], label = f'test_accuracy - {str(n_samples)}')
+    for method_str, values in methods_results.items():
+        if(type(list(values.keys()[0])) == 'int'):
+            for n_samples, results in values.items():
+                ax[0].plot(n_lab_obs, results['test_accuracy'], label = f'{method_str} - {str(n_samples)} splits')
+        else:
+            ax[0].plot(n_lab_obs, values['test_accuracy'], label = f'{method_str}')
+            
     
     ax[1].set_title('Accuracy Score - # Labeled Obs')
     ax[1].set_ylabel('Accuracy Score')
@@ -113,16 +123,16 @@ def plot_loss_curves(n_samples_results, n_lab_obs, save_plot, plot_png_name = No
 
 
 
-def write_csv(al_iter, n_samples, test_accuracy, test_loss):
-    if (not os.path.exists('../test_res.csv')):
+def write_csv(filename, head, values):
+    if (not os.path.exists(f'../temp_results/{filename}')):
         
         with open('../test_res.csv', 'w', encoding='UTF8') as f:
             writer = csv.writer(f)
-            writer.writerow(['al_iter', 'n_samples', 'test_accuracy', 'test_loss'])
+            writer.writerow(head)
             f.close()
         
     
-    with open('../test_res.csv', 'a', encoding='UTF8') as f:
+    with open(f'../temp_results/{filename}', 'a', encoding='UTF8') as f:
         writer = csv.writer(f)
-        writer.writerow([al_iter, n_samples, test_accuracy, test_loss])
+        writer.writerow(values)
         f.close()

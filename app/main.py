@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
 
-import os
 import torch
 import torch.nn as nn
+from ActiveLearning import ActiveLearning
 from cifar10 import get_cifar10
 from utils import get_initial_dataloaders, get_resnet18, accuracy_score, plot_loss_curves
-from GTG_ActiveLearning import GTG_ActiveLearning
+
 
 
 save_plot = True
-
 
 def main():
     
@@ -30,12 +29,12 @@ def main():
     optimizer = torch.optim.Adam(resnet18.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=2, verbose=True)
 
-    epochs = 30
-    al_iters = 25
-    top_k_obs = 1000
 
-    GTG_AL = GTG_ActiveLearning(
-        affinity_method = 'cosine_similarity', # possiible choices are: cosine_similarity, gaussian_kernel, eucliden_distance
+    epochs = 1#30
+    al_iters = 2#50
+    n_top_k_obs = 1000
+
+    Active_Learning_Cicle = ActiveLearning(
         n_classes = len(classes),
         batch_size=batch_size,
         model = resnet18,
@@ -52,11 +51,23 @@ def main():
         patience = 10,
     )
     
+    
+    our_method_params = {
+        'gtg_tol': 0.001,
+        'gtg_max_iter': 100,
+        'list_n_samples': [5, 10], #, 15 20, 25, 30])
+        'affinity_method': 'cosine_similarity',  # possiible choices are: cosine_similarity, gaussian_kernel, eucliden_distance
+    }
+    
+    #random_params = { }
 
 
-    results, n_lab_obs = GTG_AL.train_evaluate_AL_GTG(epochs=epochs, al_iters=al_iters, gtg_tol=0.001, gtg_max_iter=100, top_k_obs=top_k_obs, list_n_samples=[5, 10, 15, 20])
 
-    plot_loss_curves(results, n_lab_obs, save_plot, f'results_{epochs}_{al_iters}_{top_k_obs}.png')
+    results, n_lab_obs = Active_Learning_Cicle.train_evaluate(epochs=epochs, al_iters=al_iters, n_top_k_obs=n_top_k_obs,
+                                                      our_method_params=our_method_params)#, random_params=random_params)
+    
+
+    plot_loss_curves(results, n_lab_obs, save_plot, f'results_{epochs}_{al_iters}_{n_top_k_obs}.png')
     
     
 if __name__ == "__main__":
