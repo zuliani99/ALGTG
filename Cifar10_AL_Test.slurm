@@ -5,14 +5,13 @@
 #SBATCH --ntasks=1                    # Run on a single CPU
 #SBATCH --mem=128gb                     # Job memory request
 #SBATCH --time=48:00:00               # Time limit hrs:min:sec
-#SBATCH --output=test2.log   # Standard output and error log
+#SBATCH --output=app_log.log   # Standard output and error log
 #SBATCH --gres=gpu:1
 
 echo "Running Training Cifar"
 
 date
 
-conda init bash
 conda activate test
 
 python app/main.py
