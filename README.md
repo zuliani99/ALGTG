@@ -37,7 +37,7 @@ Connect to VPN UNIVE from Ubuntu
 nmcli con up id VPN-Ca-Foscari
 ```
 
-Before run the app on the server, change all the path to the relative path: *app/directory/directory/...*
+Before run the app on the server, change all the path to the relative path: *app/directory/directory/...* or *temp_results*
 
 To download the result plot locally run this commend on a local bash
 ```
