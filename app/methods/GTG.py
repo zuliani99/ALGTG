@@ -229,7 +229,7 @@ class GTG():
                 write_csv(
                     filename = 'OUR_test_res.csv',
                     head = ['method', 'al_iter', 'n_samples', 'test_accuracy', 'test_loss'],
-                    values = [self.method_name, iter, n_samples, test_accuracy, test_loss]
+                    values = [self.method_name, iter + 1, n_samples, test_accuracy, test_loss]
                 )
                 
                 results[n_samples]['test_loss'].append(test_loss)

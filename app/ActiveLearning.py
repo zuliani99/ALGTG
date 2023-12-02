@@ -182,7 +182,7 @@ class ActiveLearning():
     def train_evaluate(self, epochs, al_iters, n_top_k_obs, our_method_params):#, random_params):
 
         results = { }
-        n_lab_obs =  [len(self.lab_train_ds) + (iter * n_top_k_obs) for iter in range(al_iters)]
+        n_lab_obs =  [len(self.lab_train_ds) + (iter * n_top_k_obs) for iter in range(al_iters + 1)]
         
         methods = [GTG(self, our_method_params), Random_Strategy(self)]
         

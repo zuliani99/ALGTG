@@ -124,7 +124,7 @@ class Random_Strategy():
             write_csv(
                 filename = 'RANDOM_test_res.csv',
                 head = ['method', 'al_iter', 'test_accuracy', 'test_loss'],
-                values = [self.method_name, iter, test_accuracy, test_loss]
+                values = [self.method_name, iter + 1, test_accuracy, test_loss]
             )  
                   
             results['test_loss'].append(test_loss)

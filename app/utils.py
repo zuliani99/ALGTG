@@ -87,6 +87,8 @@ def get_resnet18(n_classes):
 def plot_loss_curves(methods_results, n_lab_obs, save_plot, plot_png_name = None):
 
     _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
+    print(methods_results)
+    print(n_lab_obs)
     for method_str, values in methods_results.items():
         if(isinstance(list(values.keys())[0], int)):
             for n_samples, results in values.items():
