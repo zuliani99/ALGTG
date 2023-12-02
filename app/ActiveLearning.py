@@ -150,7 +150,7 @@ class ActiveLearning():
 
 
 
-    def test_AL_GTG(self):
+    def test_AL(self):
         test_loss, test_accuracy = self.evaluate(self.test_dl)
 
         print('\nTESTING RESULTS -> val_loss: {:.6f}, val_accuracy: {:.6f} \n'.format(test_loss, test_accuracy))
@@ -160,7 +160,7 @@ class ActiveLearning():
 
 
 
-    def get_embeddings(self, dataloader):
+    def get_embeddings(self, type_embeds, dataloader):
             
         embeddings = torch.empty(0, list(self.model.children())[-1].in_features).to(self.device)
 
@@ -171,7 +171,7 @@ class ActiveLearning():
         # again no gradients needed
         with torch.inference_mode():
             for inputs, _ in pbar:
-                pbar.set_description(f'Getting Embeddings')
+                pbar.set_description(f'Getting {type_embeds} Embeddings')
                 embed = self.embed_model(inputs.to(self.device))
 
                 embeddings = torch.cat((embeddings, embed.squeeze()), dim=0)
@@ -185,7 +185,7 @@ class ActiveLearning():
         results = { }
         n_lab_obs =  [len(self.lab_train_ds) + (iter * n_top_k_obs) for iter in range(al_iters)]
         
-        methods = [GTG(self, our_method_params), Random_Strategy(self)]#, Random_Strategy(self, random_params)]
+        methods = [GTG(self, our_method_params), Random_Strategy(self)]
         
         print(f'----------------------- TRAINING ACTIVE LEARNING -----------------------\n')
         

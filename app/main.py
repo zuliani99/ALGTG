@@ -4,8 +4,7 @@ import torch
 import torch.nn as nn
 from ActiveLearning import ActiveLearning
 from cifar10 import get_cifar10
-from utils import get_initial_dataloaders, get_resnet18, accuracy_score, plot_loss_curves
-
+from utils import delete_previous_csv, get_initial_dataloaders, get_resnet18, accuracy_score, plot_loss_curves
 
 
 save_plot = True
@@ -60,13 +59,12 @@ def main():
     }
     
     #random_params = { }
-
-
+    
+    delete_previous_csv()
 
     results, n_lab_obs = Active_Learning_Cicle.train_evaluate(epochs=epochs, al_iters=al_iters, n_top_k_obs=n_top_k_obs,
                                                       our_method_params=our_method_params)#, random_params=random_params)
     
-
     plot_loss_curves(results, n_lab_obs, save_plot, f'results_{epochs}_{al_iters}_{n_top_k_obs}.png')
     
     

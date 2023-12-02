@@ -176,7 +176,7 @@ class GTG():
                 self.Main_AL_class.reintialize_model()
                 self.Main_AL_class.fit(epochs, self.lab_train_dl) # train in the labeled observations
                 
-                test_loss, test_accuracy = self.Main_AL_class.test_AL_GTG()
+                test_loss, test_accuracy = self.Main_AL_class.test_AL()
                 
                 write_csv(
                     filename = 'OUR_test_res.csv',
@@ -190,18 +190,19 @@ class GTG():
             
                 
                 self.get_unlabeled_samples(n_samples)
-                self.labeled_embeddings = self.Main_AL_class.get_embeddings(self.lab_train_dl)
+                self.labeled_embeddings = self.Main_AL_class.get_embeddings('Labeled', self.lab_train_dl)
 
                 ds_top_k = []
 
                 pbar = tqdm(enumerate(self.unlab_samp_list), total=len(self.unlab_samp_list), leave=True)
-                pbar.set_description(f'WORKING WITH UNLABELED SAMPLE # {idx + 1}')
                                 
                 for idx, (_, unlab_sample_dl) in pbar:#enumerate(self.unlab_samp_list):
+                    
+                    pbar.set_description(f'WORKING WITH UNLABELED SAMPLE # {idx + 1}')
 
                     #print(f'----------- WORKING WITH UNLABELED SAMPLE # {idx + 1} -----------\n')
 
-                    self.unlabeled_embeddings = self.Main_AL_class.get_embeddings(unlab_sample_dl)
+                    self.unlabeled_embeddings = self.Main_AL_class.get_embeddings('Unlabeled', unlab_sample_dl)
                                 
                     self.get_A()
                     self.get_X(len(self.unlabeled_embeddings))

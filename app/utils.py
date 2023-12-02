@@ -88,7 +88,8 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, plot_png_name = None
 
     _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
     for method_str, values in methods_results.items():
-        if(type(list(values.keys()[0])) == 'int'):
+        if(isinstance(list(values.keys())[0], int)):
+            print('ok')
             for n_samples, results in values.items():
                 ax[0].plot(n_lab_obs, results['test_loss'], label = f'{method_str} - {str(n_samples)} splits')
         else:
@@ -103,11 +104,11 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, plot_png_name = None
 
     
     for method_str, values in methods_results.items():
-        if(type(list(values.keys()[0])) == 'int'):
+        if(isinstance(list(values.keys())[0], int)):
             for n_samples, results in values.items():
-                ax[0].plot(n_lab_obs, results['test_accuracy'], label = f'{method_str} - {str(n_samples)} splits')
+                ax[1].plot(n_lab_obs, results['test_accuracy'], label = f'{method_str} - {str(n_samples)} splits')
         else:
-            ax[0].plot(n_lab_obs, values['test_accuracy'], label = f'{method_str}')
+            ax[1].plot(n_lab_obs, values['test_accuracy'], label = f'{method_str}')
             
     
     ax[1].set_title('Accuracy Score - # Labeled Obs')
@@ -126,7 +127,7 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, plot_png_name = None
 def write_csv(filename, head, values):
     if (not os.path.exists(f'../temp_results/{filename}')):
         
-        with open('../test_res.csv', 'w', encoding='UTF8') as f:
+        with open(f'../temp_results/{filename}', 'w', encoding='UTF8') as f:
             writer = csv.writer(f)
             writer.writerow(head)
             f.close()
@@ -136,3 +137,14 @@ def write_csv(filename, head, values):
         writer = csv.writer(f)
         writer.writerow(values)
         f.close()
+
+
+
+def delete_previous_csv():
+            
+    files = os.listdir('../temp_results')
+
+    for file in files:
+        if file.endswith(".csv"):
+            file_path = os.path.join('../temp_results', file)
+            os.remove(file_path)

@@ -20,7 +20,13 @@ GitHub Token
 ```
 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
 ```
+
 Remove the directory
 ```
 rm -rf Active_Learning_GTG/
+```
+
+Connect to VPN UNIVE from Ubuntu
+```
+nmcli con up id VPN-Ca-Foscari
 ```
