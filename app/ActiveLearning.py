@@ -166,12 +166,11 @@ class ActiveLearning():
 
         self.embed_model.eval()
 
-        pbar = tqdm(dataloader, total = len(dataloader), leave=False)
+        pbar = tqdm(dataloader, total = len(dataloader), leave=False, desc=f'Getting {type_embeds} Embeddings')
 
         # again no gradients needed
         with torch.inference_mode():
             for inputs, _ in pbar:
-                pbar.set_description(f'Getting {type_embeds} Embeddings')
                 embed = self.embed_model(inputs.to(self.device))
 
                 embeddings = torch.cat((embeddings, embed.squeeze()), dim=0)

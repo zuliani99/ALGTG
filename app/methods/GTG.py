@@ -118,7 +118,7 @@ class GTG():
             np.array([
                 self.lab_train_ds[i][0] if isinstance(self.lab_train_ds[i][0], np.ndarray) else self.lab_train_ds[i][0].numpy(),
                 self.lab_train_ds[i][1]
-            ], dtype=object) for i in tqdm(range(len(self.lab_train_ds)), leave=False)], dtype=object)
+            ], dtype=object) for i in tqdm(range(len(self.lab_train_ds)), leave=False, desc='Copying lab_train_ds')], dtype=object)
         
         #new_lab_train_ds = torch.tensor([self.lab_train_ds[i][::1]] for i in tqdm(range(len(self.lab_train_ds))))
         
@@ -127,11 +127,11 @@ class GTG():
             np.array([
                 self.unlab_train_ds[i][0] if isinstance(self.unlab_train_ds[i][0], np.ndarray) else self.unlab_train_ds[i][0].numpy(),
                 self.unlab_train_ds[i][1]
-            ], dtype=object) for i in tqdm(range(len(self.unlab_train_ds)), leave=False)], dtype=object)
+            ], dtype=object) for i in tqdm(range(len(self.unlab_train_ds)), leave=False, desc='Copying unlab_train_ds')], dtype=object)
         
         #new_unlab_train_ds = torch.tensor([self.unlab_train_ds[i][::1]] for i in tqdm(range(len(self.unlab_train_ds))))
 
-        for list_index, topk_index_value in overall_topk:
+        for list_index, topk_index_value in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Adding the observation to the Labeled Dataset'):
             new_lab_train_ds = np.vstack((new_lab_train_ds, np.expand_dims(
                 np.array([
                     self.unlab_samp_list[list_index][0][topk_index_value][0] if isinstance(self.unlab_samp_list[list_index][0][topk_index_value][0], np.ndarray)
@@ -142,7 +142,7 @@ class GTG():
             
             #new_lab_train_ds = torch.cat((new_lab_train_ds, torch.tensor([self.unlab_samp_list[list_index][0][topk_index_value][::1]])), dim = 0)
             
-        for list_index, topk_index_value in overall_topk:
+        for list_index, topk_index_value in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Removing the observation from the Unlabeled Dataset'):
             new_unlab_train_ds = np.delete(new_unlab_train_ds, (list_index * n_samples) + topk_index_value, axis = 0)
             
             #new_unlab_train_ds = torch.cat((new_unlab_train_ds[ : ((list_index * n_samples) + topk_index_value)],
@@ -169,25 +169,27 @@ class GTG():
             iter = 0
 
             results[n_samples] = { 'test_loss': [], 'test_accuracy': [] }
-
-                        
+                
+            # iter = 0            
+            print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
+            self.Main_AL_class.reintialize_model()
+            self.Main_AL_class.fit(epochs, self.lab_train_dl) # train in the labeled observations
+                
+            test_loss, test_accuracy = self.Main_AL_class.test_AL()
+                
+            write_csv(
+                filename = 'OUR_test_res.csv',
+                head = ['method', 'al_iter', 'n_samples', 'test_accuracy', 'test_loss'],
+                values = [self.method_name, iter, n_samples, test_accuracy, test_loss]
+            )
+                
+            results[n_samples]['test_loss'].append(test_loss)
+            results[n_samples]['test_accuracy'].append(test_accuracy)
+                     
+                     
+            # start of the loop   
             while len(self.unlab_train_ds) > 0 and iter < al_iters:
-                print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')
-                self.Main_AL_class.reintialize_model()
-                self.Main_AL_class.fit(epochs, self.lab_train_dl) # train in the labeled observations
-                
-                test_loss, test_accuracy = self.Main_AL_class.test_AL()
-                
-                write_csv(
-                    filename = 'OUR_test_res.csv',
-                    head = ['method', 'al_iter', 'n_samples', 'test_accuracy', 'test_loss'],
-                    values = [self.method_name, iter, n_samples, test_accuracy, test_loss]
-                )
-                
-                results[n_samples]['test_loss'].append(test_loss)
-                results[n_samples]['test_accuracy'].append(test_accuracy)
-                
-            
+                print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')              
                 
                 self.get_unlabeled_samples(n_samples)
                 self.labeled_embeddings = self.Main_AL_class.get_embeddings('Labeled', self.lab_train_dl)
@@ -215,7 +217,25 @@ class GTG():
             
                 overall_topk = get_overall_top_k(ds_top_k, n_top_k_obs)
                             
-                self.get_new_dataloaders(overall_topk, n_samples)           
+                self.get_new_dataloaders(overall_topk, n_samples)
+                
+                
+                # iter + 1
+                self.Main_AL_class.reintialize_model()
+                self.Main_AL_class.fit(epochs, self.lab_train_dl) # train in the labeled observations
+                
+                test_loss, test_accuracy = self.Main_AL_class.test_AL()
+                
+                write_csv(
+                    filename = 'OUR_test_res.csv',
+                    head = ['method', 'al_iter', 'n_samples', 'test_accuracy', 'test_loss'],
+                    values = [self.method_name, iter, n_samples, test_accuracy, test_loss]
+                )
+                
+                results[n_samples]['test_loss'].append(test_loss)
+                results[n_samples]['test_accuracy'].append(test_accuracy)
+                
+                
                         
                 iter += 1
         

@@ -89,7 +89,6 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, plot_png_name = None
     _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
     for method_str, values in methods_results.items():
         if(isinstance(list(values.keys())[0], int)):
-            print('ok')
             for n_samples, results in values.items():
                 ax[0].plot(n_lab_obs, results['test_loss'], label = f'{method_str} - {str(n_samples)} splits')
         else:
