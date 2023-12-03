@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 import csv
 import os
@@ -160,3 +161,4 @@ def create_ts_dir_res(timestamp):
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise  # This was not a "directory exist" error..
+        

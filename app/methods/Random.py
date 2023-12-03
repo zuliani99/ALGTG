@@ -34,46 +34,40 @@ class Random_Strategy():
     def get_new_dataloaders(self, topk_idx_obs):
         new_lab_train_ds = np.array([
             np.array([
-                self.lab_train_ds[i][0] if isinstance(self.lab_train_ds[i][0], np.ndarray) else self.lab_train_ds[i][0].numpy(),
-                self.lab_train_ds[i][1]
-            ], dtype=object) for i in tqdm(range(len(self.lab_train_ds)), leave=False, desc='Copying lab_train_ds')], dtype=object)
+                image if isinstance(image, np.ndarray) else image.numpy(), label
+            ], dtype=object) for image, label in tqdm(self.lab_train_ds, total=len(self.lab_train_ds), leave=False, desc='Copying lab_train_ds')], dtype=object)
         
         #new_lab_train_ds = torch.tensor([self.lab_train_ds[i][::1]] for i in tqdm(range(len(self.lab_train_ds))))
         
-
         new_unlab_train_ds = np.array([
             np.array([
-                self.unlab_train_ds[i][0] if isinstance(self.unlab_train_ds[i][0], np.ndarray) else self.unlab_train_ds[i][0].numpy(),
-                self.unlab_train_ds[i][1]
-            ], dtype=object) for i in tqdm(range(len(self.unlab_train_ds)), leave=False, desc='Copying unlab_train_ds')], dtype=object)
+                image if isinstance(image, np.ndarray) else image.numpy(), label
+            ], dtype=object) for image, label in tqdm(self.unlab_train_ds, total=len(self.unlab_train_ds), leave=False, desc='Copying unlab_train_ds')], dtype=object)
         
         #new_unlab_train_ds = torch.tensor([self.unlab_train_ds[i][::1]] for i in tqdm(range(len(self.unlab_train_ds))))
 
 
-
-        #for list_index, topk_index_value in topk_idx_obs:
         for idx_to_move in tqdm(topk_idx_obs, total=len(topk_idx_obs), leave=False, desc='Adding the observation to the Labeled Dataset'):
             new_lab_train_ds = np.vstack((new_lab_train_ds, np.expand_dims(
-                np.array([
-                    self.unlab_train_ds[idx_to_move][0] if isinstance(self.unlab_train_ds[idx_to_move][0], np.ndarray)
-                        else self.unlab_train_ds[idx_to_move][0].numpy(),
-                    self.unlab_train_ds[idx_to_move][1]
-                ], dtype=object)
+                np.array(new_unlab_train_ds[idx_to_move], dtype=object)
             , axis=0)))
             
             #new_lab_train_ds = torch.cat((new_lab_train_ds, torch.tensor([self.unlab_samp_list[list_index][0][topk_index_value][::1]])), dim = 0)
             
-        #for list_index, topk_index_value in overall_topk:
-        for idx_to_move in tqdm(topk_idx_obs, total=len(topk_idx_obs), leave=False, desc='Removing the observation from the Unlabeled Dataset'):
-            new_unlab_train_ds = np.delete(new_unlab_train_ds, idx_to_move - len(self.lab_train_ds), axis = 0) # --------------------------------------------------------------------------> LA SOTTRAZIONE HA SENSO????????????????????
+            
+        for idx_to_move in tqdm(topk_idx_obs, total=len(topk_idx_obs), leave=False, desc='Marking the observation from the Unlabeled Dataset'):
+            
+            new_unlab_train_ds[idx_to_move] = np.array([np.nan, np.nan], dtype=object) # set a [np.nan np.nan] the row and the get all the row not equal to [np.nan, np.nan]
             
             #new_unlab_train_ds = torch.cat((new_unlab_train_ds[ : ((list_index * n_samples) + topk_index_value)],
             #                                new_unlab_train_ds[((list_index * n_samples) + topk_index_value + 1) : ]))
             
-
-
+        
+        
         self.lab_train_ds = CIFAR10(None, new_lab_train_ds)
-        self.unlab_train_ds = CIFAR10(None, new_unlab_train_ds)
+        self.unlab_train_ds = CIFAR10(None,
+                                      new_unlab_train_ds[np.array([not np.isnan(row[1])
+                                                                   for row in tqdm(new_unlab_train_ds, total=len(new_unlab_train_ds), desc='Obtaining the unmarked observation from the Unlabeled Dataset', leave=False)])])
 
         self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
         self.unlab_train_dl = DataLoader(self.unlab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
@@ -87,7 +81,7 @@ class Random_Strategy():
         # iter = 0
         print(colored(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n', 'blue'))
             
-        self.Main_AL_class.reintialize_model()
+        #self.Main_AL_class.reintialize_model()
         self.Main_AL_class.fit(epochs, self.lab_train_dl)
             
         test_loss, test_accuracy = self.Main_AL_class.test_AL()

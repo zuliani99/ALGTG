@@ -62,7 +62,7 @@ def main():
     
     our_method_params = {
         'gtg_tol': 0.001,
-        'gtg_max_iter': 100,
+        'gtg_max_iter': 200,
         'list_n_samples': [5], #[5, 10, 15 20, 25, 30])
         'affinity_method': 'cosine_similarity',  # possiible choices are: cosine_similarity, gaussian_kernel, eucliden_distance
     }

@@ -34,7 +34,7 @@ class ActiveLearning():
         self.__save_checkpoint(self.init_check_filename)
         
         self.embed_model = nn.Sequential(*list(self.model.children())[:-1]).to(self.device)
-        
+          
         
 
     def reintialize_model(self):
