@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 
-#from tqdm.notebook import tqdm
+from termcolor import colored
 from tqdm import tqdm
 
 from methods.GTG import GTG
@@ -12,7 +12,7 @@ from methods.Random import Random_Strategy
 class ActiveLearning():
 
 
-    def __init__(self, n_classes, batch_size, model, optimizer, train_dl, test_dl, splitted_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, scheduler, device, patience):
+    def __init__(self, n_classes, batch_size, model, optimizer, train_dl, test_dl, splitted_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, scheduler, device, patience, timestamp):
         self.n_classes = n_classes
         self.model = model.to(device)
         self.batch_size = batch_size
@@ -27,6 +27,8 @@ class ActiveLearning():
         self.scheduler = scheduler
         self.device = device
         self.patience = patience
+        self.timestamp = timestamp
+        
         self.best_check_filename = './checkpoints/best_checkpoint.pth.tar' #app
         self.init_check_filename = './checkpoints/init_checkpoint.pth.tar' #app
         self.__save_checkpoint(self.init_check_filename)
@@ -186,14 +188,24 @@ class ActiveLearning():
         
         methods = [GTG(self, our_method_params), Random_Strategy(self)]
         
-        print(f'----------------------- TRAINING ACTIVE LEARNING -----------------------\n')
+        print(colored(f'----------------------- TRAINING ACTIVE LEARNING -----------------------', 'red', 'on_white'))
+        print('\n')
         
         for method in methods:
             
-            print(f'-------------------------- {method.method_name} --------------------------\n')
+            print(colored(f'-------------------------- {method.method_name} --------------------------\n', 'red'))
             
             results[method.method_name] = method.run(al_iters, epochs, n_top_k_obs)
             
                     
-
+        print(colored('Resulting dictionary', 'red', 'on_grey'))
+        print('\n')
+        print(results)
+        print('\n')
+        
+        print(colored('Resulting number of observations', 'red', 'on_grey'))
+        print('\n')
+        print(n_lab_obs)
+        print('\n')
+        
         return results, n_lab_obs

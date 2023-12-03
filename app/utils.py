@@ -1,9 +1,12 @@
-import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
+
+import matplotlib.pyplot as plt
+
 import csv
 import os
+import errno
 
 
 def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
@@ -84,11 +87,10 @@ def get_resnet18(n_classes):
 
     
 
-def plot_loss_curves(methods_results, n_lab_obs, save_plot, plot_png_name = None):
+def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, plot_png_name = None):
 
     _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
-    print(methods_results)
-    print(n_lab_obs)
+    
     for method_str, values in methods_results.items():
         if(isinstance(list(values.keys())[0], int)):
             for n_samples, results in values.items():
@@ -120,32 +122,41 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, plot_png_name = None
 
     plt.suptitle('Results', fontsize = 30)
     
-    if save_plot: plt.savefig(plot_png_name)
+    if save_plot: plt.savefig(f'../results/{ts_dir}/{plot_png_name}') #results/{ts_dir}/{plot_png_name}
     else: plt.show()
 
 
 
-def write_csv(filename, head, values):
-    if (not os.path.exists(f'../temp_results/{filename}')):
+def write_csv(ts_dir, head, values):
+    if (not os.path.exists(f'../results/{ts_dir}/results.csv')): #results/{ts_dir}/results.csv
         
-        with open(f'../temp_results/{filename}', 'w', encoding='UTF8') as f:
+        with open(f'../results/{ts_dir}/results.csv', 'w', encoding='UTF8') as f: #results/{ts_dir}/results.csv
             writer = csv.writer(f)
             writer.writerow(head)
             f.close()
-        
     
-    with open(f'../temp_results/{filename}', 'a', encoding='UTF8') as f:
+    with open(f'../results/{ts_dir}/results.csv', 'a', encoding='UTF8') as f: #results/{ts_dir}/results.csv
         writer = csv.writer(f)
         writer.writerow(values)
         f.close()
 
 
 
-def delete_previous_csv():
+'''def delete_previous_csv():
             
-    files = os.listdir('../temp_results')
+    files = os.listdir('../temp_results') # 'temp_results'
 
     for file in files:
         if file.endswith(".csv"):
-            file_path = os.path.join('../temp_results', file)
+            file_path = os.path.join('../temp_results', file) # 'temp_results'
             os.remove(file_path)
+'''            
+            
+            
+def create_ts_dir_res(timestamp):
+    mydir = os.path.join('../results', timestamp) #results
+    try:
+        os.makedirs(mydir)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise  # This was not a "directory exist" error..

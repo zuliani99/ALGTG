@@ -6,11 +6,10 @@ import torch
 from torch.utils.data import DataLoader, random_split
 import torch.nn.functional as F
 
-
 from tqdm import tqdm
 import warnings
 import numpy as np
-
+from termcolor import colored
 
 
 class GTG():
@@ -143,7 +142,7 @@ class GTG():
             #new_lab_train_ds = torch.cat((new_lab_train_ds, torch.tensor([self.unlab_samp_list[list_index][0][topk_index_value][::1]])), dim = 0)
             
         for list_index, topk_index_value in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Removing the observation from the Unlabeled Dataset'):
-            new_unlab_train_ds = np.delete(new_unlab_train_ds, (list_index * n_samples) + topk_index_value, axis = 0)
+            new_unlab_train_ds = np.delete(new_unlab_train_ds, (list_index * n_samples) + topk_index_value, axis = 0) # - len(self.lab_train_ds) # --------------------------------------------------------------------------> LA SOTTRAZIONE HA SENSO????????????????????
             
             #new_unlab_train_ds = torch.cat((new_unlab_train_ds[ : ((list_index * n_samples) + topk_index_value)],
             #                                new_unlab_train_ds[((list_index * n_samples) + topk_index_value + 1) : ]))
@@ -164,21 +163,22 @@ class GTG():
         
         for n_samples in self.params['list_n_samples']:
                     
-            print(f'----------------------- WORING WITH {n_samples} UNLABELED SPLITS -----------------------\n')
+            print(colored(f'----------------------- WORKING WITH {n_samples} UNLABELED SPLITS -----------------------\n', 'green'))
                     
             iter = 0
 
             results[n_samples] = { 'test_loss': [], 'test_accuracy': [] }
                 
             # iter = 0            
-            print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
+            print(colored(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n', 'blue'))
             self.Main_AL_class.reintialize_model()
             self.Main_AL_class.fit(epochs, self.lab_train_dl) # train in the labeled observations
                 
             test_loss, test_accuracy = self.Main_AL_class.test_AL()
                 
             write_csv(
-                filename = 'OUR_test_res.csv',
+                #filename = 'OUR_test_res.csv',
+                ts_dir=self.Main_AL_class.timestamp,
                 head = ['method', 'al_iter', 'n_samples', 'test_accuracy', 'test_loss'],
                 values = [self.method_name, iter, n_samples, test_accuracy, test_loss]
             )
@@ -189,7 +189,7 @@ class GTG():
                      
             # start of the loop   
             while len(self.unlab_train_ds) > 0 and iter < al_iters:
-                print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')              
+                print(colored(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n', 'blue'))            
                 
                 self.get_unlabeled_samples(n_samples)
                 self.labeled_embeddings = self.Main_AL_class.get_embeddings('Labeled', self.lab_train_dl)
@@ -227,7 +227,8 @@ class GTG():
                 test_loss, test_accuracy = self.Main_AL_class.test_AL()
                 
                 write_csv(
-                    filename = 'OUR_test_res.csv',
+                    #filename = 'OUR_test_res.csv',
+                    ts_dir=self.Main_AL_class.timestamp,
                     head = ['method', 'al_iter', 'n_samples', 'test_accuracy', 'test_loss'],
                     values = [self.method_name, iter + 1, n_samples, test_accuracy, test_loss]
                 )

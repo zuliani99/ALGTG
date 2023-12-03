@@ -1,11 +1,13 @@
 
-
-from utils import write_csv
 import random
 import numpy as np
 from tqdm import tqdm
-from cifar10 import CIFAR10
+from termcolor import colored
+
 from torch.utils.data import DataLoader
+
+from utils import write_csv
+from cifar10 import CIFAR10
 
 
 
@@ -83,7 +85,7 @@ class Random_Strategy():
         results = { 'test_loss': [], 'test_accuracy': [] }
         
         # iter = 0
-        print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
+        print(colored(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n', 'blue'))
             
         self.Main_AL_class.reintialize_model()
         self.Main_AL_class.fit(epochs, self.lab_train_dl)
@@ -91,10 +93,12 @@ class Random_Strategy():
         test_loss, test_accuracy = self.Main_AL_class.test_AL()
         
         write_csv(
-            filename = 'RANDOM_test_res.csv',
-            head = ['method', 'al_iter', 'test_accuracy', 'test_loss'],
-            values = [self.method_name, iter, test_accuracy, test_loss]
+            #filename = 'RANDOM_test_res.csv',
+            ts_dir=self.Main_AL_class.timestamp,
+            head = ['method', 'al_iter', 'n_samples', 'test_accuracy', 'test_loss'],
+            values = [self.method_name, iter + 1, 'None', test_accuracy, test_loss]
         )
+
         
         results['test_loss'].append(test_loss)
         results['test_accuracy'].append(test_accuracy)
@@ -102,7 +106,7 @@ class Random_Strategy():
         
         # start of the loop
         while len(self.unlab_train_ds) > 0 and iter < al_iters:
-            print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')
+            print(colored(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n', 'blue'))
                             
             self.labeled_embeddings = self.Main_AL_class.get_embeddings('Labeled', self.lab_train_dl)
             self.unlabeled_embeddings = self.Main_AL_class.get_embeddings('Unlabeled', self.unlab_train_dl)       
@@ -122,11 +126,12 @@ class Random_Strategy():
             test_loss, test_accuracy = self.Main_AL_class.test_AL()
             
             write_csv(
-                filename = 'RANDOM_test_res.csv',
-                head = ['method', 'al_iter', 'test_accuracy', 'test_loss'],
-                values = [self.method_name, iter + 1, test_accuracy, test_loss]
-            )  
-                  
+                #filename = 'RANDOM_test_res.csv',
+                ts_dir=self.Main_AL_class.timestamp,
+                head = ['method', 'al_iter', 'n_samples', 'test_accuracy', 'test_loss'],
+                values = [self.method_name, iter + 1, 'None', test_accuracy, test_loss]
+            )
+
             results['test_loss'].append(test_loss)
             results['test_accuracy'].append(test_accuracy)
             
