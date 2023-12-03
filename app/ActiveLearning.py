@@ -199,12 +199,10 @@ class ActiveLearning():
             
                     
         print(colored('Resulting dictionary', 'red', 'on_grey'))
-        print('\n')
         print(results)
         print('\n')
         
         print(colored('Resulting number of observations', 'red', 'on_grey'))
-        print('\n')
         print(n_lab_obs)
         print('\n')
         

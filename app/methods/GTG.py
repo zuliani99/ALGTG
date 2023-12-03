@@ -12,6 +12,7 @@ import numpy as np
 from termcolor import colored
 
 
+
 class GTG():
     
     def __init__(self, Main_AL_class, our_methods_params):
