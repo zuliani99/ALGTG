@@ -41,5 +41,5 @@ Before run the app on the server, change all the path to the relative path: *app
 
 To download the result plot locally run this commend on a local bash
 ```
-scp rzuliani@157.138.20.71:/home/rzuliani/projects/Active_Learning_GTG/results_1_2_1000.png /home/riccardo/Desktop
+scp rzuliani@157.138.20.71:/home/rzuliani/projects/Active_Learning_GTG/results/<timestamp>/<pircure_filename>.png /home/riccardo/Desktop
 ```
