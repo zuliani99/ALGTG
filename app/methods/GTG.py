@@ -256,7 +256,7 @@ class GTG():
                     ds_top_k.append(topk_idx_val_obs)
 
             
-                overall_topk = get_overall_top_k(ds_top_k, n_top_k_obs, sampled_unlab_size)
+                overall_topk = get_overall_top_k(ds_top_k, n_top_k_obs, sampled_unlab_size, self.Main_AL_class.device)
                 #tensor of indices of the unlabeled dataset
                             
                 self.get_new_dataloaders(overall_topk)

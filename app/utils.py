@@ -58,20 +58,20 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
 '''
 
 
-def get_overall_top_k(topk_list, top_k, subset_size):
+def get_overall_top_k(topk_list, top_k, subset_size, device):
     
-    val_final = torch.empty((0))
-    idx_final = torch.empty((0))
+    val_final = torch.empty((0)).to(device)
+    idx_final = torch.empty((0)).to(device)
 
     for idx, pair in enumerate(topk_list):
-        val_final = torch.cat((val_final, pair[0]))
-        idx_final = torch.cat((idx_final, pair[1] + int(idx * subset_size)))
+        val_final = torch.cat((val_final, pair[0].to(device)))
+        idx_final = torch.cat((idx_final, pair[1].to(device) + int(idx * subset_size)))
     
     idx_final = idx_final.type(torch.int)
     
     top_k_overall = torch.topk(val_final, k=top_k)
     
-    return torch.tensor([idx_final[idx_f_topk] for idx_f_topk in top_k_overall.indices])
+    return torch.tensor([idx_final[idx_f_topk] for idx_f_topk in top_k_overall.indices]).to(device)
     
 
 def accuracy_score(output, label):
