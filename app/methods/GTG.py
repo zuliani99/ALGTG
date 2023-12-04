@@ -36,18 +36,23 @@ class GTG():
         new_unlab_train_ds = self.unlab_train_ds
         unlabeled_size = len(new_unlab_train_ds)
         sampled_unlab_size = int(unlabeled_size // n_split)
+        
+        #print('unlabeled_size', unlabeled_size)
+        #print('sampled_unlab_size', sampled_unlab_size)
 
         while (unlabeled_size > 0):
 
             unlabeled_size -= sampled_unlab_size
 
-            # here I have random sampled from the unalbeled observation, uo
-            sampled_unlab_ds, new_unlab_train_ds = random_split(new_unlab_train_ds, [int(sampled_unlab_size), int(unlabeled_size)])
+            if(unlabeled_size > 0):
+                #print('unlabeled_size', unlabeled_size)
+                # here I have random sampled from the unalbeled observation, uo
+                sampled_unlab_ds, new_unlab_train_ds = random_split(new_unlab_train_ds, [int(sampled_unlab_size), int(unlabeled_size)])
 
-            self.unlab_samp_list.append((sampled_unlab_ds,
+                self.unlab_samp_list.append((sampled_unlab_ds,
                                          DataLoader(sampled_unlab_ds, batch_size=self.Main_AL_class.batch_size, shuffle=False, num_workers=2)))
         
-
+        return sampled_unlab_size
 
 
     def get_A(self):
@@ -112,7 +117,7 @@ class GTG():
 
 
 
-    def get_new_dataloaders(self, overall_topk, n_samples):
+    def get_new_dataloaders(self, overall_topk):
 
         new_lab_train_ds = np.array([
             np.array([
@@ -126,33 +131,67 @@ class GTG():
                 image if isinstance(image, np.ndarray) else image.numpy(), label
             ], dtype=object) for image, label in tqdm(self.unlab_train_ds, total=len(self.unlab_train_ds), leave=False, desc='Copying unlab_train_ds')], dtype=object)
         
+        
+        #print('self.lab_train_ds', len(self.lab_train_ds), 'new_lab_train_ds', len(new_lab_train_ds))
+        #print('self.unlab_train_ds', len(self.unlab_train_ds), 'new_unlab_train_ds', len(new_unlab_train_ds))
+        
+        
+        #print(overall_topk, len(overall_topk))
+        
         #new_unlab_train_ds = torch.tensor([self.unlab_train_ds[i][::1]] for i in tqdm(range(len(self.unlab_train_ds))))
 
-        for list_index, topk_index_value in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Adding the observation to the Labeled Dataset'):
+        #for list_index, topk_index_value in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Adding the observation to the Labeled Dataset'):
+        for topk_idx in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Adding the observation to the Labeled Dataset'):
             new_lab_train_ds = np.vstack((new_lab_train_ds, np.expand_dims(
-                np.array([
-                    self.unlab_samp_list[list_index][0][topk_index_value][0] if isinstance(self.unlab_samp_list[list_index][0][topk_index_value][0], np.ndarray)
-                        else self.unlab_samp_list[list_index][0][topk_index_value][0].numpy(),
-                    self.unlab_samp_list[list_index][0][topk_index_value][1]
+                np.array([new_unlab_train_ds[topk_idx.item()][0],
+                          new_unlab_train_ds[topk_idx.item()][1]
                 ], dtype=object)
             , axis=0)))
             
             #new_lab_train_ds = torch.cat((new_lab_train_ds, torch.tensor([self.unlab_samp_list[list_index][0][topk_index_value][::1]])), dim = 0)
+
+
+        
+        #to_nan = []
+        
+        #for list_index, topk_index_value in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Removing the observation from the Unlabeled Dataset'):
+        for topk_idx in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Removing the observation from the Unlabeled Dataset'):
             
-        for list_index, topk_index_value in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Removing the observation from the Unlabeled Dataset'):
-            #new_unlab_train_ds = np.delete(new_unlab_train_ds, (list_index * n_samples) + topk_index_value, axis = 0) 
+            #print((list_index * n_samples) + topk_index_value)
             
-            new_unlab_train_ds[(list_index * n_samples) + topk_index_value] = np.array([np.nan, np.nan], dtype=object) # set a [np.nan np.nan] the row and the get all the row not equal to [np.nan, np.nan]
+            #if((list_index * n_samples) + topk_index_value in to_nan): 
+            #    raise Exception('idice già vistoooo!')
+            
+            #if np.isnan(new_unlab_train_ds[(list_index * n_samples) + topk_index_value][1]):
+            #if np.isnan(new_unlab_train_ds[topk_idx.item()][1]):
+            #    raise Exception('GIAAAAAAA NAN')
+            
+            #new_unlab_train_ds[(list_index * n_samples) + topk_index_value] = np.array([np.nan, np.nan], dtype=object) # set a [np.nan np.nan] the row and the get all the row not equal to [np.nan, np.nan]
+            new_unlab_train_ds[topk_idx.item()] = np.array([np.nan, np.nan], dtype=object) # set a [np.nan np.nan] the row and the get all the row not equal to [np.nan, np.nan]
+            
+            #to_nan.append((list_index * n_samples) + topk_index_value)
+            
             
             #new_unlab_train_ds = torch.cat((new_unlab_train_ds[ : ((list_index * n_samples) + topk_index_value)],
             #                                new_unlab_train_ds[((list_index * n_samples) + topk_index_value + 1) : ]))
             
+        #i = 0
+        #for row in new_unlab_train_ds: 
+        #    if(np.isnan(row[1])): i += 1
+            
+        #print(f'ci sono {i} ossevazioni maskerate e da cancellare')
+        
+        
+        
+        
+        print('new_lab_train_ds', len(new_lab_train_ds))
+        
+        new_unlab_train_ds = new_unlab_train_ds[np.array([not np.isnan(row[1]) for row in tqdm(new_unlab_train_ds, total=len(new_unlab_train_ds), leave=False, desc='Obtaining the unmarked observation from the Unlabeled Dataset')])]
 
-
+        print('new_unlab_train_ds', len(new_unlab_train_ds))
+        
         self.lab_train_ds = CIFAR10(None, new_lab_train_ds)
-        self.unlab_train_ds = CIFAR10(None,
-                                      new_unlab_train_ds[np.array([not np.isnan(row[1])
-                                                                   for row in tqdm(new_unlab_train_ds, total=len(new_unlab_train_ds), leave=False, desc='Obtaining the unmarked observation from the Unlabeled Dataset')])])
+        self.unlab_train_ds = CIFAR10(None, new_unlab_train_ds)
 
         self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
         self.unlab_train_dl = DataLoader(self.unlab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
@@ -163,13 +202,13 @@ class GTG():
     def run(self, al_iters, epochs, n_top_k_obs):
         results = {}
         
-        for n_samples in self.params['list_n_samples']:
+        for n_splits in self.params['list_n_samples']:
                     
-            print(colored(f'----------------------- WORKING WITH {n_samples} UNLABELED SPLITS -----------------------\n', 'green'))
+            print(colored(f'----------------------- WORKING WITH {n_splits} UNLABELED SPLITS -----------------------\n', 'green'))
                     
             iter = 0
 
-            results[n_samples] = { 'test_loss': [], 'test_accuracy': [] }
+            results[n_splits] = { 'test_loss': [], 'test_accuracy': [] }
                 
             # iter = 0            
             print(colored(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n', 'blue'))
@@ -181,19 +220,19 @@ class GTG():
             write_csv(
                 #filename = 'OUR_test_res.csv',
                 ts_dir=self.Main_AL_class.timestamp,
-                head = ['method', 'al_iter', 'n_samples', 'test_accuracy', 'test_loss'],
-                values = [self.method_name, iter, n_samples, test_accuracy, test_loss]
+                head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
+                values = [self.method_name, iter, n_splits, test_accuracy, test_loss]
             )
                 
-            results[n_samples]['test_loss'].append(test_loss)
-            results[n_samples]['test_accuracy'].append(test_accuracy)
+            results[n_splits]['test_loss'].append(test_loss)
+            results[n_splits]['test_accuracy'].append(test_accuracy)
                      
                      
             # start of the loop   
             while len(self.unlab_train_ds) > 0 and iter < al_iters:
                 print(colored(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n', 'blue'))            
                 
-                self.get_unlabeled_samples(n_samples)
+                sampled_unlab_size = self.get_unlabeled_samples(n_splits)
                 self.labeled_embeddings = self.Main_AL_class.get_embeddings('Labeled', self.lab_train_dl)
 
                 ds_top_k = []
@@ -217,9 +256,10 @@ class GTG():
                     ds_top_k.append(topk_idx_val_obs)
 
             
-                overall_topk = get_overall_top_k(ds_top_k, n_top_k_obs)
+                overall_topk = get_overall_top_k(ds_top_k, n_top_k_obs, sampled_unlab_size)
+                #tensor of indices of the unlabeled dataset
                             
-                self.get_new_dataloaders(overall_topk, n_samples)
+                self.get_new_dataloaders(overall_topk)
                 
                 
                 # iter + 1
@@ -231,12 +271,12 @@ class GTG():
                 write_csv(
                     #filename = 'OUR_test_res.csv',
                     ts_dir=self.Main_AL_class.timestamp,
-                    head = ['method', 'al_iter', 'n_samples', 'test_accuracy', 'test_loss'],
-                    values = [self.method_name, iter + 1, n_samples, test_accuracy, test_loss]
+                    head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
+                    values = [self.method_name, iter + 1, n_splits, test_accuracy, test_loss]
                 )
                 
-                results[n_samples]['test_loss'].append(test_loss)
-                results[n_samples]['test_accuracy'].append(test_accuracy)
+                results[n_splits]['test_loss'].append(test_loss)
+                results[n_splits]['test_accuracy'].append(test_accuracy)
                 
                 
                         
