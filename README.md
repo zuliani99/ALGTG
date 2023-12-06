@@ -43,3 +43,8 @@ To download the result plot locally run this commend on a local bash
 ```
 scp rzuliani@157.138.20.71:/home/rzuliani/projects/Active_Learning_GTG/results/<timestamp>/<pircure_filename>.png /home/riccardo/Desktop
 ```
+
+How to check the usage of GPU memory
+```
+nvidia-smi --query-gpu=gpu_name,memory.used,memory.free,memory.total --format=csv
+```
