@@ -32,7 +32,7 @@ def main():
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=2, verbose=True)
 
 
-    epochs = 1#30
+    epochs = 2#30
     al_iters = 2#25
     n_top_k_obs = 1000
     
@@ -67,9 +67,6 @@ def main():
         'affinity_method': 'cosine_similarity',  # possiible choices are: cosine_similarity, gaussian_kernel, eucliden_distance
     }
     
-    #random_params = { }
-    
-    #delete_previous_csv()
 
     results, n_lab_obs = Active_Learning_Cicle.train_evaluate(epochs=epochs, al_iters=al_iters, n_top_k_obs=n_top_k_obs,
                                                       our_method_params=our_method_params)#, random_params=random_params)

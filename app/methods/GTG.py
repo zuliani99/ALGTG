@@ -37,27 +37,29 @@ class GTG():
         unlabeled_size = len(new_unlab_train_ds)
         sampled_unlab_size = int(unlabeled_size // n_split)
         
-        #print('unlabeled_size', unlabeled_size)
-        #print('sampled_unlab_size', sampled_unlab_size)
+        print('sampled_unlab_size', sampled_unlab_size)
+        print('unlabeled_size', unlabeled_size)
 
         while (unlabeled_size > 0):
 
             unlabeled_size -= sampled_unlab_size
 
             if(unlabeled_size > 0):
-                #print('unlabeled_size', unlabeled_size)
                 # here I have random sampled from the unalbeled observation, uo
                 sampled_unlab_ds, new_unlab_train_ds = random_split(new_unlab_train_ds, [int(sampled_unlab_size), int(unlabeled_size)])
 
                 self.unlab_samp_list.append((sampled_unlab_ds,
                                          DataLoader(sampled_unlab_ds, batch_size=self.Main_AL_class.batch_size, shuffle=False, num_workers=2)))
-        
+
+                print('unlabeled_size', unlabeled_size)
+                
+                            
         return sampled_unlab_size
 
 
     def get_A(self):
         
-        embeddings_cat = torch.cat((self.labeled_embeddings, self.unlabeled_embeddings), dim=0).to(self.Main_AL_class.device)
+        embeddings_cat = torch.cat((self.labeled_embeddings, self.samp_unlab_embeddings), dim=0).to(self.Main_AL_class.device)
 
         # Computing Cosine Similarity
         if(self.params['affinity_method'] == 'cosine_similarity'):
@@ -80,15 +82,20 @@ class GTG():
 
     def get_X(self, len_unlab_embeds):
 
-        self.X = torch.empty(0, self.Main_AL_class.n_classes).to(self.Main_AL_class.device)
+        self.X = torch.empty(0, self.Main_AL_class.n_classes, dtype=torch.float).to(self.Main_AL_class.device)
 
-        # X for the labeled observations
+        # put to X the zeros - one vector correspinding to the labeled observation
         for (_, label) in self.lab_train_ds:
             arr_one_zeros = torch.zeros(1, self.Main_AL_class.n_classes).to(self.Main_AL_class.device)
             arr_one_zeros[0][label] = 1
             self.X = torch.cat((self.X, arr_one_zeros), dim=0)
 
-        self.X = torch.cat((self.X, torch.full((len_unlab_embeds, self.Main_AL_class.n_classes), 1/self.Main_AL_class.n_classes).to(self.Main_AL_class.device)), dim=0)
+        # put to X the uniform distribution corresponding to the sampled unlabeled observations
+        self.X = torch.cat((self.X, torch.full(
+            (len_unlab_embeds, self.Main_AL_class.n_classes),1 / self.Main_AL_class.n_classes
+            , dtype=torch.float).to(self.Main_AL_class.device)), dim=0)
+        
+        
 
 
 
@@ -114,7 +121,11 @@ class GTG():
 
     def entropy_topK(self, top_k):
         return torch.topk(-torch.sum(self.X * torch.log2(self.X + 1e-20), dim=1), top_k)
+        # here the topk return the indices for the self.X which contains the whole set of prob dist observations splitted in two parts
+        # the labeled shoud have entropy = 1
+        # the most informative observation shoud have entropy colose to 0 -> I have to get these observations indices
 
+        # devo sottrarre gli indici della lunghezza del labeled set!!!!!!!!!!!!!!!!!!
 
 
     def get_new_dataloaders(self, overall_topk):
@@ -132,11 +143,10 @@ class GTG():
             ], dtype=object) for image, label in tqdm(self.unlab_train_ds, total=len(self.unlab_train_ds), leave=False, desc='Copying unlab_train_ds')], dtype=object)
         
         
-        #print('self.lab_train_ds', len(self.lab_train_ds), 'new_lab_train_ds', len(new_lab_train_ds))
-        #print('self.unlab_train_ds', len(self.unlab_train_ds), 'new_unlab_train_ds', len(new_unlab_train_ds))
+        print('new_lab_train_ds', len(new_lab_train_ds))
+        print('new_unlab_train_ds', len(new_unlab_train_ds))
         
-        
-        #print(overall_topk, len(overall_topk))
+        print('overall_topk', overall_topk)
         
         #new_unlab_train_ds = torch.tensor([self.unlab_train_ds[i][::1]] for i in tqdm(range(len(self.unlab_train_ds))))
 
@@ -150,43 +160,22 @@ class GTG():
             
             #new_lab_train_ds = torch.cat((new_lab_train_ds, torch.tensor([self.unlab_samp_list[list_index][0][topk_index_value][::1]])), dim = 0)
 
-
-        
-        #to_nan = []
-        
-        #for list_index, topk_index_value in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Removing the observation from the Unlabeled Dataset'):
         for topk_idx in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Removing the observation from the Unlabeled Dataset'):
-            
-            #print((list_index * n_samples) + topk_index_value)
-            
-            #if((list_index * n_samples) + topk_index_value in to_nan): 
-            #    raise Exception('idice già vistoooo!')
-            
-            #if np.isnan(new_unlab_train_ds[(list_index * n_samples) + topk_index_value][1]):
-            #if np.isnan(new_unlab_train_ds[topk_idx.item()][1]):
-            #    raise Exception('GIAAAAAAA NAN')
-            
-            #new_unlab_train_ds[(list_index * n_samples) + topk_index_value] = np.array([np.nan, np.nan], dtype=object) # set a [np.nan np.nan] the row and the get all the row not equal to [np.nan, np.nan]
-            new_unlab_train_ds[topk_idx.item()] = np.array([np.nan, np.nan], dtype=object) # set a [np.nan np.nan] the row and the get all the row not equal to [np.nan, np.nan]
-            
-            #to_nan.append((list_index * n_samples) + topk_index_value)
-            
-            
-            #new_unlab_train_ds = torch.cat((new_unlab_train_ds[ : ((list_index * n_samples) + topk_index_value)],
-            #                                new_unlab_train_ds[((list_index * n_samples) + topk_index_value + 1) : ]))
-            
-        #i = 0
-        #for row in new_unlab_train_ds: 
-        #    if(np.isnan(row[1])): i += 1
-            
-        #print(f'ci sono {i} ossevazioni maskerate e da cancellare')
+            new_unlab_train_ds[topk_idx.item()] = np.array([np.nan, np.nan], dtype=object)
+            # set a [np.nan np.nan] the row and the get all the row not equal to [np.nan, np.nan]
         
         
-        
+
         
         print('new_lab_train_ds', len(new_lab_train_ds))
         
-        new_unlab_train_ds = new_unlab_train_ds[np.array([not np.isnan(row[1]) for row in tqdm(new_unlab_train_ds, total=len(new_unlab_train_ds), leave=False, desc='Obtaining the unmarked observation from the Unlabeled Dataset')])]
+        new_unlab_train_ds = new_unlab_train_ds[
+            np.array(
+                [not np.isnan(row[1])
+                    for row in tqdm(new_unlab_train_ds, total=len(new_unlab_train_ds),
+                                    leave=False, desc='Obtaining the unmarked observation from the Unlabeled Dataset')
+                ]
+            )]
 
         print('new_unlab_train_ds', len(new_unlab_train_ds))
         
@@ -245,10 +234,10 @@ class GTG():
 
                     #print(f'----------- WORKING WITH UNLABELED SAMPLE # {idx + 1} -----------\n')
 
-                    self.unlabeled_embeddings = self.Main_AL_class.get_embeddings('Unlabeled', unlab_sample_dl)
+                    self.samp_unlab_embeddings = self.Main_AL_class.get_embeddings('Unlabeled', unlab_sample_dl)
                                 
                     self.get_A()
-                    self.get_X(len(self.unlabeled_embeddings))
+                    self.get_X(len(self.samp_unlab_embeddings))
                     self.gtg(self.params['gtg_tol'], self.params['gtg_max_iter'])
 
                     topk_idx_val_obs = self.entropy_topK(n_top_k_obs) # top k for the matrix X composed with the ds of labeled and unlabeled, so the index are referred to these two sets
@@ -256,7 +245,7 @@ class GTG():
                     ds_top_k.append(topk_idx_val_obs)
 
             
-                overall_topk = get_overall_top_k(ds_top_k, n_top_k_obs, sampled_unlab_size, self.Main_AL_class.device)
+                overall_topk = get_overall_top_k(ds_top_k, n_top_k_obs, sampled_unlab_size, len(self.lab_train_ds), self.Main_AL_class.device)
                 #tensor of indices of the unlabeled dataset
                             
                 self.get_new_dataloaders(overall_topk)

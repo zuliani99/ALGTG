@@ -58,20 +58,21 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
 '''
 
 
-def get_overall_top_k(topk_list, top_k, subset_size, device):
+def get_overall_top_k(topk_list, top_k, subset_size, len_lab_ds, device):
     
     val_final = torch.empty((0)).to(device)
     idx_final = torch.empty((0)).to(device)
 
     for idx, pair in enumerate(topk_list):
         val_final = torch.cat((val_final, pair[0].to(device)))
-        idx_final = torch.cat((idx_final, pair[1].to(device) + int(idx * subset_size)))
+        idx_final = torch.cat((idx_final, (pair[1].to(device) - len_lab_ds) + int(idx * subset_size)))
     
     idx_final = idx_final.type(torch.int)
     
     top_k_overall = torch.topk(val_final, k=top_k)
     
     return torch.tensor([idx_final[idx_f_topk] for idx_f_topk in top_k_overall.indices]).to(device)
+    
     
 
 def accuracy_score(output, label):
@@ -142,18 +143,7 @@ def write_csv(ts_dir, head, values):
         writer = csv.writer(f)
         writer.writerow(values)
         f.close()
-
-
-
-'''def delete_previous_csv():
-            
-    files = os.listdir('../temp_results') # 'temp_results'
-
-    for file in files:
-        if file.endswith(".csv"):
-            file_path = os.path.join('../temp_results', file) # 'temp_results'
-            os.remove(file_path)
-'''            
+                 
             
             
 def create_ts_dir_res(timestamp):
