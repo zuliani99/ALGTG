@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=Cifar10_AL_test    # Job name
+#SBATCH --job-name=C10_AL    # Job name
 #SBATCH --mail-type=ALL          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=875532@stud.unive.it     # Where to send mail	
 #SBATCH --ntasks=1                    # Run on a single CPU
