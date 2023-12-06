@@ -120,7 +120,7 @@ class GTG():
 
 
     def entropy_topK(self, top_k):
-        return torch.topk(-torch.sum(self.X * torch.log2(self.X + 1e-20), dim=1), top_k)
+        return torch.topk(-torch.sum(self.X * torch.log(self.X), dim=1), top_k)
         # here the topk return the indices for the self.X which contains the whole set of prob dist observations splitted in two parts
         # the labeled shoud have entropy = 1
         # the most informative observation shoud have entropy colose to 0 -> I have to get these observations indices
