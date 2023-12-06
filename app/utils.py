@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
+import torchvision.models as models
 
 import matplotlib.pyplot as plt
-import numpy as np
 
 import csv
 import os
@@ -82,7 +82,8 @@ def accuracy_score(output, label):
 
 
 def get_resnet18(n_classes):
-    resnet18 = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', weights='DEFAULT')
+    #resnet18 = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', weights='DEFAULT')
+    resnet18 = models.resnet18(weights=None)
 
     num_ftrs = resnet18.fc.in_features
     resnet18.fc = nn.Linear(num_ftrs, n_classes)

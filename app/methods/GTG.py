@@ -120,7 +120,9 @@ class GTG():
 
 
     def entropy_topK(self, top_k):
-        return torch.topk(-torch.sum(self.X * torch.log(self.X), dim=1), top_k)
+        self.X = self.X + 1e-20
+        return torch.topk(-torch.sum(self.X * torch.log2(self.X), dim=1), top_k)
+    
         # here the topk return the indices for the self.X which contains the whole set of prob dist observations splitted in two parts
         # the labeled shoud have entropy = 1
         # the most informative observation shoud have entropy colose to 0 -> I have to get these observations indices
@@ -146,7 +148,7 @@ class GTG():
         print('new_lab_train_ds', len(new_lab_train_ds))
         print('new_unlab_train_ds', len(new_unlab_train_ds))
         
-        print('overall_topk', overall_topk)
+        #print('overall_topk', overall_topk)
         
         #new_unlab_train_ds = torch.tensor([self.unlab_train_ds[i][::1]] for i in tqdm(range(len(self.unlab_train_ds))))
 
