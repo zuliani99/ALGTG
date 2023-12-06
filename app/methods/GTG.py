@@ -1,5 +1,5 @@
 
-from utils import get_overall_top_k, write_csv
+from utils import get_overall_top_k, write_csv, entropy
 from cifar10 import CIFAR10
 
 import torch
@@ -103,11 +103,14 @@ class GTG():
     def gtg(self, tol, max_iter):
         err = float('Inf')
         i = 0
-
+        
         while err > tol and i < max_iter:
             X_old = self.X.clone()
             self.X = self.X * torch.mm(self.A, self.X)
             self.X /= self.X.sum(axis=1, keepdim=True)
+            
+            top1 = self.entropy_topK(1)
+            print(f'TOP1: prob_val = {self.X[top1.indices[0].item()]}\n\tentropy_val = {top1.values[0].item()}\n\tidx = {top1.indices[0].item()}\n')
 
             err = torch.norm(self.X - X_old)
             i += 1
@@ -120,14 +123,12 @@ class GTG():
 
 
     def entropy_topK(self, top_k):
-        self.X = self.X + 1e-20
-        return torch.topk(-torch.sum(self.X * torch.log2(self.X), dim=1), top_k)
+        return torch.topk(entropy(self.X), top_k)
     
         # here the topk return the indices for the self.X which contains the whole set of prob dist observations splitted in two parts
         # the labeled shoud have entropy = 1
         # the most informative observation shoud have entropy colose to 0 -> I have to get these observations indices
 
-        # devo sottrarre gli indici della lunghezza del labeled set!!!!!!!!!!!!!!!!!!
 
 
     def get_new_dataloaders(self, overall_topk):

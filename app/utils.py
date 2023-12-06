@@ -90,6 +90,10 @@ def get_resnet18(n_classes):
 
     return resnet18
 
+
+def entropy(tensor):
+    tensor = tensor + 1e-20
+    return -torch.sum(tensor * torch.log2(tensor), dim=1)
     
 
 def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, plot_png_name = None):

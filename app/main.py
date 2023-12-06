@@ -23,7 +23,12 @@ def main():
 
     trainset, test_dl, classes = get_cifar10(batch_size)
 
-    splitted_train_dl, splitted_train_ds, train_dl, val_dl = get_initial_dataloaders(trainset, 0.2, 0.1, batch_size)
+    splitted_train_dl, splitted_train_ds, train_dl, val_dl = get_initial_dataloaders(
+        trainset = trainset,
+        val_rateo = 0.2,
+        labeled_ratio = 0.1,
+        batch_size = batch_size
+    )
 
     resnet18 = get_resnet18(len(classes))
 
