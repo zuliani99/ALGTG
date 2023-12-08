@@ -19,7 +19,7 @@ def main():
 
     print(f'Application running on {device}\n')
     
-    batch_size = 64
+    batch_size = 128
 
     trainset, test_dl, classes = get_cifar10(batch_size)
 
@@ -68,7 +68,7 @@ def main():
     
     our_method_params = {
         'gtg_tol': 0.001,
-        'gtg_max_iter': 200,
+        'gtg_max_iter': 10,#200,
         'list_n_samples': [5], #[5, 10, 15 20, 25, 30])
         'affinity_method': 'cosine_similarity',  # possiible choices are: cosine_similarity, gaussian_kernel, eucliden_distance
     }

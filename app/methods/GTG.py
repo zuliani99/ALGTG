@@ -26,6 +26,8 @@ class GTG():
         
         self.lab_train_ds = self.Main_AL_class.lab_train_ds
         self.unlab_train_ds = self.Main_AL_class.unlab_train_ds
+        
+        self.entropy_history = np.zeros((len(self.unlab_train_ds), self.params['gtg_max_iter']))
 
 
     def clear_memory(self):
@@ -69,6 +71,7 @@ class GTG():
         if(self.params['affinity_method'] == 'cosine_similarity'):
             normalized_embedding = F.normalize(embeddings_cat, p=2, dim=-1).to(self.Main_AL_class.device)
             self.A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.Main_AL_class.device)
+            del normalized_embedding
 
         # Calculate Gaussian kernel
         elif(self.params['affinity_method'] == 'gaussian_kernel'):
@@ -114,7 +117,7 @@ class GTG():
                     
 
     '''
-devo avere un n x m x max_iter
+devo avere un n x max_iter
 ad ogni iterazione i inserisco l'entropia relativa ad ogni osservazione nella cella [oss, m, i]
 alla fine mi faccio la derivata della storia dell'entropia di ogni osservazione 
 cosi' facendo ho un valore che mi in
@@ -123,7 +126,7 @@ cosi' facendo ho un valore che mi in
 
 
 
-    def gtg(self, tol, max_iter):
+    def gtg(self, tol, max_iter, idx_split, dim_split):
         err = float('Inf')
         i = 0
         
@@ -132,11 +135,20 @@ cosi' facendo ho un valore che mi in
             self.X = self.X * torch.mm(self.A, self.X)
             self.X /= self.X.sum(axis=1, keepdim=True)
             
-            top1 = self.entropy_topK(1)
-            print(f'TOP1: prob_val = {self.X[top1.indices[0].item()]}\n\tentropy_val = {top1.values[0].item()}\n\tidx = {top1.indices[0].item()}\n')
+            #top1 = self.entropy_topK(1)
+            #print(f'TOP1: prob_val = {self.X[top1.indices[0].item()]}\n\tentropy_val = {top1.values[0].item()}\n\tidx = {top1.indices[0].item()}\n')
 
+                
+            iter_entropy = entropy(self.X) 
+
+            for idx, unlab_ent_val in enumerate(iter_entropy):
+                self.entropy_history[idx + (idx_split * dim_split)][i] = unlab_ent_val
+                
+                
             err = torch.norm(self.X - X_old)
             i += 1
+                
+            
 
         if i == max_iter:
             warnings.warn('Max number of iterations reached.')
@@ -270,7 +282,7 @@ cosi' facendo ho un valore che mi in
                                 
                     self.get_A()
                     self.get_X(len(self.samp_unlab_embeddings))
-                    self.gtg(self.params['gtg_tol'], self.params['gtg_max_iter'])
+                    self.gtg(self.params['gtg_tol'], self.params['gtg_max_iter'], idx, sampled_unlab_size)
 
                     topk_idx_val_obs = self.entropy_topK(n_top_k_obs) # top k for the matrix X composed with the ds of labeled and unlabeled, so the index are referred to these two sets
 
