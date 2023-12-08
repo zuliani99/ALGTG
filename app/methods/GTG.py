@@ -22,12 +22,16 @@ class GTG():
         self.params = our_methods_params
    
         self.lab_train_dl = self.Main_AL_class.lab_train_dl
-        self.unlab_train_dl = self.Main_AL_class.unlab_train_dl
+        #self.unlab_train_dl = self.Main_AL_class.unlab_train_dl
         
         self.lab_train_ds = self.Main_AL_class.lab_train_ds
         self.unlab_train_ds = self.Main_AL_class.unlab_train_ds
 
 
+    def clear_memory(self):
+        del self.X
+        del self.A
+        torch.cuda.empty_cache()
 
 
     def get_unlabeled_samples(self, n_split):
@@ -82,7 +86,7 @@ class GTG():
 
     def get_X(self, len_unlab_embeds):
 
-        self.X = torch.empty(0, self.Main_AL_class.n_classes, dtype=torch.float).to(self.Main_AL_class.device)
+        '''self.X = torch.empty(0, self.Main_AL_class.n_classes, dtype=torch.float).to(self.Main_AL_class.device)
 
         # put to X the zeros - one vector correspinding to the labeled observation
         for (_, label) in self.lab_train_ds:
@@ -96,6 +100,25 @@ class GTG():
             , dtype=torch.float).to(self.Main_AL_class.device)), dim=0)
         
         
+        '''
+        
+        #del self.X
+        #torch.cuda.empty_cache()
+        
+        self.X = torch.zeros(len(self.lab_train_ds) + len_unlab_embeds, self.Main_AL_class.n_classes, dtype=torch.float).to(self.Main_AL_class.device)
+        
+        for idx, (_, label) in enumerate(self.lab_train_ds): self.X[idx][label] = 1
+        for idx in range(len(self.lab_train_ds), len(self.lab_train_ds) + len_unlab_embeds):
+            for label in range(self.Main_AL_class.n_classes):
+                self.X[idx][label] = 1 / self.Main_AL_class.n_classes
+                    
+
+    '''
+devo avere un n x m x max_iter
+ad ogni iterazione i inserisco l'entropia relativa ad ogni osservazione nella cella [oss, m, i]
+alla fine mi faccio la derivata della storia dell'entropia di ogni osservazione 
+cosi' facendo ho un valore che mi in
+    '''
 
 
 
@@ -118,7 +141,13 @@ class GTG():
         if i == max_iter:
             warnings.warn('Max number of iterations reached.')
 
-        return i
+
+        #del X_clone
+        #torch.cuda.empty_cache()
+
+        #return i
+    
+
 
 
 
@@ -186,7 +215,7 @@ class GTG():
         self.unlab_train_ds = CIFAR10(None, new_unlab_train_ds)
 
         self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
-        self.unlab_train_dl = DataLoader(self.unlab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
+        #self.unlab_train_dl = DataLoader(self.unlab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
 
 
 
@@ -246,10 +275,15 @@ class GTG():
                     topk_idx_val_obs = self.entropy_topK(n_top_k_obs) # top k for the matrix X composed with the ds of labeled and unlabeled, so the index are referred to these two sets
 
                     ds_top_k.append(topk_idx_val_obs)
+                    
+                    self.clear_memory()
 
             
                 overall_topk = get_overall_top_k(ds_top_k, n_top_k_obs, sampled_unlab_size, len(self.lab_train_ds), self.Main_AL_class.device)
                 #tensor of indices of the unlabeled dataset
+                
+                del ds_top_k
+                torch.cuda.empty_cache()
                             
                 self.get_new_dataloaders(overall_topk)
                 

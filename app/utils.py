@@ -35,9 +35,10 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
 
     # Obtain the splitted dataloader
     labeled_train_dl = DataLoader(labeled_set, batch_size=batch_size, shuffle=True, num_workers=2)
-    unlabeled_test_dl = DataLoader(unlabeled_set, batch_size=batch_size, shuffle=True, num_workers=2)
+    #unlabeled_test_dl = DataLoader(unlabeled_set, batch_size=batch_size, shuffle=True, num_workers=2)
 
-    return (labeled_train_dl, unlabeled_test_dl), (labeled_set, unlabeled_set), train_dl, val_dl
+    #return (labeled_train_dl, unlabeled_test_dl), (labeled_set, unlabeled_set), train_dl, val_dl
+    return labeled_train_dl, (labeled_set, unlabeled_set), train_dl, val_dl
 
 
 
@@ -60,18 +61,18 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
 
 def get_overall_top_k(topk_list, top_k, subset_size, len_lab_ds, device):
     
-    val_final = torch.empty((0)).to(device)
-    idx_final = torch.empty((0)).to(device)
+    val_final = torch.empty((0))#.to(device)
+    idx_final = torch.empty((0))#.to(device)
 
     for idx, pair in enumerate(topk_list):
-        val_final = torch.cat((val_final, pair[0].to(device)))
-        idx_final = torch.cat((idx_final, (pair[1].to(device) - len_lab_ds) + int(idx * subset_size)))
+        val_final = torch.cat((val_final, pair[0]))
+        idx_final = torch.cat((idx_final, (pair[1] - len_lab_ds) + int(idx * subset_size))) #.to(device)))
     
     idx_final = idx_final.type(torch.int)
     
     top_k_overall = torch.topk(val_final, k=top_k)
     
-    return torch.tensor([idx_final[idx_f_topk] for idx_f_topk in top_k_overall.indices]).to(device)
+    return torch.tensor([idx_final[idx_f_topk] for idx_f_topk in top_k_overall.indices])#.to(device)
     
     
 
@@ -92,7 +93,7 @@ def get_resnet18(n_classes):
 
 
 def entropy(tensor):
-    tensor = tensor + 1e-20
+    tensor = tensor.cpu() + 1e-20
     return -torch.sum(tensor * torch.log2(tensor), dim=1)
     
 
