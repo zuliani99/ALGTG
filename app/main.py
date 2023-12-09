@@ -53,7 +53,6 @@ def main():
         optimizer = optimizer,
         train_dl = train_dl,
         test_dl = test_dl,
-        #splitted_train_dl = splitted_train_dl,
         lab_train_dl = lab_train_dl,
         splitted_train_ds = splitted_train_ds,
         loss_fn = nn.CrossEntropyLoss(),

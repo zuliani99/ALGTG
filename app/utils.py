@@ -35,28 +35,8 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
 
     # Obtain the splitted dataloader
     labeled_train_dl = DataLoader(labeled_set, batch_size=batch_size, shuffle=True, num_workers=2)
-    #unlabeled_test_dl = DataLoader(unlabeled_set, batch_size=batch_size, shuffle=True, num_workers=2)
 
-    #return (labeled_train_dl, unlabeled_test_dl), (labeled_set, unlabeled_set), train_dl, val_dl
     return labeled_train_dl, (labeled_set, unlabeled_set), train_dl, val_dl
-
-
-
-# corretta, in relatà non era corretta
-'''def get_overall_top_k(topk_list, top_k):
-    list_final_topk = []
-    
-    val_final = torch.empty((0))
-    
-    for pair in topk_list: val_final = torch.cat((val_final, pair[0]))
-    
-    top_k_overall = torch.topk(val_final, k=top_k)
-        
-    for toptopk_idx in top_k_overall.indices:
-        list_final_topk.append((toptopk_idx.item() // top_k, topk_list[toptopk_idx.item() // top_k][1][toptopk_idx.item() % top_k].item()))  
-    
-    return list_final_topk
-'''
 
 
 def get_overall_top_k(topk_list, top_k, subset_size, len_lab_ds, device):

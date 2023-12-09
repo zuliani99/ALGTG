@@ -19,7 +19,6 @@ class ActiveLearning():
         self.optimizer = optimizer
         self.train_dl = train_dl
         self.test_dl = test_dl
-        #self.lab_train_dl, self.unlab_train_dl = splitted_train_dl
         self.lab_train_dl = lab_train_dl
         self.lab_train_ds, self.unlab_train_ds = splitted_train_ds
         self.loss_fn = loss_fn

@@ -7,7 +7,6 @@ from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
 from tqdm import tqdm
-import warnings
 import numpy as np
 from termcolor import colored
 
@@ -22,11 +21,10 @@ class GTG():
         self.params = our_methods_params
    
         self.lab_train_dl = self.Main_AL_class.lab_train_dl
-        #self.unlab_train_dl = self.Main_AL_class.unlab_train_dl
         
         self.lab_train_ds = self.Main_AL_class.lab_train_ds
         self.unlab_train_ds = self.Main_AL_class.unlab_train_ds
-        
+                
 
     def clear_memory(self):
         del self.X
@@ -38,44 +36,17 @@ class GTG():
         self.unlab_samp_list = []
 
         new_unlab_train_ds = self.unlab_train_ds
-        #unlabeled_size = len(new_unlab_train_ds)
         sampled_unlab_size = int(len(new_unlab_train_ds) // n_split)
         
         print('sampled_unlab_size', sampled_unlab_size)
         print('unlabeled_size', len(new_unlab_train_ds))
 
-        '''while (unlabeled_size > 0):
 
-            unlabeled_size -= sampled_unlab_size
-
-            if(unlabeled_size > 0):
-                # here I have random sampled from the unalbeled observation, uo
-                #ERROREEEEEEEEEEEEEE non devo fare un random split altrimenti gli indici sono sballati
-                sampled_unlab_ds, new_unlab_train_ds = random_split(new_unlab_train_ds, [int(sampled_unlab_size), int(unlabeled_size)])
-
-                self.unlab_samp_list.append((sampled_unlab_ds,
-                                         DataLoader(sampled_unlab_ds, batch_size=self.Main_AL_class.batch_size, shuffle=False, num_workers=2)))
-
-                print('unlabeled_size', unlabeled_size)'''
-
-        #i = 0
-        #while (unlabeled_size > 0):
-        #while(i)
         for i in range(n_split):
-            #unlabeled_size -= sampled_unlab_size
-
-            #if(unlabeled_size > 0):
-                # here I have random sampled from the unalbeled observation, uo
-                #ERROREEEEEEEEEEEEEE non devo fare un random split altrimenti gli indici sono sballati
-                #sampled_unlab_ds, new_unlab_train_ds = random_split(new_unlab_train_ds, [int(sampled_unlab_size), int(unlabeled_size)])
 
             subset = Subset(new_unlab_train_ds, torch.arange(i*sampled_unlab_size, (i+1) * sampled_unlab_size).tolist())
 
             self.unlab_samp_list.append(DataLoader(subset, batch_size=self.Main_AL_class.batch_size, shuffle=False, num_workers=2))
-            
-            #unlabeled_size -= sampled_unlab_size
-            #i+=1
-            #print('unlabeled_size', unlabeled_size)
                             
         return sampled_unlab_size
 
@@ -104,12 +75,12 @@ class GTG():
 
 
 
-    def get_X(self, len_unlab_embeds):
+    def get_X(self, len_samp_unlab_embeds):
         
-        self.X = torch.zeros(len(self.lab_train_ds) + len_unlab_embeds, self.Main_AL_class.n_classes, dtype=torch.float).to(self.Main_AL_class.device)
+        self.X = torch.zeros(len(self.lab_train_ds) + len_samp_unlab_embeds, self.Main_AL_class.n_classes, dtype=torch.float).to(self.Main_AL_class.device)
         
         for idx, (_, label) in enumerate(self.lab_train_ds): self.X[idx][label] = 1
-        for idx in range(len(self.lab_train_ds), len(self.lab_train_ds) + len_unlab_embeds):
+        for idx in range(len(self.lab_train_ds), len(self.lab_train_ds) + len_samp_unlab_embeds):
             for label in range(self.Main_AL_class.n_classes):
                 self.X[idx][label] = 1 / self.Main_AL_class.n_classes
                     
@@ -135,7 +106,7 @@ class GTG():
                 else:
                     self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1] = unlab_ent_val - self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1]
             
-        
+            #print(self.entropy_pairwise_der.shape, self.entropy_pairwise_der)
                 
             err = torch.norm(self.X - X_old)
             i += 1
@@ -197,7 +168,6 @@ class GTG():
         self.unlab_train_ds = CIFAR10(None, new_unlab_train_ds)
 
         self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
-        #self.unlab_train_dl = DataLoader(self.unlab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
 
 
 
@@ -215,13 +185,12 @@ class GTG():
                 
             # iter = 0            
             print(colored(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n', 'blue'))
-            #self.Main_AL_class.reintialize_model()
+            self.Main_AL_class.reintialize_model()
             self.Main_AL_class.fit(epochs, self.lab_train_dl) # train in the labeled observations
                 
             test_loss, test_accuracy = self.Main_AL_class.test_AL()
                 
             write_csv(
-                #filename = 'OUR_test_res.csv',
                 ts_dir=self.Main_AL_class.timestamp,
                 head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
                 values = [self.method_name, iter, n_splits, test_accuracy, test_loss]
@@ -237,13 +206,13 @@ class GTG():
                 
                 sampled_unlab_size = self.get_unlabeled_samples(n_splits)
                 self.labeled_embeddings = self.Main_AL_class.get_embeddings('Labeled', self.lab_train_dl)
+                
                 self.entropy_pairwise_der = torch.zeros((len(self.unlab_train_ds), self.params['gtg_max_iter'] - 1))
 
-                #ds_top_k = []
 
                 pbar = tqdm(enumerate(self.unlab_samp_list), total=len(self.unlab_samp_list), leave=True)
                                 
-                for idx, unlab_sample_dl in pbar:#enumerate(self.unlab_samp_list):
+                for idx, unlab_sample_dl in pbar:
                     
                     pbar.set_description(f'WORKING WITH UNLABELED SAMPLE # {idx + 1}')
 
@@ -259,21 +228,21 @@ class GTG():
 
                 
                 overall_topk = torch.topk(-(torch.sum(self.entropy_pairwise_der, dim = 1) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)
-                                
-                #del ds_top_k
-                #torch.cuda.empty_cache()
+                #print('con meno', overall_topk)             
+                
+                #overall_topk = torch.topk((torch.sum(self.entropy_pairwise_der, dim = 1) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)
+                #print('senza meno', overall_topk)             
                             
                 self.get_new_dataloaders(overall_topk.indices)
                 
                 
                 # iter + 1
-                #self.Main_AL_class.reintialize_model()
+                self.Main_AL_class.reintialize_model()
                 self.Main_AL_class.fit(epochs, self.lab_train_dl) # train in the labeled observations
                 
                 test_loss, test_accuracy = self.Main_AL_class.test_AL()
                 
                 write_csv(
-                    #filename = 'OUR_test_res.csv',
                     ts_dir=self.Main_AL_class.timestamp,
                     head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
                     values = [self.method_name, iter + 1, n_splits, test_accuracy, test_loss]

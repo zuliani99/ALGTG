@@ -12,19 +12,15 @@ from cifar10 import CIFAR10
 
 
 class Random_Strategy():
-    def __init__(self, Main_AL_class):#, random_param):
+    def __init__(self, Main_AL_class):
         self.method_name = 'random'
         self.Main_AL_class = Main_AL_class
-        
-        #self.random_param = random_param
         
         self.lab_train_ds = self.Main_AL_class.lab_train_ds
         self.unlab_train_ds = self.Main_AL_class.unlab_train_ds
         
         self.lab_train_dl = self.Main_AL_class.lab_train_dl
-        #self.unlab_train_dl = self.Main_AL_class.unlab_train_dl
-        
-        
+                
         
         
     def sample_unlab_obs(self, n_top_k_obs):
@@ -71,7 +67,6 @@ class Random_Strategy():
                                                                    for row in tqdm(new_unlab_train_ds, total=len(new_unlab_train_ds), desc='Obtaining the unmarked observation from the Unlabeled Dataset', leave=False)])])
 
         self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
-        #self.unlab_train_dl = DataLoader(self.unlab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
         
     
     
@@ -82,13 +77,12 @@ class Random_Strategy():
         # iter = 0
         print(colored(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n', 'blue'))
             
-        #self.Main_AL_class.reintialize_model()
+        self.Main_AL_class.reintialize_model()
         self.Main_AL_class.fit(epochs, self.lab_train_dl)
             
         test_loss, test_accuracy = self.Main_AL_class.test_AL()
         
         write_csv(
-            #filename = 'RANDOM_test_res.csv',
             ts_dir=self.Main_AL_class.timestamp,
             head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
             values = [self.method_name, iter + 1, 'None', test_accuracy, test_loss]
@@ -103,9 +97,6 @@ class Random_Strategy():
         while len(self.unlab_train_ds) > 0 and iter < al_iters:
             print(colored(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n', 'blue'))
                             
-            #self.labeled_embeddings = self.Main_AL_class.get_embeddings('Labeled', self.lab_train_dl)
-            #self.unlabeled_embeddings = self.Main_AL_class.get_embeddings('Unlabeled', self.unlab_train_dl)       
-                        
             #get random indices to move in the labeled datasets
             topk_idx_obs = self.sample_unlab_obs(n_top_k_obs)
                         
@@ -113,15 +104,13 @@ class Random_Strategy():
             self.get_new_dataloaders(topk_idx_obs)
             
             
-            
             # iter + 1
-            #self.Main_AL_class.reintialize_model()
+            self.Main_AL_class.reintialize_model()
             self.Main_AL_class.fit(epochs, self.lab_train_dl)
             
             test_loss, test_accuracy = self.Main_AL_class.test_AL()
             
             write_csv(
-                #filename = 'RANDOM_test_res.csv',
                 ts_dir=self.Main_AL_class.timestamp,
                 head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
                 values = [self.method_name, iter + 1, 'None', test_accuracy, test_loss]
