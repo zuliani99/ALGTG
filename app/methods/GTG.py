@@ -143,7 +143,7 @@ cosi' facendo ho un valore che mi in
             #self.entropy_pairwise_der -> (len(unalb_obs), maxiter -1)
             
             
-            for idx, unlab_ent_val in enumerate(iter_entropy[len(self.lab_train_dl):]):
+            for idx, unlab_ent_val in enumerate(iter_entropy[len(self.lab_train_ds):]):
                 if i == 0:
                     self.entropy_pairwise_der[idx + (idx_split * dim_split)][i] = unlab_ent_val
                 else:
