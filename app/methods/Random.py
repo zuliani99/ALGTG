@@ -115,7 +115,7 @@ class Random_Strategy():
             
             
             # iter + 1
-            self.Main_AL_class.reintialize_model()
+            #self.Main_AL_class.reintialize_model()
             self.Main_AL_class.fit(epochs, self.lab_train_dl)
             
             test_loss, test_accuracy = self.Main_AL_class.test_AL()

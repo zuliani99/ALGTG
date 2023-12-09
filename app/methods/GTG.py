@@ -27,7 +27,7 @@ class GTG():
         self.lab_train_ds = self.Main_AL_class.lab_train_ds
         self.unlab_train_ds = self.Main_AL_class.unlab_train_ds
         
-        self.entropy_history = np.zeros((len(self.unlab_train_ds), self.params['gtg_max_iter']))
+        self.entropy_pairwise_der = torch.zeros((len(self.unlab_train_ds), self.params['gtg_max_iter'] - 1))
 
 
     def clear_memory(self):
@@ -137,21 +137,40 @@ cosi' facendo ho un valore che mi in
             
             #top1 = self.entropy_topK(1)
             #print(f'TOP1: prob_val = {self.X[top1.indices[0].item()]}\n\tentropy_val = {top1.values[0].item()}\n\tidx = {top1.indices[0].item()}\n')
-
                 
-            iter_entropy = entropy(self.X) 
+            iter_entropy = entropy(self.X) # both labeled and sample unlabeled
+            
+            #self.entropy_pairwise_der -> (len(unalb_obs), maxiter -1)
+            
+            
+            for idx, unlab_ent_val in enumerate(iter_entropy[len(self.lab_train_dl):]):
+                if i == 0:
+                    self.entropy_pairwise_der[idx + (idx_split * dim_split)][i] = unlab_ent_val
+                else:
+                    self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1] = unlab_ent_val - self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1]
+            
+            
+            #for idx in range(len(self.lab_train_dl), len(self.lab_train_dl) + len(self.samp_unlab_embeddings)):
+            #    if (i == 0):
+            #        self.entropy_pairwise_der[idx + (idx_split * dim_split)][i] = iter_entropy[idx]
+            #    else:
+            #        self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1] = iter_entropy[idx] - self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1]
+                    
 
-            for idx, unlab_ent_val in enumerate(iter_entropy):
-                self.entropy_history[idx + (idx_split * dim_split)][i] = unlab_ent_val
-                
+            #for idx, unlab_ent_val in enumerate(iter_entropy):
+            #    if (i == 0):
+            #        self.entropy_pairwise_der[idx + (idx_split * dim_split)][i] = unlab_ent_val
+            #    else:
+            #        self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1] = unlab_ent_val - self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1]
+                    
                 
             err = torch.norm(self.X - X_old)
             i += 1
                 
             
 
-        if i == max_iter:
-            warnings.warn('Max number of iterations reached.')
+        #if i == max_iter:
+            #warnings.warn('Max number of iterations reached.')
 
 
         #del X_clone
@@ -284,24 +303,33 @@ cosi' facendo ho un valore che mi in
                     self.get_X(len(self.samp_unlab_embeddings))
                     self.gtg(self.params['gtg_tol'], self.params['gtg_max_iter'], idx, sampled_unlab_size)
 
-                    topk_idx_val_obs = self.entropy_topK(n_top_k_obs) # top k for the matrix X composed with the ds of labeled and unlabeled, so the index are referred to these two sets
 
-                    ds_top_k.append(topk_idx_val_obs)
+                    # here i have to compute the derivare of all the iteratin
+                    # choose the topk minimum one and insert them into the list
+                    
+                    #derivaet_sum = self.entropy_pairwise_der.sum(dim = 1)
+                    #topk_idx_val_obs = torch.topk(-(torch.sum(self.entropy_pairwise_der, dim = 1) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)
+                
+                    #topk_idx_val_obs = self.entropy_topK(n_top_k_obs) # top k for the matrix X composed with the ds of labeled and unlabeled, so the index are referred to these two sets
+
+                    #ds_top_k.append(topk_idx_val_obs)
                     
                     self.clear_memory()
 
             
-                overall_topk = get_overall_top_k(ds_top_k, n_top_k_obs, sampled_unlab_size, len(self.lab_train_ds), self.Main_AL_class.device)
+                #overall_topk = get_overall_top_k(ds_top_k, n_top_k_obs, sampled_unlab_size, len(self.lab_train_ds), self.Main_AL_class.device)
                 #tensor of indices of the unlabeled dataset
+                
+                overall_topk = torch.topk(-(torch.sum(self.entropy_pairwise_der, dim = 1) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)
                 
                 del ds_top_k
                 torch.cuda.empty_cache()
                             
-                self.get_new_dataloaders(overall_topk)
+                self.get_new_dataloaders(overall_topk.indices)
                 
                 
                 # iter + 1
-                self.Main_AL_class.reintialize_model()
+                #self.Main_AL_class.reintialize_model()
                 self.Main_AL_class.fit(epochs, self.lab_train_dl) # train in the labeled observations
                 
                 test_loss, test_accuracy = self.Main_AL_class.test_AL()
