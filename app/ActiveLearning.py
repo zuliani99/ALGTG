@@ -12,12 +12,12 @@ from methods.Random import Random_Strategy
 class ActiveLearning():
 
 
-    def __init__(self, n_classes, batch_size, model, optimizer, train_dl, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, scheduler, device, patience, timestamp):
+    def __init__(self, n_classes, batch_size, model, optimizer, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, scheduler, device, patience, timestamp):
         self.n_classes = n_classes
         self.model = model.to(device)
         self.batch_size = batch_size
         self.optimizer = optimizer
-        self.train_dl = train_dl
+        #self.train_dl = train_dl
         self.test_dl = test_dl
         self.lab_train_dl = lab_train_dl
         self.lab_train_ds, self.unlab_train_ds = splitted_train_ds

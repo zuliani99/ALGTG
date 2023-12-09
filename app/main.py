@@ -23,7 +23,7 @@ def main():
 
     trainset, test_dl, classes = get_cifar10(batch_size)
 
-    lab_train_dl, splitted_train_ds, train_dl, val_dl = get_initial_dataloaders(
+    lab_train_dl, splitted_train_ds, val_dl = get_initial_dataloaders(
         trainset = trainset,
         val_rateo = 0.2,
         labeled_ratio = 0.1,
@@ -51,7 +51,7 @@ def main():
         batch_size=batch_size,
         model = resnet18,
         optimizer = optimizer,
-        train_dl = train_dl,
+        #train_dl = train_dl,
         test_dl = test_dl,
         lab_train_dl = lab_train_dl,
         splitted_train_ds = splitted_train_ds,
