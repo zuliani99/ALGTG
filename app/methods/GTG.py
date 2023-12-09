@@ -3,7 +3,7 @@ from utils import get_overall_top_k, write_csv, entropy
 from cifar10 import CIFAR10
 
 import torch
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
 from tqdm import tqdm
@@ -27,8 +27,6 @@ class GTG():
         self.lab_train_ds = self.Main_AL_class.lab_train_ds
         self.unlab_train_ds = self.Main_AL_class.unlab_train_ds
         
-        self.entropy_pairwise_der = torch.zeros((len(self.unlab_train_ds), self.params['gtg_max_iter'] - 1))
-
 
     def clear_memory(self):
         del self.X
@@ -40,25 +38,44 @@ class GTG():
         self.unlab_samp_list = []
 
         new_unlab_train_ds = self.unlab_train_ds
-        unlabeled_size = len(new_unlab_train_ds)
-        sampled_unlab_size = int(unlabeled_size // n_split)
+        #unlabeled_size = len(new_unlab_train_ds)
+        sampled_unlab_size = int(len(new_unlab_train_ds) // n_split)
         
         print('sampled_unlab_size', sampled_unlab_size)
-        print('unlabeled_size', unlabeled_size)
+        print('unlabeled_size', len(new_unlab_train_ds))
 
-        while (unlabeled_size > 0):
+        '''while (unlabeled_size > 0):
 
             unlabeled_size -= sampled_unlab_size
 
             if(unlabeled_size > 0):
                 # here I have random sampled from the unalbeled observation, uo
+                #ERROREEEEEEEEEEEEEE non devo fare un random split altrimenti gli indici sono sballati
                 sampled_unlab_ds, new_unlab_train_ds = random_split(new_unlab_train_ds, [int(sampled_unlab_size), int(unlabeled_size)])
 
                 self.unlab_samp_list.append((sampled_unlab_ds,
                                          DataLoader(sampled_unlab_ds, batch_size=self.Main_AL_class.batch_size, shuffle=False, num_workers=2)))
 
-                print('unlabeled_size', unlabeled_size)
-                
+                print('unlabeled_size', unlabeled_size)'''
+
+        #i = 0
+        #while (unlabeled_size > 0):
+        #while(i)
+        for i in range(n_split):
+            #unlabeled_size -= sampled_unlab_size
+
+            #if(unlabeled_size > 0):
+                # here I have random sampled from the unalbeled observation, uo
+                #ERROREEEEEEEEEEEEEE non devo fare un random split altrimenti gli indici sono sballati
+                #sampled_unlab_ds, new_unlab_train_ds = random_split(new_unlab_train_ds, [int(sampled_unlab_size), int(unlabeled_size)])
+
+            subset = Subset(new_unlab_train_ds, torch.arange(i*sampled_unlab_size, (i+1) * sampled_unlab_size).tolist())
+
+            self.unlab_samp_list.append(DataLoader(subset, batch_size=self.Main_AL_class.batch_size, shuffle=False, num_workers=2))
+            
+            #unlabeled_size -= sampled_unlab_size
+            #i+=1
+            #print('unlabeled_size', unlabeled_size)
                             
         return sampled_unlab_size
 
@@ -88,25 +105,6 @@ class GTG():
 
 
     def get_X(self, len_unlab_embeds):
-
-        '''self.X = torch.empty(0, self.Main_AL_class.n_classes, dtype=torch.float).to(self.Main_AL_class.device)
-
-        # put to X the zeros - one vector correspinding to the labeled observation
-        for (_, label) in self.lab_train_ds:
-            arr_one_zeros = torch.zeros(1, self.Main_AL_class.n_classes).to(self.Main_AL_class.device)
-            arr_one_zeros[0][label] = 1
-            self.X = torch.cat((self.X, arr_one_zeros), dim=0)
-
-        # put to X the uniform distribution corresponding to the sampled unlabeled observations
-        self.X = torch.cat((self.X, torch.full(
-            (len_unlab_embeds, self.Main_AL_class.n_classes),1 / self.Main_AL_class.n_classes
-            , dtype=torch.float).to(self.Main_AL_class.device)), dim=0)
-        
-        
-        '''
-        
-        #del self.X
-        #torch.cuda.empty_cache()
         
         self.X = torch.zeros(len(self.lab_train_ds) + len_unlab_embeds, self.Main_AL_class.n_classes, dtype=torch.float).to(self.Main_AL_class.device)
         
@@ -115,14 +113,6 @@ class GTG():
             for label in range(self.Main_AL_class.n_classes):
                 self.X[idx][label] = 1 / self.Main_AL_class.n_classes
                     
-
-    '''
-devo avere un n x max_iter
-ad ogni iterazione i inserisco l'entropia relativa ad ogni osservazione nella cella [oss, m, i]
-alla fine mi faccio la derivata della storia dell'entropia di ogni osservazione 
-cosi' facendo ho un valore che mi in
-    '''
-
 
 
 
@@ -134,60 +124,21 @@ cosi' facendo ho un valore che mi in
             X_old = self.X.clone()
             self.X = self.X * torch.mm(self.A, self.X)
             self.X /= self.X.sum(axis=1, keepdim=True)
-            
-            #top1 = self.entropy_topK(1)
-            #print(f'TOP1: prob_val = {self.X[top1.indices[0].item()]}\n\tentropy_val = {top1.values[0].item()}\n\tidx = {top1.indices[0].item()}\n')
-                
+        
             iter_entropy = entropy(self.X) # both labeled and sample unlabeled
-            
-            #self.entropy_pairwise_der -> (len(unalb_obs), maxiter -1)
-            
-            
+            # I have to map only the sample_unlabeled to the correct position
+                        
             for idx, unlab_ent_val in enumerate(iter_entropy[len(self.lab_train_ds):]):
+                # I iterate only the sampled unlabeled one
                 if i == 0:
                     self.entropy_pairwise_der[idx + (idx_split * dim_split)][i] = unlab_ent_val
                 else:
                     self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1] = unlab_ent_val - self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1]
             
-            
-            #for idx in range(len(self.lab_train_dl), len(self.lab_train_dl) + len(self.samp_unlab_embeddings)):
-            #    if (i == 0):
-            #        self.entropy_pairwise_der[idx + (idx_split * dim_split)][i] = iter_entropy[idx]
-            #    else:
-            #        self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1] = iter_entropy[idx] - self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1]
-                    
-
-            #for idx, unlab_ent_val in enumerate(iter_entropy):
-            #    if (i == 0):
-            #        self.entropy_pairwise_der[idx + (idx_split * dim_split)][i] = unlab_ent_val
-            #    else:
-            #        self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1] = unlab_ent_val - self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1]
-                    
+        
                 
             err = torch.norm(self.X - X_old)
             i += 1
-                
-            
-
-        #if i == max_iter:
-            #warnings.warn('Max number of iterations reached.')
-
-
-        #del X_clone
-        #torch.cuda.empty_cache()
-
-        #return i
-    
-
-
-
-
-    def entropy_topK(self, top_k):
-        return torch.topk(entropy(self.X), top_k)
-    
-        # here the topk return the indices for the self.X which contains the whole set of prob dist observations splitted in two parts
-        # the labeled shoud have entropy = 1
-        # the most informative observation shoud have entropy colose to 0 -> I have to get these observations indices
 
 
 
@@ -286,12 +237,13 @@ cosi' facendo ho un valore che mi in
                 
                 sampled_unlab_size = self.get_unlabeled_samples(n_splits)
                 self.labeled_embeddings = self.Main_AL_class.get_embeddings('Labeled', self.lab_train_dl)
+                self.entropy_pairwise_der = torch.zeros((len(self.unlab_train_ds), self.params['gtg_max_iter'] - 1))
 
-                ds_top_k = []
+                #ds_top_k = []
 
                 pbar = tqdm(enumerate(self.unlab_samp_list), total=len(self.unlab_samp_list), leave=True)
                                 
-                for idx, (_, unlab_sample_dl) in pbar:#enumerate(self.unlab_samp_list):
+                for idx, unlab_sample_dl in pbar:#enumerate(self.unlab_samp_list):
                     
                     pbar.set_description(f'WORKING WITH UNLABELED SAMPLE # {idx + 1}')
 
@@ -302,28 +254,14 @@ cosi' facendo ho un valore che mi in
                     self.get_A()
                     self.get_X(len(self.samp_unlab_embeddings))
                     self.gtg(self.params['gtg_tol'], self.params['gtg_max_iter'], idx, sampled_unlab_size)
-
-
-                    # here i have to compute the derivare of all the iteratin
-                    # choose the topk minimum one and insert them into the list
-                    
-                    #derivaet_sum = self.entropy_pairwise_der.sum(dim = 1)
-                    #topk_idx_val_obs = torch.topk(-(torch.sum(self.entropy_pairwise_der, dim = 1) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)
-                
-                    #topk_idx_val_obs = self.entropy_topK(n_top_k_obs) # top k for the matrix X composed with the ds of labeled and unlabeled, so the index are referred to these two sets
-
-                    #ds_top_k.append(topk_idx_val_obs)
                     
                     self.clear_memory()
 
-            
-                #overall_topk = get_overall_top_k(ds_top_k, n_top_k_obs, sampled_unlab_size, len(self.lab_train_ds), self.Main_AL_class.device)
-                #tensor of indices of the unlabeled dataset
                 
                 overall_topk = torch.topk(-(torch.sum(self.entropy_pairwise_der, dim = 1) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)
-                
-                del ds_top_k
-                torch.cuda.empty_cache()
+                                
+                #del ds_top_k
+                #torch.cuda.empty_cache()
                             
                 self.get_new_dataloaders(overall_topk.indices)
                 
