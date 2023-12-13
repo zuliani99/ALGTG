@@ -34,14 +34,12 @@ class Random_Strategy():
                 image if isinstance(image, np.ndarray) else image.numpy(), label
             ], dtype=object) for image, label in tqdm(self.lab_train_ds, total=len(self.lab_train_ds), leave=False, desc='Copying lab_train_ds')], dtype=object)
         
-        #new_lab_train_ds = torch.tensor([self.lab_train_ds[i][::1]] for i in tqdm(range(len(self.lab_train_ds))))
         
         new_unlab_train_ds = np.array([
             np.array([
                 image if isinstance(image, np.ndarray) else image.numpy(), label
             ], dtype=object) for image, label in tqdm(self.unlab_train_ds, total=len(self.unlab_train_ds), leave=False, desc='Copying unlab_train_ds')], dtype=object)
         
-        #new_unlab_train_ds = torch.tensor([self.unlab_train_ds[i][::1]] for i in tqdm(range(len(self.unlab_train_ds))))
 
 
         for idx_to_move in tqdm(topk_idx_obs, total=len(topk_idx_obs), leave=False, desc='Adding the observation to the Labeled Dataset'):
@@ -49,15 +47,11 @@ class Random_Strategy():
                 np.array(new_unlab_train_ds[idx_to_move], dtype=object)
             , axis=0)))
             
-            #new_lab_train_ds = torch.cat((new_lab_train_ds, torch.tensor([self.unlab_samp_list[list_index][0][topk_index_value][::1]])), dim = 0)
             
             
         for idx_to_move in tqdm(topk_idx_obs, total=len(topk_idx_obs), leave=False, desc='Marking the observation from the Unlabeled Dataset'):
             
             new_unlab_train_ds[idx_to_move] = np.array([np.nan, np.nan], dtype=object) # set a [np.nan np.nan] the row and the get all the row not equal to [np.nan, np.nan]
-            
-            #new_unlab_train_ds = torch.cat((new_unlab_train_ds[ : ((list_index * n_samples) + topk_index_value)],
-            #                                new_unlab_train_ds[((list_index * n_samples) + topk_index_value + 1) : ]))
             
         
         

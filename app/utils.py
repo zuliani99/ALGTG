@@ -21,8 +21,6 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
 
     # validation dataloader
     val_dl = DataLoader(val_data, batch_size=batch_size, shuffle=True, num_workers=2)
-    train_dl = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=2)
-    #-------------
 
     train_data_size = len(train_data)
 

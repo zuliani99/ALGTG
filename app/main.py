@@ -51,7 +51,6 @@ def main():
         batch_size=batch_size,
         model = resnet18,
         optimizer = optimizer,
-        #train_dl = train_dl,
         test_dl = test_dl,
         lab_train_dl = lab_train_dl,
         splitted_train_ds = splitted_train_ds,

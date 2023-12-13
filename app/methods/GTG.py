@@ -121,25 +121,16 @@ class GTG():
             np.array([
                 image if isinstance(image, np.ndarray) else image.numpy(), label
             ], dtype=object) for image, label in self.lab_train_ds], dtype=object)
-            #], dtype=object) for image, label in tqdm(self.lab_train_ds, total=len(self.lab_train_ds), leave=False, desc='Copying lab_train_ds')], dtype=object)
-        
-        #new_lab_train_ds = torch.tensor([self.lab_train_ds[i][::1]] for i in tqdm(range(len(self.lab_train_ds))))
-        
+
         new_unlab_train_ds = np.array([
             np.array([
                 image if isinstance(image, np.ndarray) else image.numpy(), label
             ], dtype=object) for image, label in self.unlab_train_ds], dtype=object)
-            #], dtype=object) for image, label in tqdm(self.unlab_train_ds, total=len(self.unlab_train_ds), leave=False, desc='Copying unlab_train_ds')], dtype=object)
-        
+
         
         print('new_lab_train_ds', len(new_lab_train_ds))
         print('new_unlab_train_ds', len(new_unlab_train_ds))
         
-        #print('overall_topk', overall_topk)
-        
-        #new_unlab_train_ds = torch.tensor([self.unlab_train_ds[i][::1]] for i in tqdm(range(len(self.unlab_train_ds))))
-
-        #for list_index, topk_index_value in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Adding the observation to the Labeled Dataset'):
         for topk_idx in overall_topk: #tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Adding the observation to the Labeled Dataset'):
             new_lab_train_ds = np.vstack((new_lab_train_ds, np.expand_dims(
                 np.array([new_unlab_train_ds[topk_idx.item()][0],
@@ -147,14 +138,11 @@ class GTG():
                 ], dtype=object)
             , axis=0)))
             
-            #new_lab_train_ds = torch.cat((new_lab_train_ds, torch.tensor([self.unlab_samp_list[list_index][0][topk_index_value][::1]])), dim = 0)
 
         for topk_idx in overall_topk: #tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Removing the observation from the Unlabeled Dataset'):
             new_unlab_train_ds[topk_idx.item()] = np.array([np.nan, np.nan], dtype=object)
             # set a [np.nan np.nan] the row and the get all the row not equal to [np.nan, np.nan]
         
-        
-
         
         print('new_lab_train_ds', len(new_lab_train_ds))
         
@@ -250,8 +238,6 @@ class GTG():
                 
                 results[n_splits]['test_loss'].append(test_loss)
                 results[n_splits]['test_accuracy'].append(test_accuracy)
-                
-                
                         
                 iter += 1
         
