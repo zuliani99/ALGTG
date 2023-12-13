@@ -5,7 +5,7 @@ import torch.nn as nn
 from termcolor import colored
 from tqdm import tqdm
 
-from methods.GTG import GTG
+from methods.GTG import GTG_Strategy
 from methods.Random import Random_Strategy
 
 
@@ -22,7 +22,7 @@ class ActiveLearning():
         self.lab_train_ds, self.unlab_train_ds = splitted_train_ds
         self.loss_fn = loss_fn
         self.val_dl = val_dl
-        self.score_fn = score_fn
+        self.score_fn = score_fn.to(device)
         self.scheduler = scheduler
         self.device = device
         self.patience = patience
@@ -185,7 +185,7 @@ class ActiveLearning():
         results = { }
         n_lab_obs =  [len(self.lab_train_ds) + (iter * n_top_k_obs) for iter in range(al_iters + 1)]
         
-        methods = [GTG(self, our_method_params), Random_Strategy(self)]
+        methods = [GTG_Strategy(self, our_method_params), Random_Strategy(self)]
         
         print(colored(f'----------------------- TRAINING ACTIVE LEARNING -----------------------', 'red', 'on_white'))
         print('\n')

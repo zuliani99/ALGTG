@@ -9,21 +9,24 @@ import torch.nn.functional as F
 from tqdm import tqdm
 import numpy as np
 from termcolor import colored
+from GTG.gtg import GTG
 
 
 
-class GTG():
+class GTG_Strategy():
     
     def __init__(self, Main_AL_class, our_methods_params):
         self.method_name = 'AL_GTG'
         self.Main_AL_class = Main_AL_class
         
         self.params = our_methods_params
-   
-        self.lab_train_dl = self.Main_AL_class.lab_train_dl
         
-        self.lab_train_ds = self.Main_AL_class.lab_train_ds
-        self.unlab_train_ds = self.Main_AL_class.unlab_train_ds
+        self.gtg = GTG(
+            self.Main_AL_class.device.n_classes,
+            max_iter=self.params['gtg_max_iter'],
+            device=self.Main_AL_class.device,
+            tol=self.params['gtg_tol']
+        ).to(self.Main_AL_class.device)
                     
 
 
@@ -156,6 +159,13 @@ class GTG():
         results = {}
         
         for n_splits in self.params['list_n_samples']:
+            
+            
+            self.lab_train_dl = self.Main_AL_class.lab_train_dl
+        
+            self.lab_train_ds = self.Main_AL_class.lab_train_ds
+            self.unlab_train_ds = self.Main_AL_class.unlab_train_ds
+            
                     
             print(colored(f'----------------------- WORKING WITH {n_splits} UNLABELED SPLITS -----------------------\n', 'green'))
                     
