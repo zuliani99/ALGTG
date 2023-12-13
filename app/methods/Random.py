@@ -42,16 +42,12 @@ class Random_Strategy():
         
 
 
-        for idx_to_move in tqdm(topk_idx_obs, total=len(topk_idx_obs), leave=False, desc='Adding the observation to the Labeled Dataset'):
+        for idx_to_move in tqdm(topk_idx_obs, total=len(topk_idx_obs), leave=False, desc='Modifing the Unlabeled Dataset'):
             new_lab_train_ds = np.vstack((new_lab_train_ds, np.expand_dims(
                 np.array(new_unlab_train_ds[idx_to_move], dtype=object)
             , axis=0)))
             
-            
-            
-        for idx_to_move in tqdm(topk_idx_obs, total=len(topk_idx_obs), leave=False, desc='Marking the observation from the Unlabeled Dataset'):
-            
-            new_unlab_train_ds[idx_to_move] = np.array([np.nan, np.nan], dtype=object) # set a [np.nan np.nan] the row and the get all the row not equal to [np.nan, np.nan]
+            new_unlab_train_ds[idx_to_move] = np.array([np.nan, np.nan], dtype=object) # set a [np.nan np.nan] the row and the get all the row not equal to [np.nan, np.nan]       
             
         
         

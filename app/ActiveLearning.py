@@ -17,7 +17,6 @@ class ActiveLearning():
         self.model = model.to(device)
         self.batch_size = batch_size
         self.optimizer = optimizer
-        #self.train_dl = train_dl
         self.test_dl = test_dl
         self.lab_train_dl = lab_train_dl
         self.lab_train_ds, self.unlab_train_ds = splitted_train_ds
@@ -164,7 +163,7 @@ class ActiveLearning():
 
     def get_embeddings(self, type_embeds, dataloader):
             
-        embeddings = torch.empty(0, list(self.model.children())[-1].in_features).to(self.device)
+        embeddings = torch.empty(0, list(self.model.children())[-1].in_features).to(self.device)      
 
         self.embed_model.eval()
 
@@ -174,7 +173,7 @@ class ActiveLearning():
         with torch.inference_mode():
             for inputs, _ in pbar:
                 embed = self.embed_model(inputs.to(self.device))
-
+                
                 embeddings = torch.cat((embeddings, embed.squeeze()), dim=0)
              
         return embeddings

@@ -24,7 +24,7 @@ class GTG():
         
         self.lab_train_ds = self.Main_AL_class.lab_train_ds
         self.unlab_train_ds = self.Main_AL_class.unlab_train_ds
-                
+                    
 
 
     def clear_memory(self):
@@ -43,7 +43,7 @@ class GTG():
         print('sampled_unlab_size', sampled_unlab_size)
         print('unlabeled_size', len(new_unlab_train_ds))
 
-
+        # here I subdivide the unlab_train_ds in equal part
         for i in range(n_split):
 
             subset = Subset(new_unlab_train_ds, torch.arange(i*sampled_unlab_size, (i+1) * sampled_unlab_size).tolist())
@@ -108,10 +108,11 @@ class GTG():
                     self.entropy_pairwise_der[idx + (idx_split * dim_split)][i] = unlab_ent_val
                 else:
                     self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1] = unlab_ent_val - self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1]
-            
+                    
                 
             err = torch.norm(self.X - X_old)
             i += 1
+
 
 
 
@@ -120,47 +121,36 @@ class GTG():
         new_lab_train_ds = np.array([
             np.array([
                 image if isinstance(image, np.ndarray) else image.numpy(), label
-            ], dtype=object) for image, label in self.lab_train_ds], dtype=object)
+            ], dtype=object) for image, label in tqdm(self.lab_train_ds, total=len(self.lab_train_ds), leave=False, desc='Copying lab_train_ds')], dtype=object)
 
         new_unlab_train_ds = np.array([
             np.array([
                 image if isinstance(image, np.ndarray) else image.numpy(), label
-            ], dtype=object) for image, label in self.unlab_train_ds], dtype=object)
+            ], dtype=object) for image, label in tqdm(self.unlab_train_ds, total=len(self.unlab_train_ds), leave=False, desc='Copying unlab_train_ds')], dtype=object)
+                
 
-        
-        print('new_lab_train_ds', len(new_lab_train_ds))
-        print('new_unlab_train_ds', len(new_unlab_train_ds))
-        
-        for topk_idx in overall_topk: #tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Adding the observation to the Labeled Dataset'):
+        for topk_idx in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Modifing the Unlabeled Dataset'):
+            
             new_lab_train_ds = np.vstack((new_lab_train_ds, np.expand_dims(
-                np.array([new_unlab_train_ds[topk_idx.item()][0],
-                          new_unlab_train_ds[topk_idx.item()][1]
+                np.array([new_unlab_train_ds[topk_idx.item()][0],# self.train[topk_idx.item()][0]
+                          new_unlab_train_ds[topk_idx.item()][1] # self.train[topk_idx.item()][1]
                 ], dtype=object)
             , axis=0)))
             
-
-        for topk_idx in overall_topk: #tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Removing the observation from the Unlabeled Dataset'):
             new_unlab_train_ds[topk_idx.item()] = np.array([np.nan, np.nan], dtype=object)
             # set a [np.nan np.nan] the row and the get all the row not equal to [np.nan, np.nan]
         
         
-        print('new_lab_train_ds', len(new_lab_train_ds))
-        
-        new_unlab_train_ds = new_unlab_train_ds[
+        self.lab_train_ds = CIFAR10(None, new_lab_train_ds)
+        self.unlab_train_ds = CIFAR10(None, new_unlab_train_ds[
             np.array(
                 [not np.isnan(row[1])
                     for row in tqdm(new_unlab_train_ds, total=len(new_unlab_train_ds),
                                     leave=False, desc='Obtaining the unmarked observation from the Unlabeled Dataset')
                 ]
-            )]
-
-        print('new_unlab_train_ds', len(new_unlab_train_ds))
+            )])
         
-        self.lab_train_ds = CIFAR10(None, new_lab_train_ds)
-        self.unlab_train_ds = CIFAR10(None, new_unlab_train_ds)
-
         self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
-
 
 
 
@@ -201,14 +191,11 @@ class GTG():
                 
                 self.entropy_pairwise_der = torch.zeros((len(self.unlab_train_ds), self.params['gtg_max_iter'] - 1))
 
-
                 pbar = tqdm(enumerate(self.unlab_samp_list), total=len(self.unlab_samp_list), leave=True)
                                 
                 for idx, unlab_sample_dl in pbar:
                     
                     pbar.set_description(f'WORKING WITH UNLABELED SAMPLE # {idx + 1}')
-
-                    #print(f'----------- WORKING WITH UNLABELED SAMPLE # {idx + 1} -----------\n')
 
                     self.samp_unlab_embeddings = self.Main_AL_class.get_embeddings('Unlabeled', unlab_sample_dl)
                                 
@@ -218,7 +205,7 @@ class GTG():
                     
                     self.clear_memory()
 
-                
+                # mean of the entropy derivate 
                 overall_topk = torch.topk(-(torch.sum(self.entropy_pairwise_der, dim = 1) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)           
                             
                 self.get_new_dataloaders(overall_topk.indices)

@@ -1,5 +1,7 @@
 from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets, transforms
+import torch
+
 
 class CIFAR10(Dataset):
     def __init__(self, bool_train, new_dataset=None, transform=None):
@@ -10,7 +12,6 @@ class CIFAR10(Dataset):
 
     def __getitem__(self, index):
         image, label = self.cifar10[index]
-
         return image, label
     
     
