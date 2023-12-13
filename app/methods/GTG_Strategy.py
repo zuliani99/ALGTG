@@ -1,5 +1,5 @@
 
-from app.methods.GTG.gtg import GTG
+from methods.GTG.gtg import GTG
 from utils import write_csv, entropy
 from cifar10 import CIFAR10
 

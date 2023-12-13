@@ -5,7 +5,7 @@ import torch.nn as nn
 from termcolor import colored
 from tqdm import tqdm
 
-from app.methods.GTG_Strategy import GTG_Strategy
+from methods.GTG_Strategy import GTG_Strategy
 from methods.Random_Strategy import Random_Strategy
 
 
@@ -22,7 +22,7 @@ class ActiveLearning():
         self.lab_train_ds, self.unlab_train_ds = splitted_train_ds
         self.loss_fn = loss_fn
         self.val_dl = val_dl
-        self.score_fn = score_fn.to(device)
+        self.score_fn = score_fn
         self.scheduler = scheduler
         self.device = device
         self.patience = patience

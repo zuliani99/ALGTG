@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch
-import dynamics
+#from dynamics import dynamics
 import torch.nn.functional as F
 
 
@@ -68,5 +68,5 @@ class GTG(nn.Module):
             else:
                 ps = probs
                 ps = self._init_probs_prior_only_classes(ps, labs, L, U, classes_to_use)
-        ps = dynamics.dynamics(W, ps, self.tol, self.max_iter, self.mode)
+        #ps = dynamics.dynamics(W, ps, self.tol, self.max_iter, self.mode)
         return ps, W
