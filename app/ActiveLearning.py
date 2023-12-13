@@ -5,8 +5,8 @@ import torch.nn as nn
 from termcolor import colored
 from tqdm import tqdm
 
-from methods.GTG import GTG_Strategy
-from methods.Random import Random_Strategy
+from app.methods.GTG_Strategy import GTG_Strategy
+from methods.Random_Strategy import Random_Strategy
 
 
 class ActiveLearning():

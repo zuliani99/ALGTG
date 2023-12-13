@@ -1,4 +1,5 @@
 
+from app.methods.GTG.gtg import GTG
 from utils import write_csv, entropy
 from cifar10 import CIFAR10
 
@@ -9,7 +10,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 import numpy as np
 from termcolor import colored
-from GTG.gtg import GTG
+
 
 
 
