@@ -40,8 +40,6 @@ class GTG():
         new_unlab_train_ds = self.unlab_train_ds
         sampled_unlab_size = int(len(new_unlab_train_ds) // n_split)
         
-        print('sampled_unlab_size', sampled_unlab_size)
-        print('unlabeled_size', len(new_unlab_train_ds))
 
         # here I subdivide the unlab_train_ds in equal part
         for i in range(n_split):
@@ -132,8 +130,8 @@ class GTG():
         for topk_idx in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Modifing the Unlabeled Dataset'):
             
             new_lab_train_ds = np.vstack((new_lab_train_ds, np.expand_dims(
-                np.array([new_unlab_train_ds[topk_idx.item()][0],# self.train[topk_idx.item()][0]
-                          new_unlab_train_ds[topk_idx.item()][1] # self.train[topk_idx.item()][1]
+                np.array([new_unlab_train_ds[topk_idx.item()][0],
+                          new_unlab_train_ds[topk_idx.item()][1]
                 ], dtype=object)
             , axis=0)))
             

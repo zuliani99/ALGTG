@@ -33,7 +33,7 @@ def main():
     resnet18 = get_resnet18(len(classes))
 
     #optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.001, momentum=0.9)
-    optimizer = torch.optim.Adam(resnet18.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(resnet18.parameters(), lr=0.0001) #0.001
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=2, verbose=True)
 
 
