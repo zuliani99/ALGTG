@@ -24,7 +24,7 @@ class Random_Strategy():
         
         
     def sample_unlab_obs(self, n_top_k_obs):
-        return random.sample(range(len(self.unlab_train_ds)), n_top_k_obs)   
+        return random.sample(range(len(self.unlab_train_ds)), n_top_k_obs)
     
     
     
