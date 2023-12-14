@@ -1,5 +1,4 @@
 
-from methods.GTG.gtg import GTG
 from utils import write_csv, entropy
 from cifar10 import CIFAR10
 
@@ -13,7 +12,6 @@ from termcolor import colored
 
 
 
-
 class GTG_Strategy():
     
     def __init__(self, Main_AL_class, our_methods_params):
@@ -21,14 +19,7 @@ class GTG_Strategy():
         self.Main_AL_class = Main_AL_class
         
         self.params = our_methods_params
-        
-        self.gtg = GTG(
-            self.Main_AL_class.device.n_classes,
-            max_iter=self.params['gtg_max_iter'],
-            device=self.Main_AL_class.device,
-            tol=self.params['gtg_tol']
-        ).to(self.Main_AL_class.device)
-                    
+
 
 
     def clear_memory(self):
@@ -62,8 +53,9 @@ class GTG_Strategy():
 
         # Computing Cosine Similarity
         if(self.params['affinity_method'] == 'cosine_similarity'):
-            normalized_embedding = F.normalize(embeddings_cat, p=2, dim=-1).to(self.Main_AL_class.device)
-            self.A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.Main_AL_class.device)
+            normalized_embedding = F.normalize(embeddings_cat, dim=-1).to(self.Main_AL_class.device)
+            self.A = F.relu(torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.Main_AL_class.device))
+            # AGGIUNG RELU
             del normalized_embedding
 
         # Calculate Gaussian kernel
@@ -76,7 +68,9 @@ class GTG_Strategy():
         
         else:
             raise ValueError('Invalid Affinity Method, please insert one of the cosine_similarity, gaussian_kernel, or eucliden_distance')
-
+        #print(self.A.shape, self.A)
+        #print(self.A.shape[0] * self.A.shape[1], (self.A > 0).sum().item())
+        # Affine matrix is strictly positive -----------> OK
 
 
 
@@ -99,21 +93,42 @@ class GTG_Strategy():
         while err > tol and i < max_iter:
             X_old = self.X.clone()
             self.X = self.X * torch.mm(self.A, self.X)
-            self.X /= self.X.sum(axis=1, keepdim=True)
+            
+            #print(self.X.sum(axis=1, keepdim=True)[0])
+            
+            
+            
+            
+            
+            self.X /= self.X.sum(axis=1, keepdim=True) # ------------------------- STRETTAMENTE CRESCENTE LA SOMMA
+            #qui ho grossi dubbi ecco
+            
+            
+            
+            
         
             iter_entropy = entropy(self.X) # both labeled and sample unlabeled
             # I have to map only the sample_unlabeled to the correct position
+            
+            #print(len(iter_entropy), (iter_entropy > 0).sum()) # All entropy are >= 0 ----------------> OK
                         
             for idx, unlab_ent_val in enumerate(iter_entropy[len(self.lab_train_ds):]):
                 # I iterate only the sampled unlabeled one
-                if i == 0:
-                    self.entropy_pairwise_der[idx + (idx_split * dim_split)][i] = unlab_ent_val
-                else:
-                    self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1] = unlab_ent_val - self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1]
+                if(i != self.params['gtg_max_iter'] - 1): self.entropy_pairwise_der[idx + (idx_split * dim_split)][i] = unlab_ent_val
+                if i != 0:
+                    self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1] = self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1] - unlab_ent_val 
+                #print(i, idx + (idx_split * dim_split), self.entropy_pairwise_der[idx + (idx_split * dim_split)])
+                 
+                #if i == 0:
+                #    self.entropy_pairwise_der[idx + (idx_split * dim_split)][i] = unlab_ent_val
+                #else:
+                #    self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1] = self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1] - unlab_ent_val 
+                    #print(i, idx + (idx_split * dim_split), self.entropy_pairwise_der[idx + (idx_split * dim_split)][i - 1], unlab_ent_val)
+                    #print(i, idx + (idx_split * dim_split), self.entropy_pairwise_der[idx + (idx_split * dim_split)])
                     
-                
             err = torch.norm(self.X - X_old)
             i += 1
+        #print('\n')
 
 
 
@@ -215,8 +230,14 @@ class GTG_Strategy():
                     self.clear_memory()
 
                 # mean of the entropy derivate 
-                overall_topk = torch.topk(-(torch.sum(self.entropy_pairwise_der, dim = 1) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)           
-                            
+                overall_topk = torch.topk((torch.sum(self.entropy_pairwise_der, dim = 1) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)           
+                
+                
+                
+                #print(self.unlab_train_ds[overall_topk.indices[0].item()])
+                                
+                
+                
                 self.get_new_dataloaders(overall_topk.indices)
                 
                 
