@@ -12,11 +12,12 @@ from methods.Random_Strategy import Random_Strategy
 class ActiveLearning():
 
 
-    def __init__(self, n_classes, batch_size, model, optimizer, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, scheduler, device, patience, timestamp):
+    def __init__(self, n_classes, batch_size, model, optimizer, train_ds, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, scheduler, device, patience, timestamp):
         self.n_classes = n_classes
         self.model = model.to(device)
         self.batch_size = batch_size
         self.optimizer = optimizer
+        self.train_ds = train_ds
         self.test_dl = test_dl
         self.lab_train_dl = lab_train_dl
         self.lab_train_ds, self.unlab_train_ds = splitted_train_ds
@@ -65,7 +66,7 @@ class ActiveLearning():
         pbar = tqdm(val_dl, total = len(val_dl), leave=False)
 
         with torch.inference_mode(): # Allow inference mode
-            for images, label in pbar:
+            for _, images, label in pbar:
                 images, label = images.to(self.device), label.to(self.device)
 
                 output = self.model(images)
@@ -100,7 +101,10 @@ class ActiveLearning():
 
             pbar = tqdm(dataloader, total = len(dataloader), leave=False)
 
-            for inputs, labels in pbar:
+            for _, inputs, labels in pbar:
+                
+                #print(type(inputs))
+                
                 # zero the parameter gradients
                 self.optimizer.zero_grad()
 
@@ -171,7 +175,7 @@ class ActiveLearning():
 
         # again no gradients needed
         with torch.inference_mode():
-            for inputs, _ in pbar:
+            for _, inputs, _ in pbar:
                 embed = self.embed_model(inputs.to(self.device))
                 
                 embeddings = torch.cat((embeddings, embed.squeeze()), dim=0)
