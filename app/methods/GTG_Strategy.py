@@ -93,10 +93,10 @@ class GTG_Strategy():
             X_old = self.X.clone()
             self.X = self.X * torch.mm(self.A, self.X)         
             
-            str_idx = f''
-            for idx in idx_to_print:
-                str_idx += f'{idx} -> {self.X.sum(axis=1, keepdim=True)[idx]}   '
-            print(str_idx)    
+            #str_idx = f''
+            #for idx in idx_to_print:
+            #    str_idx += f'{idx} -> {self.X.sum(axis=1, keepdim=True)[idx]}   '
+            #print(str_idx)    
                 
             self.X /= self.X.sum(axis=1, keepdim=True) # ------------------------- STRETTAMENTE CRESCENTE LA SOMMA
             #qui ho grossi dubbi ecco------------------- MA FORSE ORA È CORRETTO

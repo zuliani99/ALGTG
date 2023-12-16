@@ -47,6 +47,7 @@ def accuracy_score(output, label):
 def get_resnet18(n_classes):
     #resnet18 = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', weights='DEFAULT')
     #resnet18 = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', weights=None)
+    #resnet18 = models.resnet18(pretrained = False)
     resnet18 = models.resnet18(weights=None)
 
     num_ftrs = resnet18.fc.in_features

@@ -32,8 +32,7 @@ class ActiveLearning():
         self.init_check_filename = './checkpoints/init_checkpoint.pth.tar' #app
         self.__save_checkpoint(self.init_check_filename)
         
-        self.embed_model = nn.Sequential(*list(self.model.children())[:-1]).to(self.device)
-          
+
         
 
     def reintialize_model(self):
@@ -163,16 +162,18 @@ class ActiveLearning():
 
     def get_embeddings(self, type_embeds, dataloader):
             
-        embeddings = torch.empty(0, list(self.model.children())[-1].in_features).to(self.device)      
-
-        self.embed_model.eval()
+        embeddings = torch.empty(0, list(self.model.resnet18.children())[-1].in_features).to(self.device)  
+        
+        embed_model = nn.Sequential(*list(self.model.resnet18.children())[:-1]).to(self.device)
+        
+        embed_model.eval()
 
         pbar = tqdm(dataloader, total = len(dataloader), leave=False, desc=f'Getting {type_embeds} Embeddings')
 
         # again no gradients needed
         with torch.inference_mode():
             for inputs, _ in pbar:
-                embed = self.embed_model(inputs.to(self.device))
+                embed = embed_model(inputs.to(self.device))
                 
                 embeddings = torch.cat((embeddings, embed.squeeze()), dim=0)
              
@@ -180,7 +181,7 @@ class ActiveLearning():
 
 
 
-    def train_evaluate(self, epochs, al_iters, n_top_k_obs, our_method_params):#, random_params):
+    def train_evaluate(self, epochs, al_iters, n_top_k_obs, our_method_params):
 
         results = { }
         n_lab_obs =  [len(self.lab_train_ds) + (iter * n_top_k_obs) for iter in range(al_iters + 1)]

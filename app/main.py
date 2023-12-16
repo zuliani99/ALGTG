@@ -6,6 +6,7 @@ import torch.nn as nn
 from ActiveLearning import ActiveLearning
 from cifar10 import get_cifar10
 from utils import create_ts_dir_res, get_initial_dataloaders, get_resnet18, accuracy_score, plot_loss_curves
+from resnet18 import ResNet18
 
 from datetime import datetime
 
@@ -30,7 +31,7 @@ def main():
         batch_size = batch_size
     )
 
-    resnet18 = get_resnet18(len(classes))
+    resnet18 = ResNet18() #get_resnet18(len(classes))
 
     #optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.001, momentum=0.9)
     optimizer = torch.optim.Adam(resnet18.parameters(), lr=0.001)
