@@ -4,9 +4,10 @@ import numpy as np
 from tqdm import tqdm
 from termcolor import colored
 
+import torch
 from torch.utils.data import DataLoader
 
-from utils import write_csv
+from utils import write_csv #,get_new_dataloaders
 from cifar10 import CIFAR10
 
 
@@ -28,36 +29,49 @@ class Random_Strategy():
     
     
     
-    def get_new_dataloaders(self, topk_idx_obs):
+    def get_new_dataloaders(self, overall_topk):
+
         new_lab_train_ds = np.array([
             np.array([
-                image if isinstance(image, np.ndarray) else image.numpy(), label
-            ], dtype=object) for image, label in tqdm(self.lab_train_ds, total=len(self.lab_train_ds), leave=False, desc='Copying lab_train_ds')], dtype=object)
-        
-        
+                #idx, image if isinstance(image, np.ndarray) else image.numpy(), label
+                idx, image if isinstance(image, torch.Tensor) else torch.tensor(image), label
+            ], dtype=object) for idx, image, label in tqdm(self.lab_train_ds, total=len(self.lab_train_ds), leave=False, desc='Copying lab_train_ds')], dtype=object)
+
         new_unlab_train_ds = np.array([
             np.array([
-                image if isinstance(image, np.ndarray) else image.numpy(), label
-            ], dtype=object) for image, label in tqdm(self.unlab_train_ds, total=len(self.unlab_train_ds), leave=False, desc='Copying unlab_train_ds')], dtype=object)
-        
+                #idx, image if isinstance(image, np.ndarray) else image.numpy(), label
+                idx, image if isinstance(image, torch.Tensor) else torch.tensor(image), label
+            ], dtype=object) for idx, image, label in tqdm(self.unlab_train_ds, total=len(self.unlab_train_ds), leave=False, desc='Copying unlab_train_ds')], dtype=object)
+                
 
-
-        for idx_to_move in tqdm(topk_idx_obs, total=len(topk_idx_obs), leave=False, desc='Modifing the Unlabeled Dataset'):
+        for topk_idx in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Modifing the Unlabeled Dataset'):
+            
             new_lab_train_ds = np.vstack((new_lab_train_ds, np.expand_dims(
-                np.array(new_unlab_train_ds[idx_to_move], dtype=object)
+                np.array([self.Main_AL_class.train_ds[topk_idx][0],
+                          self.Main_AL_class.train_ds[topk_idx][1],
+                          self.Main_AL_class.train_ds[topk_idx][2]
+                ], dtype=object)
             , axis=0)))
             
-            new_unlab_train_ds[idx_to_move] = np.array([np.nan, np.nan], dtype=object) # set a [np.nan np.nan] the row and the get all the row not equal to [np.nan, np.nan]       
-            
+            for idx, (i, _, _) in enumerate(new_unlab_train_ds):
+                if i == topk_idx:
+                    new_unlab_train_ds[idx] = np.array([np.nan, np.nan, np.nan], dtype=object)
+            # set a [np.nan np.nan] the row and the get all the row not equal to [np.nan, np.nan]
         
         
         self.lab_train_ds = CIFAR10(None, new_lab_train_ds)
-        self.unlab_train_ds = CIFAR10(None,
-                                      new_unlab_train_ds[np.array([not np.isnan(row[1])
-                                                                   for row in tqdm(new_unlab_train_ds, total=len(new_unlab_train_ds), desc='Obtaining the unmarked observation from the Unlabeled Dataset', leave=False)])])
-
-        self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
+        self.unlab_train_ds = CIFAR10(None, new_unlab_train_ds[
+            np.array(
+                [not np.isnan(row[0])
+                    for row in tqdm(new_unlab_train_ds, total=len(new_unlab_train_ds),
+                                    leave=False, desc='Obtaining the unmarked observation from the Unlabeled Dataset')
+                ]
+            )])
         
+        self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
+        #self.unlab_train_dl = DataLoader(self.unlab_train_dl, batch_size=self.Main_AL_class.batch_size, shuffle=True)
+
+
     
     
     def run(self, al_iters, epochs, n_top_k_obs):
@@ -75,7 +89,7 @@ class Random_Strategy():
         write_csv(
             ts_dir=self.Main_AL_class.timestamp,
             head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
-            values = [self.method_name, iter + 1, 'None', test_accuracy, test_loss]
+            values = [self.method_name, iter, 'None', test_accuracy, test_loss]
         )
 
         
@@ -92,6 +106,9 @@ class Random_Strategy():
                         
             # modify the datasets and dataloader
             self.get_new_dataloaders(topk_idx_obs)
+            #self.lab_train_ds, self.unlab_train_ds, self.lab_train_dl = get_new_dataloaders(
+            #        topk_idx_obs, self.lab_train_ds, self.unlab_train_ds, self.Main_AL_class.train_ds, self.Main_AL_class.batch_size
+            #    )
             
             
             # iter + 1
