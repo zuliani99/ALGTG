@@ -89,7 +89,7 @@ class Random_Strategy():
         write_csv(
             ts_dir=self.Main_AL_class.timestamp,
             head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
-            values = [self.method_name, iter, 'None', test_accuracy, test_loss]
+            values = [self.method_name, iter + 1, 'None', test_accuracy, test_loss]
         )
 
         
