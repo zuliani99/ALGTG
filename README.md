@@ -19,7 +19,10 @@ python main.py
 ## Notes
 Github url repo:
 ```
-https://github.com/zuliani99/Active_Learning_GTG.git
+
+
+git clone -b main https://github.com/zuliani99/Active_Learning_GTG.git
+git clone -b dataloader_idx https://github.com/zuliani99/Active_Learning_GTG.git
 ```
 
 GitHub Token

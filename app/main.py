@@ -5,7 +5,7 @@ import torch.nn as nn
 
 from ActiveLearning import ActiveLearning
 from cifar10 import get_cifar10
-from utils import create_ts_dir_res, get_initial_dataloaders, get_resnet18, accuracy_score, plot_loss_curves
+from utils import create_ts_dir_res, get_initial_dataloaders, accuracy_score, plot_loss_curves
 from resnet18 import ResNet18
 
 from datetime import datetime
@@ -35,7 +35,7 @@ def main():
 
     #optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.001, momentum=0.9)
     optimizer = torch.optim.Adam(resnet18.parameters(), lr=0.001)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=2, verbose=True)
+    #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=2, verbose=True)
 
 
     epochs = 2#30
@@ -58,7 +58,7 @@ def main():
         loss_fn = nn.CrossEntropyLoss(),
         val_dl = val_dl,
         score_fn = accuracy_score,
-        scheduler = scheduler,
+        #scheduler = scheduler,
         device = device,
         patience = 10,
         timestamp = timestamp

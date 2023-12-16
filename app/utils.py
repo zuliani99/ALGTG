@@ -1,7 +1,5 @@
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
-import torchvision.models as models
 
 import matplotlib.pyplot as plt
 
@@ -44,21 +42,10 @@ def accuracy_score(output, label):
 
 
 
-def get_resnet18(n_classes):
-    #resnet18 = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', weights='DEFAULT')
-    #resnet18 = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', weights=None)
-    #resnet18 = models.resnet18(pretrained = False)
-    resnet18 = models.resnet18(weights=None)
-
-    num_ftrs = resnet18.fc.in_features
-    resnet18.fc = nn.Linear(num_ftrs, n_classes)
-
-    return resnet18
-
-
 def entropy(tensor):
     tensor = tensor.cpu() + 1e-20
     return -torch.sum(tensor * torch.log2(tensor), dim=1)
+
     
 
 def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, plot_png_name = None):

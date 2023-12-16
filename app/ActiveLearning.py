@@ -12,7 +12,7 @@ from methods.Random_Strategy import Random_Strategy
 class ActiveLearning():
 
 
-    def __init__(self, n_classes, batch_size, model, optimizer, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, scheduler, device, patience, timestamp):
+    def __init__(self, n_classes, batch_size, model, optimizer, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, device, patience, timestamp): #scheduler
         self.n_classes = n_classes
         self.model = model.to(device)
         self.batch_size = batch_size
@@ -23,7 +23,7 @@ class ActiveLearning():
         self.loss_fn = loss_fn
         self.val_dl = val_dl
         self.score_fn = score_fn
-        self.scheduler = scheduler
+        #self.scheduler = scheduler
         self.device = device
         self.patience = patience
         self.timestamp = timestamp
@@ -36,23 +36,23 @@ class ActiveLearning():
         
 
     def reintialize_model(self):
-        self.__load_checkpoint(self.init_check_filename, 'Initial')
+        self.__load_checkpoint(self.init_check_filename)
 
 
 
     def __save_checkpoint(self, filename):
 
-        checkpoint = { 'state_dict': self.model.state_dict(), 'optimizer': self.optimizer.state_dict(), 'scheduler': self.scheduler.state_dict() }
+        checkpoint = { 'state_dict': self.model.state_dict(), 'optimizer': self.optimizer.state_dict()} #, 'scheduler': self.scheduler.state_dict() }
         torch.save(checkpoint, filename)
 
 
 
-    def __load_checkpoint(self, filename, type_load):
+    def __load_checkpoint(self, filename):
 
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
-        self.scheduler.load_state_dict(checkpoint['scheduler'])
+        #self.scheduler.load_state_dict(checkpoint['scheduler'])
 
 
 
@@ -125,7 +125,7 @@ class ActiveLearning():
             train_loss /= len(dataloader)
             train_accuracy /= len(dataloader)
 
-            self.scheduler.step(train_loss)
+            #self.scheduler.step(train_loss)
 
             # Validation step
             val_loss, val_accuracy = self.evaluate(self.val_dl, epoch + 1, epochs)
@@ -144,7 +144,7 @@ class ActiveLearning():
                     pbar.close() # Closing the progress bar before exiting from the train loop
                     break
 
-        self.__load_checkpoint(self.best_check_filename, 'Best')
+        self.__load_checkpoint(self.best_check_filename)
 
         print('Finished Training\n')
 

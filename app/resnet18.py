@@ -3,24 +3,6 @@ import torch.nn.init as init
 import torchvision.models as models
 
 # Define the ResNet18 model
-'''class ResNet18(nn.Module):
-    def __init__(self):
-        super(ResNet18, self).__init__()
-        self.resnet18 = models.resnet18(weights=None)
-        self.change_weigths(self.resnet18)
-
-    def change_weigths(self, resnet18):
-        for m in resnet18.modules():
-            if isinstance(m, nn.Sequential) or isinstance(m, nn.Block):
-                self.change_weigths(self, m)
-            elif isinstance(m, nn.Conv2d):
-                init.xavier_uniform_(m.weight, gain=nn.init.calculate_gain('relu'))
-                if m.bias is not None:
-                    init.constant_(m.bias, 0)
-    
-    def forward(self, x):
-        return self.resnet18(x)'''
-        
 class ResNet18(nn.Module):
     def __init__(self):
         super(ResNet18, self).__init__()
