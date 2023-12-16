@@ -11,12 +11,8 @@ class CIFAR10(Dataset):
         return len(self.cifar10)
 
     def __getitem__(self, index):
-        if len(self.cifar10[index]) == 3:
-            idx, image, label = self.cifar10[index]
-            return idx, image, label
-        else:
-            image, label = self.cifar10[index]
-            return index, image, label
+        image, label = self.cifar10[index]
+        return image, label
     
     
 def get_cifar10(batch_size):
