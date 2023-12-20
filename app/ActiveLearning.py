@@ -191,7 +191,7 @@ class ActiveLearning():
 
         # again no gradients needed
         with torch.inference_mode():
-            for inputs, _ in pbar:
+            for _, inputs, _ in pbar:
                 
                 embed = embed_model(inputs.to(self.device))
 

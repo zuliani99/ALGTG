@@ -237,6 +237,7 @@ class GTG_Strategy():
                 
                 #print(self.unlab_embeddings)
                 
+                # at each AL rounf I reinitialize the entropy_pairwise_der since I have to decide at each step what observations I want to move
                 self.entropy_pairwise_der = torch.zeros((len(self.Main_AL_class.train_ds), self.params['gtg_max_iter'] - 1))
 
 
@@ -251,6 +252,8 @@ class GTG_Strategy():
                     self.gtg(self.params['gtg_tol'], self.params['gtg_max_iter'], indices)
                     
                     self.clear_memory()
+                    
+                    
 
                 # mean of the entropy derivate 
                 print(torch.sum(self.entropy_pairwise_der, dim = 1, dtype=torch.float32))
