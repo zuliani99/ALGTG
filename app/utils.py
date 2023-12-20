@@ -1,7 +1,5 @@
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
-import torchvision.models as models
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,6 +7,7 @@ import numpy as np
 import csv
 import os
 import errno
+import copy
 
 import tqdm
 
@@ -37,7 +36,7 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
     labeled_set, unlabeled_set = random_split(train_data, [labeled_size, unlabeled_size])
 
     # Obtain the splitted dataloader
-    labeled_train_dl = DataLoader(labeled_set, batch_size=batch_size, shuffle=True, num_workers=2)
+    labeled_train_dl = DataLoader(labeled_set, batch_size=batch_size, shuffle=False, num_workers=2)
 
     return labeled_train_dl, (labeled_set, unlabeled_set), val_dl
     
@@ -49,20 +48,12 @@ def accuracy_score(output, label):
 
 
 
-def get_resnet18(n_classes):
-    #resnet18 = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', weights='DEFAULT')
-    #resnet18 = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', weights=None)
-    resnet18 = models.resnet18(weights=None)
-
-    num_ftrs = resnet18.fc.in_features
-    resnet18.fc = nn.Linear(num_ftrs, n_classes)
-
-    return resnet18
-
-
 def entropy(tensor):
-    tensor = tensor.cpu() + 1e-20
-    return -torch.sum(tensor * torch.log2(tensor), dim=1)
+    print('ENTROPY OF TENSOR:   ', tensor)
+    x = copy.deepcopy(tensor.cpu()) + 1e-20
+    #x = torch.clone(tensor).cpu() + 1e-20
+    return -torch.sum(x * torch.log2(x), dim=1)
+
     
 
 def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, plot_png_name = None):

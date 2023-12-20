@@ -44,7 +44,8 @@ class Random_Strategy():
             ], dtype=object) for idx, image, label in tqdm(self.unlab_train_ds, total=len(self.unlab_train_ds), leave=False, desc='Copying unlab_train_ds')], dtype=object)
                 
 
-        for topk_idx in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Modifing the Unlabeled Dataset'):
+
+        for topk_idx in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Modifing the Datasets'):
             
             new_lab_train_ds = np.vstack((new_lab_train_ds, np.expand_dims(
                 np.array([self.Main_AL_class.train_ds[topk_idx][0],
@@ -60,6 +61,7 @@ class Random_Strategy():
         
         
         self.lab_train_ds = CIFAR10(None, new_lab_train_ds)
+
         self.unlab_train_ds = CIFAR10(None, new_unlab_train_ds[
             np.array(
                 [not np.isnan(row[0])
@@ -67,6 +69,7 @@ class Random_Strategy():
                                     leave=False, desc='Obtaining the unmarked observation from the Unlabeled Dataset')
                 ]
             )])
+
         
         self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
         #self.unlab_train_dl = DataLoader(self.unlab_train_dl, batch_size=self.Main_AL_class.batch_size, shuffle=True)

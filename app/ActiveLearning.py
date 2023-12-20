@@ -9,10 +9,24 @@ from methods.GTG_Strategy import GTG_Strategy
 from methods.Random_Strategy import Random_Strategy
 
 
+class Embed_Model(nn.Module):
+    def __init__(self, model):
+        super(Embed_Model, self).__init__()
+
+        # Copy all layers except the last one from the original model
+        self.features = nn.Sequential(*list(model.resnet18.children())[:-1])
+
+    def forward(self, x):
+        # Forward pass using the modified model
+        return self.features(x)
+
+
+
 class ActiveLearning():
 
 
-    def __init__(self, n_classes, batch_size, model, optimizer, train_ds, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, scheduler, device, patience, timestamp):
+    def __init__(self, n_classes, batch_size, model, optimizer, train_ds, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, device, patience, timestamp): #scheduler
+
         self.n_classes = n_classes
         self.model = model.to(device)
         self.batch_size = batch_size
@@ -24,7 +38,7 @@ class ActiveLearning():
         self.loss_fn = loss_fn
         self.val_dl = val_dl
         self.score_fn = score_fn
-        self.scheduler = scheduler
+        #self.scheduler = scheduler
         self.device = device
         self.patience = patience
         self.timestamp = timestamp
@@ -33,28 +47,27 @@ class ActiveLearning():
         self.init_check_filename = './checkpoints/init_checkpoint.pth.tar' #app
         self.__save_checkpoint(self.init_check_filename)
         
-        self.embed_model = nn.Sequential(*list(self.model.children())[:-1]).to(self.device)
-          
+
         
 
     def reintialize_model(self):
-        self.__load_checkpoint(self.init_check_filename, 'Initial')
+        self.__load_checkpoint(self.init_check_filename)
 
 
 
     def __save_checkpoint(self, filename):
 
-        checkpoint = { 'state_dict': self.model.state_dict(), 'optimizer': self.optimizer.state_dict(), 'scheduler': self.scheduler.state_dict() }
+        checkpoint = { 'state_dict': self.model.state_dict(), 'optimizer': self.optimizer.state_dict()} #, 'scheduler': self.scheduler.state_dict() }
         torch.save(checkpoint, filename)
 
 
 
-    def __load_checkpoint(self, filename, type_load):
+    def __load_checkpoint(self, filename):
 
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
-        self.scheduler.load_state_dict(checkpoint['scheduler'])
+        #self.scheduler.load_state_dict(checkpoint['scheduler'])
 
 
 
@@ -130,7 +143,7 @@ class ActiveLearning():
             train_loss /= len(dataloader)
             train_accuracy /= len(dataloader)
 
-            self.scheduler.step(train_loss)
+            #self.scheduler.step(train_loss)
 
             # Validation step
             val_loss, val_accuracy = self.evaluate(self.val_dl, epoch + 1, epochs)
@@ -149,7 +162,7 @@ class ActiveLearning():
                     pbar.close() # Closing the progress bar before exiting from the train loop
                     break
 
-        self.__load_checkpoint(self.best_check_filename, 'Best')
+        self.__load_checkpoint(self.best_check_filename)
 
         print('Finished Training\n')
 
@@ -167,16 +180,21 @@ class ActiveLearning():
 
     def get_embeddings(self, type_embeds, dataloader):
             
-        embeddings = torch.empty(0, list(self.model.children())[-1].in_features).to(self.device)      
-
-        self.embed_model.eval()
+        embeddings = torch.empty(0, list(self.model.resnet18.children())[-1].in_features, dtype=torch.float32).to(self.device)  
+        
+        embed_model = nn.Sequential(*list(self.model.resnet18.children())[:-1]).to(self.device)
+        #embed_model = Embed_Model(self.model).to(self.device)
+                        
+        embed_model.eval()
 
         pbar = tqdm(dataloader, total = len(dataloader), leave=False, desc=f'Getting {type_embeds} Embeddings')
 
         # again no gradients needed
         with torch.inference_mode():
-            for _, inputs, _ in pbar:
-                embed = self.embed_model(inputs.to(self.device))
+            for inputs, _ in pbar:
+                
+                embed = embed_model(inputs.to(self.device))
+
                 
                 embeddings = torch.cat((embeddings, embed.squeeze()), dim=0)
              
@@ -184,7 +202,7 @@ class ActiveLearning():
 
 
 
-    def train_evaluate(self, epochs, al_iters, n_top_k_obs, our_method_params):#, random_params):
+    def train_evaluate(self, epochs, al_iters, n_top_k_obs, our_method_params):
 
         results = { }
         n_lab_obs =  [len(self.lab_train_ds) + (iter * n_top_k_obs) for iter in range(al_iters + 1)]

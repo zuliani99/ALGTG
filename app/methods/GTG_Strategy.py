@@ -10,6 +10,7 @@ from tqdm import tqdm
 import numpy as np
 from termcolor import colored
 import random
+import copy
 
 
 
@@ -30,17 +31,21 @@ class GTG_Strategy():
 
 
 
+
     '''def get_unlabeled_samples(self, n_split):
+
         self.unlab_samp_list = []
 
-        new_unlab_train_ds = self.unlab_train_ds
-        sampled_unlab_size = int(len(new_unlab_train_ds) // n_split)
+        #new_unlab_train_ds = self.unlab_train_ds
+        sampled_unlab_size = int(len(self.unlab_train_ds) // n_split)
         
-
         # here I subdivide the unlab_train_ds in equal part
         for i in range(n_split):
-
-            subset = Subset(new_unlab_train_ds, torch.arange(i*sampled_unlab_size, (i+1) * sampled_unlab_size).tolist())
+            #ran = torch.arange(i*sampled_unlab_size, (i+1) * sampled_unlab_size).tolist()
+            
+            #print(ran[0], ran[-1])
+            
+            subset = Subset(self.unlab_train_ds, torch.arange(i*sampled_unlab_size, (i+1) * sampled_unlab_size).tolist())
 
             self.unlab_samp_list.append(DataLoader(subset, batch_size=self.Main_AL_class.batch_size, shuffle=False, num_workers=2))
                             
@@ -52,35 +57,43 @@ class GTG_Strategy():
         #print(self.labeled_embeddings.shape, samp_unlab_embeddings.shape)
         embeddings_cat = torch.cat((self.labeled_embeddings, samp_unlab_embeddings)).to(self.Main_AL_class.device)
 
+
         # Computing Cosine Similarity
-        if(self.params['affinity_method'] == 'cosine_similarity'):
-            normalized_embedding = F.normalize(embeddings_cat, dim=-1).to(self.Main_AL_class.device)
-            self.A = F.relu(torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.Main_AL_class.device))
-            del normalized_embedding
+        #if(self.params['affinity_method'] == 'cosine_similarity'):
+        normalized_embedding = F.normalize(embeddings_cat, dim=-1).to(self.Main_AL_class.device)
+        self.A = F.relu(
+            torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.Main_AL_class.device)
+        ).fill_diagonal_(0)
+        print('\nA:\n', self.A)
+        del normalized_embedding
 
         # Calculate Gaussian kernel
-        elif(self.params['affinity_method'] == 'gaussian_kernel'):
-            self.A = torch.exp(-(torch.cdist(embeddings_cat, embeddings_cat)).pow(2) / (2.0 * 1**2))
+        #elif(self.params['affinity_method'] == 'gaussian_kernel'):
+        #    self.A = torch.exp(-(torch.cdist(embeddings_cat, embeddings_cat)).pow(2) / (2.0 * 1**2))
+        #    print('\nA:\n', self.A)
 
         # Calculate the Euclidean Distance
-        elif(self.params['affinity_method'] == 'eucliden_distance'):
-            self.A = torch.cdist(embeddings_cat, embeddings_cat).to(self.Main_AL_class.device)
+        #elif(self.params['affinity_method'] == 'eucliden_distance'):
+        #    self.A = torch.cdist(embeddings_cat, embeddings_cat).to(self.Main_AL_class.device)
+        #    print('\nA:\n', self.A)
         
-        else:
-            raise ValueError('Invalid Affinity Method, please insert one of the cosine_similarity, gaussian_kernel, or eucliden_distance')
+        #else:
+        #    raise ValueError('Invalid Affinity Method, please insert one of the cosine_similarity, gaussian_kernel, or eucliden_distance')
+
+        del embeddings_cat
 
 
-
-
+    # correct
     def get_X(self, len_samp_unlab_embeds):
         
-        self.X = torch.zeros(len(self.lab_train_ds) + len_samp_unlab_embeds, self.Main_AL_class.n_classes, dtype=torch.float).to(self.Main_AL_class.device)
+        self.X = torch.zeros(len(self.lab_train_ds) + len_samp_unlab_embeds, self.Main_AL_class.n_classes, dtype=torch.float32).to(self.Main_AL_class.device)
         
         for idx, (_, _, label) in enumerate(self.lab_train_ds): self.X[idx][label] = 1
         for idx in range(len(self.lab_train_ds), len(self.lab_train_ds) + len_samp_unlab_embeds):
             for label in range(self.Main_AL_class.n_classes):
                 self.X[idx][label] = 1 / self.Main_AL_class.n_classes
-                    
+        
+        print('X:\n', self.X)
 
 
 
@@ -88,35 +101,49 @@ class GTG_Strategy():
         err = float('Inf')
         i = 0
         #idx_to_print = random.sample(range(len(self.X)), 6)
+        #idx_to_print = random.sample(range(len(self.lab_train_ds), len(self.X)), 3) # index of the unlabeled set
+    
+
         
         while err > tol and i < max_iter:
-            X_old = self.X.clone()
-            self.X = self.X * torch.mm(self.A, self.X)         
+            #X_old = copy.deepcopy(self.X)
+            X_old = copy.deepcopy(self.X) #torch.clone(self.X)
+            self.X *= torch.mm(self.A, self.X)
             
             #str_idx = f''
             #for idx in idx_to_print:
-            #    str_idx += f'{idx} -> {self.X.sum(axis=1, keepdim=True)[idx]}   '
+
+            #    str_idx += f'{idx} -> {self.X.sum(dim=1, keepdim=True)[idx]}   '
             #print(str_idx)    
                 
-            self.X /= self.X.sum(axis=1, keepdim=True) # ------------------------- STRETTAMENTE CRESCENTE LA SOMMA
-            #qui ho grossi dubbi ecco------------------- MA FORSE ORA È CORRETTO
+            self.X /= torch.sum(self.X, dim=1, keepdim=True)#self.X.sum(dim=1, keepdim=True) # ------------------------- STRETTAMENTE CRESCENTE LA SOMMA
         
             iter_entropy = entropy(self.X) # both labeled and sample unlabeled
             # I have to map only the sample_unlabeled to the correct position
-                                    
+            
+            #for ent in iter_entropy: print(i, ent)
+            
+            #print(iter_entropy[-10:])
+            
             for idx, unlab_ent_val in enumerate(iter_entropy[len(self.lab_train_ds):]):
                 # I iterate only the sampled unlabeled one
                 
                 if(i != self.params['gtg_max_iter'] - 1): self.entropy_pairwise_der[indices[idx]][i] = unlab_ent_val
+
                 if i != 0:
                     self.entropy_pairwise_der[indices[idx]][i - 1] = self.entropy_pairwise_der[indices[idx]][i - 1] - unlab_ent_val 
                     
+            #str_idx = f''
+            #for id in idx_to_print:
+            #    str_idx += f'{id} -> {self.entropy_pairwise_der[id + (idx_split * dim_split)][i - 1] if i != 0 else unlab_ent_val}   '
+            #print(str_idx)     
+                
             err = torch.norm(self.X - X_old)
             i += 1
 
 
 
-
+    # correct
     def get_new_dataloaders(self, overall_topk):
 
         new_lab_train_ds = np.array([
@@ -156,8 +183,8 @@ class GTG_Strategy():
                 ]
             )])
         
-        self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
-        #self.unlab_train_dl = DataLoader(self.unlab_train_dl, batch_size=self.Main_AL_class.batch_size, shuffle=True)
+
+        self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=False)
 
 
 
@@ -183,7 +210,7 @@ class GTG_Strategy():
             print(colored(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n', 'blue'))
             self.Main_AL_class.reintialize_model()
             self.Main_AL_class.fit(epochs, self.lab_train_dl) # train in the labeled observations
-                
+            
             test_loss, test_accuracy = self.Main_AL_class.test_AL()
                 
             write_csv(
@@ -212,6 +239,7 @@ class GTG_Strategy():
                 
                 self.entropy_pairwise_der = torch.zeros((len(self.Main_AL_class.train_ds), self.params['gtg_max_iter'] - 1))
 
+
                 pbar = tqdm(enumerate(self.unlab_train_dl), total=len(self.unlab_train_dl), leave=True)
                                 
                 for idx, (indices, _, _) in pbar:
@@ -225,7 +253,11 @@ class GTG_Strategy():
                     self.clear_memory()
 
                 # mean of the entropy derivate 
-                overall_topk = torch.topk((torch.sum(self.entropy_pairwise_der, dim = 1) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)
+                print(torch.sum(self.entropy_pairwise_der, dim = 1, dtype=torch.float32))
+                overall_topk = torch.topk((torch.sum(self.entropy_pairwise_der, dim = 1, dtype=torch.float32) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)
+                
+                #print(overall_topk.values[:10])
+                # HO TUTTE LE DERIVATE DELLE ENTROPIE MOLTO SIMILI QUESTO VA AD INDICARE CHE I MIEI ESEMPI SONO SIMILI PER QUANTO RIGUARDA LA LORO DIFFICOLTA'
                 
                 self.get_new_dataloaders(overall_topk.indices)
                 #self.lab_train_ds, self.unlab_train_ds, self.lab_train_dl = get_new_dataloaders(

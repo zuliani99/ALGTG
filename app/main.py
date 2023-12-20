@@ -5,7 +5,8 @@ import torch.nn as nn
 
 from ActiveLearning import ActiveLearning
 from cifar10 import get_cifar10
-from utils import create_ts_dir_res, get_initial_dataloaders, get_resnet18, accuracy_score, plot_loss_curves
+from utils import create_ts_dir_res, get_initial_dataloaders, accuracy_score, plot_loss_curves
+from resnet18 import ResNet18
 
 from datetime import datetime
 
@@ -26,15 +27,15 @@ def main():
     lab_train_dl, splitted_train_ds, val_dl = get_initial_dataloaders(
         trainset = trainset,
         val_rateo = 0.2,
-        labeled_ratio = 0.1,
+        labeled_ratio = 0.01,
         batch_size = batch_size
     )
 
-    resnet18 = get_resnet18(len(classes))
+    resnet18 = ResNet18() #get_resnet18(len(classes))
 
     #optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.001, momentum=0.9)
     optimizer = torch.optim.Adam(resnet18.parameters(), lr=0.001)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=2, verbose=True)
+    #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=2, verbose=True)
 
 
     epochs = 2#30
@@ -58,7 +59,7 @@ def main():
         loss_fn = nn.CrossEntropyLoss(),
         val_dl = val_dl,
         score_fn = accuracy_score,
-        scheduler = scheduler,
+        #scheduler = scheduler,
         device = device,
         patience = 10,
         timestamp = timestamp
@@ -67,9 +68,9 @@ def main():
     
     our_method_params = {
         'gtg_tol': 0.001,
-        'gtg_max_iter': 10,#200,
+        'gtg_max_iter': 20,#200,
         'list_n_samples': [10], #[5, 10, 15 20, 25, 30])
-        'affinity_method': 'cosine_similarity',  # possiible choices are: cosine_similarity, gaussian_kernel, eucliden_distance
+        #'affinity_method': 'cosine_similarity',  # possiible choices are: cosine_similarity, gaussian_kernel, eucliden_distance
     }
     
 
