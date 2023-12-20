@@ -31,7 +31,7 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
     labeled_set, unlabeled_set = random_split(train_data, [labeled_size, unlabeled_size])
 
     # Obtain the splitted dataloader
-    labeled_train_dl = DataLoader(labeled_set, batch_size=batch_size, shuffle=True, num_workers=2)
+    labeled_train_dl = DataLoader(labeled_set, batch_size=batch_size, shuffle=False, num_workers=2)
 
     return labeled_train_dl, (labeled_set, unlabeled_set), val_dl
     

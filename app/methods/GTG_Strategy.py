@@ -30,7 +30,7 @@ class GTG_Strategy():
         torch.cuda.empty_cache()
 
 
-
+    # correct
     def get_unlabeled_samples(self, n_split):
         self.unlab_samp_list = []
 
@@ -50,35 +50,37 @@ class GTG_Strategy():
         return sampled_unlab_size
 
 
-
+    # correct
     def get_A(self):
         
         embeddings_cat = torch.cat((self.labeled_embeddings, self.samp_unlab_embeddings), dim=0).to(self.Main_AL_class.device)
 
         # Computing Cosine Similarity
-        if(self.params['affinity_method'] == 'cosine_similarity'):
-            normalized_embedding = F.normalize(embeddings_cat, dim=-1).to(self.Main_AL_class.device)
-            self.A = F.relu(
-                torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.Main_AL_class.device)
-            ).fill_diagonal_(0)
-            print('A:\n', self.A)
-            del normalized_embedding
+        #if(self.params['affinity_method'] == 'cosine_similarity'):
+        normalized_embedding = F.normalize(embeddings_cat, dim=-1).to(self.Main_AL_class.device)
+        self.A = F.relu(
+            torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.Main_AL_class.device)
+        ).fill_diagonal_(0)
+        print('\nA:\n', self.A)
+        del normalized_embedding
 
         # Calculate Gaussian kernel
-        elif(self.params['affinity_method'] == 'gaussian_kernel'):
-            self.A = torch.exp(-(torch.cdist(embeddings_cat, embeddings_cat)).pow(2) / (2.0 * 1**2))
+        #elif(self.params['affinity_method'] == 'gaussian_kernel'):
+        #    self.A = torch.exp(-(torch.cdist(embeddings_cat, embeddings_cat)).pow(2) / (2.0 * 1**2))
+        #    print('\nA:\n', self.A)
 
         # Calculate the Euclidean Distance
-        elif(self.params['affinity_method'] == 'eucliden_distance'):
-            self.A = torch.cdist(embeddings_cat, embeddings_cat).to(self.Main_AL_class.device)
+        #elif(self.params['affinity_method'] == 'eucliden_distance'):
+        #    self.A = torch.cdist(embeddings_cat, embeddings_cat).to(self.Main_AL_class.device)
+        #    print('\nA:\n', self.A)
         
-        else:
-            raise ValueError('Invalid Affinity Method, please insert one of the cosine_similarity, gaussian_kernel, or eucliden_distance')
+        #else:
+        #    raise ValueError('Invalid Affinity Method, please insert one of the cosine_similarity, gaussian_kernel, or eucliden_distance')
 
         del embeddings_cat
 
 
-
+    # correct
     def get_X(self, len_samp_unlab_embeds):
         
         self.X = torch.zeros(len(self.lab_train_ds) + len_samp_unlab_embeds, self.Main_AL_class.n_classes, dtype=torch.float32).to(self.Main_AL_class.device)
@@ -96,7 +98,7 @@ class GTG_Strategy():
         err = float('Inf')
         i = 0
         #idx_to_print = random.sample(range(len(self.X)), 6)
-        idx_to_print = random.sample(range(len(self.lab_train_ds), len(self.X)), 3) # index of the unlabeled set
+        #idx_to_print = random.sample(range(len(self.lab_train_ds), len(self.X)), 3) # index of the unlabeled set
     
         
         while err > tol and i < max_iter:
@@ -135,7 +137,7 @@ class GTG_Strategy():
 
 
 
-
+    # correct
     def get_new_dataloaders(self, overall_topk):
 
         new_lab_train_ds = np.array([
@@ -170,7 +172,7 @@ class GTG_Strategy():
                 ]
             )])
         
-        self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
+        self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=False)
 
 
 
@@ -233,6 +235,7 @@ class GTG_Strategy():
                     self.clear_memory()
 
                 # mean of the entropy derivate 
+                print(torch.sum(self.entropy_pairwise_der, dim = 1, dtype=torch.float32))
                 overall_topk = torch.topk((torch.sum(self.entropy_pairwise_der, dim = 1, dtype=torch.float32) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)
                 
                 #print(overall_topk.values[:10])
