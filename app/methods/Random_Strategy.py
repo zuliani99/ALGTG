@@ -42,7 +42,7 @@ class Random_Strategy():
         
 
 
-        for idx_to_move in tqdm(topk_idx_obs, total=len(topk_idx_obs), leave=False, desc='Modifing the Unlabeled Dataset'):
+        for idx_to_move in tqdm(topk_idx_obs, total=len(topk_idx_obs), leave=False, desc='Modifing the Datasets'):
             new_lab_train_ds = np.vstack((new_lab_train_ds, np.expand_dims(
                 np.array(new_unlab_train_ds[idx_to_move], dtype=object)
             , axis=0)))

@@ -27,7 +27,7 @@ def main():
     lab_train_dl, splitted_train_ds, val_dl = get_initial_dataloaders(
         trainset = trainset,
         val_rateo = 0.2,
-        labeled_ratio = 0.1,
+        labeled_ratio = 0.01,
         batch_size = batch_size
     )
 
@@ -67,7 +67,7 @@ def main():
     
     our_method_params = {
         'gtg_tol': 0.001,
-        'gtg_max_iter': 10,#200,
+        'gtg_max_iter': 20,#200,
         'list_n_samples': [10], #[5, 10, 15 20, 25, 30])
         'affinity_method': 'cosine_similarity',  # possiible choices are: cosine_similarity, gaussian_kernel, eucliden_distance
     }

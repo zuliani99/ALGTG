@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import csv
 import os
 import errno
+import copy
 
 
 def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
@@ -43,8 +44,10 @@ def accuracy_score(output, label):
 
 
 def entropy(tensor):
-    tensor = tensor.cpu() + 1e-20
-    return -torch.sum(tensor * torch.log2(tensor), dim=1)
+    print('ENTROPY OF TENSOR:   ', tensor)
+    x = copy.deepcopy(tensor.cpu()) + 1e-20
+    #x = torch.clone(tensor).cpu() + 1e-20
+    return -torch.sum(x * torch.log2(x), dim=1)
 
     
 

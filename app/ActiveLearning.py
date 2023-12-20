@@ -9,6 +9,19 @@ from methods.GTG_Strategy import GTG_Strategy
 from methods.Random_Strategy import Random_Strategy
 
 
+class Embed_Model(nn.Module):
+    def __init__(self, model):
+        super(Embed_Model, self).__init__()
+
+        # Copy all layers except the last one from the original model
+        self.features = nn.Sequential(*list(model.resnet18.children())[:-1])
+
+    def forward(self, x):
+        # Forward pass using the modified model
+        return self.features(x)
+
+
+
 class ActiveLearning():
 
 
@@ -162,10 +175,11 @@ class ActiveLearning():
 
     def get_embeddings(self, type_embeds, dataloader):
             
-        embeddings = torch.empty(0, list(self.model.resnet18.children())[-1].in_features).to(self.device)  
+        embeddings = torch.empty(0, list(self.model.resnet18.children())[-1].in_features, dtype=torch.float32).to(self.device)  
         
         embed_model = nn.Sequential(*list(self.model.resnet18.children())[:-1]).to(self.device)
-        
+        #embed_model = Embed_Model(self.model).to(self.device)
+                        
         embed_model.eval()
 
         pbar = tqdm(dataloader, total = len(dataloader), leave=False, desc=f'Getting {type_embeds} Embeddings')
@@ -173,6 +187,7 @@ class ActiveLearning():
         # again no gradients needed
         with torch.inference_mode():
             for inputs, _ in pbar:
+                
                 embed = embed_model(inputs.to(self.device))
                 
                 embeddings = torch.cat((embeddings, embed.squeeze()), dim=0)
