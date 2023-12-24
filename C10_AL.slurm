@@ -7,6 +7,8 @@
 #SBATCH --time=48:00:00               # Time limit hrs:min:sec
 #SBATCH --output=app_log.log   # Standard output and error log
 #SBATCH --gres=gpu:1
+#SBATCH --gpus-per-task=1       # number of GPUs per process
+#SBATCH --gpu-bind=single:1     # bind each process to its own GPU (single:<tasks_per_gpu>)
 
 echo "Running Training Cifar"
 
