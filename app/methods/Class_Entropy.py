@@ -33,7 +33,7 @@ class Class_Entropy:
         with torch.inference_mode(): # Allow inference mode
             for idxs, images, label in pbar:
                 
-                images, label = images.to(self.Main_AL_class.device), label.to(self.Main_AL_class.device)
+                idxs, images, label = idxs.to(self.Main_AL_class.device), images.to(self.Main_AL_class.device), label.to(self.Main_AL_class.device)
 
                 output = self.model(images)
                 softmax = F.softmax(output, dim=1)
