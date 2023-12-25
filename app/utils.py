@@ -1,5 +1,5 @@
 import torch
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, Subset, random_split
 
 import matplotlib.pyplot as plt
 
@@ -40,10 +40,16 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
     
     # labeled_set, unlabeled_set possono variare al massimo tra 0 -> 39999: 40000 osservazioni
     
-    # Obtain the splitted dataloader
-    labeled_train_dl = DataLoader(labeled_set, batch_size=batch_size, shuffle=False, num_workers=2)#True
     
-    return labeled_train_dl, (labeled_set, unlabeled_set), val_dl, (labeled_set_indices, unlabeled_set_indices)
+    # SET THE INDICES OF THE LABELED AND UNLABELED SET CONSISTENT WRT THE ORIGINAL TRAINDATA
+
+    labeled_set = Subset(trainset, labeled_set_indices)
+    unlabeled_set = Subset(trainset, unlabeled_set_indices)
+    
+    # Obtain the splitted dataloader
+    labeled_train_dl = DataLoader(labeled_set, batch_size=batch_size, shuffle=True, num_workers=2)#True
+    
+    return labeled_train_dl, (labeled_set, unlabeled_set), val_dl#, (labeled_set_indices, unlabeled_set_indices)
 
 
 

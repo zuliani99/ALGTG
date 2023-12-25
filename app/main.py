@@ -23,8 +23,9 @@ def main():
     batch_size = 128
 
     original_trainset, test_dl, classes = get_cifar10(batch_size)
-
-    lab_train_dl, splitted_train_ds, val_dl, indices_lab_unlab_train = get_initial_dataloaders(
+    
+    #indices_lab_unlab_train
+    lab_train_dl, splitted_train_ds, val_dl = get_initial_dataloaders(
         trainset = original_trainset,
         val_rateo = 0.2,
         labeled_ratio = 0.01,
@@ -59,7 +60,7 @@ def main():
         test_dl = test_dl,
         lab_train_dl = lab_train_dl,
         splitted_train_ds = splitted_train_ds,
-        indices_lab_unlab_train = indices_lab_unlab_train,
+        #indices_lab_unlab_train = indices_lab_unlab_train,
         loss_fn = cross_entropy,
         val_dl = val_dl,
         score_fn = accuracy_score,

@@ -16,8 +16,8 @@ from methods.Class_Entropy import Class_Entropy
 
 class ActiveLearning():
 
-
-    def __init__(self, n_classes, batch_size, model, optimizer, train_ds, test_dl, lab_train_dl, splitted_train_ds, indices_lab_unlab_train, loss_fn, val_dl, score_fn, device, patience, timestamp): #scheduler
+    #indices_lab_unlab_train
+    def __init__(self, n_classes, batch_size, model, optimizer, train_ds, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, device, patience, timestamp): #scheduler
 
         self.n_classes = n_classes
         self.model = model.to(device)
@@ -27,7 +27,7 @@ class ActiveLearning():
         self.test_dl = test_dl
         self.lab_train_dl = lab_train_dl
         self.lab_train_ds, self.unlab_train_ds = splitted_train_ds
-        self.lab_train_indices, self.unlab_train_indices = indices_lab_unlab_train
+        #self.lab_train_indices, self.unlab_train_indices = indices_lab_unlab_train
         self.loss_fn = loss_fn
         self.val_dl = val_dl
         self.score_fn = score_fn
@@ -192,8 +192,8 @@ class ActiveLearning():
         results = { }
         n_lab_obs =  [len(self.lab_train_ds) + (iter * n_top_k_obs) for iter in range(al_iters + 1)]
         
-        #methods = [Class_Entropy(self, class_entropy_params), Random_Strategy(self), GTG_Strategy(self, our_method_params)]
-        methods = [GTG_Strategy(self, our_method_params)]
+        methods = [Class_Entropy(self, class_entropy_params), Random_Strategy(self), GTG_Strategy(self, our_method_params)]
+        #methods = [GTG_Strategy(self, our_method_params)]
         
         print(colored(f'----------------------- TRAINING ACTIVE LEARNING -----------------------', 'red', 'on_white'))
         print('\n')

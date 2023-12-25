@@ -22,8 +22,10 @@ class Random_Strategy():
         
         
     def sample_unlab_obs(self, n_top_k_obs):
-        return random.sample(self.Main_AL_class.unlab_train_indices, n_top_k_obs)
-    
+        if(len(self.unlab_train_ds.indices) > n_top_k_obs):
+            return random.sample(self.unlab_train_ds.indices, n_top_k_obs)
+        else:
+            return self.unlab_train_ds.indices
     
     
     def get_new_dataloaders(self, overall_topk):
@@ -31,16 +33,17 @@ class Random_Strategy():
         #unlab_train_indices
         #lab_train_indices
         
-        self.Main_AL_class.lab_train_indices.extend(overall_topk)
-        self.lab_train_ds = Subset(self.Main_AL_class.train_ds, self.Main_AL_class.lab_train_indices)
+        lab_train_indices = self.lab_train_ds.indices
+        
+        lab_train_indices.extend(overall_topk)
+        self.lab_train_ds = Subset(self.Main_AL_class.train_ds, lab_train_indices)
 
-        #new_idxs_unlab_train_ds = self.unlab_train_ds.indices
+        unlab_train_indices = self.unlab_train_ds.indices
         for idx_to_remove in overall_topk:
-            self.Main_AL_class.unlab_train_indices.remove(idx_to_remove)
-        self.unlab_train_ds = Subset(self.Main_AL_class.train_ds, self.Main_AL_class.unlab_train_indices)
+            unlab_train_indices.remove(idx_to_remove)
+        self.unlab_train_ds = Subset(self.Main_AL_class.train_ds, unlab_train_indices)      
         
-        
-        print(colored(f'!!!!!!!!!!!!!!!!!!!!!!!{list(set(self.Main_AL_class.lab_train_indices) & set(self.Main_AL_class.unlab_train_indices))}!!!!!!!!!!!!!!!!!!!!!!!', 'red'))
+        print(colored(f'!!!!!!!!!!!!!!!!!!!!!!!{list(set(self.unlab_train_ds.indices) & set(self.lab_train_ds.indices))}!!!!!!!!!!!!!!!!!!!!!!!', 'red'))
 
         self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=False) # False
         self.Main_AL_class.obtain_normalization()

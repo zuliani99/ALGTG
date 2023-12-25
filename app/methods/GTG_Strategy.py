@@ -89,16 +89,17 @@ class GTG_Strategy():
         #unlab_train_indices
         #lab_train_indices
         
-        self.Main_AL_class.lab_train_indices.extend(overall_topk.tolist())
-        self.lab_train_ds = Subset(self.Main_AL_class.train_ds, self.Main_AL_class.lab_train_indices)
+        lab_train_indices = self.lab_train_ds.indices
+        
+        lab_train_indices.extend(overall_topk.tolist())
+        self.lab_train_ds = Subset(self.Main_AL_class.train_ds, lab_train_indices)
 
-        #new_idxs_unlab_train_ds = self.unlab_train_ds.indices
+        unlab_train_indices = self.unlab_train_ds.indices
         for idx_to_remove in overall_topk:
-            self.Main_AL_class.unlab_train_indices.remove(idx_to_remove.item())
-        self.unlab_train_ds = Subset(self.Main_AL_class.train_ds, self.Main_AL_class.unlab_train_indices)
+            unlab_train_indices.remove(idx_to_remove.item())
+        self.unlab_train_ds = Subset(self.Main_AL_class.train_ds, unlab_train_indices)
         
-        
-        print(colored(f'!!!!!!!!!!!!!!!!!!!!!!!{list(set(self.Main_AL_class.lab_train_indices) & set(self.Main_AL_class.unlab_train_indices))}!!!!!!!!!!!!!!!!!!!!!!!', 'red'))
+        print(colored(f'!!!!!!!!!!!!!!!!!!!!!!!{list(set(self.unlab_train_ds.indices) & set(self.lab_train_ds.indices))}!!!!!!!!!!!!!!!!!!!!!!!', 'red'))
 
         self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=False) # False
         self.Main_AL_class.obtain_normalization()
