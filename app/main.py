@@ -4,9 +4,10 @@ import torch
 import torch.nn as nn
 
 from ActiveLearning import ActiveLearning
+from resnet_weird import ResNet_Weird, BasicBlock
 from cifar10 import get_cifar10
 from utils import create_ts_dir_res, get_initial_dataloaders, accuracy_score, plot_loss_curves
-from resnet18 import ResNet18
+#from resnet18 import ResNet18
 
 from datetime import datetime
 
@@ -32,9 +33,12 @@ def main():
         batch_size = batch_size
     )
 
-    resnet18 = ResNet18(len(classes))
+    #resnet18 = ResNet18(len(classes))
     
-    cross_entropy = nn.CrossEntropyLoss()
+    #resnet_weird
+    resnet18 = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=len(classes))
+    
+    cross_entropy = nn.CrossEntropyLoss(reduction='none')
     optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)
 
     #optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.001, momentum=0.9)
@@ -42,8 +46,8 @@ def main():
     #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=2, verbose=True)
 
 
-    epochs = 2#30
-    al_iters = 2#25
+    epochs = 1#30
+    al_iters = 1#25
     n_top_k_obs = 1000
     
     

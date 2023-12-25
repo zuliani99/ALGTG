@@ -13,6 +13,8 @@ from methods.GTG_Strategy import GTG_Strategy
 from methods.Random_Strategy import Random_Strategy
 from methods.Class_Entropy import Class_Entropy
 
+from resnet_weird import LearningLoss
+
 
 class ActiveLearning():
 
@@ -34,6 +36,9 @@ class ActiveLearning():
         self.device = device
         self.patience = patience
         self.timestamp = timestamp
+        
+        #resnet_weird
+        self.loss_weird = LearningLoss(self.device)
         
         self.best_check_filename = 'app/checkpoints/best_checkpoint.pth.tar' #app
         self.init_check_filename = 'app/checkpoints/init_checkpoint.pth.tar' #app
@@ -81,7 +86,9 @@ class ActiveLearning():
             for _, images, label in pbar:
                 images, label = self.normalize(images.to(self.device)), label.to(self.device)
 
-                output = self.model(images)
+                #output = self.model(images)
+                #resnet_weird
+                output, _, _, _ = self.model(images)
 
                 accuracy = self.score_fn(output, label)
 
@@ -96,20 +103,35 @@ class ActiveLearning():
 
 
 
+
     def fit(self, epochs, dataloader):
         self.model.train()
+        
+        
+        #resnet_weird
+        weight = 1.   # 120 = 0
 
-        #best_val_loss = float('inf')
+
+
         best_val_accuracy = -float('inf')
         actual_patience = 0
 
         for epoch in range(epochs):  # loop over the dataset multiple times
+            
+            
+            #resnet_weird
+            if epoch > 120:
+                weight = 0
+            loss_ce_total = 0
+            loss_weird_total = 0
+            
+            
 
             train_accuracy = 0.0
 
-            pbar = tqdm(dataloader, total = len(dataloader), leave=False)
+            pbar = tqdm(enumerate(dataloader), total = len(dataloader), leave=False)
 
-            for _, images, labels in pbar:
+            for k, (_, images, labels) in pbar:
                                 
                 # zero the parameter gradients
                 self.optimizer.zero_grad()
@@ -117,8 +139,24 @@ class ActiveLearning():
                 # get the inputs; data is a list of [inputs, labels]
                 images, labels = self.normalize(images.to(self.device)), labels.to(self.device)
                 
-                outputs = self.model(images)
-                loss = self.loss_fn(outputs, labels)
+                #outputs = self.model(images)
+                outputs, _, out_weird, _ = self.model(images)
+                
+                
+                #loss = self.loss_fn(outputs, labels)
+                loss_ce = self.loss_fn(outputs, labels)
+                
+                
+                #resnet_weird
+                loss_weird = self.loss_weird(out_weird, loss_ce)
+                loss_ce = torch.mean(loss_ce)
+                
+                loss = loss_ce + weight * loss_weird
+                
+                loss_ce_total += loss_ce
+                loss_weird_total += loss_weird
+                
+                
 
                 loss.backward()
                 self.optimizer.step()
@@ -129,15 +167,15 @@ class ActiveLearning():
 
                 # Update the progress bar
                 pbar.set_description(f'TRAIN Epoch [{epoch + 1} / {epochs}]')
-                pbar.set_postfix(accuracy = accuracy)
+                pbar.set_postfix(accuracy = accuracy, loss_ce = loss_ce.item(), loss_weird = loss_weird.item())
 
             train_accuracy /= len(dataloader)
 
             # Validation step
             val_accuracy = self.evaluate(self.val_dl, epoch + 1, epochs)
 
-            print('Epoch [{}], train_accuracy: {:.6f}, val_accuracy: {:.6f} \n'.format(
-                      epoch + 1, train_accuracy, val_accuracy))
+            print('Epoch [{}], train_accuracy: {:.6f}, val_accuracy: {:.6f}, loss_ce: {:.6f}, loss_weird: {:.6f}  \n'.format(
+                      epoch + 1, train_accuracy, val_accuracy, loss_ce_total.item() / k, loss_weird_total.item() / k))
 
             if(val_accuracy > best_val_accuracy):
                 best_val_accuracy = val_accuracy
@@ -149,6 +187,14 @@ class ActiveLearning():
                     print(f'Early stopping, validation loss do not decreased for {self.patience} epochs')
                     pbar.close() # Closing the progress bar before exiting from the train loop
                     break
+                
+                
+            #resnet_weird
+            if epoch == 160:
+                for g in self.optimizer.param_groups:
+                    g['lr'] = 0.01
+                    
+                    
 
         self.__load_checkpoint(self.best_check_filename)
 
@@ -167,9 +213,11 @@ class ActiveLearning():
 
     def get_embeddings(self, type_embeds, dataloader):
             
-        embeddings = torch.empty(0, list(self.model.resnet18.children())[-1].in_features, dtype=torch.float32).to(self.device)  
+        #embeddings = torch.empty(0, list(self.model.resnet18.children())[-1].in_features, dtype=torch.float32).to(self.device)  
+        embeddings = torch.empty(0, list(self.model.children())[-1].in_features, dtype=torch.float32).to(self.device)  
         
-        embed_model = nn.Sequential(*list(self.model.resnet18.children())[:-1]).to(self.device)
+        #embed_model = nn.Sequential(*list(self.model.resnet18.children())[:-1]).to(self.device)
+        embed_model = nn.Sequential(*list(self.model.children())[:-1]).to(self.device)
                         
         embed_model.eval()
 

@@ -35,7 +35,9 @@ class Class_Entropy:
                 
                 idxs, images, label = idxs.to(self.Main_AL_class.device), images.to(self.Main_AL_class.device), label.to(self.Main_AL_class.device)
 
-                output = self.model(images)
+                #output = self.model(images)
+                output, _, _, _ = self.model(images)
+                
                 softmax = F.softmax(output, dim=1)
                 
                 prob_dist = torch.cat((prob_dist, softmax), dim = 0).to(self.Main_AL_class.device)
