@@ -127,7 +127,7 @@ class GTG_Strategy():
             # iter = 0            
             print(colored(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n', 'blue'))
             self.Main_AL_class.reintialize_model()
-            self.Main_AL_class.fit(epochs, self.lab_train_dl) # train in the labeled observations
+            self.Main_AL_class.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
             
             test_accuracy = self.Main_AL_class.test_AL()
                 
@@ -195,7 +195,7 @@ class GTG_Strategy():
                 
                 # iter + 1
                 self.Main_AL_class.reintialize_model()
-                self.Main_AL_class.fit(epochs, self.lab_train_dl) # train in the labeled observations
+                self.Main_AL_class.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
                 
                 test_accuracy = self.Main_AL_class.test_AL()
                 

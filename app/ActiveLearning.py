@@ -37,7 +37,7 @@ class ActiveLearning():
         #resnet_weird
         self.loss_weird = LearningLoss(self.device)
         
-        self.best_check_filename = 'app/checkpoints/best_checkpoint.pth.tar' #app
+        self.best_check_filename = 'app/checkpoints/'#best_checkpoint.pth.tar' #app
         self.init_check_filename = 'app/checkpoints/init_checkpoint.pth.tar' #app
         
         self.__save_checkpoint(self.init_check_filename)
@@ -101,7 +101,7 @@ class ActiveLearning():
 
 
 
-    def fit(self, epochs, dataloader):
+    def fit(self, epochs, dataloader, method_str):
         self.model.train()
         
         
@@ -177,7 +177,7 @@ class ActiveLearning():
             if(val_accuracy > best_val_accuracy):
                 best_val_accuracy = val_accuracy
                 actual_patience = 0
-                self.__save_checkpoint(self.best_check_filename)
+                self.__save_checkpoint(f'{self.best_check_filename}best_{method_str}.pth.tar')
             else:
                 actual_patience += 1
                 if actual_patience >= self.patience:
@@ -193,7 +193,7 @@ class ActiveLearning():
                     
                     
 
-        self.__load_checkpoint(self.best_check_filename)
+        self.__load_checkpoint(f'{self.best_check_filename}best_{method_str}.pth.tar')
 
         print('Finished Training\n')
 

@@ -56,7 +56,7 @@ class Random_Strategy():
         print(colored(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n', 'blue'))
             
         self.Main_AL_class.reintialize_model()
-        self.Main_AL_class.fit(epochs, self.lab_train_dl)
+        self.Main_AL_class.fit(epochs, self.lab_train_dl, self.method_name)
             
         test_accuracy = self.Main_AL_class.test_AL()
         
@@ -81,7 +81,7 @@ class Random_Strategy():
             
             # iter + 1
             self.Main_AL_class.reintialize_model()
-            self.Main_AL_class.fit(epochs, self.lab_train_dl)
+            self.Main_AL_class.fit(epochs, self.lab_train_dl, self.method_name)
             
             test_accuracy = self.Main_AL_class.test_AL()
             
