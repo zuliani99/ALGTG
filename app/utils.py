@@ -23,7 +23,7 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
     # train_data ha 40000 osservazioni 
 
     # validation dataloader
-    val_dl = DataLoader(val_data, batch_size=batch_size, shuffle=False, num_workers=2)# True
+    val_dl = DataLoader(val_data, batch_size=batch_size, shuffle=True, num_workers=2)# True
 
     train_data_size = len(train_data)
 
