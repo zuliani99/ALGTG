@@ -3,6 +3,8 @@ from utils import write_csv, entropy
 
 import torch
 from torch.utils.data import DataLoader, Subset
+from cifar10 import UniqueShuffle
+
 import torch.nn.functional as F
 
 from tqdm import tqdm
@@ -62,16 +64,13 @@ class GTG_Strategy():
             self.X *= torch.mm(self.A, self.X)
 
                 
-            self.X /= torch.sum(self.X, dim=1, keepdim=True)#self.X.sum(dim=1, keepdim=True) # ------------------------- STRETTAMENTE CRESCENTE LA SOMMA
+            self.X /= torch.sum(self.X, dim=1, keepdim=True)
         
             iter_entropy = entropy(self.X).to(self.Main_AL_class.device) # both labeled and sample unlabeled
             # I have to map only the sample_unlabeled to the correct position
             
             for idx, unlab_ent_val in tqdm(enumerate(iter_entropy[len(self.lab_train_ds):]), total = len(iter_entropy) - len(self.lab_train_ds), desc = f'Computing the derivatives of iteration {i}', leave = False):
                 # I iterate only the sampled unlabeled one
-                
-                #if(indices[idx] not in self.unlab_train_ds.indices): raise Exception('ERROREEEEE')
-                #if(indices[idx] not in self.Main_AL_class.unlab_train_indices): raise Exception('ERROREEEEE')
                 
                 if(i != self.params['gtg_max_iter'] - 1): self.entropy_pairwise_der[indices[idx]][i] = unlab_ent_val
 
@@ -148,10 +147,11 @@ class GTG_Strategy():
                 
                 # Obtaining the updated batchsize
                 iter_batch_size = len(self.unlab_train_ds) // n_splits
-                
-                self.unlab_train_dl = DataLoader(self.unlab_train_ds, batch_size=iter_batch_size, shuffle=False, num_workers=2)
+                                
+                self.unlab_train_dl = DataLoader(self.unlab_train_ds, batch_size=iter_batch_size, sampler=UniqueShuffle(self.unlab_train_ds), num_workers=2) # shuffle=True / False
                 # index are referred to slf.Main_AL_class.train_ds
                 # and are consistent emebdding creation and the read of the indices
+
                 
                 self.labeled_embeddings = self.Main_AL_class.get_embeddings('Labeled', self.lab_train_dl)
                 self.unlab_embeddings = self.Main_AL_class.get_embeddings('Unlabeled', self.unlab_train_dl)
@@ -200,7 +200,6 @@ class GTG_Strategy():
                     values = [self.method_name, iter + 1, n_splits, test_accuracy]
                 )
                 
-                #results[n_splits]['test_loss'].append(test_loss)
                 results[n_splits]['test_accuracy'].append(test_accuracy)
                         
                 iter += 1

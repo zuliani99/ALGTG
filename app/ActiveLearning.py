@@ -214,12 +214,13 @@ class ActiveLearning():
     def get_embeddings(self, type_embeds, dataloader):
             
         #embeddings = torch.empty(0, list(self.model.resnet18.children())[-1].in_features, dtype=torch.float32).to(self.device)  
-        embeddings = torch.empty(0, list(self.model.children())[-1].in_features, dtype=torch.float32).to(self.device)  
+        embeddings = torch.empty(0, self.model.linear.in_features, dtype=torch.float32).to(self.device)  
         
         #embed_model = nn.Sequential(*list(self.model.resnet18.children())[:-1]).to(self.device)
-        embed_model = nn.Sequential(*list(self.model.children())[:-1]).to(self.device)
+        #embed_model = nn.Sequential(*list(self.model.children())[:-1]).to(self.device)
                         
-        embed_model.eval()
+        #embed_model.eval()
+        self.model.eval()
 
         pbar = tqdm(dataloader, total = len(dataloader), leave=False, desc=f'Getting {type_embeds} Embeddings')
 
@@ -227,7 +228,7 @@ class ActiveLearning():
         with torch.inference_mode():
             for _, images, _ in pbar:
                 
-                embed = embed_model(self.normalize(images.to(self.device)))
+                _, embed, _, _ = self.model(self.normalize(images.to(self.device)))
 
                 embeddings = torch.cat((embeddings, embed.squeeze()), dim=0)
              
@@ -240,8 +241,8 @@ class ActiveLearning():
         results = { }
         n_lab_obs =  [len(self.lab_train_ds) + (iter * n_top_k_obs) for iter in range(al_iters + 1)]
         
-        methods = [Class_Entropy(self, class_entropy_params), Random_Strategy(self), GTG_Strategy(self, our_method_params)]
-        #methods = [GTG_Strategy(self, our_method_params)]
+        #methods = [Class_Entropy(self, class_entropy_params), Random_Strategy(self), GTG_Strategy(self, our_method_params)]
+        methods = [GTG_Strategy(self, our_method_params)]
         
         print(colored(f'----------------------- TRAINING ACTIVE LEARNING -----------------------', 'red', 'on_white'))
         print('\n')

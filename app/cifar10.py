@@ -1,4 +1,4 @@
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, Sampler
 from torchvision import datasets, transforms
 import torch
 
@@ -16,14 +16,25 @@ class CIFAR10(Dataset):
         return len(self.cifar10)
 
     def __getitem__(self, index):
-        '''if len(self.cifar10[index]) == 3:
-            idx, image, label = self.cifar10[index]
-            #print('--------------------------------------', index, idx)
-            return idx, image, label
-        else:'''
         image, label = self.cifar10[index]
         return index, image, label
     
+
+class UniqueShuffle(Sampler):
+    def __init__(self, dataset):
+        self.dataset = dataset
+        self.indices = dataset.indices
+        self.shuffle_indices()
+
+    def shuffle_indices(self):
+        #self.indices = list([self.indices[rand_idx.item()] for rand_idx in torch.randperm(len(self.indices))])
+        self.indices = list(torch.randperm(len(self.indices)))
+        
+    def __iter__(self):
+        return iter(self.indices)
+
+    def __len__(self):
+        return len(self.dataset)
     
     
 def get_cifar10(batch_size):
