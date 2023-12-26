@@ -1,6 +1,6 @@
 
 import torch
- 
+import torch.nn as nn
 from torchvision import transforms
 
 from termcolor import colored
@@ -83,9 +83,13 @@ class ActiveLearning():
             for _, images, label in pbar:
                 images, label = self.normalize(images.to(self.device)), label.to(self.device)
 
-                #output = self.model(images)
-                #resnet_weird
-                output, _, _, _ = self.model(images)
+
+                if self.model.__class__.__name__ == 'ResNet_Weird':
+                    #resnet_weird
+                    output, _, _, _ = self.model(images)
+                else:
+                    output = self.model(images)
+                
 
                 accuracy = self.score_fn(output, label)
 
@@ -136,23 +140,30 @@ class ActiveLearning():
                 # get the inputs; data is a list of [inputs, labels]
                 images, labels = self.normalize(images.to(self.device)), labels.to(self.device)
                 
-                #outputs = self.model(images)
-                outputs, _, out_weird, _ = self.model(images)
+                if self.model.__class__.__name__ == 'ResNet_Weird':
+                    #resnet_weird               
                 
+                    #outputs = self.model(images)
+                    outputs, _, out_weird, _ = self.model(images)
+                    
+                    
+                    #loss = self.loss_fn(outputs, labels)
+                    loss_ce = self.loss_fn(outputs, labels)
+                    
+                    
+                    #resnet_weird
+                    loss_weird = self.loss_weird(out_weird, loss_ce)
+                    loss_ce = torch.mean(loss_ce)
+                    
+                    loss = loss_ce + weight * loss_weird
+                    
+                    loss_ce_total += loss_ce
+                    loss_weird_total += loss_weird
                 
-                #loss = self.loss_fn(outputs, labels)
-                loss_ce = self.loss_fn(outputs, labels)
-                
-                
-                #resnet_weird
-                loss_weird = self.loss_weird(out_weird, loss_ce)
-                loss_ce = torch.mean(loss_ce)
-                
-                loss = loss_ce + weight * loss_weird
-                
-                loss_ce_total += loss_ce
-                loss_weird_total += loss_weird
-                
+                else:
+                    outputs = self.model(images)
+                    loss = self.loss_fn(outputs, labels)
+                    loss_ce_total += loss
                 
 
                 loss.backward()
@@ -164,15 +175,24 @@ class ActiveLearning():
 
                 # Update the progress bar
                 pbar.set_description(f'TRAIN Epoch [{epoch + 1} / {epochs}]')
-                pbar.set_postfix(accuracy = accuracy, loss_ce = loss_ce.item(), loss_weird = loss_weird.item())
+                if self.model.__class__.__name__ == 'ResNet_Weird':
+                    pbar.set_postfix(accuracy = accuracy, loss_ce = loss_ce.item(), loss_weird = loss_weird.item())
+                else:
+                    pbar.set_postfix(accuracy = accuracy, loss = loss.item())
+    
 
             train_accuracy /= len(dataloader)
 
             # Validation step
             val_accuracy = self.evaluate(self.val_dl, epoch + 1, epochs)
 
-            print('Epoch [{}], train_accuracy: {:.6f}, val_accuracy: {:.6f}, loss_ce: {:.6f}, loss_weird: {:.6f}  \n'.format(
+            if self.model.__class__.__name__ == 'ResNet_Weird':
+                print('Epoch [{}], train_accuracy: {:.6f}, val_accuracy: {:.6f}, loss_ce: {:.6f}, loss_weird: {:.6f}  \n'.format(
                       epoch + 1, train_accuracy, val_accuracy, loss_ce_total.item() / k, loss_weird_total.item() / k))
+            else:
+                print('Epoch [{}], train_accuracy: {:.6f}, val_accuracy: {:.6f}, loss: {:.6f} \n'.format(
+                      epoch + 1, train_accuracy, val_accuracy, loss_ce_total.item() / k))
+
 
             if(val_accuracy > best_val_accuracy):
                 best_val_accuracy = val_accuracy
@@ -181,7 +201,7 @@ class ActiveLearning():
             else:
                 actual_patience += 1
                 if actual_patience >= self.patience:
-                    print(f'Early stopping, validation loss do not decreased for {self.patience} epochs')
+                    print(f'Early stopping, validation accuracy do not decreased for {self.patience} epochs')
                     pbar.close() # Closing the progress bar before exiting from the train loop
                     break
                 
@@ -209,18 +229,26 @@ class ActiveLearning():
 
 
     def get_embeddings(self, type_embeds, dataloader):
+        if self.model.__class__.__name__ == 'ResNet_Weird':
+            embeddings = torch.empty(0, self.model.linear.in_features, dtype=torch.float32).to(self.device)  
+            self.model.eval()
+        else:
+            embeddings = torch.empty(0, list(self.model.resnet18.children())[-1].in_features, dtype=torch.float32).to(self.device)  
+            embed_model = nn.Sequential(*list(self.model.resnet18.children())[:-1]).to(self.device)
+            embed_model.eval()
             
-        embeddings = torch.empty(0, self.model.linear.in_features, dtype=torch.float32).to(self.device)  
-        
-        self.model.eval()
-
         pbar = tqdm(dataloader, total = len(dataloader), leave=False, desc=f'Getting {type_embeds} Embeddings')
 
         # again no gradients needed
         with torch.inference_mode():
             for _, images, _ in pbar:
                 
-                _, embed, _, _ = self.model(self.normalize(images.to(self.device)))
+                
+                if self.model.__class__.__name__ == 'ResNet_Weird':
+                    _, embed, _, _ = self.model(self.normalize(images.to(self.device)))
+                else:
+                    embed = embed_model(self.normalize(images.to(self.device)))
+                
 
                 embeddings = torch.cat((embeddings, embed.squeeze()), dim=0)
              

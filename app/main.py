@@ -7,12 +7,13 @@ from ActiveLearning import ActiveLearning
 from resnet_weird import ResNet_Weird, BasicBlock
 from cifar10 import get_cifar10
 from utils import create_ts_dir_res, get_initial_dataloaders, accuracy_score, plot_loss_curves
-#from resnet18 import ResNet18
+from resnet18 import ResNet18
 
 from datetime import datetime
 
 
 save_plot = True
+use_resnet_weird = True
 
 def main():
     
@@ -33,12 +34,16 @@ def main():
         batch_size = batch_size
     )
 
-    #resnet18 = ResNet18(len(classes))
+    if use_resnet_weird:
+        #resnet_weird
+        resnet18 = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=len(classes))
+        cross_entropy = nn.CrossEntropyLoss(reduction='none')
+    else:
+        #normal resnet
+        resnet18 = ResNet18(len(classes))
+        cross_entropy = nn.CrossEntropyLoss()
     
-    #resnet_weird
-    resnet18 = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=len(classes))
     
-    cross_entropy = nn.CrossEntropyLoss(reduction='none')
     #optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)
 
     #optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.001, momentum=0.9)
@@ -64,7 +69,6 @@ def main():
         test_dl = test_dl,
         lab_train_dl = lab_train_dl,
         splitted_train_ds = splitted_train_ds,
-        #indices_lab_unlab_train = indices_lab_unlab_train,
         loss_fn = cross_entropy,
         val_dl = val_dl,
         score_fn = accuracy_score,

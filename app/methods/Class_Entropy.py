@@ -35,10 +35,15 @@ class Class_Entropy:
             for idxs, images, label in pbar:
                 
                 idxs, images, label = idxs.to(self.Main_AL_class.device), images.to(self.Main_AL_class.device), label.to(self.Main_AL_class.device)
-
-                #output = self.model(images)
-                output, _, _, _ = self.model(images)
                 
+                
+                if self.model.__class__.__name__ == 'ResNet_Weird':
+                    #output = self.model(images)
+                    output, _, _, _ = self.model(images)
+                else:
+                    output = self.model(images)
+                    
+
                 softmax = F.softmax(output, dim=1)
                 
                 prob_dist = torch.cat((prob_dist, softmax), dim = 0).to(self.Main_AL_class.device)
