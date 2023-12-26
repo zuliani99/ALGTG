@@ -50,7 +50,7 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
     # Obtain the splitted dataloader
     labeled_train_dl = DataLoader(labeled_set, batch_size=batch_size, shuffle=True, num_workers=2)#True
     
-    return labeled_train_dl, (labeled_set, unlabeled_set), val_dl#, (labeled_set_indices, unlabeled_set_indices)
+    return labeled_train_dl, (labeled_set, unlabeled_set), val_dl
 
 
 
@@ -132,47 +132,3 @@ def create_ts_dir_res(timestamp):
         if e.errno != errno.EEXIST:
             raise  # This was not a "directory exist" error..
         
-        
-
-'''def get_new_dataloaders(overall_topk, lab_train_ds, unlab_train_ds, train_ds, batch_size):
-
-    new_lab_train_ds = np.array([
-        np.array([
-            #idx, image if isinstance(image, np.ndarray) else image.numpy(), label
-            idx, image if isinstance(image, torch.Tensor) else torch.tensor(image), label
-        ], dtype=object) for idx, image, label in tqdm(lab_train_ds, total=len(lab_train_ds), leave=False, desc='Copying lab_train_ds')], dtype=object)
-
-    new_unlab_train_ds = np.array([
-        np.array([
-            #idx, image if isinstance(image, np.ndarray) else image.numpy(), label
-            idx, image if isinstance(image, torch.Tensor) else torch.tensor(image), label
-        ], dtype=object) for idx, image, label in tqdm(unlab_train_ds, total=len(unlab_train_ds), leave=False, desc='Copying unlab_train_ds')], dtype=object)
-                
-
-    for topk_idx in tqdm(overall_topk, total=len(overall_topk), leave=False, desc='Modifing the Unlabeled Dataset'):
-            
-        new_lab_train_ds = np.vstack((new_lab_train_ds, np.expand_dims(
-            np.array([train_ds[topk_idx if isinstance(topk_idx, int) else topk_idx.item()][0],
-                    train_ds[topk_idx if isinstance(topk_idx, int) else topk_idx.item()][1],
-                    train_ds[topk_idx if isinstance(topk_idx, int) else topk_idx.item()][2]
-            ], dtype=object)
-        , axis=0)))
-            
-        for idx, (i, _, _) in enumerate(new_unlab_train_ds):
-            if i == topk_idx if isinstance(topk_idx, int) else topk_idx.item():
-                new_unlab_train_ds[idx] = np.array([np.nan, np.nan, np.nan], dtype=object)
-            # set a [np.nan np.nan] the row and the get all the row not equal to [np.nan, np.nan]
-        
-        
-    lab_train_ds = CIFAR10(None, new_lab_train_ds)
-    unlab_train_ds = CIFAR10(None, new_unlab_train_ds[
-        np.array(
-            [not np.isnan(row[0])
-                for row in tqdm(new_unlab_train_ds, total=len(new_unlab_train_ds),
-                                leave=False, desc='Obtaining the unmarked observation from the Unlabeled Dataset')
-            ]
-        )])
-        
-    lab_train_dl = DataLoader(lab_train_ds, batch_size=batch_size, shuffle=True)
-    
-    return lab_train_ds, unlab_train_ds, lab_train_dl'''

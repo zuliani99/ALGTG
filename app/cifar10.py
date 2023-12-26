@@ -6,7 +6,6 @@ import torch
 
 class CIFAR10(Dataset):
     def __init__(self, bool_train, new_dataset=None, transform=None):
-        #self.cifar10 = new_dataset if bool_train == None else datasets.CIFAR10('./cifar10', train=bool_train, download=True, transform=transform)
         if bool_train == None:
             self.cifar10 = new_dataset
         else:
@@ -28,7 +27,6 @@ class UniqueShuffle(Sampler):
         self.shuffle_indices()
 
     def shuffle_indices(self):
-        #self.indices = list([self.indices[rand_idx.item()] for rand_idx in torch.randperm(len(self.indices))])
         self.indices = list(torch.randperm(len(self.indices)))
         
     def __iter__(self):

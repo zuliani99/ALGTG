@@ -30,9 +30,6 @@ class Random_Strategy():
     
     def get_new_dataloaders(self, overall_topk):
         
-        #unlab_train_indices
-        #lab_train_indices
-        
         lab_train_indices = self.lab_train_ds.indices
         
         lab_train_indices.extend(overall_topk)

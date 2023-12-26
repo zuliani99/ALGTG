@@ -27,7 +27,6 @@ class ActiveLearning():
         self.test_dl = test_dl
         self.lab_train_dl = lab_train_dl
         self.lab_train_ds, self.unlab_train_ds = splitted_train_ds
-        #self.lab_train_indices, self.unlab_train_indices = indices_lab_unlab_train
         self.loss_fn = loss_fn
         self.val_dl = val_dl
         self.score_fn = score_fn
@@ -211,13 +210,8 @@ class ActiveLearning():
 
     def get_embeddings(self, type_embeds, dataloader):
             
-        #embeddings = torch.empty(0, list(self.model.resnet18.children())[-1].in_features, dtype=torch.float32).to(self.device)  
         embeddings = torch.empty(0, self.model.linear.in_features, dtype=torch.float32).to(self.device)  
         
-        #embed_model = nn.Sequential(*list(self.model.resnet18.children())[:-1]).to(self.device)
-        #embed_model = nn.Sequential(*list(self.model.children())[:-1]).to(self.device)
-                        
-        #embed_model.eval()
         self.model.eval()
 
         pbar = tqdm(dataloader, total = len(dataloader), leave=False, desc=f'Getting {type_embeds} Embeddings')
