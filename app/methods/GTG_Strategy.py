@@ -1,10 +1,9 @@
 
 from utils import write_csv, entropy
+from cifar10 import UniqueShuffle
 
 import torch
 from torch.utils.data import DataLoader, Subset
-from cifar10 import UniqueShuffle
-
 import torch.nn.functional as F
 
 from tqdm import tqdm
@@ -148,7 +147,13 @@ class GTG_Strategy():
                 # Obtaining the updated batchsize
                 iter_batch_size = len(self.unlab_train_ds) // n_splits
                                 
-                self.unlab_train_dl = DataLoader(self.unlab_train_ds, batch_size=iter_batch_size, sampler=UniqueShuffle(self.unlab_train_ds), num_workers=2) # shuffle=True / False
+                self.unlab_train_dl = DataLoader(
+                    self.unlab_train_ds,
+                    batch_size=iter_batch_size,
+                    sampler=UniqueShuffle(self.unlab_train_ds),
+                    num_workers=2
+                ) # shuffle=True / False
+                
                 # index are referred to slf.Main_AL_class.train_ds
                 # and are consistent emebdding creation and the read of the indices
 

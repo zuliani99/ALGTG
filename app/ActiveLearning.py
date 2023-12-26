@@ -1,13 +1,11 @@
 
 import torch
-import torch.nn as nn 
  
 from torchvision import transforms
 
 from termcolor import colored
 from tqdm import tqdm
 from utils import get_mean_std
-import matplotlib.pyplot as plt
 
 from methods.GTG_Strategy import GTG_Strategy
 from methods.Random_Strategy import Random_Strategy
@@ -241,8 +239,8 @@ class ActiveLearning():
         results = { }
         n_lab_obs =  [len(self.lab_train_ds) + (iter * n_top_k_obs) for iter in range(al_iters + 1)]
         
-        #methods = [Class_Entropy(self, class_entropy_params), Random_Strategy(self), GTG_Strategy(self, our_method_params)]
-        methods = [GTG_Strategy(self, our_method_params)]
+        methods = [Class_Entropy(self, class_entropy_params), Random_Strategy(self), GTG_Strategy(self, our_method_params)]
+        #methods = [GTG_Strategy(self, our_method_params)]
         
         print(colored(f'----------------------- TRAINING ACTIVE LEARNING -----------------------', 'red', 'on_white'))
         print('\n')

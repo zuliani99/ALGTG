@@ -3,9 +3,10 @@ import torch
 from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
+from utils import entropy, write_csv
+
 from termcolor import colored
 from tqdm import tqdm
-from utils import entropy, write_csv
 import copy
 
 
