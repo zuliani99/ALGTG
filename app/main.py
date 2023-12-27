@@ -4,10 +4,12 @@ import torch
 import torch.nn as nn
 
 from ActiveLearning import ActiveLearning
-from resnet_weird import ResNet_Weird, BasicBlock
+
+from resnet.resnet_weird import ResNet_Weird, BasicBlock
+from resnet.resnet18 import ResNet18
+
 from cifar10 import get_cifar10
 from utils import create_ts_dir_res, get_initial_dataloaders, accuracy_score, plot_loss_curves
-from resnet18 import ResNet18
 
 from datetime import datetime
 
