@@ -11,7 +11,7 @@ from methods.GTG_Strategy import GTG_Strategy
 from methods.Random_Strategy import Random_Strategy
 from methods.Class_Entropy import Class_Entropy
 
-from resnet_weird import LearningLoss
+from resnet.resnet_weird import LearningLoss
 
 
 class ActiveLearning():
