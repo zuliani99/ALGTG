@@ -73,7 +73,7 @@ class ActiveLearning():
 
 
     def evaluate(self, val_dl, epoch = 0, epochs = 0):
-        val_accuracy = .0
+        val_accuracy, val_loss = .0, .0
 
         self.model.eval()
 
@@ -90,17 +90,20 @@ class ActiveLearning():
                 else:
                     output = self.model(images)
                 
-
+                loss = torch.mean(self.loss_fn(output, label)).item()
                 accuracy = self.score_fn(output, label)
 
                 val_accuracy += accuracy
+                val_loss += loss
 
                 if epoch > 0: pbar.set_description(f'EVALUATION Epoch [{epoch} / {epochs}]')
                 else: pbar.set_description(f'TESTING')
-                pbar.set_postfix(accuracy = accuracy)
+                pbar.set_postfix(accuracy = accuracy, loss = loss)
 
             val_accuracy /= len(val_dl)
-        return val_accuracy
+            val_loss /= len(val_dl)
+            
+        return val_accuracy, val_loss
 
 
 
@@ -114,7 +117,7 @@ class ActiveLearning():
 
 
 
-        best_val_accuracy = -float('inf')
+        best_val_loss = float('inf')
         actual_patience = 0
 
         for epoch in range(epochs):  # loop over the dataset multiple times
@@ -184,24 +187,24 @@ class ActiveLearning():
             train_accuracy /= len(dataloader)
 
             # Validation step
-            val_accuracy = self.evaluate(self.val_dl, epoch + 1, epochs)
+            val_accuracy, val_loss = self.evaluate(self.val_dl, epoch + 1, epochs)
 
             if self.model.__class__.__name__ == 'ResNet_Weird':
-                print('Epoch [{}], train_accuracy: {:.6f}, val_accuracy: {:.6f}, loss_ce: {:.6f}, loss_weird: {:.6f}  \n'.format(
-                      epoch + 1, train_accuracy, val_accuracy, loss_ce_total.item() / k, loss_weird_total.item() / k))
+                print('Epoch [{}], train_accuracy: {:.6f}, loss_ce: {:.6f}, loss_weird: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
+                      epoch + 1, train_accuracy, loss_ce_total.item() / k, loss_weird_total.item() / k, val_accuracy, val_loss))
             else:
-                print('Epoch [{}], train_accuracy: {:.6f}, val_accuracy: {:.6f}, loss: {:.6f} \n'.format(
-                      epoch + 1, train_accuracy, val_accuracy, loss_ce_total.item() / k))
+                print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f} , val_accuracy: {:.6f}\n'.format(
+                      epoch + 1, train_accuracy, loss_ce_total.item() / k, val_accuracy, val_loss))
 
 
-            if(val_accuracy > best_val_accuracy):
-                best_val_accuracy = val_accuracy
+            if(val_loss < best_val_loss):
+                best_val_loss = val_loss
                 actual_patience = 0
                 self.__save_checkpoint(f'{self.best_check_filename}best_{method_str}.pth.tar')
             else:
                 actual_patience += 1
                 if actual_patience >= self.patience:
-                    print(f'Early stopping, validation accuracy do not decreased for {self.patience} epochs')
+                    print(f'Early stopping, validation loss do not decreased for {self.patience} epochs')
                     pbar.close() # Closing the progress bar before exiting from the train loop
                     break
                 
@@ -220,9 +223,9 @@ class ActiveLearning():
 
 
     def test_AL(self):
-        test_accuracy = self.evaluate(self.test_dl)
+        test_accuracy, test_loss = self.evaluate(self.test_dl)
 
-        print('\nTESTING RESULTS -> val_accuracy: {:.6f} \n'.format(test_accuracy))
+        print('\nTESTING RESULTS -> test_accuracy: {:.6f}, test_loss: {:.6f} \n'.format(test_accuracy, test_loss))
 
         return test_accuracy
 

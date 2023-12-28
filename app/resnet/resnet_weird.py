@@ -125,10 +125,10 @@ class LearningLoss(nn.Module):
         check_zeros = (plus_minus_1 == 0)
         check_zeros = check_zeros.type(torch.FloatTensor)
         plus_minus_1_final = plus_minus_1 - check_zeros
-        plus_minus_1_final = plus_minus_1_final.to(self.device)#cuda()
+        plus_minus_1_final = plus_minus_1_final.to(self.device)
         calc_loss = (-1) * plus_minus_1_final * (output_1 - output_2) + self.margin
         greater_than_zero = calc_loss > 0
         greater_than_zero = greater_than_zero.type(torch.FloatTensor)
-        greater_than_zero = greater_than_zero.to(self.device)#cuda()
+        greater_than_zero = greater_than_zero.to(self.device)
         loss = calc_loss * greater_than_zero
         return torch.mean(loss)

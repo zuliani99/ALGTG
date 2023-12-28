@@ -36,16 +36,16 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
     # questi due hanno .indices basato su train_data
     
     # così io dovrei avere le referenze originali rispetto alla dimensione del traiset
-    labeled_set_indices = [train_data.indices[id] for id in labeled_set.indices]
-    unlabeled_set_indices = [train_data.indices[id] for id in unlabeled_set.indices]
+    #labeled_set_indices = [train_data.indices[id] for id in labeled_set.indices]
+    #unlabeled_set_indices = [train_data.indices[id] for id in unlabeled_set.indices]
     
     # labeled_set, unlabeled_set possono variare al massimo tra 0 -> 39999: 40000 osservazioni
     
     
     # SET THE INDICES OF THE LABELED AND UNLABELED SET CONSISTENT WRT THE ORIGINAL TRAINDATA
 
-    labeled_set = Subset(trainset, labeled_set_indices)
-    unlabeled_set = Subset(trainset, unlabeled_set_indices)
+    labeled_set = Subset(trainset, [train_data.indices[id] for id in labeled_set.indices])
+    unlabeled_set = Subset(trainset, [train_data.indices[id] for id in unlabeled_set.indices])
     
     # Obtain the splitted dataloader
     labeled_train_dl = DataLoader(labeled_set, batch_size=batch_size, shuffle=True, num_workers=2)#True

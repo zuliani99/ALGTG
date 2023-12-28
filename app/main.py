@@ -19,8 +19,7 @@ use_resnet_weird = True
 
 def main():
     
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    # Assuming that we are on a CUDA machine, this should print a CUDA device
+    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
     print(f'Application running on {device}\n')
     
@@ -53,8 +52,8 @@ def main():
     #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=2, verbose=True)
 
 
-    epochs = 1#30
-    al_iters = 1#25
+    epochs = 50
+    al_iters = 36#25
     n_top_k_obs = 1000
     
     
