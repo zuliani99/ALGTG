@@ -50,7 +50,7 @@ class Random_Strategy():
     
     def run(self, al_iters, epochs, n_top_k_obs):
         iter = 0
-        results = { 'test_accuracy': [] }
+        results = { 'test_accuracy': [], 'test_loss': [] }
         
         # iter = 0
         print(colored(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n', 'blue'))
@@ -58,15 +58,16 @@ class Random_Strategy():
         self.Main_AL_class.reintialize_model()
         self.Main_AL_class.fit(epochs, self.lab_train_dl, self.method_name)
             
-        test_accuracy = self.Main_AL_class.test_AL()
+        test_accuracy, test_loss = self.Main_AL_class.test_AL()
         
         write_csv(
             ts_dir=self.Main_AL_class.timestamp,
-            head = ['method', 'al_iter', 'n_splits', 'test_accuracy'],
-            values = [self.method_name, iter, 'None', test_accuracy]
+            head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
+            values = [self.method_name, iter, 'None', test_accuracy, test_loss]
         )
         
         results['test_accuracy'].append(test_accuracy)
+        results['test_loss'].append(test_loss)
         
         # start of the loop
         while len(self.unlab_train_ds) > 0 and iter < al_iters:
@@ -83,15 +84,16 @@ class Random_Strategy():
             self.Main_AL_class.reintialize_model()
             self.Main_AL_class.fit(epochs, self.lab_train_dl, self.method_name)
             
-            test_accuracy = self.Main_AL_class.test_AL()
+            test_accuracy, test_loss = self.Main_AL_class.test_AL()
             
             write_csv(
                 ts_dir=self.Main_AL_class.timestamp,
-                head = ['method', 'al_iter', 'n_splits', 'test_accuracy'],
-                values = [self.method_name, iter + 1, 'None', test_accuracy]
+                head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
+                values = [self.method_name, iter + 1, 'None', test_accuracy, test_loss]
             )
 
             results['test_accuracy'].append(test_accuracy)
+            results['test_loss'].append(test_loss)
             
             iter += 1
             

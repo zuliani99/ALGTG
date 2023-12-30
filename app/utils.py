@@ -86,23 +86,39 @@ def entropy(tensor):
     
 
 def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, plot_png_name = None):
+    
+    _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
+    
+    for method_str, values in methods_results.items():
+        if(isinstance(list(values.keys())[0], int)):
+            for n_samples, results in values.items():
+                ax[0].plot(n_lab_obs, results['test_loss'], label = f'{method_str} - {str(n_samples)} splits')
+        else:
+            ax[0].plot(n_lab_obs, values['test_loss'], label = f'{method_str}')
 
-    _, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (12,8))
+        
+    ax[0].set_title('Loss - # Labeled Obs')
+    ax[0].set_xlabel('# Labeled Obs')
+    ax[0].set_ylabel('Loss')
+    ax[0].grid()
+    ax[0].legend()
 
     
     for method_str, values in methods_results.items():
         if(isinstance(list(values.keys())[0], int)):
             for n_samples, results in values.items():
-                ax.plot(n_lab_obs, results['test_accuracy'], label = f'{method_str} - {str(n_samples)} splits')
+                ax[1].plot(n_lab_obs, results['test_accuracy'], label = f'{method_str} - {str(n_samples)} splits')
         else:
-            ax.plot(n_lab_obs, values['test_accuracy'], label = f'{method_str}')
+            ax[1].plot(n_lab_obs, values['test_accuracy'], label = f'{method_str}')
             
     
-    ax.set_title('Accuracy Score Results')
-    ax.set_ylabel('Accuracy Score')
-    ax.set_xlabel('# Labeled Obs')
-    ax.grid()
-    ax.legend()
+    ax[1].set_title('Accuracy Score - # Labeled Obs')
+    ax[1].set_ylabel('Accuracy Score')
+    ax[1].set_xlabel('# Labeled Obs')
+    ax[1].grid()
+    ax[1].legend()
+
+    plt.suptitle('Results', fontsize = 30)
     
     if save_plot: plt.savefig(f'results/{ts_dir}/{plot_png_name}') #results/{ts_dir}/{plot_png_name}
     else: plt.show()

@@ -227,7 +227,7 @@ class ActiveLearning():
 
         print('\nTESTING RESULTS -> test_accuracy: {:.6f}, test_loss: {:.6f} \n'.format(test_accuracy, test_loss))
 
-        return test_accuracy
+        return test_accuracy, test_loss
 
 
 

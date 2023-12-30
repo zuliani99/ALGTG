@@ -122,22 +122,23 @@ class GTG_Strategy():
                     
             iter = 0
 
-            results[n_splits] = { 'test_accuracy': [] }
+            results[n_splits] = { 'test_accuracy': [], 'test_loss': [] }
                 
             # iter = 0            
             print(colored(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n', 'blue'))
             self.Main_AL_class.reintialize_model()
             self.Main_AL_class.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
             
-            test_accuracy = self.Main_AL_class.test_AL()
+            test_accuracy, test_loss = self.Main_AL_class.test_AL()
                 
             write_csv(
                 ts_dir=self.Main_AL_class.timestamp,
-                head = ['method', 'al_iter', 'n_splits', 'test_accuracy'],
-                values = [self.method_name, iter, n_splits, test_accuracy]
+                head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
+                values = [self.method_name, iter, n_splits, test_accuracy, test_loss]
             )
                 
             results[n_splits]['test_accuracy'].append(test_accuracy)
+            results[n_splits]['test_loss'].append(test_loss)
                      
                      
             # start of the loop   
@@ -197,15 +198,17 @@ class GTG_Strategy():
                 self.Main_AL_class.reintialize_model()
                 self.Main_AL_class.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
                 
-                test_accuracy = self.Main_AL_class.test_AL()
+                test_accuracy, test_loss = self.Main_AL_class.test_AL()
                 
                 write_csv(
                     ts_dir=self.Main_AL_class.timestamp,
-                    head = ['method', 'al_iter', 'n_splits', 'test_accuracy'],
-                    values = [self.method_name, iter + 1, n_splits, test_accuracy]
+                    head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
+                    values = [self.method_name, iter + 1, n_splits, test_accuracy, test_loss]
                 )
                 
                 results[n_splits]['test_accuracy'].append(test_accuracy)
+                results[n_splits]['test_loss'].append(test_loss)
+                
                         
                 iter += 1
         
