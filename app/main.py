@@ -49,7 +49,7 @@ def main():
 
     #optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.001, momentum=0.9)
     optimizer = torch.optim.Adam(resnet18.parameters(), lr=0.001)
-    #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=2, verbose=True)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=5, verbose=True)
 
 
     epochs = 50
@@ -66,6 +66,7 @@ def main():
         batch_size = batch_size,
         model = resnet18,
         optimizer = optimizer,
+        scheduler = scheduler,
         train_ds = original_trainset, #50000
         test_dl = test_dl,
         lab_train_dl = lab_train_dl,

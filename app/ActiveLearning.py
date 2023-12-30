@@ -17,12 +17,13 @@ from resnet.resnet_weird import LearningLoss
 class ActiveLearning():
 
     #indices_lab_unlab_train
-    def __init__(self, n_classes, batch_size, model, optimizer, train_ds, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, device, patience, timestamp): #scheduler
+    def __init__(self, n_classes, batch_size, model, optimizer, scheduler, train_ds, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, device, patience, timestamp):
 
         self.n_classes = n_classes
         self.model = model.to(device)
         self.batch_size = batch_size
         self.optimizer = optimizer
+        self.scheduler = scheduler
         self.train_ds = train_ds
         self.test_dl = test_dl
         self.lab_train_dl = lab_train_dl
@@ -126,16 +127,15 @@ class ActiveLearning():
             #resnet_weird
             if epoch > 120:
                 weight = 0
-            loss_ce_total = 0
             loss_weird_total = 0
             
             
-
+            train_loss = 0.0
             train_accuracy = 0.0
 
-            pbar = tqdm(enumerate(dataloader), total = len(dataloader), leave=False)
+            pbar = tqdm(dataloader, total = len(dataloader), leave=False)
 
-            for k, (_, images, labels) in pbar:
+            for _, images, labels in pbar:
                                 
                 # zero the parameter gradients
                 self.optimizer.zero_grad()
@@ -160,13 +160,13 @@ class ActiveLearning():
                     
                     loss = loss_ce + weight * loss_weird
                     
-                    loss_ce_total += loss_ce
+                    train_loss += loss_ce
                     loss_weird_total += loss_weird
                 
                 else:
                     outputs = self.model(images)
                     loss = self.loss_fn(outputs, labels)
-                    loss_ce_total += loss
+                    train_loss += loss
                 
 
                 loss.backward()
@@ -185,16 +185,20 @@ class ActiveLearning():
     
 
             train_accuracy /= len(dataloader)
+            train_loss /= len(dataloader)
+            
+			# scheduler step
+            self.scheduler.step(train_loss)
 
             # Validation step
             val_accuracy, val_loss = self.evaluate(self.val_dl, epoch + 1, epochs)
 
             if self.model.__class__.__name__ == 'ResNet_Weird':
-                print('Epoch [{}], train_accuracy: {:.6f}, loss_ce: {:.6f}, loss_weird: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
-                      epoch + 1, train_accuracy, loss_ce_total.item() / k, loss_weird_total.item() / k, val_accuracy, val_loss))
+                print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, loss_weird: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
+                      epoch + 1, train_accuracy, train_loss, loss_weird_total / len(dataloader), val_accuracy, val_loss))
             else:
                 print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f} , val_accuracy: {:.6f}\n'.format(
-                      epoch + 1, train_accuracy, loss_ce_total.item() / k, val_accuracy, val_loss))
+                      epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss))
 
 
             if(val_loss < best_val_loss):
