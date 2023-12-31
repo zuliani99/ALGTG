@@ -9,7 +9,7 @@ from resnet.resnet_weird import ResNet_Weird, BasicBlock
 from resnet.resnet18 import ResNet18
 
 from cifar10 import get_cifar10
-from utils import create_ts_dir_res, get_initial_dataloaders, accuracy_score, plot_loss_curves
+from utils import create_ts_dir_res, get_initial_dataloaders, accuracy_score, plot_loss_curves, weights_init
 
 from datetime import datetime
 
@@ -19,7 +19,7 @@ use_resnet_weird = True
 
 def main():
     
-    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     print(f'Application running on {device}\n')
     
@@ -38,10 +38,18 @@ def main():
     if use_resnet_weird:
         #resnet_weird
         resnet18 = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=len(classes))
+        
+        # weights initiaization
+        resnet18.apply(weights_init)
+        
         cross_entropy = nn.CrossEntropyLoss(reduction='none')
     else:
         #normal resnet
         resnet18 = ResNet18(len(classes))
+        
+        # weights initiaization
+        resnet18.apply(weights_init)
+        
         cross_entropy = nn.CrossEntropyLoss()
     
     

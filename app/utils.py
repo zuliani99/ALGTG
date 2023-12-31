@@ -1,5 +1,8 @@
 
 import torch
+import torch.nn as nn
+import torch.nn.init as init
+
 from torch.utils.data import DataLoader, Subset, random_split
 
 import matplotlib.pyplot as plt
@@ -147,4 +150,10 @@ def create_ts_dir_res(timestamp):
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise  # This was not a "directory exist" error..
+                
         
+# weights initiaization
+def weights_init(m):
+    if isinstance(m, nn.Conv2d):
+        init.xavier_uniform_(m.weight.data, gain=nn.init.calculate_gain('relu'))
+        if m.bias: init.xavier_uniform_(m.bias.data, gain=nn.init.calculate_gain('relu'))
