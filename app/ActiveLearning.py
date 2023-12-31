@@ -1,61 +1,66 @@
 
 import torch
 import torch.nn as nn
+from torchvision import transforms
 
 from termcolor import colored
 from tqdm import tqdm
+from utils import get_mean_std
 
 from methods.GTG_Strategy import GTG_Strategy
 from methods.Random_Strategy import Random_Strategy
+from methods.Class_Entropy import Class_Entropy
 
-
-class Embed_Model(nn.Module):
-    def __init__(self, model):
-        super(Embed_Model, self).__init__()
-
-        # Copy all layers except the last one from the original model
-        self.features = nn.Sequential(*list(model.resnet18.children())[:-1])
-
-    def forward(self, x):
-        # Forward pass using the modified model
-        return self.features(x)
-
+from resnet.resnet_weird import LearningLoss
 
 
 class ActiveLearning():
 
+    #indices_lab_unlab_train
+    def __init__(self, n_classes, batch_size, model, optimizer, scheduler, train_ds, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, device, patience, timestamp):
 
-    def __init__(self, n_classes, batch_size, model, optimizer, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, device, patience, timestamp): #scheduler
         self.n_classes = n_classes
         self.model = model.to(device)
         self.batch_size = batch_size
         self.optimizer = optimizer
+        self.scheduler = scheduler
+        self.train_ds = train_ds
         self.test_dl = test_dl
         self.lab_train_dl = lab_train_dl
         self.lab_train_ds, self.unlab_train_ds = splitted_train_ds
         self.loss_fn = loss_fn
         self.val_dl = val_dl
         self.score_fn = score_fn
-        #self.scheduler = scheduler
         self.device = device
         self.patience = patience
         self.timestamp = timestamp
         
-        self.best_check_filename = './checkpoints/best_checkpoint.pth.tar' #app
-        self.init_check_filename = './checkpoints/init_checkpoint.pth.tar' #app
+        #resnet_weird
+        self.loss_weird = LearningLoss(self.device)
+        
+        self.best_check_filename = 'app/checkpoints/'#best_checkpoint.pth.tar' #app
+        self.init_check_filename = 'app/checkpoints/init_checkpoint.pth.tar' #app
+        
         self.__save_checkpoint(self.init_check_filename)
+        self.obtain_normalization()
         
 
-        
 
     def reintialize_model(self):
         self.__load_checkpoint(self.init_check_filename)
 
 
 
+    def obtain_normalization(self):
+        mean, std = get_mean_std(self.lab_train_dl)
+        self.normalize = transforms.Compose([
+            transforms.Normalize(mean, std)
+        ])
+        
+
     def __save_checkpoint(self, filename):
 
-        checkpoint = { 'state_dict': self.model.state_dict(), 'optimizer': self.optimizer.state_dict()} #, 'scheduler': self.scheduler.state_dict() }
+        checkpoint = { 'state_dict': self.model.state_dict(), 'optimizer': self.optimizer.state_dict() }
         torch.save(checkpoint, filename)
 
 
@@ -65,143 +70,206 @@ class ActiveLearning():
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
-        #self.scheduler.load_state_dict(checkpoint['scheduler'])
 
 
 
     def evaluate(self, val_dl, epoch = 0, epochs = 0):
-        val_loss, val_accuracy = .0, .0
+        val_accuracy, val_loss = .0, .0
 
         self.model.eval()
 
         pbar = tqdm(val_dl, total = len(val_dl), leave=False)
 
         with torch.inference_mode(): # Allow inference mode
-            for images, label in pbar:
-                images, label = images.to(self.device), label.to(self.device)
+            for _, images, label in pbar:
+                images, label = self.normalize(images.to(self.device)), label.to(self.device)
 
-                output = self.model(images)
 
-                loss = self.loss_fn(output, label)
-
+                if self.model.__class__.__name__ == 'ResNet_Weird':
+                    #resnet_weird
+                    output, _, _, _ = self.model(images)
+                else:
+                    output = self.model(images)
+                
+                loss = torch.mean(self.loss_fn(output, label)).item()
                 accuracy = self.score_fn(output, label)
 
-                val_loss += loss.item()
                 val_accuracy += accuracy
+                val_loss += loss
 
                 if epoch > 0: pbar.set_description(f'EVALUATION Epoch [{epoch} / {epochs}]')
                 else: pbar.set_description(f'TESTING')
-                pbar.set_postfix(loss = loss.item(), accuracy = accuracy)
+                pbar.set_postfix(accuracy = accuracy, loss = loss)
 
-            val_loss /= len(val_dl) # Calculate the final loss
             val_accuracy /= len(val_dl)
-        return val_loss, val_accuracy
+            val_loss /= len(val_dl)
+            
+        return val_accuracy, val_loss
 
 
 
-    def fit(self, epochs, dataloader):
+
+    def fit(self, epochs, dataloader, method_str):
         self.model.train()
+        
+        
+        #resnet_weird
+        weight = 1.   # 120 = 0
+
+
 
         best_val_loss = float('inf')
         actual_patience = 0
 
         for epoch in range(epochs):  # loop over the dataset multiple times
-
+            
+            
+            #resnet_weird
+            if epoch > 120:
+                weight = 0
+            loss_weird_total = 0
+            
+            
             train_loss = 0.0
             train_accuracy = 0.0
 
             pbar = tqdm(dataloader, total = len(dataloader), leave=False)
 
-            for inputs, labels in pbar:
+            for _, images, labels in pbar:
+                                
                 # zero the parameter gradients
                 self.optimizer.zero_grad()
 
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels = inputs.to(self.device), labels.to(self.device)
-
-                outputs = self.model(inputs)
-                loss = self.loss_fn(outputs, labels)
+                images, labels = self.normalize(images.to(self.device)), labels.to(self.device)
+                
+                if self.model.__class__.__name__ == 'ResNet_Weird':
+                    #resnet_weird               
+                
+                    #outputs = self.model(images)
+                    outputs, _, out_weird, _ = self.model(images)
+                    
+                    
+                    #loss = self.loss_fn(outputs, labels)
+                    loss_ce = self.loss_fn(outputs, labels)
+                    
+                    
+                    #resnet_weird
+                    loss_weird = self.loss_weird(out_weird, loss_ce)
+                    loss_ce = torch.mean(loss_ce)
+                    
+                    loss = loss_ce + weight * loss_weird
+                    
+                    train_loss += loss_ce
+                    loss_weird_total += loss_weird
+                
+                else:
+                    outputs = self.model(images)
+                    loss = self.loss_fn(outputs, labels)
+                    train_loss += loss
+                
 
                 loss.backward()
                 self.optimizer.step()
 
                 accuracy = self.score_fn(outputs, labels)
 
-                # print statistics
-                train_loss += loss.item()
                 train_accuracy += accuracy
 
                 # Update the progress bar
                 pbar.set_description(f'TRAIN Epoch [{epoch + 1} / {epochs}]')
-                pbar.set_postfix(loss = loss.item(), accuracy = accuracy)
+                if self.model.__class__.__name__ == 'ResNet_Weird':
+                    pbar.set_postfix(accuracy = accuracy, loss_ce = loss_ce.item(), loss_weird = loss_weird.item())
+                else:
+                    pbar.set_postfix(accuracy = accuracy, loss = loss.item())
+    
 
-            train_loss /= len(dataloader)
             train_accuracy /= len(dataloader)
-
-            #self.scheduler.step(train_loss)
+            train_loss /= len(dataloader)
+            
+			# scheduler step
+            self.scheduler.step(train_loss)
 
             # Validation step
-            val_loss, val_accuracy = self.evaluate(self.val_dl, epoch + 1, epochs)
+            val_accuracy, val_loss = self.evaluate(self.val_dl, epoch + 1, epochs)
 
-            print('Epoch [{}], train_loss: {:.6f}, train_accuracy: {:.6f}, val_loss: {:.6f}, val_accuracy: {:.6f} \n'.format(
-                      epoch + 1, train_loss, train_accuracy, val_loss, val_accuracy))
+            if self.model.__class__.__name__ == 'ResNet_Weird':
+                print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, loss_weird: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
+                      epoch + 1, train_accuracy, train_loss, loss_weird_total / len(dataloader), val_accuracy, val_loss))
+            else:
+                print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f} , val_accuracy: {:.6f}\n'.format(
+                      epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss))
+
 
             if(val_loss < best_val_loss):
                 best_val_loss = val_loss
                 actual_patience = 0
-                self.__save_checkpoint(self.best_check_filename)
+                self.__save_checkpoint(f'{self.best_check_filename}best_{method_str}.pth.tar')
             else:
                 actual_patience += 1
                 if actual_patience >= self.patience:
                     print(f'Early stopping, validation loss do not decreased for {self.patience} epochs')
                     pbar.close() # Closing the progress bar before exiting from the train loop
                     break
+                
+                
+            #resnet_weird
+            if epoch == 160:
+                for g in self.optimizer.param_groups:
+                    g['lr'] = 0.01
+                    
+                    
 
-        self.__load_checkpoint(self.best_check_filename)
+        self.__load_checkpoint(f'{self.best_check_filename}best_{method_str}.pth.tar')
 
         print('Finished Training\n')
 
 
 
     def test_AL(self):
-        test_loss, test_accuracy = self.evaluate(self.test_dl)
+        test_accuracy, test_loss = self.evaluate(self.test_dl)
 
-        print('\nTESTING RESULTS -> val_loss: {:.6f}, val_accuracy: {:.6f} \n'.format(test_loss, test_accuracy))
+        print('\nTESTING RESULTS -> test_accuracy: {:.6f}, test_loss: {:.6f} \n'.format(test_accuracy, test_loss))
 
-        return test_loss, test_accuracy
-
+        return test_accuracy, test_loss
 
 
 
     def get_embeddings(self, type_embeds, dataloader):
+        if self.model.__class__.__name__ == 'ResNet_Weird':
+            embeddings = torch.empty(0, self.model.linear.in_features, dtype=torch.float32).to(self.device)  
+            self.model.eval()
+        else:
+            embeddings = torch.empty(0, list(self.model.resnet18.children())[-1].in_features, dtype=torch.float32).to(self.device)  
+            embed_model = nn.Sequential(*list(self.model.resnet18.children())[:-1]).to(self.device)
+            embed_model.eval()
             
-        embeddings = torch.empty(0, list(self.model.resnet18.children())[-1].in_features, dtype=torch.float32).to(self.device)  
-        
-        embed_model = nn.Sequential(*list(self.model.resnet18.children())[:-1]).to(self.device)
-        #embed_model = Embed_Model(self.model).to(self.device)
-                        
-        embed_model.eval()
-
         pbar = tqdm(dataloader, total = len(dataloader), leave=False, desc=f'Getting {type_embeds} Embeddings')
 
         # again no gradients needed
         with torch.inference_mode():
-            for inputs, _ in pbar:
+            for _, images, _ in pbar:
                 
-                embed = embed_model(inputs.to(self.device))
                 
+                if self.model.__class__.__name__ == 'ResNet_Weird':
+                    _, embed, _, _ = self.model(self.normalize(images.to(self.device)))
+                else:
+                    embed = embed_model(self.normalize(images.to(self.device)))
+                
+
                 embeddings = torch.cat((embeddings, embed.squeeze()), dim=0)
              
         return embeddings
 
 
 
-    def train_evaluate(self, epochs, al_iters, n_top_k_obs, our_method_params):
+    def train_evaluate(self, epochs, al_iters, n_top_k_obs, class_entropy_params, our_method_params):
 
         results = { }
         n_lab_obs =  [len(self.lab_train_ds) + (iter * n_top_k_obs) for iter in range(al_iters + 1)]
         
-        methods = [GTG_Strategy(self, our_method_params), Random_Strategy(self)]
+        methods = [Class_Entropy(self, class_entropy_params), Random_Strategy(self), GTG_Strategy(self, our_method_params)]
+        #methods = [GTG_Strategy(self, our_method_params)]
         
         print(colored(f'----------------------- TRAINING ACTIVE LEARNING -----------------------', 'red', 'on_white'))
         print('\n')

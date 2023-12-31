@@ -1,87 +1,73 @@
 
 import random
-import numpy as np
-from tqdm import tqdm
 from termcolor import colored
+import copy
 
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 from utils import write_csv
-from cifar10 import CIFAR10
 
 
 
 class Random_Strategy():
     def __init__(self, Main_AL_class):
-        self.method_name = 'random'
+        self.method_name = 'Random'
         self.Main_AL_class = Main_AL_class
         
-        self.lab_train_ds = self.Main_AL_class.lab_train_ds
-        self.unlab_train_ds = self.Main_AL_class.unlab_train_ds
+        self.lab_train_ds = copy.deepcopy(self.Main_AL_class.lab_train_ds)
+        self.unlab_train_ds = copy.deepcopy(self.Main_AL_class.unlab_train_ds)
         
-        self.lab_train_dl = self.Main_AL_class.lab_train_dl
+        self.lab_train_dl = copy.deepcopy(self.Main_AL_class.lab_train_dl)
                 
         
         
     def sample_unlab_obs(self, n_top_k_obs):
-        return random.sample(range(len(self.unlab_train_ds)), n_top_k_obs)
+        if(len(self.unlab_train_ds.indices) > n_top_k_obs):
+            return random.sample(self.unlab_train_ds.indices, n_top_k_obs)
+        else:
+            return self.unlab_train_ds.indices
     
     
-    
-    def get_new_dataloaders(self, topk_idx_obs):
-        new_lab_train_ds = np.array([
-            np.array([
-                image if isinstance(image, np.ndarray) else image.numpy(), label
-            ], dtype=object) for image, label in tqdm(self.lab_train_ds, total=len(self.lab_train_ds), leave=False, desc='Copying lab_train_ds')], dtype=object)
+    def get_new_dataloaders(self, overall_topk):
         
+        lab_train_indices = self.lab_train_ds.indices
         
-        new_unlab_train_ds = np.array([
-            np.array([
-                image if isinstance(image, np.ndarray) else image.numpy(), label
-            ], dtype=object) for image, label in tqdm(self.unlab_train_ds, total=len(self.unlab_train_ds), leave=False, desc='Copying unlab_train_ds')], dtype=object)
+        lab_train_indices.extend(overall_topk)
+        self.lab_train_ds = Subset(self.Main_AL_class.train_ds, lab_train_indices)
+
+        unlab_train_indices = self.unlab_train_ds.indices
+        for idx_to_remove in overall_topk:
+            unlab_train_indices.remove(idx_to_remove)
+        self.unlab_train_ds = Subset(self.Main_AL_class.train_ds, unlab_train_indices)      
         
+        print(colored(f'!!!!!!!!!!!!!!!!!!!!!!!{list(set(self.unlab_train_ds.indices) & set(self.lab_train_ds.indices))}!!!!!!!!!!!!!!!!!!!!!!!', 'red'))
+
+        self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True) # False
+        self.Main_AL_class.obtain_normalization()
 
 
-        for idx_to_move in tqdm(topk_idx_obs, total=len(topk_idx_obs), leave=False, desc='Modifing the Datasets'):
-            new_lab_train_ds = np.vstack((new_lab_train_ds, np.expand_dims(
-                np.array(new_unlab_train_ds[idx_to_move], dtype=object)
-            , axis=0)))
-            
-            new_unlab_train_ds[idx_to_move] = np.array([np.nan, np.nan], dtype=object) # set a [np.nan np.nan] the row and the get all the row not equal to [np.nan, np.nan]       
-            
-        
-        
-        self.lab_train_ds = CIFAR10(None, new_lab_train_ds)
-        self.unlab_train_ds = CIFAR10(None,
-                                      new_unlab_train_ds[np.array([not np.isnan(row[1])
-                                                                   for row in tqdm(new_unlab_train_ds, total=len(new_unlab_train_ds), desc='Obtaining the unmarked observation from the Unlabeled Dataset', leave=False)])])
 
-        self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=False)
-        
-    
     
     def run(self, al_iters, epochs, n_top_k_obs):
         iter = 0
-        results = { 'test_loss': [], 'test_accuracy': [] }
+        results = { 'test_accuracy': [], 'test_loss': [] }
         
         # iter = 0
         print(colored(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n', 'blue'))
             
         self.Main_AL_class.reintialize_model()
-        self.Main_AL_class.fit(epochs, self.lab_train_dl)
+        self.Main_AL_class.fit(epochs, self.lab_train_dl, self.method_name)
             
-        test_loss, test_accuracy = self.Main_AL_class.test_AL()
+        test_accuracy, test_loss = self.Main_AL_class.test_AL()
         
         write_csv(
             ts_dir=self.Main_AL_class.timestamp,
             head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
-            values = [self.method_name, iter + 1, 'None', test_accuracy, test_loss]
+            values = [self.method_name, iter, 'None', test_accuracy, test_loss]
         )
-
         
-        results['test_loss'].append(test_loss)
         results['test_accuracy'].append(test_accuracy)
-        
+        results['test_loss'].append(test_loss)
         
         # start of the loop
         while len(self.unlab_train_ds) > 0 and iter < al_iters:
@@ -96,9 +82,9 @@ class Random_Strategy():
             
             # iter + 1
             self.Main_AL_class.reintialize_model()
-            self.Main_AL_class.fit(epochs, self.lab_train_dl)
+            self.Main_AL_class.fit(epochs, self.lab_train_dl, self.method_name)
             
-            test_loss, test_accuracy = self.Main_AL_class.test_AL()
+            test_accuracy, test_loss = self.Main_AL_class.test_AL()
             
             write_csv(
                 ts_dir=self.Main_AL_class.timestamp,
@@ -106,11 +92,9 @@ class Random_Strategy():
                 values = [self.method_name, iter + 1, 'None', test_accuracy, test_loss]
             )
 
-            results['test_loss'].append(test_loss)
             results['test_accuracy'].append(test_accuracy)
-            
+            results['test_loss'].append(test_loss)
             
             iter += 1
-            
             
         return results

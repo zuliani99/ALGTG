@@ -4,42 +4,64 @@ import torch
 import torch.nn as nn
 
 from ActiveLearning import ActiveLearning
+
+from resnet.resnet_weird import ResNet_Weird, BasicBlock
+from resnet.resnet18 import ResNet18
+
 from cifar10 import get_cifar10
-from utils import create_ts_dir_res, get_initial_dataloaders, accuracy_score, plot_loss_curves
-from resnet18 import ResNet18
+from utils import create_ts_dir_res, get_initial_dataloaders, accuracy_score, plot_loss_curves, weights_init
 
 from datetime import datetime
 
 
 save_plot = True
+use_resnet_weird = True
 
 def main():
     
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    # Assuming that we are on a CUDA machine, this should print a CUDA device
 
     print(f'Application running on {device}\n')
     
     batch_size = 128
 
-    trainset, test_dl, classes = get_cifar10(batch_size)
-
+    original_trainset, test_dl, classes = get_cifar10(batch_size)
+    
+    #indices_lab_unlab_train
     lab_train_dl, splitted_train_ds, val_dl = get_initial_dataloaders(
-        trainset = trainset,
+        trainset = original_trainset,
         val_rateo = 0.2,
         labeled_ratio = 0.01,
         batch_size = batch_size
     )
 
-    resnet18 = ResNet18() #get_resnet18(len(classes))
+    if use_resnet_weird:
+        #resnet_weird
+        resnet18 = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=len(classes))
+        
+        # weights initiaization
+        resnet18.apply(weights_init)
+        
+        cross_entropy = nn.CrossEntropyLoss(reduction='none')
+    else:
+        #normal resnet
+        resnet18 = ResNet18(len(classes))
+        
+        # weights initiaization
+        resnet18.apply(weights_init)
+        
+        cross_entropy = nn.CrossEntropyLoss()
+    
+    
+    #optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)
 
     #optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.001, momentum=0.9)
     optimizer = torch.optim.Adam(resnet18.parameters(), lr=0.001)
-    #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=2, verbose=True)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=5, verbose=True)
 
 
-    epochs = 2#30
-    al_iters = 2#25
+    epochs = 50
+    al_iters = 36#25
     n_top_k_obs = 1000
     
     
@@ -49,16 +71,17 @@ def main():
 
     Active_Learning_Cicle = ActiveLearning(
         n_classes = len(classes),
-        batch_size=batch_size,
+        batch_size = batch_size,
         model = resnet18,
         optimizer = optimizer,
+        scheduler = scheduler,
+        train_ds = original_trainset, #50000
         test_dl = test_dl,
         lab_train_dl = lab_train_dl,
         splitted_train_ds = splitted_train_ds,
-        loss_fn = nn.CrossEntropyLoss(),
+        loss_fn = cross_entropy,
         val_dl = val_dl,
         score_fn = accuracy_score,
-        #scheduler = scheduler,
         device = device,
         patience = 10,
         timestamp = timestamp
@@ -69,12 +92,16 @@ def main():
         'gtg_tol': 0.001,
         'gtg_max_iter': 20,#200,
         'list_n_samples': [10], #[5, 10, 15 20, 25, 30])
-        #'affinity_method': 'cosine_similarity',  # possiible choices are: cosine_similarity, gaussian_kernel, eucliden_distance
+    }
+    
+    class_entropy_params = {
+        'list_n_samples': [10], #[5, 10, 15 20, 25, 30])
     }
     
 
     results, n_lab_obs = Active_Learning_Cicle.train_evaluate(epochs=epochs, al_iters=al_iters, n_top_k_obs=n_top_k_obs,
-                                                      our_method_params=our_method_params)#, random_params=random_params)
+                                                      class_entropy_params=class_entropy_params,
+                                                      our_method_params=our_method_params)
     
     plot_loss_curves(results, n_lab_obs, save_plot, timestamp, f'results_{epochs}_{al_iters}_{n_top_k_obs}.png')
     
