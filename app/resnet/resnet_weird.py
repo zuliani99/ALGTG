@@ -8,7 +8,7 @@ Reference:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-#import torch.nn.init as init
+import torch.nn.init as init
 
 
 class BasicBlock(nn.Module):
@@ -17,32 +17,25 @@ class BasicBlock(nn.Module):
     def __init__(self, in_planes, planes, stride=1):
         super(BasicBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        init.xavier_uniform_(self.conv1.weight, gain=nn.init.calculate_gain('relu'))
+        init.constant_(self.conv1.bias, 0)
         self.bn1 = nn.BatchNorm2d(planes)
+        
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
+        init.xavier_uniform_(self.conv2.weight, gain=nn.init.calculate_gain('relu'))
+        init.constant_(self.conv2.bias, 0)
         self.bn2 = nn.BatchNorm2d(planes)
-
+        
+        self.conv3 = nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False)
+        init.xavier_uniform_(self.conv3.weight, gain=nn.init.calculate_gain('relu'))
+        init.constant_(self.conv3.bias, 0)
+        
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != self.expansion * planes:
             self.shortcut = nn.Sequential(
-                nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(self.expansion * planes)
+                self.conv3, nn.BatchNorm2d(self.expansion * planes)
             )
-                    
-            
-    '''def initialize_weigths(self, childs):
-        if isinstance(childs, nn.Conv2d):
-            init.xavier_uniform_(childs.weight, gain=nn.init.calculate_gain('relu'))
-            if childs.bias is not None:
-                init.constant_(childs.bias, 0)
-        else:
-          for child in childs:
-            if (isinstance(child, nn.Sequential)):
-                  self.initialize_weigths(list(child.children()))
-            else:
-                if isinstance(child, nn.Conv2d):
-                  init.xavier_uniform_(child.weight, gain=nn.init.calculate_gain('relu'))
-                  if child.bias is not None:
-                      init.constant_(child.bias, 0)'''
+                                
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
@@ -59,6 +52,9 @@ class ResNet_Weird(nn.Module):
         self.in_planes = 64
 
         self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        init.xavier_uniform_(self.conv1.weight, gain=nn.init.calculate_gain('relu'))
+        init.constant_(self.conv1.bias, 0)
+        
         self.bn1 = nn.BatchNorm2d(64)
         self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
