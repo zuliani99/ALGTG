@@ -32,22 +32,29 @@ class Class_Entropy:
         indices = torch.empty(0, dtype=torch.int8).to(self.Main_AL_class.device) 
         
         with torch.inference_mode(): # Allow inference mode
-            for idxs, images, label in pbar:
+            for idxs, images, labels in pbar:
                 
-                idxs, images, label = idxs.to(self.Main_AL_class.device), images.to(self.Main_AL_class.device), label.to(self.Main_AL_class.device)
+                idxs, images, labels = idxs.to(self.Main_AL_class.device), images.to(self.Main_AL_class.device), labels.to(self.Main_AL_class.device)
                 
                 
                 if self.model.__class__.__name__ == 'ResNet_Weird':
                     #output = self.model(images)
-                    output, _, _, _ = self.model(images)
+                    outputs, _, _, _ = self.model(images)
                 else:
-                    output = self.model(images)
+                    outputs = self.model(images)
                     
 
-                softmax = F.softmax(output, dim=1)
+                softmax = F.softmax(outputs, dim=1)
+                
+                loss = torch.mean(self.loss_fn(outputs, labels)).item()
+                output_class = torch.argmax(softmax, dim=1)
+                accuracy =  (output_class == labels).sum().item()/len(outputs)
                 
                 prob_dist = torch.cat((prob_dist, softmax), dim = 0).to(self.Main_AL_class.device)
                 indices = torch.cat((indices, idxs), dim = 0)
+                
+                pbar.set_description(f'TESTING ON UNLABELED')
+                pbar.set_postfix(accuracy = accuracy, loss = loss)
                 
         return indices, prob_dist
     

@@ -31,7 +31,7 @@ def main():
     lab_train_dl, splitted_train_ds, val_dl = get_initial_dataloaders(
         trainset = original_trainset,
         val_rateo = 0.2,
-        labeled_ratio = 0.01,
+        labeled_ratio = 0.05, # like vascon experiment
         batch_size = batch_size
     )
 
