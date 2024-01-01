@@ -26,7 +26,7 @@ class Class_Entropy:
 
         self.model.eval()
 
-        pbar = tqdm(self.unlab_train_dl, total = len(self.unlab_train_dl), leave=False, desc = 'TESTING ON UNLABELED')
+        pbar = tqdm(self.unlab_train_dl, total = len(self.unlab_train_dl), leave=False, desc = 'OBTAINING PROB DISTS FOR UNLABELED OBS')
         
         prob_dist = torch.empty(0, self.Main_AL_class.n_classes, dtype=torch.float32).to(self.Main_AL_class.device)  
         indices = torch.empty(0, dtype=torch.int8).to(self.Main_AL_class.device) 
@@ -38,24 +38,16 @@ class Class_Entropy:
                 
                 
                 if self.model.__class__.__name__ == 'ResNet_Weird':
-                    #output = self.model(images)
                     outputs, _, _, _ = self.model(images)
                 else:
                     outputs = self.model(images)
                     
-
                 softmax = F.softmax(outputs, dim=1)
-                
-                loss = torch.mean(self.loss_fn(outputs, labels)).item()
-                output_class = torch.argmax(softmax, dim=1)
-                accuracy =  (output_class == labels).sum().item()/len(outputs)
-                
+
                 prob_dist = torch.cat((prob_dist, softmax), dim = 0).to(self.Main_AL_class.device)
                 indices = torch.cat((indices, idxs), dim = 0)
-                
-                pbar.set_description(f'TESTING ON UNLABELED')
-                pbar.set_postfix(accuracy = accuracy, loss = loss)
-                
+
+
         return indices, prob_dist
     
     
