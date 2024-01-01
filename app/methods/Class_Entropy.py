@@ -26,7 +26,7 @@ class Class_Entropy:
 
         self.model.eval()
 
-        pbar = tqdm(self.unlab_train_dl, total = len(self.unlab_train_dl), leave=False, desc = 'OBTAINING PROB DISTS FOR UNLABELED OBS')
+        pbar = tqdm(self.unlab_train_dl, total = len(self.unlab_train_dl), leave=False, desc = 'TESTING ON UNLABELED')
         
         prob_dist = torch.empty(0, self.Main_AL_class.n_classes, dtype=torch.float32).to(self.Main_AL_class.device)  
         indices = torch.empty(0, dtype=torch.int8).to(self.Main_AL_class.device) 
@@ -42,12 +42,12 @@ class Class_Entropy:
                 else:
                     outputs = self.model(images)
                     
+                    
                 softmax = F.softmax(outputs, dim=1)
-
+                
                 prob_dist = torch.cat((prob_dist, softmax), dim = 0).to(self.Main_AL_class.device)
                 indices = torch.cat((indices, idxs), dim = 0)
-
-
+                
         return indices, prob_dist
     
     
@@ -66,7 +66,7 @@ class Class_Entropy:
         
         print(colored(f'!!!!!!!!!!!!!!!!!!!!!!!{list(set(self.unlab_train_ds.indices) & set(self.lab_train_ds.indices))}!!!!!!!!!!!!!!!!!!!!!!!', 'red'))
 
-        self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
+        self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True, pin_memory=True)
         self.Main_AL_class.obtain_normalization()
         
         
@@ -112,7 +112,7 @@ class Class_Entropy:
                 
                 iter_batch_size = len(self.unlab_train_ds) // n_splits
                 
-                self.unlab_train_dl = DataLoader(self.unlab_train_ds, batch_size=iter_batch_size, shuffle=True, num_workers=2)
+                self.unlab_train_dl = DataLoader(self.unlab_train_ds, batch_size=iter_batch_size, shuffle=True, num_workers=2, pin_memory=True)
                 
                 indices_prob, prob_dist = self.evaluate_unlabeled()
                 

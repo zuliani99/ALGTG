@@ -59,12 +59,14 @@ class ActiveLearning():
         
 
     def __save_checkpoint(self, filename):
+
         checkpoint = { 'state_dict': self.model.state_dict(), 'optimizer': self.optimizer.state_dict(), 'scheduler': self.scheduler.state_dict() }
         torch.save(checkpoint, filename)
 
 
 
     def __load_checkpoint(self, filename):
+
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])

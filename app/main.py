@@ -19,7 +19,7 @@ use_resnet_weird = True
 
 def main():
     
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
     print(f'Application running on {device}\n')
     
@@ -31,7 +31,7 @@ def main():
     lab_train_dl, splitted_train_ds, val_dl = get_initial_dataloaders(
         trainset = original_trainset,
         val_rateo = 0.2,
-        labeled_ratio = 0.05, # like vascon experiment
+        labeled_ratio = 0.025, # like vascon experiment
         batch_size = batch_size
     )
 
@@ -53,15 +53,12 @@ def main():
         cross_entropy = nn.CrossEntropyLoss()
     
     
-    #optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)
-
-    #optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.001, momentum=0.9)
     optimizer = torch.optim.Adam(resnet18.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=5, verbose=True)
 
 
-    epochs = 50
-    al_iters = 36#25
+    epochs = 60
+    al_iters = 20 # the maximum is 36
     n_top_k_obs = 1000
     
     
@@ -90,7 +87,7 @@ def main():
     
     our_method_params = {
         'gtg_tol': 0.001,
-        'gtg_max_iter': 20,#200,
+        'gtg_max_iter': 20,
         'list_n_samples': [10], #[5, 10, 15 20, 25, 30])
     }
     

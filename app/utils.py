@@ -26,7 +26,8 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
     # train_data ha 40000 osservazioni 
 
     # validation dataloader
-    val_dl = DataLoader(val_data, batch_size=batch_size, shuffle=True, num_workers=2)# True
+    #val_dl = DataLoader(val_data, batch_size=batch_size, shuffle=True, num_workers=2)# True
+    val_dl = DataLoader(val_data, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)
 
     train_data_size = len(train_data)
 
@@ -51,7 +52,7 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
     unlabeled_set = Subset(trainset, [train_data.indices[id] for id in unlabeled_set.indices])
     
     # Obtain the splitted dataloader
-    labeled_train_dl = DataLoader(labeled_set, batch_size=batch_size, shuffle=True, num_workers=2)#True
+    labeled_train_dl = DataLoader(labeled_set, batch_size=batch_size, shuffle=True, num_workers=2, pin_memory=True)
     
     return labeled_train_dl, (labeled_set, unlabeled_set), val_dl
 
@@ -150,7 +151,8 @@ def create_ts_dir_res(timestamp):
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise  # This was not a "directory exist" error..
-                
+        
+        
         
 # weights initiaization
 def weights_init(m):

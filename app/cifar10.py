@@ -41,7 +41,8 @@ def get_cifar10(batch_size):
     trainset = CIFAR10(bool_train=True, transform=transforms.ToTensor())
 
     testset = CIFAR10(bool_train=False, transform=transforms.ToTensor())
-    test_dl = DataLoader(testset, batch_size, shuffle=True, num_workers=2, pin_memory=True)
+    #test_dl = DataLoader(testset, batch_size, shuffle=True, num_workers=2, pin_memory=True)
+    test_dl = DataLoader(testset, batch_size, shuffle=False, num_workers=2, pin_memory=True)
 
     classes = ['plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
     

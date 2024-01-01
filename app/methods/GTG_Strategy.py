@@ -99,7 +99,7 @@ class GTG_Strategy():
         
         print(colored(f'!!!!!!!!!!!!!!!!!!!!!!!{list(set(self.unlab_train_ds.indices) & set(self.lab_train_ds.indices))}!!!!!!!!!!!!!!!!!!!!!!!', 'red'))
 
-        self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True)
+        self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True, pin_memory=True)
         self.Main_AL_class.obtain_normalization()
 
 
@@ -152,8 +152,9 @@ class GTG_Strategy():
                     self.unlab_train_ds,
                     batch_size=iter_batch_size,
                     sampler=UniqueShuffle(self.unlab_train_ds),
-                    num_workers=2
-                ) # shuffle=True / False
+                    num_workers=2,
+                    pin_memory=True
+                )
                 
                 # index are referred to slf.Main_AL_class.train_ds
                 # and are consistent emebdding creation and the read of the indices
