@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
 
 from tqdm import tqdm
+import os
 from utils import get_mean_std
 
 
@@ -38,16 +39,16 @@ class TrainEvaluate():
         #resnet_weird
         #self.loss_weird = LearningLoss(self.device)
         
-        self.best_check_filename = 'app/checkpoints/'#best_checkpoint.pth.tar' #app
+        self.best_check_filename = 'app/checkpoints'#best_checkpoint.pth.tar' #app
         self.init_check_filename = 'app/checkpoints/init_checkpoint.pth.tar' #app
         
-        self.__save_checkpoint(self.init_check_filename)
+        self.__save_init_checkpoint(self.init_check_filename)
         self.obtain_normalization()
         
 
 
     def reintialize_model(self):
-        self.__load_checkpoint(self.init_check_filename)
+        self.__load_init_checkpoint(self.init_check_filename)
 
 
 
@@ -58,19 +59,38 @@ class TrainEvaluate():
         ])
         
 
-    def __save_checkpoint(self, filename):
+
+    def __save_init_checkpoint(self, filename):
 
         checkpoint = { 'state_dict': self.model.state_dict(), 'optimizer': self.optimizer.state_dict(), 'scheduler': self.scheduler.state_dict() }
         torch.save(checkpoint, filename)
+        
+        
+    def __save_best_checkpoint(self, filename, actual_patience, epoch, best_val_loss):
 
+        checkpoint = {'state_dict': self.model.state_dict(), 'optimizer': self.optimizer.state_dict(), 'scheduler': self.scheduler.state_dict(),
+                      'actual_patience': actual_patience, 'epoch': epoch, 'best_val_loss': best_val_loss}
+        torch.save(checkpoint, filename)
 
-
-    def __load_checkpoint(self, filename):
+    
+    
+    
+    def __load_init_checkpoint(self, filename):
 
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['scheduler'])
+        
+
+    def __load_best_checkpoint(self, filename):
+
+        checkpoint = torch.load(filename, map_location=self.device)
+        self.model.load_state_dict(checkpoint['state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer'])
+        self.scheduler.load_state_dict(checkpoint['scheduler'])
+        
+        return checkpoint['actual_patience'], checkpoint['epoch'], checkpoint['best_val_loss']
 
 
 
@@ -119,10 +139,19 @@ class TrainEvaluate():
 
 
 
+        check_best_path = f'{self.best_check_filename}/best_{method_str}.pth.tar'
+		
+        actual_epoch = 0
         best_val_loss = float('inf')
         actual_patience = 0
 
-        for epoch in range(epochs):  # loop over the dataset multiple times
+        if os.path.exists(check_best_path):
+            actual_patience, actual_epoch, best_val_loss = self.__load_checkpoint(check_best_path)
+		
+	
+        self.model.train()
+
+        for epoch in range(actual_epoch, self.epochs):  # loop over the dataset multiple times
             
             
             #resnet_weird
@@ -201,14 +230,14 @@ class TrainEvaluate():
             #    print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, loss_weird: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
             #          epoch + 1, train_accuracy, train_loss, loss_weird_total / len(dataloader), val_accuracy, val_loss))
             #else:
-            print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f} , val_accuracy: {:.6f}\n'.format(
+            print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}\n'.format(
                       epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss))
 
 
             if(val_loss < best_val_loss):
                 best_val_loss = val_loss
                 actual_patience = 0
-                self.__save_checkpoint(f'{self.best_check_filename}best_{method_str}.pth.tar')
+                self.__save_best_checkpoint(check_best_path, actual_patience, epoch, best_val_loss)
             else:
                 actual_patience += 1
                 if actual_patience >= self.patience:
@@ -224,7 +253,7 @@ class TrainEvaluate():
                     
                     
 
-        self.__load_checkpoint(f'{self.best_check_filename}best_{method_str}.pth.tar')
+        self.__load_best_checkpoint(check_best_path)
 
         print('Finished Training\n')
 
@@ -271,7 +300,7 @@ class TrainEvaluate():
         
         lab_train_indices = self.lab_train_ds.indices
         
-        lab_train_indices.extend(overall_topk.tolist())
+        lab_train_indices.extend(overall_topk)
         self.lab_train_ds = Subset(self.train_ds, lab_train_indices)
         
         
@@ -281,7 +310,7 @@ class TrainEvaluate():
 
         unlab_train_indices = self.unlab_train_ds.indices
         for idx_to_remove in overall_topk:
-            unlab_train_indices.remove(idx_to_remove.item())
+            unlab_train_indices.remove(idx_to_remove)
         self.unlab_train_ds = Subset(self.train_ds, unlab_train_indices)
         
         #print(colored(f'!!!!!!!!!!!!!!!!!!!!!!!{list(set(self.unlab_train_ds.indices) & set(self.lab_train_ds.indices))}!!!!!!!!!!!!!!!!!!!!!!!', 'red'))

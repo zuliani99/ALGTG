@@ -164,7 +164,7 @@ class GTG_Strategy(TrainEvaluate):
                 
                 #overall_topk.indices -> è riferito agli indici della matrice entropy_pairwise_der
                 
-                self.get_new_dataloaders(overall_topk.indices)
+                self.get_new_dataloaders(overall_topk.indices.tolist())
                 
                 # iter + 1
                 self.reintialize_model()
