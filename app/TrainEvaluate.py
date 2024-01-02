@@ -151,7 +151,7 @@ class TrainEvaluate():
 	
         self.model.train()
 
-        for epoch in range(actual_epoch, self.epochs):  # loop over the dataset multiple times
+        for epoch in range(actual_epoch, epochs):  # loop over the dataset multiple times
             
             
             #resnet_weird
