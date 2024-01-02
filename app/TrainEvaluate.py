@@ -145,9 +145,6 @@ class TrainEvaluate():
         best_val_loss = float('inf')
         actual_patience = 0
 
-        if os.path.exists(check_best_path):
-            actual_patience, actual_epoch, best_val_loss = self.__load_checkpoint(check_best_path)
-		
 	
         self.model.train()
 

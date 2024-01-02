@@ -92,7 +92,7 @@ def main():
         
         
 
-    optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.01,
+    optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.1,
                                 momentum=0.9, weight_decay=5e-4)
     
     #optimizer = torch.optim.AdamW(resnet18.parameters(), lr=0.001)
