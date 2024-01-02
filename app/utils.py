@@ -164,12 +164,15 @@ def create_ts_dir_res(timestamp):
         init.xavier_uniform_(m.weight.data, gain=nn.init.calculate_gain('relu'))
         if m.bias: init.xavier_uniform_(m.bias.data, gain=nn.init.calculate_gain('relu'))'''
 def init_params(m):
-    if isinstance(m, (nn.Conv2d, nn.Linear)):
+    if isinstance(m, nn.Conv2d):
         init.kaiming_normal_(m.weight.data, mode='fan_out')
-        #init.xavier_uniform_(m.weight.data, gain=nn.init.calculate_gain('relu'))
+        if m.bias is not None: init.constant_(m.bias.data, 0)
+    elif isinstance(m, nn.Linear):
+        init.normal_(m.weight.data, std=1e-3)
         if m.bias is not None: init.constant_(m.bias.data, 0)
     elif isinstance(m, nn.BatchNorm2d):
         init.constant_(m.weight.data, 1)
         if m.bias is not None: init.constant_(m.bias.data, 0)
     elif isinstance(m, BasicBlock):
         for c in list(m.children()): init_params(c)
+

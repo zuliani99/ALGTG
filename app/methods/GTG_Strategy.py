@@ -1,9 +1,10 @@
 
+from TrainEvaluate import TrainEvaluate
 from utils import write_csv, entropy
 from cifar10 import UniqueShuffle
 
 import torch
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
 from tqdm import tqdm
@@ -12,14 +13,13 @@ import copy
 
 
 
-class GTG_Strategy():
+class GTG_Strategy(TrainEvaluate):
     
-    def __init__(self, Main_AL_class, our_methods_params):
-        self.method_name = 'GTG'
-        self.Main_AL_class = Main_AL_class
+    def __init__(self, al_params, our_methods_params):
+        super().__init__(al_params)
         
-        self.params = our_methods_params
-
+        self.method_name = self.__class__.__name__
+        self.params = our_methods_params 
 
 
     def clear_memory(self):
@@ -31,11 +31,11 @@ class GTG_Strategy():
     def get_A(self, samp_unlab_embeddings):
         
         normalized_embedding = F.normalize(
-            torch.cat((self.labeled_embeddings, samp_unlab_embeddings)).to(self.Main_AL_class.device)
-        , dim=-1).to(self.Main_AL_class.device)
+            torch.cat((self.labeled_embeddings, samp_unlab_embeddings)).to(self.device)
+        , dim=-1).to(self.device)
         
         self.A = F.relu(
-            torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.Main_AL_class.device)
+            torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device)
         ).fill_diagonal_(0)
         
         del normalized_embedding
@@ -45,12 +45,12 @@ class GTG_Strategy():
     # correct
     def get_X(self, len_samp_unlab_embeds):
         
-        self.X = torch.zeros(len(self.lab_train_ds) + len_samp_unlab_embeds, self.Main_AL_class.n_classes, dtype=torch.float32).to(self.Main_AL_class.device)
+        self.X = torch.zeros(len(self.lab_train_ds) + len_samp_unlab_embeds, self.n_classes, dtype=torch.float32).to(self.device)
         
         for idx, (_, _, label) in enumerate(self.lab_train_ds): self.X[idx][label] = 1
         for idx in range(len(self.lab_train_ds), len(self.lab_train_ds) + len_samp_unlab_embeds):
-            for label in range(self.Main_AL_class.n_classes):
-                self.X[idx][label] = 1 / self.Main_AL_class.n_classes
+            for label in range(self.n_classes):
+                self.X[idx][label] = 1 / self.n_classes
         
 
 
@@ -65,7 +65,7 @@ class GTG_Strategy():
                 
             self.X /= torch.sum(self.X, dim=1, keepdim=True)
         
-            iter_entropy = entropy(self.X).to(self.Main_AL_class.device) # both labeled and sample unlabeled
+            iter_entropy = entropy(self.X).to(self.device) # both labeled and sample unlabeled
             # I have to map only the sample_unlabeled to the correct position
             
             for idx, unlab_ent_val in tqdm(enumerate(iter_entropy[len(self.lab_train_ds):]), total = len(iter_entropy) - len(self.lab_train_ds), desc = f'Computing the derivatives of iteration {i}', leave = False):
@@ -81,41 +81,12 @@ class GTG_Strategy():
 
 
 
-    # correct
-    def get_new_dataloaders(self, overall_topk):
-        
-        #unlab_train_indices
-        #lab_train_indices
-        
-        lab_train_indices = self.lab_train_ds.indices
-        
-        lab_train_indices.extend(overall_topk.tolist())
-        self.lab_train_ds = Subset(self.Main_AL_class.train_ds, lab_train_indices)
-
-        unlab_train_indices = self.unlab_train_ds.indices
-        for idx_to_remove in overall_topk:
-            unlab_train_indices.remove(idx_to_remove.item())
-        self.unlab_train_ds = Subset(self.Main_AL_class.train_ds, unlab_train_indices)
-        
-        print(colored(f'!!!!!!!!!!!!!!!!!!!!!!!{list(set(self.unlab_train_ds.indices) & set(self.lab_train_ds.indices))}!!!!!!!!!!!!!!!!!!!!!!!', 'red'))
-
-        self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.Main_AL_class.batch_size, shuffle=True, pin_memory=True)
-        self.Main_AL_class.obtain_normalization()
-
-
-
-
     def run(self, al_iters, epochs, n_top_k_obs):
         results = {}
         
         for n_splits in self.params['list_n_samples']:
             
             # deeper copy of the original datasets and labeled train dataloader
-            
-            self.lab_train_dl = copy.deepcopy(self.Main_AL_class.lab_train_dl)
-        
-            self.lab_train_ds = copy.deepcopy(self.Main_AL_class.lab_train_ds)
-            self.unlab_train_ds = copy.deepcopy(self.Main_AL_class.unlab_train_ds)
             
                     
             print(colored(f'----------------------- WORKING WITH {n_splits} UNLABELED SPLITS -----------------------\n', 'green'))
@@ -126,13 +97,13 @@ class GTG_Strategy():
                 
             # iter = 0            
             print(colored(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n', 'blue'))
-            self.Main_AL_class.reintialize_model()
-            self.Main_AL_class.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
+            self.reintialize_model()
+            self.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
             
-            test_accuracy, test_loss = self.Main_AL_class.test_AL()
+            test_accuracy, test_loss = self.test_AL()
                 
             write_csv(
-                ts_dir=self.Main_AL_class.timestamp,
+                ts_dir=self.timestamp,
                 head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
                 values = [self.method_name, iter, n_splits, test_accuracy, test_loss]
             )
@@ -156,16 +127,16 @@ class GTG_Strategy():
                     pin_memory=True
                 )
                 
-                # index are referred to slf.Main_AL_class.train_ds
+                # index are referred to slf.train_ds
                 # and are consistent emebdding creation and the read of the indices
 
                 
-                self.labeled_embeddings = self.Main_AL_class.get_embeddings('Labeled', self.lab_train_dl)
-                self.unlab_embeddings = self.Main_AL_class.get_embeddings('Unlabeled', self.unlab_train_dl)
+                self.labeled_embeddings = self.get_embeddings('Labeled', self.lab_train_dl)
+                self.unlab_embeddings = self.get_embeddings('Unlabeled', self.unlab_train_dl)
                 
                 
                 # at each AL round I reinitialize the entropy_pairwise_der since I have to decide at each step what observations I want to move
-                self.entropy_pairwise_der = torch.zeros((len(self.Main_AL_class.train_ds), self.params['gtg_max_iter'] - 1)).to(self.Main_AL_class.device)
+                self.entropy_pairwise_der = torch.zeros((len(self.train_ds), self.params['gtg_max_iter'] - 1)).to(self.device)
 
                 # for each split
                 pbar = tqdm(enumerate(self.unlab_train_dl), total=len(self.unlab_train_dl), leave=True)
@@ -196,13 +167,13 @@ class GTG_Strategy():
                 self.get_new_dataloaders(overall_topk.indices)
                 
                 # iter + 1
-                self.Main_AL_class.reintialize_model()
-                self.Main_AL_class.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
+                self.reintialize_model()
+                self.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
                 
-                test_accuracy, test_loss = self.Main_AL_class.test_AL()
+                test_accuracy, test_loss = self.test_AL()
                 
                 write_csv(
-                    ts_dir=self.Main_AL_class.timestamp,
+                    ts_dir=self.timestamp,
                     head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
                     values = [self.method_name, iter + 1, n_splits, test_accuracy, test_loss]
                 )

@@ -1,37 +1,36 @@
 
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader, Subset
+
 from torchvision import transforms
 
-from termcolor import colored
 from tqdm import tqdm
 from utils import get_mean_std
 
-from methods.GTG_Strategy import GTG_Strategy
-from methods.Random_Strategy import Random_Strategy
-from methods.Class_Entropy import Class_Entropy
 
 #from resnet.resnet_weird import LearningLoss
 
-class ActiveLearning():
+class TrainEvaluate():
 
-    def __init__(self, n_classes, batch_size, model, optimizer, scheduler, train_ds, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, device, patience, timestamp):
-
-        self.n_classes = n_classes
-        self.model = model.to(device)
-        self.batch_size = batch_size
-        self.optimizer = optimizer
-        self.scheduler = scheduler
-        self.train_ds = train_ds
-        self.test_dl = test_dl
-        self.lab_train_dl = lab_train_dl
-        self.lab_train_ds, self.unlab_train_ds = splitted_train_ds
-        self.loss_fn = loss_fn
-        self.val_dl = val_dl
-        self.score_fn = score_fn
-        self.device = device
-        self.patience = patience
-        self.timestamp = timestamp
+    #def __init__(self, n_classes, batch_size, model, optimizer, scheduler, train_ds, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, device, patience, timestamp):
+    def __init__(self, params):
+        self.n_classes = params['n_classes']
+        self.device = params['device']
+        self.model = params['model'].to(self.device)
+        self.batch_size = params['batch_size']
+        self.optimizer = params['optimizer']
+        self.scheduler = params['scheduler']
+        self.train_ds = params['train_ds']
+        self.test_dl = params['test_dl']
+        self.lab_train_dl = params['lab_train_dl']
+        self.lab_train_ds, self.unlab_train_ds = params['splitted_train_ds']
+        self.loss_fn = params['loss_fn']
+        self.val_dl = params['val_dl']
+        self.score_fn = params['score_fn']
+        
+        self.patience = params['patience']
+        self.timestamp = params['timestamp']
         
         # update this whenever I obtain a new labeled train subset
         self.train_ds.lab_train_idxs = self.lab_train_ds.indices
@@ -169,7 +168,7 @@ class ActiveLearning():
                 else:
                     outputs = self.model(images)
                 
-                loss = self.mean(self.loss_fn(outputs, labels))
+                loss = torch.mean(self.loss_fn(outputs, labels))
                 train_loss += loss.item()
                 
 
@@ -268,29 +267,24 @@ class ActiveLearning():
 
 
 
-    def train_evaluate(self, epochs, al_iters, n_top_k_obs, class_entropy_params, our_method_params):
+    def get_new_dataloaders(self, overall_topk):
+        
+        lab_train_indices = self.lab_train_ds.indices
+        
+        lab_train_indices.extend(overall_topk.tolist())
+        self.lab_train_ds = Subset(self.train_ds, lab_train_indices)
+        
+        
+        # update the indices for the transform        
+        self.train_ds.lab_train_idxs = self.lab_train_ds.indices
+        
 
-        results = { }
-        n_lab_obs =  [len(self.lab_train_ds) + (iter * n_top_k_obs) for iter in range(al_iters + 1)]
+        unlab_train_indices = self.unlab_train_ds.indices
+        for idx_to_remove in overall_topk:
+            unlab_train_indices.remove(idx_to_remove.item())
+        self.unlab_train_ds = Subset(self.train_ds, unlab_train_indices)
         
-        methods = [Class_Entropy(self, class_entropy_params), Random_Strategy(self), GTG_Strategy(self, our_method_params)]
-        
-        print(colored(f'----------------------- TRAINING ACTIVE LEARNING -----------------------', 'red', 'on_white'))
-        print('\n')
-        
-        for method in methods:
-            
-            print(colored(f'-------------------------- {method.method_name} --------------------------\n', 'red'))
-            
-            results[method.method_name] = method.run(al_iters, epochs, n_top_k_obs)
-            
-                    
-        print(colored('Resulting dictionary', 'red', 'on_grey'))
-        print(results)
-        print('\n')
-        
-        print(colored('Resulting number of observations', 'red', 'on_grey'))
-        print(n_lab_obs)
-        print('\n')
-        
-        return results, n_lab_obs
+        #print(colored(f'!!!!!!!!!!!!!!!!!!!!!!!{list(set(self.unlab_train_ds.indices) & set(self.lab_train_ds.indices))}!!!!!!!!!!!!!!!!!!!!!!!', 'red'))
+
+        self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.batch_size, shuffle=True, pin_memory=True)
+        self.obtain_normalization()
