@@ -112,7 +112,7 @@ class Class_Entropy:
                 
                 iter_batch_size = len(self.unlab_train_ds) // n_splits
                 
-                self.unlab_train_dl = DataLoader(self.unlab_train_ds, batch_size=iter_batch_size, shuffle=True, num_workers=2, pin_memory=True)
+                self.unlab_train_dl = DataLoader(self.unlab_train_ds, batch_size=iter_batch_size, shuffle=True, num_workers=1, pin_memory=True)
                 
                 indices_prob, prob_dist = self.evaluate_unlabeled()
                 

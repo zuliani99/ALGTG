@@ -11,12 +11,10 @@ from methods.GTG_Strategy import GTG_Strategy
 from methods.Random_Strategy import Random_Strategy
 from methods.Class_Entropy import Class_Entropy
 
-from resnet.resnet_weird import LearningLoss
-
+#from resnet.resnet_weird import LearningLoss
 
 class ActiveLearning():
 
-    #indices_lab_unlab_train
     def __init__(self, n_classes, batch_size, model, optimizer, scheduler, train_ds, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, device, patience, timestamp):
 
         self.n_classes = n_classes
@@ -35,8 +33,11 @@ class ActiveLearning():
         self.patience = patience
         self.timestamp = timestamp
         
+        # update this whenever I obtain a new labeled train subset
+        self.train_ds.lab_train_idxs = self.lab_train_ds.indices
+        
         #resnet_weird
-        self.loss_weird = LearningLoss(self.device)
+        #self.loss_weird = LearningLoss(self.device)
         
         self.best_check_filename = 'app/checkpoints/'#best_checkpoint.pth.tar' #app
         self.init_check_filename = 'app/checkpoints/init_checkpoint.pth.tar' #app
@@ -115,7 +116,7 @@ class ActiveLearning():
         
         
         #resnet_weird
-        weight = 1.   # 120 = 0
+        #weight = 1.   # 120 = 0
 
 
 
@@ -126,9 +127,9 @@ class ActiveLearning():
             
             
             #resnet_weird
-            if epoch > 120:
-                weight = 0
-            loss_weird_total = 0
+            #if epoch > 120:
+            #    weight = 0
+            #loss_weird_total = 0
             
             
             train_loss = 0.0
@@ -148,26 +149,28 @@ class ActiveLearning():
                     #resnet_weird               
                 
                     #outputs = self.model(images)
+                    #outputs, _, out_weird, _ = self.model(images)
                     outputs, _, out_weird, _ = self.model(images)
                     
                     
                     #loss = self.loss_fn(outputs, labels)
-                    loss_ce = self.loss_fn(outputs, labels)
+                    #loss_ce = self.loss_fn(outputs, labels)
                     
                     
                     #resnet_weird
-                    loss_weird = self.loss_weird(out_weird, loss_ce)
-                    loss_ce = torch.mean(loss_ce)
+                    #loss_weird = self.loss_weird(out_weird, loss_ce)
+                    #loss_ce = torch.mean(loss_ce)
                     
-                    loss = loss_ce + weight * loss_weird
+                    #loss = loss_ce + weight * loss_weird
                     
-                    train_loss += loss_ce
-                    loss_weird_total += loss_weird
+                    #train_loss += loss_ce
+                    #loss_weird_total += loss_weird
                 
                 else:
                     outputs = self.model(images)
-                    loss = self.loss_fn(outputs, labels)
-                    train_loss += loss
+                
+                loss = self.mean(self.loss_fn(outputs, labels))
+                train_loss += loss.item()
                 
 
                 loss.backward()
@@ -179,26 +182,27 @@ class ActiveLearning():
 
                 # Update the progress bar
                 pbar.set_description(f'TRAIN Epoch [{epoch + 1} / {epochs}]')
-                if self.model.__class__.__name__ == 'ResNet_Weird':
-                    pbar.set_postfix(accuracy = accuracy, loss_ce = loss_ce.item(), loss_weird = loss_weird.item())
-                else:
-                    pbar.set_postfix(accuracy = accuracy, loss = loss.item())
+                #if self.model.__class__.__name__ == 'ResNet_Weird':
+                #    pbar.set_postfix(accuracy = accuracy, loss_ce = loss_ce.item(), loss_weird = loss_weird.item())
+                #else:
+                pbar.set_postfix(accuracy = accuracy, loss = loss.item())
     
 
             train_accuracy /= len(dataloader)
             train_loss /= len(dataloader)
             
 			# scheduler step
-            self.scheduler.step(train_loss)
+            #self.scheduler.step(train_loss)
+            self.scheduler.step()
 
             # Validation step
             val_accuracy, val_loss = self.evaluate(self.val_dl, epoch + 1, epochs)
 
-            if self.model.__class__.__name__ == 'ResNet_Weird':
-                print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, loss_weird: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
-                      epoch + 1, train_accuracy, train_loss, loss_weird_total / len(dataloader), val_accuracy, val_loss))
-            else:
-                print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f} , val_accuracy: {:.6f}\n'.format(
+            #if self.model.__class__.__name__ == 'ResNet_Weird':
+            #    print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, loss_weird: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
+            #          epoch + 1, train_accuracy, train_loss, loss_weird_total / len(dataloader), val_accuracy, val_loss))
+            #else:
+            print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f} , val_accuracy: {:.6f}\n'.format(
                       epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss))
 
 
@@ -215,9 +219,9 @@ class ActiveLearning():
                 
                 
             #resnet_weird
-            if epoch == 160:
-                for g in self.optimizer.param_groups:
-                    g['lr'] = 0.01
+            #if epoch == 160:
+            #    for g in self.optimizer.param_groups:
+            #        g['lr'] = 0.01
                     
                     
 
@@ -270,7 +274,6 @@ class ActiveLearning():
         n_lab_obs =  [len(self.lab_train_ds) + (iter * n_top_k_obs) for iter in range(al_iters + 1)]
         
         methods = [Class_Entropy(self, class_entropy_params), Random_Strategy(self), GTG_Strategy(self, our_method_params)]
-        #methods = [GTG_Strategy(self, our_method_params)]
         
         print(colored(f'----------------------- TRAINING ACTIVE LEARNING -----------------------', 'red', 'on_white'))
         print('\n')

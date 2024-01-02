@@ -12,6 +12,8 @@ import os
 import errno
 import copy
 
+from resnet.resnet_weird import BasicBlock
+
 
 def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
 
@@ -26,8 +28,8 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
     # train_data ha 40000 osservazioni 
 
     # validation dataloader
-    #val_dl = DataLoader(val_data, batch_size=batch_size, shuffle=True, num_workers=2)# True
-    val_dl = DataLoader(val_data, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)
+    #val_dl = DataLoader(val_data, batch_size=batch_size, shuffle=True, num_workers=1)# True
+    val_dl = DataLoader(val_data, batch_size=batch_size, shuffle=False, num_workers=1, pin_memory=True)
 
     train_data_size = len(train_data)
 
@@ -52,7 +54,7 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
     unlabeled_set = Subset(trainset, [train_data.indices[id] for id in unlabeled_set.indices])
     
     # Obtain the splitted dataloader
-    labeled_train_dl = DataLoader(labeled_set, batch_size=batch_size, shuffle=True, num_workers=2, pin_memory=True)
+    labeled_train_dl = DataLoader(labeled_set, batch_size=batch_size, shuffle=True, num_workers=1, pin_memory=True)
     
     return labeled_train_dl, (labeled_set, unlabeled_set), val_dl
 
@@ -103,6 +105,7 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, plot_png_nam
         
     ax[0].set_title('Loss - # Labeled Obs')
     ax[0].set_xlabel('# Labeled Obs')
+    ax[0].set_xticklabels(n_lab_obs, rotation=45)
     ax[0].set_ylabel('Loss')
     ax[0].grid()
     ax[0].legend()
@@ -119,6 +122,7 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, plot_png_nam
     ax[1].set_title('Accuracy Score - # Labeled Obs')
     ax[1].set_ylabel('Accuracy Score')
     ax[1].set_xlabel('# Labeled Obs')
+    ax[1].set_xticklabels(n_lab_obs, rotation=45)
     ax[1].grid()
     ax[1].legend()
 
@@ -155,7 +159,17 @@ def create_ts_dir_res(timestamp):
         
         
 # weights initiaization
-def weights_init(m):
+'''def init_params(m):
     if isinstance(m, nn.Conv2d):
         init.xavier_uniform_(m.weight.data, gain=nn.init.calculate_gain('relu'))
-        if m.bias: init.xavier_uniform_(m.bias.data, gain=nn.init.calculate_gain('relu'))
+        if m.bias: init.xavier_uniform_(m.bias.data, gain=nn.init.calculate_gain('relu'))'''
+def init_params(m):
+    if isinstance(m, (nn.Conv2d, nn.Linear)):
+        init.kaiming_normal_(m.weight.data, mode='fan_out')
+        #init.xavier_uniform_(m.weight.data, gain=nn.init.calculate_gain('relu'))
+        if m.bias is not None: init.constant_(m.bias.data, 0)
+    elif isinstance(m, nn.BatchNorm2d):
+        init.constant_(m.weight.data, 1)
+        if m.bias is not None: init.constant_(m.bias.data, 0)
+    elif isinstance(m, BasicBlock):
+        for c in list(m.children()): init_params(c)

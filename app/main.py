@@ -9,7 +9,7 @@ from resnet.resnet_weird import ResNet_Weird, BasicBlock
 from resnet.resnet18 import ResNet18
 
 from cifar10 import get_cifar10
-from utils import create_ts_dir_res, get_initial_dataloaders, accuracy_score, plot_loss_curves, weights_init
+from utils import create_ts_dir_res, get_initial_dataloaders, accuracy_score, plot_loss_curves, init_params
 
 from datetime import datetime
 
@@ -19,11 +19,12 @@ use_resnet_weird = True
 
 def main():
     
-    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     print(f'Application running on {device}\n')
     
     batch_size = 128
+    patience = 20
 
     original_trainset, test_dl, classes = get_cifar10(batch_size)
     
@@ -40,7 +41,7 @@ def main():
         resnet18 = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=len(classes))
         
         # weights initiaization
-        resnet18.apply(weights_init)
+        resnet18.apply(init_params)
         
         cross_entropy = nn.CrossEntropyLoss(reduction='none')
     else:
@@ -48,17 +49,22 @@ def main():
         resnet18 = ResNet18(len(classes))
         
         # weights initiaization
-        resnet18.apply(weights_init)
+        resnet18.apply(init_params)
         
         cross_entropy = nn.CrossEntropyLoss()
-    
-    
-    optimizer = torch.optim.Adam(resnet18.parameters(), lr=0.001)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=5, verbose=True)
+        
+        
 
+    #optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.001,
+    #                            momentum=0.9, weight_decay=5e-4)
+    
+    optimizer = torch.optim.AdamW(resnet18.parameters(), lr=0.001)
+    
+    #scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200, verbose=True)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=True)
 
-    epochs = 60
-    al_iters = 20 # the maximum is 36
+    epochs = 100
+    al_iters = 5 # the maximum is 36
     n_top_k_obs = 1000
     
     
@@ -80,8 +86,8 @@ def main():
         val_dl = val_dl,
         score_fn = accuracy_score,
         device = device,
-        patience = 10,
-        timestamp = timestamp
+        patience = patience,
+        timestamp = timestamp, 
     )
     
     

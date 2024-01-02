@@ -152,7 +152,7 @@ class GTG_Strategy():
                     self.unlab_train_ds,
                     batch_size=iter_batch_size,
                     sampler=UniqueShuffle(self.unlab_train_ds),
-                    num_workers=2,
+                    num_workers=1,
                     pin_memory=True
                 )
                 
