@@ -1,23 +1,24 @@
 # -*- coding: utf-8 -*-
 
 import torch
-import torch.nn as nn
+#import torch.nn as nn
 
 from termcolor import colored
 
 #from ActiveLearning import ActiveLearning
 
-from resnet.resnet_weird import ResNet_Weird, BasicBlock
-from resnet.resnet18 import ResNet18
+#from resnet.resnet_weird import ResNet_Weird, BasicBlock
+#from resnet.resnet18 import ResNet18
 
 from methods.GTG_Strategy import GTG_Strategy
 from methods.Random_Strategy import Random_Strategy
 from methods.Class_Entropy import Class_Entropy
 
 from cifar10 import get_cifar10
-from utils import create_ts_dir_res, get_initial_dataloaders, accuracy_score, plot_loss_curves, init_params
+from utils import create_ts_dir_res, get_initial_dataloaders, accuracy_score, plot_loss_curves#, init_params, init_params2
 
 from datetime import datetime
+import copy
 
 
 save_plot = True
@@ -28,10 +29,11 @@ use_resnet_weird = True
 def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, class_entropy_params, our_method_params):
 
     results = { }
-    n_lab_obs =  [len_lab_train_ds + (iter * n_top_k_obs) for iter in range(al_iters + 1)]
+    n_lab_obs = [len_lab_train_ds + (iter * n_top_k_obs) for iter in range(al_iters + 1)]
        
-    methods = [Class_Entropy(al_params, class_entropy_params), Random_Strategy(al_params), GTG_Strategy(al_params, our_method_params)]
-        
+    methods = [Class_Entropy(copy.deepcopy(al_params), class_entropy_params), Random_Strategy(copy.deepcopy(al_params)), GTG_Strategy(copy.deepcopy(al_params), our_method_params)]
+    #methods = [Random_Strategy(copy.deepcopy(al_params))]
+    
     print(colored(f'----------------------- TRAINING ACTIVE LEARNING -----------------------', 'red', 'on_white'))
     print('\n')
         
@@ -61,7 +63,7 @@ def main():
     print(f'Application running on {device}\n')
     
     batch_size = 128
-    patience = 20
+    patience = 30
 
     original_trainset, test_dl, classes = get_cifar10(batch_size)
     
@@ -73,35 +75,25 @@ def main():
         batch_size = batch_size
     )
 
-    if use_resnet_weird:
+    #if use_resnet_weird:
         #resnet_weird
-        resnet18 = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=len(classes))
-        
-        # weights initiaization
-        resnet18.apply(init_params)
-        
-        cross_entropy = nn.CrossEntropyLoss(reduction='none')
-    else:
+    #    resnet18 = ResNet_Weird(BasicBlock, [2, 2, 2, 2])#, num_classes=len(classes))
+    #else:
         #normal resnet
-        resnet18 = ResNet18(len(classes))
+    #    resnet18 = ResNet18(len(classes))
         
-        # weights initiaization
-        resnet18.apply(init_params)
-        
-        cross_entropy = nn.CrossEntropyLoss()
-        
-        
-
-    optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.1,
-                                momentum=0.9, weight_decay=5e-4)
+    #resnet18.apply(init_params)
+    #init_params2(resnet18)
+    #cross_entropy = nn.CrossEntropyLoss()
     
-    #optimizer = torch.optim.AdamW(resnet18.parameters(), lr=0.001)
-    
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200, verbose=True)
-    #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=True)
 
-    epochs = 100
-    al_iters = 5 # the maximum is 36
+    #optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.01, momentum=0.9, weight_decay=5e-4)
+        
+    #scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200, verbose=True)
+
+
+    epochs = 200
+    al_iters = 5#10 # the maximum is 36
     n_top_k_obs = 1000
     
     
@@ -110,17 +102,22 @@ def main():
 
 
     al_params = {
-        'n_classes': len(classes),
-        'batch_size': batch_size,
-        'model': resnet18,
-        'optimizer': optimizer,
-        'scheduler': scheduler,
+        
+        
+        # deep copy
+        #'model': resnet18,
+        #'optimizer': optimizer,
+        #'scheduler': scheduler, # da cancellare qui
         'train_ds': original_trainset,
         'test_dl': test_dl,
         'lab_train_dl': lab_train_dl,
         'splitted_train_ds': splitted_train_ds,
-        'loss_fn': cross_entropy,
         'val_dl': val_dl,
+        
+        # shallow
+        'n_classes': len(classes),
+        'batch_size': batch_size,
+        #'loss_fn': cross_entropy,
         'score_fn': accuracy_score,
         'device': device,
         'patience': patience,
@@ -139,7 +136,8 @@ def main():
     }
     
                                                       
-    results, n_lab_obs = train_evaluate(al_params=al_params, epochs=epochs, len_lab_train_ds=len(splitted_train_ds[0]), al_iters=al_iters, n_top_k_obs=n_top_k_obs,
+    results, n_lab_obs = train_evaluate(al_params=al_params, epochs=epochs, len_lab_train_ds=len(splitted_train_ds[0]),
+                                        al_iters=al_iters, n_top_k_obs=n_top_k_obs,
                                         class_entropy_params=class_entropy_params, our_method_params=our_method_params)
     
     plot_loss_curves(results, n_lab_obs, save_plot, timestamp, f'results_{epochs}_{al_iters}_{n_top_k_obs}.png')

@@ -68,7 +68,8 @@ class GTG_Strategy(TrainEvaluate):
             iter_entropy = entropy(self.X).to(self.device) # both labeled and sample unlabeled
             # I have to map only the sample_unlabeled to the correct position
             
-            for idx, unlab_ent_val in tqdm(enumerate(iter_entropy[len(self.lab_train_ds):]), total = len(iter_entropy) - len(self.lab_train_ds), desc = f'Computing the derivatives of iteration {i}', leave = False):
+            #for idx, unlab_ent_val in tqdm(enumerate(iter_entropy[len(self.lab_train_ds):]), total = len(iter_entropy) - len(self.lab_train_ds), desc = f'Computing the derivatives of iteration {i}', leave = False):
+            for idx, unlab_ent_val in enumerate(iter_entropy[len(self.lab_train_ds):]):
                 # I iterate only the sampled unlabeled one
                 
                 if(i != self.params['gtg_max_iter'] - 1): self.entropy_pairwise_der[indices[idx]][i] = unlab_ent_val

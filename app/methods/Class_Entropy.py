@@ -33,13 +33,13 @@ class Class_Entropy(TrainEvaluate):
         with torch.inference_mode(): # Allow inference mode
             for idxs, images, labels in pbar:
                 
-                idxs, images, labels = idxs.to(self.device), images.to(self.device), labels.to(self.device)
+                idxs, images, labels = idxs.to(self.device), self.normalize(images.to(self.device)), labels.to(self.device)
                 
                 
-                if self.model.__class__.__name__ == 'ResNet_Weird':
-                    outputs, _, _, _ = self.model(images)
-                else:
-                    outputs = self.model(images)
+                #if self.model.__class__.__name__ == 'ResNet_Weird':
+                outputs, _, _, _ = self.model(images)
+                #else:
+                    #outputs = self.model(images)
                     
                     
                 softmax = F.softmax(outputs, dim=1)

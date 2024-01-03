@@ -7,26 +7,29 @@ from torchvision import transforms
 
 from tqdm import tqdm
 import os
-from utils import get_mean_std
+from ResNet18 import BasicBlock, ResNet_Weird, ResNet2
+from utils import get_mean_std, init_params
 
 
 #from resnet.resnet_weird import LearningLoss
 
-class TrainEvaluate():
+class TrainEvaluate(object):
 
     #def __init__(self, n_classes, batch_size, model, optimizer, scheduler, train_ds, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, device, patience, timestamp):
     def __init__(self, params):
         self.n_classes = params['n_classes']
         self.device = params['device']
-        self.model = params['model'].to(self.device)
+        self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2]).to(self.device)#params['model'].to(self.device)
         self.batch_size = params['batch_size']
-        self.optimizer = params['optimizer']
-        self.scheduler = params['scheduler']
+        #self.optimizer = params['optimizer']
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.05, momentum=0.9, weight_decay=5e-4)
+        #self.scheduler = params['scheduler']
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200, verbose=True)
         self.train_ds = params['train_ds']
         self.test_dl = params['test_dl']
         self.lab_train_dl = params['lab_train_dl']
         self.lab_train_ds, self.unlab_train_ds = params['splitted_train_ds']
-        self.loss_fn = params['loss_fn']
+        self.loss_fn = nn.CrossEntropyLoss()#params['loss_fn']
         self.val_dl = params['val_dl']
         self.score_fn = params['score_fn']
         
@@ -44,6 +47,7 @@ class TrainEvaluate():
         
         self.__save_init_checkpoint(self.init_check_filename)
         self.obtain_normalization()
+        self.model.apply(init_params)
         
 
 
@@ -106,13 +110,14 @@ class TrainEvaluate():
                 images, label = self.normalize(images.to(self.device)), label.to(self.device)
 
 
-                if self.model.__class__.__name__ == 'ResNet_Weird':
+                #if self.model.__class__.__name__ == 'ResNet_Weird':
                     #resnet_weird
-                    output, _, _, _ = self.model(images)
-                else:
-                    output = self.model(images)
+                output, _, _, _ = self.model(images)
+                #else:
+                    #output = self.model(images)
                 
-                loss = torch.mean(self.loss_fn(output, label)).item()
+                #loss = torch.mean(self.loss_fn(output, label)).item()
+                loss = self.loss_fn(output, label).item()
                 accuracy = self.score_fn(output, label)
 
                 val_accuracy += accuracy
@@ -145,6 +150,9 @@ class TrainEvaluate():
         best_val_loss = float('inf')
         actual_patience = 0
 
+        #if os.path.exists(check_best_path):
+        #    actual_patience, actual_epoch, best_val_loss = self.__load_best_checkpoint(check_best_path)
+		
 	
         self.model.train()
 
@@ -170,12 +178,12 @@ class TrainEvaluate():
                 # get the inputs; data is a list of [inputs, labels]
                 images, labels = self.normalize(images.to(self.device)), labels.to(self.device)
                 
-                if self.model.__class__.__name__ == 'ResNet_Weird':
+                #if self.model.__class__.__name__ == 'ResNet_Weird':
                     #resnet_weird               
                 
                     #outputs = self.model(images)
                     #outputs, _, out_weird, _ = self.model(images)
-                    outputs, _, out_weird, _ = self.model(images)
+                    #outputs, _, out_weird, _ = self.model(images)
                     
                     
                     #loss = self.loss_fn(outputs, labels)
@@ -191,14 +199,21 @@ class TrainEvaluate():
                     #train_loss += loss_ce
                     #loss_weird_total += loss_weird
                 
-                else:
-                    outputs = self.model(images)
+                #else:
+                    #outputs = self.model(images)
+                    
+                outputs, _, _, _ = self.model(images)
                 
-                loss = torch.mean(self.loss_fn(outputs, labels))
+                
+                #loss = torch.mean(self.loss_fn(outputs, labels))
+                loss = self.loss_fn(outputs, labels)
                 train_loss += loss.item()
                 
 
                 loss.backward()
+                
+                torch.nn.utils.clip_grad_value_(self.model.parameters(), 1.)
+                
                 self.optimizer.step()
 
                 accuracy = self.score_fn(outputs, labels)
@@ -227,8 +242,8 @@ class TrainEvaluate():
             #    print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, loss_weird: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
             #          epoch + 1, train_accuracy, train_loss, loss_weird_total / len(dataloader), val_accuracy, val_loss))
             #else:
-            print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}\n'.format(
-                      epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss))
+            print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}, best_val_loss: {:.6f}\n'.format(
+                      epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss, val_loss if val_loss < best_val_loss else best_val_loss))
 
 
             if(val_loss < best_val_loss):
@@ -266,13 +281,13 @@ class TrainEvaluate():
 
 
     def get_embeddings(self, type_embeds, dataloader):
-        if self.model.__class__.__name__ == 'ResNet_Weird':
-            embeddings = torch.empty(0, self.model.linear.in_features, dtype=torch.float32).to(self.device)  
-            self.model.eval()
-        else:
-            embeddings = torch.empty(0, list(self.model.resnet18.children())[-1].in_features, dtype=torch.float32).to(self.device)  
-            embed_model = nn.Sequential(*list(self.model.resnet18.children())[:-1]).to(self.device)
-            embed_model.eval()
+        #if self.model.__class__.__name__ == 'ResNet_Weird':
+        embeddings = torch.empty(0, self.model.linear.in_features, dtype=torch.float32).to(self.device)  
+        self.model.eval()
+        #else:
+        #    embeddings = torch.empty(0, list(self.model.resnet18.children())[-1].in_features, dtype=torch.float32).to(self.device)  
+        #    embed_model = nn.Sequential(*list(self.model.resnet18.children())[:-1]).to(self.device)
+        #    embed_model.eval()
             
         pbar = tqdm(dataloader, total = len(dataloader), leave=False, desc=f'Getting {type_embeds} Embeddings')
 
@@ -280,11 +295,12 @@ class TrainEvaluate():
         with torch.inference_mode():
             for _, images, _ in pbar:
                 
+                images = self.normalize(images.to(self.device))
                 
-                if self.model.__class__.__name__ == 'ResNet_Weird':
-                    _, embed, _, _ = self.model(self.normalize(images.to(self.device)))
-                else:
-                    embed = embed_model(self.normalize(images.to(self.device)))
+                #if self.model.__class__.__name__ == 'ResNet_Weird':
+                _, embed, _, _ = self.model(images)
+                #else:
+                #    embed = embed_model(images)
                 
 
                 embeddings = torch.cat((embeddings, embed.squeeze()), dim=0)
@@ -302,7 +318,7 @@ class TrainEvaluate():
         
         
         # update the indices for the transform        
-        self.train_ds.lab_train_idxs = self.lab_train_ds.indices
+        self.train_ds.lab_train_idxs = lab_train_indices
         
 
         unlab_train_indices = self.unlab_train_ds.indices
