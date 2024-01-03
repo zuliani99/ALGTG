@@ -3,19 +3,19 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 
-from torch.utils.data import DataLoader, Subset, random_split
+#from torch.utils.data import DataLoader, Subset, random_split
 
 import matplotlib.pyplot as plt
 
 import csv
 import os
 import errno
-import copy
+#import copy
 
 from ResNet18 import BasicBlock
 
 
-def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
+'''def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
 
     train_size = len(trainset) #50000
 
@@ -56,7 +56,7 @@ def get_initial_dataloaders(trainset, val_rateo, labeled_ratio, batch_size):
     # Obtain the splitted dataloader
     labeled_train_dl = DataLoader(labeled_set, batch_size=batch_size, shuffle=True, num_workers=1, pin_memory=True)
     
-    return labeled_train_dl, (labeled_set, unlabeled_set), val_dl
+    return labeled_train_dl, (labeled_set, unlabeled_set), val_dl'''
 
 
 
@@ -86,7 +86,8 @@ def entropy(tensor):
     #print('ENTROPY OF TENSOR:   ', tensor)
     #x = copy.deepcopy(tensor.cpu()) + 1e-20
     #x = torch.clone(tensor).cpu() + 1e-20
-    x = copy.deepcopy(tensor) + 1e-20
+    #x = copy.deepcopy(tensor) + 1e-20
+    x = torch.clone(tensor) + 1e-20
     return -torch.sum(x * torch.log2(x), dim=1)
 
     
@@ -105,7 +106,6 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, plot_png_nam
         
     ax[0].set_title('Loss - # Labeled Obs')
     ax[0].set_xlabel('# Labeled Obs')
-    #ax[0].set_xticklabels(n_lab_obs, rotation=45)
     ax[0].set_ylabel('Loss')
     ax[0].grid()
     ax[0].legend()
@@ -122,7 +122,6 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, plot_png_nam
     ax[1].set_title('Accuracy Score - # Labeled Obs')
     ax[1].set_ylabel('Accuracy Score')
     ax[1].set_xlabel('# Labeled Obs')
-    #ax[1].set_xticklabels(n_lab_obs, rotation=45)
     ax[1].grid()
     ax[1].legend()
 
@@ -159,10 +158,6 @@ def create_ts_dir_res(timestamp):
         
         
 # weights initiaization
-'''def init_params(m):
-    if isinstance(m, nn.Conv2d):
-        init.xavier_uniform_(m.weight.data, gain=nn.init.calculate_gain('relu'))
-        if m.bias: init.xavier_uniform_(m.bias.data, gain=nn.init.calculate_gain('relu'))'''
 def init_params(m):
     if isinstance(m, nn.Conv2d):
         init.kaiming_normal_(m.weight, mode='fan_out')

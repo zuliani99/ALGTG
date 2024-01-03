@@ -17,10 +17,10 @@ class Random_Strategy(TrainEvaluate):
         
         
     def sample_unlab_obs(self, n_top_k_obs):
-        if(len(self.unlab_train_ds.indices) > n_top_k_obs):
-            return random.sample(self.unlab_train_ds.indices, n_top_k_obs)
+        if(len(self.unlab_train_subset.indices) > n_top_k_obs):
+            return random.sample(self.unlab_train_subset.indices, n_top_k_obs)
         else:
-            return self.unlab_train_ds.indices
+            return self.unlab_train_subset.indices
     
 
     
@@ -46,7 +46,7 @@ class Random_Strategy(TrainEvaluate):
         results['test_loss'].append(test_loss)
         
         # start of the loop
-        while len(self.unlab_train_ds) > 0 and iter < al_iters:
+        while len(self.unlab_train_subset) > 0 and iter < al_iters:
             print(colored(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n', 'blue'))
                             
             #get random indices to move in the labeled datasets

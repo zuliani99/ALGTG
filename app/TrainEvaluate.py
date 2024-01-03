@@ -6,8 +6,9 @@ from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
 
 from tqdm import tqdm
-import os
-from ResNet18 import BasicBlock, ResNet_Weird, ResNet2
+import copy
+from CIFAR10 import Cifar10SubsetDataloaders
+from ResNet18 import BasicBlock, ResNet_Weird#, ResNet2
 from utils import get_mean_std, init_params
 
 
@@ -15,39 +16,54 @@ from utils import get_mean_std, init_params
 
 class TrainEvaluate(object):
 
-    #def __init__(self, n_classes, batch_size, model, optimizer, scheduler, train_ds, test_dl, lab_train_dl, splitted_train_ds, loss_fn, val_dl, score_fn, device, patience, timestamp):
     def __init__(self, params):
-        self.n_classes = params['n_classes']
-        self.device = params['device']
-        self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2]).to(self.device)#params['model'].to(self.device)
-        self.batch_size = params['batch_size']
-        #self.optimizer = params['optimizer']
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.05, momentum=0.9, weight_decay=5e-4)
-        #self.scheduler = params['scheduler']
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200, verbose=True)
-        self.train_ds = params['train_ds']
-        self.test_dl = params['test_dl']
-        self.lab_train_dl = params['lab_train_dl']
-        self.lab_train_ds, self.unlab_train_ds = params['splitted_train_ds']
-        self.loss_fn = nn.CrossEntropyLoss()#params['loss_fn']
-        self.val_dl = params['val_dl']
-        self.score_fn = params['score_fn']
         
+        self.cifar10: Cifar10SubsetDataloaders = params['cifar10']
+        
+        
+        self.n_classes = len(self.cifar10.classes)
+        self.device = params['device']
+        self.batch_size = params['batch_size']
+        self.score_fn = params['score_fn']
         self.patience = params['patience']
         self.timestamp = params['timestamp']
         
+        
+        self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2]).to(self.device)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=0.0005)
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200, verbose=True)
+        #self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, verbose=True)
+        self.loss_fn = nn.CrossEntropyLoss()
+        
+        #self.original_trainset = copy.deepcopy(self.cifar10.trainset)
+        self.lab_train_dl: DataLoader = copy.deepcopy(self.cifar10.lab_train_dl)
+        self.lab_train_subset: Subset = copy.deepcopy(self.cifar10.lab_train_subset)
+        self.unlab_train_subset: Subset = copy.deepcopy(self.cifar10.unlab_train_subset)
+        
+        self.test_dl = self.cifar10.test_dl
+        self.val_dl = self.cifar10.val_dl
+        self.original_trainset = self.cifar10.original_trainset
+        
+        #self.lab_train_subset, self.unlab_train_subset = params['splitted_train_ds']
+       
+        
+        
+     
+        
         # update this whenever I obtain a new labeled train subset
-        self.train_ds.lab_train_idxs = self.lab_train_ds.indices
+        self.original_trainset.lab_train_idxs = self.lab_train_subset.indices
         
         #resnet_weird
         #self.loss_weird = LearningLoss(self.device)
         
-        self.best_check_filename = 'app/checkpoints'#best_checkpoint.pth.tar' #app
-        self.init_check_filename = 'app/checkpoints/init_checkpoint.pth.tar' #app
+        self.best_check_filename = 'app/checkpoints'
+        self.init_check_filename = 'app/checkpoints/init_checkpoint.pth.tar'
+        
+        self.model.apply(init_params)
+        self.obtain_normalization()
         
         self.__save_init_checkpoint(self.init_check_filename)
-        self.obtain_normalization()
-        self.model.apply(init_params)
+        
         
 
 
@@ -70,13 +86,13 @@ class TrainEvaluate(object):
         torch.save(checkpoint, filename)
         
         
+        
     def __save_best_checkpoint(self, filename, actual_patience, epoch, best_val_loss):
 
         checkpoint = {'state_dict': self.model.state_dict(), 'optimizer': self.optimizer.state_dict(), 'scheduler': self.scheduler.state_dict(),
                       'actual_patience': actual_patience, 'epoch': epoch, 'best_val_loss': best_val_loss}
         torch.save(checkpoint, filename)
 
-    
     
     
     def __load_init_checkpoint(self, filename):
@@ -86,6 +102,7 @@ class TrainEvaluate(object):
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['scheduler'])
         
+
 
     def __load_best_checkpoint(self, filename):
 
@@ -106,19 +123,19 @@ class TrainEvaluate(object):
         pbar = tqdm(val_dl, total = len(val_dl), leave=False)
 
         with torch.inference_mode(): # Allow inference mode
-            for _, images, label in pbar:
-                images, label = self.normalize(images.to(self.device)), label.to(self.device)
+            for _, images, labels in pbar:
+                images, labels = self.normalize(images.to(self.device)), labels.to(self.device)
 
 
                 #if self.model.__class__.__name__ == 'ResNet_Weird':
                     #resnet_weird
-                output, _, _, _ = self.model(images)
+                outputs, _, _, _ = self.model(images)
                 #else:
                     #output = self.model(images)
                 
                 #loss = torch.mean(self.loss_fn(output, label)).item()
-                loss = self.loss_fn(output, label).item()
-                accuracy = self.score_fn(output, label)
+                loss = self.loss_fn(outputs, labels).item()
+                accuracy = self.score_fn(outputs, labels)
 
                 val_accuracy += accuracy
                 val_loss += loss
@@ -146,7 +163,7 @@ class TrainEvaluate(object):
 
         check_best_path = f'{self.best_check_filename}/best_{method_str}.pth.tar'
 		
-        actual_epoch = 0
+        #actual_epoch = 0
         best_val_loss = float('inf')
         actual_patience = 0
 
@@ -156,7 +173,7 @@ class TrainEvaluate(object):
 	
         self.model.train()
 
-        for epoch in range(actual_epoch, epochs):  # loop over the dataset multiple times
+        for epoch in range(epochs):#(actual_epoch, epochs):  # loop over the dataset multiple times
             
             
             #resnet_weird
@@ -212,7 +229,7 @@ class TrainEvaluate(object):
 
                 loss.backward()
                 
-                torch.nn.utils.clip_grad_value_(self.model.parameters(), 1.)
+                nn.utils.clip_grad_norm_(self.model.parameters(), 1., norm_type=2)
                 
                 self.optimizer.step()
 
@@ -237,6 +254,15 @@ class TrainEvaluate(object):
 
             # Validation step
             val_accuracy, val_loss = self.evaluate(self.val_dl, epoch + 1, epochs)
+            
+            
+            
+            # ReduceLROnPlateau
+            #self.scheduler.step(val_loss)
+            
+            
+            
+            
 
             #if self.model.__class__.__name__ == 'ResNet_Weird':
             #    print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, loss_weird: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
@@ -311,22 +337,22 @@ class TrainEvaluate(object):
 
     def get_new_dataloaders(self, overall_topk):
         
-        lab_train_indices = self.lab_train_ds.indices
+        lab_train_indices = self.lab_train_subset.indices
         
         lab_train_indices.extend(overall_topk)
-        self.lab_train_ds = Subset(self.train_ds, lab_train_indices)
+        self.lab_train_subset = Subset(self.original_trainset, lab_train_indices)
         
         
         # update the indices for the transform        
-        self.train_ds.lab_train_idxs = lab_train_indices
+        self.original_trainset.lab_train_idxs = lab_train_indices
         
 
-        unlab_train_indices = self.unlab_train_ds.indices
+        unlab_train_indices = self.unlab_train_subset.indices
         for idx_to_remove in overall_topk:
             unlab_train_indices.remove(idx_to_remove)
-        self.unlab_train_ds = Subset(self.train_ds, unlab_train_indices)
+        self.unlab_train_subset = Subset(self.original_trainset, unlab_train_indices)
         
-        #print(colored(f'!!!!!!!!!!!!!!!!!!!!!!!{list(set(self.unlab_train_ds.indices) & set(self.lab_train_ds.indices))}!!!!!!!!!!!!!!!!!!!!!!!', 'red'))
+        #print(colored(f'!!!!!!!!!!!!!!!!!!!!!!!{list(set(self.unlab_train_subset.indices) & set(self.lab_train_subset.indices))}!!!!!!!!!!!!!!!!!!!!!!!', 'red'))
 
-        self.lab_train_dl = DataLoader(self.lab_train_ds, batch_size=self.batch_size, shuffle=True, pin_memory=True)
+        self.lab_train_dl = DataLoader(self.lab_train_subset, batch_size=self.batch_size, shuffle=True, pin_memory=True)
         self.obtain_normalization()

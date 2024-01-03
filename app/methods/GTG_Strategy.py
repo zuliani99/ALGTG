@@ -1,7 +1,7 @@
 
 from TrainEvaluate import TrainEvaluate
 from utils import write_csv, entropy
-from cifar10 import UniqueShuffle
+from CIFAR10 import UniqueShuffle
 
 import torch
 from torch.utils.data import DataLoader
@@ -9,7 +9,7 @@ import torch.nn.functional as F
 
 from tqdm import tqdm
 from termcolor import colored
-import copy
+#import copy
 
 
 
@@ -28,6 +28,7 @@ class GTG_Strategy(TrainEvaluate):
         torch.cuda.empty_cache()
 
 
+    #corret
     def get_A(self, samp_unlab_embeddings):
         
         normalized_embedding = F.normalize(
@@ -45,10 +46,10 @@ class GTG_Strategy(TrainEvaluate):
     # correct
     def get_X(self, len_samp_unlab_embeds):
         
-        self.X = torch.zeros(len(self.lab_train_ds) + len_samp_unlab_embeds, self.n_classes, dtype=torch.float32).to(self.device)
+        self.X = torch.zeros(len(self.lab_train_subset) + len_samp_unlab_embeds, self.n_classes, dtype=torch.float32).to(self.device)
         
-        for idx, (_, _, label) in enumerate(self.lab_train_ds): self.X[idx][label] = 1
-        for idx in range(len(self.lab_train_ds), len(self.lab_train_ds) + len_samp_unlab_embeds):
+        for idx, (_, _, label) in enumerate(self.lab_train_subset): self.X[idx][label] = 1
+        for idx in range(len(self.lab_train_subset), len(self.lab_train_subset) + len_samp_unlab_embeds):
             for label in range(self.n_classes):
                 self.X[idx][label] = 1 / self.n_classes
         
@@ -59,7 +60,7 @@ class GTG_Strategy(TrainEvaluate):
         i = 0
         
         while err > tol and i < max_iter:
-            X_old = copy.deepcopy(self.X) #torch.clone(self.X)
+            X_old = torch.clone(self.X) #copy.deepcopy(self.X)
             self.X *= torch.mm(self.A, self.X)
 
                 
@@ -68,8 +69,8 @@ class GTG_Strategy(TrainEvaluate):
             iter_entropy = entropy(self.X).to(self.device) # both labeled and sample unlabeled
             # I have to map only the sample_unlabeled to the correct position
             
-            #for idx, unlab_ent_val in tqdm(enumerate(iter_entropy[len(self.lab_train_ds):]), total = len(iter_entropy) - len(self.lab_train_ds), desc = f'Computing the derivatives of iteration {i}', leave = False):
-            for idx, unlab_ent_val in enumerate(iter_entropy[len(self.lab_train_ds):]):
+            #for idx, unlab_ent_val in tqdm(enumerate(iter_entropy[len(self.lab_train_subset):]), total = len(iter_entropy) - len(self.lab_train_subset), desc = f'Computing the derivatives of iteration {i}', leave = False):
+            for idx, unlab_ent_val in enumerate(iter_entropy[len(self.lab_train_subset):]):
                 # I iterate only the sampled unlabeled one
                 
                 if(i != self.params['gtg_max_iter'] - 1): self.entropy_pairwise_der[indices[idx]][i] = unlab_ent_val
@@ -114,16 +115,16 @@ class GTG_Strategy(TrainEvaluate):
                      
                      
             # start of the loop   
-            while len(self.unlab_train_ds) > 0 and iter < al_iters:
+            while len(self.unlab_train_subset) > 0 and iter < al_iters:
                 print(colored(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n', 'blue')) 
                 
                 # Obtaining the updated batchsize
-                iter_batch_size = len(self.unlab_train_ds) // n_splits
+                iter_batch_size = len(self.unlab_train_subset) // n_splits
                                 
                 self.unlab_train_dl = DataLoader(
-                    self.unlab_train_ds,
+                    self.unlab_train_subset,
                     batch_size=iter_batch_size,
-                    sampler=UniqueShuffle(self.unlab_train_ds),
+                    sampler=UniqueShuffle(self.unlab_train_subset),
                     num_workers=1,
                     pin_memory=True
                 )
@@ -137,7 +138,7 @@ class GTG_Strategy(TrainEvaluate):
                 
                 
                 # at each AL round I reinitialize the entropy_pairwise_der since I have to decide at each step what observations I want to move
-                self.entropy_pairwise_der = torch.zeros((len(self.train_ds), self.params['gtg_max_iter'] - 1)).to(self.device)
+                self.entropy_pairwise_der = torch.zeros((len(self.original_trainset), self.params['gtg_max_iter'] - 1)).to(self.device)
 
                 # for each split
                 pbar = tqdm(enumerate(self.unlab_train_dl), total=len(self.unlab_train_dl), leave=True)
