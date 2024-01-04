@@ -4,6 +4,8 @@ import torch
 #import torch.nn as nn
 
 from termcolor import colored
+
+from ResNet18 import BasicBlock, ResNet_Weird
 from CIFAR10 import Cifar10SubsetDataloaders
 
 #from ActiveLearning import ActiveLearning
@@ -22,7 +24,7 @@ from datetime import datetime
 
 
 save_plot = True
-use_resnet_weird = True
+#use_resnet_weird = True
 
 
 
@@ -32,7 +34,7 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, c
     n_lab_obs = [len_lab_train_ds + (iter * n_top_k_obs) for iter in range(al_iters + 1)]
        
     methods = [Class_Entropy(al_params, class_entropy_params), Random_Strategy(al_params), GTG_Strategy(al_params, our_method_params)]
-    #methods = [Random_Strategy(copy.deepcopy(al_params))]
+    #methods = [Random_Strategy(al_params)]
     
     print(colored(f'----------------------- TRAINING ACTIVE LEARNING -----------------------', 'red', 'on_white'))
     print('\n')
@@ -58,7 +60,7 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, c
 
 def main():
     
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
     print(f'Application running on {device}\n')
     
@@ -102,6 +104,13 @@ def main():
     
     cifar10 = Cifar10SubsetDataloaders(batch_size)
     cifar10.get_initial_dataloaders(val_rateo = 0.2, labeled_ratio = 0.025)
+    
+    model = ResNet_Weird(BasicBlock, [2, 2, 2, 2])
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=0.0005)
+    #self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200, verbose=True)
+    #self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, verbose=True, patience=7)
+    #self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda epoch: 0.65 ** epoch, verbose=True)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2, eta_min=1e-3, last_epoch=-1, verbose=True)
 
 
     al_params = {
@@ -125,7 +134,11 @@ def main():
         'score_fn': accuracy_score,
         'device': device,
         'patience': patience,
-        'timestamp': timestamp, 
+        'timestamp': timestamp,
+        'loss_fn': torch.nn.CrossEntropyLoss(),
+        'model': model,
+        'optimizer': optimizer,
+        'scheduler': scheduler
     }    
     
     
@@ -140,7 +153,7 @@ def main():
     }
     
                                                       
-    results, n_lab_obs = train_evaluate(al_params=al_params, epochs=epochs, len_lab_train_ds=len(cifar10.lab_train_subset),#len(splitted_train_ds[0]),
+    results, n_lab_obs = train_evaluate(al_params=al_params, epochs=epochs, len_lab_train_ds=len(cifar10.lab_train_subset),
                                         al_iters=al_iters, n_top_k_obs=n_top_k_obs,
                                         class_entropy_params=class_entropy_params, our_method_params=our_method_params)
     

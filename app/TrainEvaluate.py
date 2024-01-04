@@ -7,9 +7,11 @@ from torchvision import transforms
 
 from tqdm import tqdm
 import copy
-from CIFAR10 import Cifar10SubsetDataloaders
-from ResNet18 import BasicBlock, ResNet_Weird#, ResNet2
+from CIFAR10 import CIFAR10, Cifar10SubsetDataloaders
+#from ResNet18 import BasicBlock, ResNet_Weird#, ResNet2
 from utils import get_mean_std, init_params
+
+import os
 
 
 #from resnet.resnet_weird import LearningLoss
@@ -18,8 +20,10 @@ class TrainEvaluate(object):
 
     def __init__(self, params):
         
-        self.cifar10: Cifar10SubsetDataloaders = params['cifar10']
+        self.best_check_filename = 'app/checkpoints'
+        self.init_check_filename = 'app/checkpoints/init_checkpoint.pth.tar'
         
+        self.cifar10: Cifar10SubsetDataloaders = params['cifar10']
         
         self.n_classes = len(self.cifar10.classes)
         self.device = params['device']
@@ -27,48 +31,41 @@ class TrainEvaluate(object):
         self.score_fn = params['score_fn']
         self.patience = params['patience']
         self.timestamp = params['timestamp']
+        self.loss_fn = params['loss_fn']
         
-        
-        self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2]).to(self.device)
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=0.0005)
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200, verbose=True)
-        #self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, verbose=True)
-        self.loss_fn = nn.CrossEntropyLoss()
-        
-        #self.original_trainset = copy.deepcopy(self.cifar10.trainset)
         self.lab_train_dl: DataLoader = copy.deepcopy(self.cifar10.lab_train_dl)
         self.lab_train_subset: Subset = copy.deepcopy(self.cifar10.lab_train_subset)
         self.unlab_train_subset: Subset = copy.deepcopy(self.cifar10.unlab_train_subset)
         
-        self.test_dl = self.cifar10.test_dl
-        self.val_dl = self.cifar10.val_dl
-        self.original_trainset = self.cifar10.original_trainset
-        
-        #self.lab_train_subset, self.unlab_train_subset = params['splitted_train_ds']
-       
-        
-        
-     
-        
-        # update this whenever I obtain a new labeled train subset
+        self.test_dl: DataLoader = self.cifar10.test_dl
+        self.val_dl: DataLoader = self.cifar10.val_dl
+        self.original_trainset: CIFAR10 = self.cifar10.original_trainset
+                
         self.original_trainset.lab_train_idxs = self.lab_train_subset.indices
+        
+        self.model = params['model'].to(self.device)
+        self.optimizer = params['optimizer']
+        self.scheduler = params['scheduler']
+        self.model.apply(init_params)
+        
+        
+        if not os.path.exists(self.init_check_filename):
+            self.__save_init_checkpoint()
+            
+        else:
+            self.__load_init_checkpoint()
+                  
+        #self.__save_init_checkpoint()
+        self.obtain_normalization()
         
         #resnet_weird
         #self.loss_weird = LearningLoss(self.device)
-        
-        self.best_check_filename = 'app/checkpoints'
-        self.init_check_filename = 'app/checkpoints/init_checkpoint.pth.tar'
-        
-        self.model.apply(init_params)
-        self.obtain_normalization()
-        
-        self.__save_init_checkpoint(self.init_check_filename)
         
         
 
 
     def reintialize_model(self):
-        self.__load_init_checkpoint(self.init_check_filename)
+        self.__load_init_checkpoint()
 
 
 
@@ -80,10 +77,10 @@ class TrainEvaluate(object):
         
 
 
-    def __save_init_checkpoint(self, filename):
+    def __save_init_checkpoint(self):
 
         checkpoint = { 'state_dict': self.model.state_dict(), 'optimizer': self.optimizer.state_dict(), 'scheduler': self.scheduler.state_dict() }
-        torch.save(checkpoint, filename)
+        torch.save(checkpoint, self.init_check_filename)
         
         
         
@@ -95,9 +92,9 @@ class TrainEvaluate(object):
 
     
     
-    def __load_init_checkpoint(self, filename):
+    def __load_init_checkpoint(self):
 
-        checkpoint = torch.load(filename, map_location=self.device)
+        checkpoint = torch.load(self.init_check_filename, map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['scheduler'])
@@ -184,10 +181,12 @@ class TrainEvaluate(object):
             
             train_loss = 0.0
             train_accuracy = 0.0
+            
+            iters = len(dataloader)
 
-            pbar = tqdm(dataloader, total = len(dataloader), leave=False)
+            pbar = tqdm(enumerate(dataloader), total = iters, leave=False)
 
-            for _, images, labels in pbar:
+            for batch_idx, (_, images, labels) in pbar:
                                 
                 # zero the parameter gradients
                 self.optimizer.zero_grad()
@@ -229,9 +228,15 @@ class TrainEvaluate(object):
 
                 loss.backward()
                 
-                nn.utils.clip_grad_norm_(self.model.parameters(), 1., norm_type=2)
+                #nn.utils.clip_grad_norm_(self.model.parameters(), 1., norm_type=2)
                 
                 self.optimizer.step()
+                
+                
+                # cosine annealing with warm restart
+                self.scheduler.step(epoch + batch_idx / iters)
+                
+                
 
                 accuracy = self.score_fn(outputs, labels)
 
@@ -250,7 +255,9 @@ class TrainEvaluate(object):
             
 			# scheduler step
             #self.scheduler.step(train_loss)
-            self.scheduler.step()
+            
+            # CosineAnnealingLR
+            #self.scheduler.step()
 
             # Validation step
             val_accuracy, val_loss = self.evaluate(self.val_dl, epoch + 1, epochs)
@@ -259,6 +266,7 @@ class TrainEvaluate(object):
             
             # ReduceLROnPlateau
             #self.scheduler.step(val_loss)
+            #self.scheduler.step()
             
             
             
@@ -352,7 +360,9 @@ class TrainEvaluate(object):
             unlab_train_indices.remove(idx_to_remove)
         self.unlab_train_subset = Subset(self.original_trainset, unlab_train_indices)
         
-        #print(colored(f'!!!!!!!!!!!!!!!!!!!!!!!{list(set(self.unlab_train_subset.indices) & set(self.lab_train_subset.indices))}!!!!!!!!!!!!!!!!!!!!!!!', 'red'))
+        if len(list(set(self.unlab_train_subset.indices) & set(self.lab_train_subset.indices)) == 0):
+            print('Intersection between indices is EMPTY')
+        else: raise Exception('NON EMPTY INDICES INTERSECTION')
 
         self.lab_train_dl = DataLoader(self.lab_train_subset, batch_size=self.batch_size, shuffle=True, pin_memory=True)
         self.obtain_normalization()
