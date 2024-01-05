@@ -265,7 +265,7 @@ class TrainEvaluate(object):
             #self.scheduler.step(train_loss)
             
             # CosineAnnealingLR
-            #self.scheduler.step()
+            self.scheduler.step()
 
             # Validation step
             val_accuracy, val_loss = self.evaluate(self.val_dl, epoch + 1, epochs)
