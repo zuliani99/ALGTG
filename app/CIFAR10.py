@@ -1,16 +1,23 @@
 
 from torch.utils.data import Dataset, DataLoader, Sampler, DataLoader, Subset, random_split
 
-from torchvision import datasets, transforms
+from torchvision import datasets
+from torchvision.transforms import v2
 import torch
 
 
 class CIFAR10(Dataset):
-    def __init__(self, bool_train, transform_labeled = None, transform = transforms.Compose([transforms.ToTensor()])):
+    def __init__(self, bool_train):
         self.cifar10 = datasets.CIFAR10('./cifar10', train=bool_train, download=True)
         
-        self.transform_labeled = transform_labeled
-        self.transform = transform
+        self.transform_labeled = v2.Compose([
+            v2.ToImage(),
+            v2.RandomCrop(32, padding=4),
+            v2.RandomHorizontalFlip(),
+            v2.RandomVerticalFlip(),
+            v2.ToDtype(torch.float32, scale=True)
+        ])
+        self.transform = v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])
         self.lab_train_idxs = None
         
     def __len__(self):
@@ -19,9 +26,13 @@ class CIFAR10(Dataset):
     def __getitem__(self, index):
         image, label = self.cifar10[index]
         
+        print(self.lab_train_idxs)
+        
         if self.lab_train_idxs is not None and index in self.lab_train_idxs:
             image = self.transform_labeled(image)
-        else: 
+            print('okok', self.lab_train_idxs)
+        else:
+            #print('non okok', self.lab_train_idxs)
             image = self.transform(image)
             
         return index, image, label
@@ -48,15 +59,11 @@ class Cifar10SubsetDataloaders():
     
     def __init__(self, batch_size):
         self.batch_size = batch_size
-        self.original_trainset = CIFAR10(bool_train=True, transform_labeled=transforms.Compose([
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-        ]))
+        self.original_trainset = CIFAR10(bool_train=True)
 
         self.testset = CIFAR10(bool_train=False)
         
-        self.test_dl = DataLoader(self.testset, batch_size, shuffle=False, num_workers=1, pin_memory=True)
+        self.test_dl = DataLoader(self.testset, self.batch_size, shuffle=False, num_workers=1, pin_memory=True)
 
         self.classes = ['plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
     

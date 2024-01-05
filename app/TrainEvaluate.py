@@ -1,9 +1,9 @@
 
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader, Subset
 
-from torchvision import transforms
+from torchvision.transforms import v2
+from torchvision.utils import save_image
 
 from tqdm import tqdm
 import copy
@@ -40,18 +40,20 @@ class TrainEvaluate(object):
         self.test_dl: DataLoader = self.cifar10.test_dl
         self.val_dl: DataLoader = self.cifar10.val_dl
         self.original_trainset: CIFAR10 = self.cifar10.original_trainset
-                
+
         self.original_trainset.lab_train_idxs = self.lab_train_subset.indices
+        print(self.original_trainset.lab_train_idxs)
+        print(self.lab_train_subset.indices)
         
         self.model = params['model'].to(self.device)
         self.optimizer = params['optimizer']
         self.scheduler = params['scheduler']
-        self.model.apply(init_params)
+        #self.model.apply(init_params)
+        init_params(self.model)
         
         
         if not os.path.exists(self.init_check_filename):
             self.__save_init_checkpoint()
-            
         else:
             self.__load_init_checkpoint()
                   
@@ -71,9 +73,7 @@ class TrainEvaluate(object):
 
     def obtain_normalization(self):
         mean, std = get_mean_std(self.lab_train_dl)
-        self.normalize = transforms.Compose([
-            transforms.Normalize(mean, std)
-        ])
+        self.normalize = v2.Compose([ v2.Normalize(mean, std) ])
         
 
 
@@ -120,9 +120,12 @@ class TrainEvaluate(object):
         pbar = tqdm(val_dl, total = len(val_dl), leave=False)
 
         with torch.inference_mode(): # Allow inference mode
-            for _, images, labels in pbar:
+            for idxs, images, labels in pbar:
+                
                 images, labels = self.normalize(images.to(self.device)), labels.to(self.device)
-
+                #images, labels = images.to(self.device), labels.to(self.device)
+                
+                #save_image(images[0], f'images/img{idxs[0]}.png')
 
                 #if self.model.__class__.__name__ == 'ResNet_Weird':
                     #resnet_weird
@@ -182,17 +185,22 @@ class TrainEvaluate(object):
             train_loss = 0.0
             train_accuracy = 0.0
             
-            iters = len(dataloader)
+            #iters = len(dataloader)
 
-            pbar = tqdm(enumerate(dataloader), total = iters, leave=False)
+            #pbar = tqdm(enumerate(dataloader), total = iters, leave=False)
+            pbar = tqdm(dataloader, total = len(dataloader), leave=False)
 
-            for batch_idx, (_, images, labels) in pbar:
+            #for batch_idx, (_, images, labels) in pbar:
+            for idxs, images, labels in pbar:
                                 
                 # zero the parameter gradients
                 self.optimizer.zero_grad()
 
                 # get the inputs; data is a list of [inputs, labels]
                 images, labels = self.normalize(images.to(self.device)), labels.to(self.device)
+                #images, labels = images.to(self.device), labels.to(self.device)
+                
+                #save_image(images[0], f'images/img{idxs[0]}.png')
                 
                 #if self.model.__class__.__name__ == 'ResNet_Weird':
                     #resnet_weird               
@@ -234,7 +242,7 @@ class TrainEvaluate(object):
                 
                 
                 # cosine annealing with warm restart
-                self.scheduler.step(epoch + batch_idx / iters)
+                #self.scheduler.step(epoch + batch_idx / iters)
                 
                 
 
@@ -330,6 +338,7 @@ class TrainEvaluate(object):
             for _, images, _ in pbar:
                 
                 images = self.normalize(images.to(self.device))
+                #images = images.to(self.device)
                 
                 #if self.model.__class__.__name__ == 'ResNet_Weird':
                 _, embed, _, _ = self.model(images)
@@ -360,7 +369,7 @@ class TrainEvaluate(object):
             unlab_train_indices.remove(idx_to_remove)
         self.unlab_train_subset = Subset(self.original_trainset, unlab_train_indices)
         
-        if len(list(set(self.unlab_train_subset.indices) & set(self.lab_train_subset.indices)) == 0):
+        if len(list(set(self.unlab_train_subset.indices) & set(self.lab_train_subset.indices))) == 0:
             print('Intersection between indices is EMPTY')
         else: raise Exception('NON EMPTY INDICES INTERSECTION')
 
