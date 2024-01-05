@@ -26,7 +26,7 @@ class CIFAR10(Dataset):
     def __getitem__(self, index):
         image, label = self.cifar10[index]
         
-        print(self.lab_train_idxs)
+        #print(self.lab_train_idxs)
         
         if self.lab_train_idxs is not None and index in self.lab_train_idxs:
             image = self.transform_labeled(image)
@@ -95,5 +95,6 @@ class Cifar10SubsetDataloaders():
         
         # Obtain the splitted dataloader
         self.lab_train_dl = DataLoader(labeled_set, batch_size=self.batch_size, shuffle=True, num_workers=1, pin_memory=True)
-    
+
+        self.original_trainset.lab_train_idxs = self.lab_train_subset.indices
     

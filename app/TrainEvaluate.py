@@ -42,14 +42,14 @@ class TrainEvaluate(object):
         self.original_trainset: CIFAR10 = self.cifar10.original_trainset
 
         self.original_trainset.lab_train_idxs = self.lab_train_subset.indices
-        print(self.original_trainset.lab_train_idxs)
-        print(self.lab_train_subset.indices)
+        #print(self.original_trainset.lab_train_idxs)
+        #print(self.lab_train_subset.indices)
         
         self.model = params['model'].to(self.device)
         self.optimizer = params['optimizer']
         self.scheduler = params['scheduler']
-        #self.model.apply(init_params)
-        init_params(self.model)
+        self.model.apply(init_params)
+        #init_params(self.model)
         
         
         if not os.path.exists(self.init_check_filename):
