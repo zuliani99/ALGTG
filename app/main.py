@@ -1,24 +1,17 @@
 # -*- coding: utf-8 -*-
 
 import torch
-#import torch.nn as nn
 
 from termcolor import colored
 
 from ResNet18 import BasicBlock, ResNet_Weird
 from CIFAR10 import Cifar10SubsetDataloaders
 
-#from ActiveLearning import ActiveLearning
-
-#from resnet.resnet_weird import ResNet_Weird, BasicBlock
-#from resnet.resnet18 import ResNet18
-
 from methods.GTG_Strategy import GTG_Strategy
 from methods.Random_Strategy import Random_Strategy
 from methods.Class_Entropy import Class_Entropy
 
-#from Active_Learning_GTG.app.CIFAR10 import get_cifar10
-from utils import create_ts_dir_res, accuracy_score, plot_loss_curves#, init_params, init_params2, get_initial_dataloaders,
+from utils import create_ts_dir_res, accuracy_score, plot_loss_curves
 
 from datetime import datetime
 
@@ -64,32 +57,6 @@ def main():
 
     print(f'Application running on {device}\n')
 
-    '''original_trainset, test_dl, classes = get_cifar10(batch_size)
-    
-    #indices_lab_unlab_train
-    lab_train_dl, splitted_train_ds, val_dl = get_initial_dataloaders(
-        trainset = original_trainset,
-        val_rateo = 0.2,
-        labeled_ratio = 0.025, # like vascon experiment
-        batch_size = batch_size
-    )
-    '''
-    #if use_resnet_weird:
-        #resnet_weird
-    #    resnet18 = ResNet_Weird(BasicBlock, [2, 2, 2, 2])#, num_classes=len(classes))
-    #else:
-        #normal resnet
-    #    resnet18 = ResNet18(len(classes))
-        
-    #resnet18.apply(init_params)
-    #init_params2(resnet18)
-    #cross_entropy = nn.CrossEntropyLoss()
-    
-
-    #optimizer = torch.optim.SGD(resnet18.parameters(), lr=0.01, momentum=0.9, weight_decay=5e-4)
-        
-    #scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200, verbose=True)
-
 
     epochs = 200
     al_iters = 4 # the maximum is 36
@@ -113,21 +80,6 @@ def main():
 
 
     al_params = {
-        
-        
-        # deep copy
-        #'model': resnet18,
-        #'optimizer': optimizer,
-        #'scheduler': scheduler, # da cancellare qui
-        #'lab_train_dl': lab_train_dl,
-        #'splitted_train_ds': splitted_train_ds,
-        
-        #'train_ds': original_trainset,
-        #'test_dl': test_dl,
-        #'val_dl': val_dl,
-        # shallow
-        #'n_classes': len(classes),
-        #'loss_fn': cross_entropy,
         'cifar10': cifar10,
         'batch_size': batch_size,
         'score_fn': accuracy_score,
