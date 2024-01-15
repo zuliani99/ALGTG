@@ -15,10 +15,7 @@ from utils import create_ts_dir_res, accuracy_score, plot_loss_curves
 
 from datetime import datetime
 
-
 save_plot = True
-#use_resnet_weird = True
-
 
 
 def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, class_entropy_params, our_method_params):
@@ -26,8 +23,7 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, c
     results = { }
     n_lab_obs = [len_lab_train_ds + (iter * n_top_k_obs) for iter in range(al_iters + 1)]
        
-    #methods = [Class_Entropy(al_params, class_entropy_params), Random_Strategy(al_params), GTG_Strategy(al_params, our_method_params)]
-    methods = [GTG_Strategy(al_params, our_method_params)]#[Random_Strategy(al_params)]
+    methods = [Class_Entropy(al_params, class_entropy_params), Random_Strategy(al_params), GTG_Strategy(al_params, our_method_params)]
     
     print(colored(f'----------------------- TRAINING ACTIVE LEARNING -----------------------', 'red', 'on_white'))
     print('\n')
@@ -53,13 +49,13 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, c
 
 def main():
     
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     print(f'Application running on {device}\n')
 
 
     epochs = 200
-    al_iters = 4 # the maximum is 36
+    al_iters = 10 # the maximum is 36
     n_top_k_obs = 1000
     batch_size = 128
     patience = 40
@@ -72,12 +68,9 @@ def main():
     cifar10.get_initial_dataloaders(val_rateo = 0.2, labeled_ratio = 0.025)
     
     model = ResNet_Weird(BasicBlock, [2, 2, 2, 2])
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=0.0005)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=1000, eta_min=1e-3, last_epoch=-1, verbose=True)
-    #self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, verbose=True, patience=7)
-    #self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda epoch: 0.65 ** epoch, verbose=True)
-    #scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2, eta_min=1e-3, last_epoch=-1, verbose=True)
-
+    loss_fn = torch.nn.CrossEntropyLoss()
 
     al_params = {
         'cifar10': cifar10,
@@ -86,7 +79,7 @@ def main():
         'device': device,
         'patience': patience,
         'timestamp': timestamp,
-        'loss_fn': torch.nn.CrossEntropyLoss(),
+        'loss_fn': loss_fn,
         'model': model,
         'optimizer': optimizer,
         'scheduler': scheduler

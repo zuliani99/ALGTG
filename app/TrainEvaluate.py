@@ -40,7 +40,9 @@ class TrainEvaluate(object):
         self.val_dl: DataLoader = self.cifar10.val_dl
         self.original_trainset: CIFAR10 = self.cifar10.original_trainset
 
+
         self.original_trainset.lab_train_idxs = self.lab_train_subset.indices
+
         
         self.model = params['model'].to(self.device)
         self.optimizer = params['optimizer']
@@ -53,7 +55,6 @@ class TrainEvaluate(object):
         else:
             self.__load_init_checkpoint()
                   
-        #self.__save_init_checkpoint()
         self.obtain_normalization()
         
         #resnet_weird
@@ -261,7 +262,7 @@ class TrainEvaluate(object):
             #self.scheduler.step(train_loss)
             
             # CosineAnnealingLR
-            self.scheduler.step()
+            #self.scheduler.step()
 
             # Validation step
             val_accuracy, val_loss = self.evaluate(self.val_dl, epoch + 1, epochs)

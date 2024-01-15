@@ -13,8 +13,8 @@ class CIFAR10(Dataset):
         self.transform_labeled = v2.Compose([
             v2.ToImage(),
             v2.RandomCrop(32, padding=4),
-            v2.RandomHorizontalFlip(),
-            v2.RandomVerticalFlip(),
+            v2.RandomHorizontalFlip(p=0.5),
+            v2.RandomVerticalFlip(p=0.5),
             v2.ToDtype(torch.float32, scale=True)
         ])
         self.transform = v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])
@@ -30,7 +30,7 @@ class CIFAR10(Dataset):
         
         if self.lab_train_idxs is not None and index in self.lab_train_idxs:
             image = self.transform_labeled(image)
-            print('okok', self.lab_train_idxs)
+            #print('okok', self.lab_train_idxs)
         else:
             #print('non okok', self.lab_train_idxs)
             image = self.transform(image)
@@ -95,6 +95,5 @@ class Cifar10SubsetDataloaders():
         
         # Obtain the splitted dataloader
         self.lab_train_dl = DataLoader(labeled_set, batch_size=self.batch_size, shuffle=True, num_workers=1, pin_memory=True)
-
-        self.original_trainset.lab_train_idxs = self.lab_train_subset.indices
     
+        self.original_trainset.lab_train_idxs = self.lab_train_subset.indices

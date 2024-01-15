@@ -150,7 +150,7 @@ class GTG_Strategy(TrainEvaluate):
                     pbar.set_description(f'WORKING WITH UNLABELED SAMPLE # {idx + 1}')
                                 
                     self.get_A(self.unlab_embeddings[idx * iter_batch_size : (idx + 1) * iter_batch_size])
-                    self.get_X(iter_batch_size)
+                    self.get_X(indices.shape[0])
                     self.gtg(self.params['gtg_tol'], self.params['gtg_max_iter'], indices)
                     
                     self.clear_memory()
@@ -160,10 +160,7 @@ class GTG_Strategy(TrainEvaluate):
                 # mean of the entropy derivate 
                 #print(torch.sum(self.entropy_pairwise_der, dim = 1, dtype=torch.float32))
                 overall_topk = torch.topk((torch.sum(self.entropy_pairwise_der, dim = 1, dtype=torch.float32) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)
-                
-                #print(overall_topk.values[:10])
-                # HO TUTTE LE DERIVATE DELLE ENTROPIE MOLTO SIMILI QUESTO VA AD INDICARE CHE I MIEI ESEMPI SONO SIMILI PER QUANTO RIGUARDA LA LORO DIFFICOLTA'
-                
+                                
                 #overall_topk.indices -> è riferito agli indici della matrice entropy_pairwise_der
                 
                 self.get_new_dataloaders(overall_topk.indices.tolist())
