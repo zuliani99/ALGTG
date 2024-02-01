@@ -1,6 +1,6 @@
 
 from TrainEvaluate import TrainEvaluate
-from utils import write_csv, entropy
+from utils import save_train_val_curves, write_csv, entropy
 from CIFAR10 import UniqueShuffle
 
 import torch
@@ -8,7 +8,6 @@ from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
 from tqdm import tqdm
-from termcolor import colored
 #import copy
 
 
@@ -17,6 +16,8 @@ class GTG_Strategy(TrainEvaluate):
     
     def __init__(self, al_params, our_methods_params):
         super().__init__(al_params)
+        
+        self.reintialize_model()
         
         self.method_name = self.__class__.__name__
         self.params = our_methods_params 
@@ -91,16 +92,17 @@ class GTG_Strategy(TrainEvaluate):
             # deeper copy of the original datasets and labeled train dataloader
             
                     
-            print(colored(f'----------------------- WORKING WITH {n_splits} UNLABELED SPLITS -----------------------\n', 'green'))
+            print(f'----------------------- WORKING WITH {n_splits} UNLABELED SPLITS -----------------------\n')
                     
             iter = 0
 
             results[n_splits] = { 'test_accuracy': [], 'test_loss': [] }
                 
             # iter = 0            
-            print(colored(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n', 'blue'))
-            self.reintialize_model()
-            self.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
+            print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
+            train_results = self.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
+            
+            save_train_val_curves(train_results, self.timestamp, iter)
             
             test_accuracy, test_loss = self.test_AL()
                 
@@ -116,7 +118,7 @@ class GTG_Strategy(TrainEvaluate):
                      
             # start of the loop   
             while len(self.unlab_train_subset) > 0 and iter < al_iters:
-                print(colored(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n', 'blue')) 
+                print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')
                 
                 # Obtaining the updated batchsize
                 iter_batch_size = len(self.unlab_train_subset) // n_splits
@@ -141,13 +143,13 @@ class GTG_Strategy(TrainEvaluate):
                 self.entropy_pairwise_der = torch.zeros((len(self.original_trainset), self.params['gtg_max_iter'] - 1)).to(self.device)
 
                 # for each split
-                pbar = tqdm(enumerate(self.unlab_train_dl), total=len(self.unlab_train_dl), leave=True)
+                #pbar = tqdm(enumerate(self.unlab_train_dl), total=len(self.unlab_train_dl), leave=True)
 
                 # idx -> indices of the split
                 # indices -> are the list of indices for the given batch which ARE NOT CONSISTENT SINCE ARE REFERRED TO THE INDEX OF THE ORIGINAL DATASET
-                for idx, (indices, _, _) in pbar:
+                for idx, (indices, _, _) in enumerate(self.unlab_train_dl):
                                         
-                    pbar.set_description(f'WORKING WITH UNLABELED SAMPLE # {idx + 1}')
+                    #pbar.set_description(f'WORKING WITH UNLABELED SAMPLE # {idx + 1}')
                                 
                     self.get_A(self.unlab_embeddings[idx * iter_batch_size : (idx + 1) * iter_batch_size])
                     self.get_X(indices.shape[0])
@@ -167,7 +169,9 @@ class GTG_Strategy(TrainEvaluate):
                 
                 # iter + 1
                 self.reintialize_model()
-                self.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
+                train_results = self.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
+                
+                save_train_val_curves(train_results, self.timestamp, iter)
                 
                 test_accuracy, test_loss = self.test_AL()
                 

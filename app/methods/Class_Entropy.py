@@ -5,9 +5,8 @@ import torch.nn.functional as F
 
 from TrainEvaluate import TrainEvaluate
 
-from utils import entropy, write_csv
+from utils import entropy, save_train_val_curves, write_csv
 
-from termcolor import colored
 from tqdm import tqdm
 
 
@@ -15,6 +14,8 @@ class Class_Entropy(TrainEvaluate):
     
     def __init__(self, al_params, method_params):
         super().__init__(al_params)
+        
+        self.reintialize_model()
         
         self.method_name = self.__class__.__name__
         self.params = method_params                
@@ -25,13 +26,13 @@ class Class_Entropy(TrainEvaluate):
 
         self.model.eval()
 
-        pbar = tqdm(self.unlab_train_dl, total = len(self.unlab_train_dl), leave=False, desc = 'TESTING ON UNLABELED')
+        #pbar = tqdm(self.unlab_train_dl, total = len(self.unlab_train_dl), leave=False, desc = 'TESTING ON UNLABELED')
         
         prob_dist = torch.empty(0, self.n_classes, dtype=torch.float32).to(self.device)  
         indices = torch.empty(0, dtype=torch.int8).to(self.device) 
         
         with torch.inference_mode(): # Allow inference mode
-            for idxs, images, labels in pbar:
+            for idxs, images, labels in self.unlab_train_dls:
                 
                 idxs, images, labels = idxs.to(self.device), self.normalize(images.to(self.device)), labels.to(self.device)
                 
@@ -56,16 +57,17 @@ class Class_Entropy(TrainEvaluate):
         
         for n_splits in self.params['list_n_samples']:           
                     
-            print(colored(f'----------------------- WORKING WITH {n_splits} UNLABELED SPLITS -----------------------\n', 'green'))
+            print(f'----------------------- WORKING WITH {n_splits} UNLABELED SPLITS -----------------------\n')
                     
             iter = 0
 
             results[n_splits] = { 'test_accuracy': [], 'test_loss': [] }
                 
             # iter = 0            
-            print(colored(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n', 'blue'))
-            self.reintialize_model()
-            self.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
+            print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
+            train_results = self.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
+            
+            save_train_val_curves(train_results, self.timestamp, iter)
             
             test_accuracy, test_loss = self.test_AL()
                 
@@ -81,7 +83,7 @@ class Class_Entropy(TrainEvaluate):
                      
             # start of the loop   
             while len(self.unlab_train_subset) > 0 and iter < al_iters:
-                print(colored(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n', 'blue')) 
+                print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')
                 
                 iter_batch_size = len(self.unlab_train_subset) // n_splits
                 
@@ -97,7 +99,9 @@ class Class_Entropy(TrainEvaluate):
                 
                 # iter + 1
                 self.reintialize_model()
-                self.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
+                train_results = self.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
+                
+                save_train_val_curves(train_results, self.timestamp, iter)
                 
                 test_accuracy, test_loss = self.test_AL()
                 

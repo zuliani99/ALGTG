@@ -2,18 +2,13 @@
 import torch
 from torch.utils.data import DataLoader, Subset
 
-from torchvision.transforms import v2
-from torchvision.utils import save_image
-
+from torchvision import transforms
 from tqdm import tqdm
 import copy
 from CIFAR10 import CIFAR10, Cifar10SubsetDataloaders
-from utils import get_mean_std, init_params
+from utils import get_mean_std
 
 import os
-
-
-#from resnet.resnet_weird import LearningLoss
 
 class TrainEvaluate(object):
 
@@ -22,9 +17,9 @@ class TrainEvaluate(object):
         self.best_check_filename = 'app/checkpoints'
         self.init_check_filename = 'app/checkpoints/init_checkpoint.pth.tar'
         
-        self.cifar10: Cifar10SubsetDataloaders = params['cifar10']
+        cifar10: Cifar10SubsetDataloaders = params['cifar10']
         
-        self.n_classes = len(self.cifar10.classes)
+        self.n_classes = len(cifar10.classes)
         self.device = params['device']
         self.batch_size = params['batch_size']
         self.score_fn = params['score_fn']
@@ -32,36 +27,24 @@ class TrainEvaluate(object):
         self.timestamp = params['timestamp']
         self.loss_fn = params['loss_fn']
         
-        self.lab_train_dl: DataLoader = copy.deepcopy(self.cifar10.lab_train_dl)
-        self.lab_train_subset: Subset = copy.deepcopy(self.cifar10.lab_train_subset)
-        self.unlab_train_subset: Subset = copy.deepcopy(self.cifar10.unlab_train_subset)
+        self.lab_train_dl: DataLoader = copy.deepcopy(cifar10.lab_train_dl)
+        self.lab_train_subset: Subset = copy.deepcopy(cifar10.lab_train_subset)
+        self.unlab_train_subset: Subset = copy.deepcopy(cifar10.unlab_train_subset)
         
-        self.test_dl: DataLoader = self.cifar10.test_dl
-        self.val_dl: DataLoader = self.cifar10.val_dl
-        self.original_trainset: CIFAR10 = self.cifar10.original_trainset
+        self.test_dl: DataLoader = cifar10.test_dl
+        self.val_dl: DataLoader = cifar10.val_dl
+        self.original_trainset: CIFAR10 = cifar10.original_trainset
 
-
+        # reset the indeice tot he original one
         self.original_trainset.lab_train_idxs = self.lab_train_subset.indices
 
-        
         self.model = params['model'].to(self.device)
         self.optimizer = params['optimizer']
         self.scheduler = params['scheduler']
-        self.model.apply(init_params)
-        
-        
-        if not os.path.exists(self.init_check_filename):
-            self.__save_init_checkpoint()
-        else:
-            self.__load_init_checkpoint()
-                  
+            
         self.obtain_normalization()
         
-        #resnet_weird
-        #self.loss_weird = LearningLoss(self.device)
         
-        
-
 
     def reintialize_model(self):
         self.__load_init_checkpoint()
@@ -70,14 +53,7 @@ class TrainEvaluate(object):
 
     def obtain_normalization(self):
         mean, std = get_mean_std(self.lab_train_dl)
-        self.normalize = v2.Compose([ v2.Normalize(mean, std) ])
-        
-
-
-    def __save_init_checkpoint(self):
-
-        checkpoint = { 'state_dict': self.model.state_dict(), 'optimizer': self.optimizer.state_dict(), 'scheduler': self.scheduler.state_dict() }
-        torch.save(checkpoint, self.init_check_filename)
+        self.normalize = transforms.Compose([ transforms.Normalize(mean, std) ])  
         
         
         
@@ -105,7 +81,7 @@ class TrainEvaluate(object):
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['scheduler'])
         
-        return checkpoint['actual_patience'], checkpoint['epoch'], checkpoint['best_val_loss']
+        #return checkpoint['actual_patience'], checkpoint['epoch'], checkpoint['best_val_loss']
 
 
 
@@ -114,32 +90,26 @@ class TrainEvaluate(object):
 
         self.model.eval()
 
-        pbar = tqdm(val_dl, total = len(val_dl), leave=False)
+        #pbar = tqdm(val_dl, total = len(val_dl), leave=False)
 
         with torch.inference_mode(): # Allow inference mode
-            for idxs, images, labels in pbar:
+            for idxs, images, labels in val_dl:
                 
                 images, labels = self.normalize(images.to(self.device)), labels.to(self.device)
-                #images, labels = images.to(self.device), labels.to(self.device)
-                
-                #save_image(images[0], f'images/img{idxs[0]}.png')
 
-                #if self.model.__class__.__name__ == 'ResNet_Weird':
-                    #resnet_weird
                 outputs, _, _, _ = self.model(images)
-                #else:
-                    #output = self.model(images)
                 
                 #loss = torch.mean(self.loss_fn(output, label)).item()
+
                 loss = self.loss_fn(outputs, labels).item()
                 accuracy = self.score_fn(outputs, labels)
 
                 val_accuracy += accuracy
                 val_loss += loss
 
-                if epoch > 0: pbar.set_description(f'EVALUATION Epoch [{epoch} / {epochs}]')
-                else: pbar.set_description(f'TESTING')
-                pbar.set_postfix(accuracy = accuracy, loss = loss)
+                #if epoch > 0: pbar.set_description(f'EVALUATION Epoch [{epoch} / {epochs}]')
+                #else: pbar.set_description(f'TESTING')
+                #pbar.set_postfix(accuracy = accuracy, loss = loss)
 
             val_accuracy /= len(val_dl)
             val_loss /= len(val_dl)
@@ -150,54 +120,45 @@ class TrainEvaluate(object):
 
 
     def fit(self, epochs, dataloader, method_str):
-        self.model.train()
-        
         
         #resnet_weird
         #weight = 1.   # 120 = 0
-
-
-
+    
         check_best_path = f'{self.best_check_filename}/best_{method_str}.pth.tar'
 		
-        #actual_epoch = 0
         best_val_loss = float('inf')
         actual_patience = 0
-
+        
         #if os.path.exists(check_best_path):
         #    actual_patience, actual_epoch, best_val_loss = self.__load_best_checkpoint(check_best_path)
-		
+        
+        results = { 'train_loss': [], 'train_accuracy': [], 'val_loss': [], 'val_accuracy': [] }
 	
-        self.model.train()
 
-        for epoch in range(epochs):#(actual_epoch, epochs):  # loop over the dataset multiple times
+        for epoch in range(epochs):
             
+            self.model.train()
             
             #resnet_weird
             #if epoch > 120:
             #    weight = 0
             #loss_weird_total = 0
             
-            
             train_loss = 0.0
             train_accuracy = 0.0
             
             #iters = len(dataloader)
-
             #pbar = tqdm(enumerate(dataloader), total = iters, leave=False)
-            pbar = tqdm(dataloader, total = len(dataloader), leave=False)
+            #pbar = tqdm(dataloader, total = len(dataloader), leave=False)
 
-            #for batch_idx, (_, images, labels) in pbar:
-            for idxs, images, labels in pbar:
-                                
-                # zero the parameter gradients
-                self.optimizer.zero_grad()
+            for _, images, labels in dataloader:
 
                 # get the inputs; data is a list of [inputs, labels]
                 images, labels = self.normalize(images.to(self.device)), labels.to(self.device)
-                #images, labels = images.to(self.device), labels.to(self.device)
                 
-                #save_image(images[0], f'images/img{idxs[0]}.png')
+                
+                self.optimizer.zero_grad()
+                
                 
                 #if self.model.__class__.__name__ == 'ResNet_Weird':
                     #resnet_weird               
@@ -222,61 +183,49 @@ class TrainEvaluate(object):
                 
                 #else:
                     #outputs = self.model(images)
-                    
+                
+                
+                
                 outputs, _, _, _ = self.model(images)
                 
-                
                 #loss = torch.mean(self.loss_fn(outputs, labels))
-                loss = self.loss_fn(outputs, labels)
-                train_loss += loss.item()
-                
-
-                loss.backward()
-                
-                #nn.utils.clip_grad_norm_(self.model.parameters(), 1., norm_type=2)
-                
+                loss = self.loss_fn(outputs, labels)                
+                loss.backward()         
                 self.optimizer.step()
                 
-                
-                # cosine annealing with warm restart
-                #self.scheduler.step(epoch + batch_idx / iters)
-                
-                
-
                 accuracy = self.score_fn(outputs, labels)
-
+                
+                train_loss += loss.item()
                 train_accuracy += accuracy
 
                 # Update the progress bar
-                pbar.set_description(f'TRAIN Epoch [{epoch + 1} / {epochs}]')
+                #pbar.set_description(f'TRAIN Epoch [{epoch + 1} / {epochs}]')
+                
                 #if self.model.__class__.__name__ == 'ResNet_Weird':
                 #    pbar.set_postfix(accuracy = accuracy, loss_ce = loss_ce.item(), loss_weird = loss_weird.item())
                 #else:
-                pbar.set_postfix(accuracy = accuracy, loss = loss.item())
+                
+                #pbar.set_postfix(accuracy = accuracy, loss = loss.item())
     
 
             train_accuracy /= len(dataloader)
             train_loss /= len(dataloader)
             
-			# scheduler step
-            #self.scheduler.step(train_loss)
             
-            # CosineAnnealingLR
-            #self.scheduler.step()
-
-            # Validation step
+            # test and not validation 
             val_accuracy, val_loss = self.evaluate(self.val_dl, epoch + 1, epochs)
             
             
-            
-            # ReduceLROnPlateau
-            #self.scheduler.step(val_loss)
-            #self.scheduler.step()
-            
-            
-            
+            # CosineAnnealingLR
+            self.scheduler.step()
             
 
+            results['train_loss'].append(train_loss)
+            results['train_accuracy'].append(train_accuracy)
+            results['val_loss'].append(val_loss)
+            results['val_accuracy'].append(val_accuracy)
+            
+            
             #if self.model.__class__.__name__ == 'ResNet_Weird':
             #    print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, loss_weird: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
             #          epoch + 1, train_accuracy, train_loss, loss_weird_total / len(dataloader), val_accuracy, val_loss))
@@ -293,20 +242,21 @@ class TrainEvaluate(object):
                 actual_patience += 1
                 if actual_patience >= self.patience:
                     print(f'Early stopping, validation loss do not decreased for {self.patience} epochs')
-                    pbar.close() # Closing the progress bar before exiting from the train loop
+                    #pbar.close() # Closing the progress bar before exiting from the train loop
                     break
-                
-                
+
+
             #resnet_weird
             #if epoch == 160:
             #    for g in self.optimizer.param_groups:
             #        g['lr'] = 0.01
                     
-                    
 
         self.__load_best_checkpoint(check_best_path)
 
         print('Finished Training\n')
+        
+        return {'model_name': method_str, 'results': results}
 
 
 
@@ -320,7 +270,7 @@ class TrainEvaluate(object):
 
 
     def get_embeddings(self, type_embeds, dataloader):
-        #if self.model.__class__.__name__ == 'ResNet_Weird':
+
         embeddings = torch.empty(0, self.model.linear.in_features, dtype=torch.float32).to(self.device)  
         self.model.eval()
         #else:
@@ -328,14 +278,13 @@ class TrainEvaluate(object):
         #    embed_model = nn.Sequential(*list(self.model.resnet18.children())[:-1]).to(self.device)
         #    embed_model.eval()
             
-        pbar = tqdm(dataloader, total = len(dataloader), leave=False, desc=f'Getting {type_embeds} Embeddings')
+        #pbar = tqdm(dataloader, total = len(dataloader), leave=False, desc=f'Getting {type_embeds} Embeddings')
 
         # again no gradients needed
         with torch.inference_mode():
-            for _, images, _ in pbar:
+            for _, images, _ in dataloader:
                 
                 images = self.normalize(images.to(self.device))
-                #images = images.to(self.device)
                 
                 #if self.model.__class__.__name__ == 'ResNet_Weird':
                 _, embed, _, _ = self.model(images)
@@ -370,5 +319,5 @@ class TrainEvaluate(object):
             print('Intersection between indices is EMPTY')
         else: raise Exception('NON EMPTY INDICES INTERSECTION')
 
-        self.lab_train_dl = DataLoader(self.lab_train_subset, batch_size=self.batch_size, shuffle=True, pin_memory=True)
+        self.lab_train_dl = DataLoader(self.lab_train_subset, batch_size=self.batch_size, shuffle=True, num_workers=1, pin_memory=True)
         self.obtain_normalization()

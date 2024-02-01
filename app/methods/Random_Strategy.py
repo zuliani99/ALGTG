@@ -1,9 +1,8 @@
 
 import random
-from termcolor import colored
 
 from TrainEvaluate import TrainEvaluate
-from utils import write_csv
+from utils import save_train_val_curves, write_csv
 
 
 
@@ -12,16 +11,17 @@ class Random_Strategy(TrainEvaluate):
     def __init__(self, al_params):
         super().__init__(al_params)
         
-        self.method_name = self.__class__.__name__           
-                
+        self.reintialize_model()
+        
+        self.method_name = self.__class__.__name__      
         
         
     def sample_unlab_obs(self, n_top_k_obs):
         if(len(self.unlab_train_subset.indices) > n_top_k_obs):
             return random.sample(self.unlab_train_subset.indices, n_top_k_obs)
         else:
-            return self.unlab_train_subset.indices
-    
+            return self.unlab_train_subset.indices     
+                
 
     
     def run(self, al_iters, epochs, n_top_k_obs):
@@ -29,10 +29,11 @@ class Random_Strategy(TrainEvaluate):
         results = { 'test_accuracy': [], 'test_loss': [] }
         
         # iter = 0
-        print(colored(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n', 'blue'))
-            
-        self.reintialize_model()
-        self.fit(epochs, self.lab_train_dl, self.method_name)
+        print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
+        
+        train_results = self.fit(epochs, self.lab_train_dl, self.method_name)
+        
+        save_train_val_curves(train_results, self.timestamp, iter)
             
         test_accuracy, test_loss = self.test_AL()
         
@@ -47,7 +48,7 @@ class Random_Strategy(TrainEvaluate):
         
         # start of the loop
         while len(self.unlab_train_subset) > 0 and iter < al_iters:
-            print(colored(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n', 'blue'))
+            print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')
                             
             #get random indices to move in the labeled datasets
             topk_idx_obs = self.sample_unlab_obs(n_top_k_obs)
@@ -74,3 +75,5 @@ class Random_Strategy(TrainEvaluate):
             iter += 1
             
         return results
+        
+        

@@ -120,6 +120,8 @@ class ResNet_Weird(nn.Module):
 
 
 
+
+
 class LearningLoss(nn.Module):
 
     def __init__(self, device, margin=1):
