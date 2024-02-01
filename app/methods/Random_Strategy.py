@@ -59,7 +59,9 @@ class Random_Strategy(TrainEvaluate):
             
             # iter + 1
             self.reintialize_model()
-            self.fit(epochs, self.lab_train_dl, self.method_name)
+            train_results = self.fit(epochs, self.lab_train_dl, self.method_name)
+            
+            save_train_val_curves(train_results, self.timestamp, iter + 1)
             
             test_accuracy, test_loss = self.test_AL()
             

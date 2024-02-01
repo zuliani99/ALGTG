@@ -101,7 +101,7 @@ class Class_Entropy(TrainEvaluate):
                 self.reintialize_model()
                 train_results = self.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
                 
-                save_train_val_curves(train_results, self.timestamp, iter)
+                save_train_val_curves(train_results, self.timestamp, iter + 1)
                 
                 test_accuracy, test_loss = self.test_AL()
                 
