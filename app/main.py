@@ -57,8 +57,8 @@ def main():
 
     print(f'Application running on {device}\n')
 
-    epochs = 200
-    al_iters = 10 # the maximum is 36
+    epochs = 100#200
+    al_iters = 5#10 # the maximum is 36
     n_top_k_obs = 1000
     batch_size = 128
     patience = 50
@@ -70,8 +70,8 @@ def main():
     cifar10 = Cifar10SubsetDataloaders(batch_size, val_rateo = 0.2, labeled_ratio = 0.025)#val_rateo = 0.2, labeled_ratio = 1
     
     model = ResNet_Weird(BasicBlock, [2, 2, 2, 2])
-    #model.apply(init_params)
-    init_params(model)
+    model.apply(init_params)
+    #init_params(model)
     
     if device == 'cuda':
         model = torch.nn.DataParallel(model)

@@ -94,7 +94,7 @@ def save_train_val_curves(results_info, ts_dir, al_iter):
     minloss_val = min(res['val_loss'])
     minloss_ep = res['val_loss'].index(minloss_val) + 1
 
-    maxacc_ep = res['val_accuracy'][minloss_ep]
+    maxacc_ep = res['val_accuracy'][minloss_ep - 1]
     
 
     ax[0].plot(epochs, res['train_loss'], label = 'train_loss')
@@ -159,7 +159,7 @@ def create_ts_dir_res(timestamp):
         
         
 # weights initiaization
-def init_params(net):
+'''def init_params(net):
     for m in net.modules():
         if isinstance(m, nn.Conv2d):
             init.kaiming_normal_(m.weight, mode='fan_out')
@@ -171,9 +171,9 @@ def init_params(net):
         elif isinstance(m, nn.Linear):
             init.normal_(m.weight, std=1e-3)
             if m.bias is not None:
-                init.constant_(m.bias, 0)
+                init.constant_(m.bias, 0)'''
                 
-'''def init_params(m):
+def init_params(m):
     if isinstance(m, nn.Conv2d):
         init.kaiming_normal_(m.weight, mode='fan_out')
         if m.bias is not None: init.constant_(m.bias, 0)
@@ -184,4 +184,4 @@ def init_params(net):
         init.constant_(m.weight, 1)
         init.constant_(m.bias, 0)
     elif isinstance(m, BasicBlock):
-        for c in list(m.children()): init_params(c)'''
+        for c in list(m.children()): init_params(c)
