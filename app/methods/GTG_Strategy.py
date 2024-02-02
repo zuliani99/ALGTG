@@ -136,8 +136,6 @@ class GTG_Strategy(TrainEvaluate):
                     pin_memory=True
                 )
                 
-                # index are referred to self.train_ds
-
                 
                 self.labeled_embeddings = self.get_embeddings('Labeled', self.lab_train_dl)
                 self.unlab_embeddings = self.get_embeddings('Unlabeled', self.unlab_train_dl)
@@ -150,7 +148,7 @@ class GTG_Strategy(TrainEvaluate):
                 #pbar = tqdm(enumerate(self.unlab_train_dl), total=len(self.unlab_train_dl), leave=True)
 
                 # idx -> indices of the split
-                # indices -> are the list of indices for the given batch which ARE NOT CONSISTENT SINCE ARE REFERRED TO THE INDEX OF THE ORIGINAL DATASET
+                # indices -> are the list of indices for the given batch which ARE CONSISTENT SINCE ARE REFERRED TO THE INDEX OF THE ORIGINAL DATASET
                 for split_idx, (indices, _, _) in enumerate(self.unlab_train_dl):
                                         
                     #pbar.set_description(f'WORKING WITH UNLABELED SAMPLE # {idx + 1}')

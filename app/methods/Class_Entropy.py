@@ -30,7 +30,7 @@ class Class_Entropy(TrainEvaluate):
         indices = torch.empty(0, dtype=torch.int8).to(self.device) 
         
         with torch.inference_mode(): # Allow inference mode
-            for idxs, images, labels in self.unlab_train_dls:
+            for idxs, images, labels in self.unlab_train_subset:
                 
                 idxs, images, labels = idxs.to(self.device), self.normalize(images.to(self.device)), labels.to(self.device)
                 
