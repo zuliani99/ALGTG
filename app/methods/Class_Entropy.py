@@ -30,9 +30,9 @@ class Class_Entropy(TrainEvaluate):
         indices = torch.empty(0, dtype=torch.int8).to(self.device) 
         
         with torch.inference_mode(): # Allow inference mode
-            for idxs, images, labels in self.unlab_train_dl:
+            for idxs, images, _ in self.unlab_train_dl:
                 
-                idxs, images, labels = idxs.to(self.device), self.normalize(images.to(self.device)), labels.to(self.device)
+                idxs, images = idxs.to(self.device), self.normalize(images.to(self.device))
                 
                 
                 #if self.model.__class__.__name__ == 'ResNet_Weird':
@@ -96,7 +96,7 @@ class Class_Entropy(TrainEvaluate):
                 
                 indices_prob, prob_dist = self.evaluate_unlabeled()
                 
-                tot_entr = entropy(prob_dist)
+                tot_entr = entropy(prob_dist).to(self.device)
                 
                 overall_topk = torch.topk(tot_entr, n_top_k_obs)
                 

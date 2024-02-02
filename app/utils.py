@@ -40,7 +40,8 @@ def accuracy_score(output, label):
 
 
 def entropy(tensor):
-    x = torch.clone(tensor) + 1e-20
+    #x = torch.clone(tensor) + 1e-20
+    x = tensor + 1e-20
     return -torch.sum(x * torch.log2(x), dim=1)
 
     

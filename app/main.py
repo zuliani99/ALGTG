@@ -24,7 +24,7 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, c
     n_lab_obs = [len_lab_train_ds + (iter * n_top_k_obs) for iter in range(al_iters + 1)]
     
     methods = [
-        Random_Strategy(al_params), 
+        #Random_Strategy(al_params), 
         Class_Entropy(al_params, class_entropy_params),
         GTG_Strategy(al_params, our_method_params)
     ]
