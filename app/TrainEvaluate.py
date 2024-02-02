@@ -35,9 +35,6 @@ class TrainEvaluate(object):
         self.val_dl: DataLoader = cifar10.val_dl
         self.original_trainset: CIFAR10 = cifar10.original_trainset
 
-        # reset the indeice tot he original one
-        self.original_trainset.lab_train_idxs = self.lab_train_subset.indices
-
         self.model = params['model'].to(self.device)
         self.optimizer = params['optimizer']
         self.scheduler = params['scheduler']
@@ -300,24 +297,30 @@ class TrainEvaluate(object):
 
     def get_new_dataloaders(self, overall_topk):
         
+        # temp variable
         lab_train_indices = self.lab_train_subset.indices
         
+        # extend with the overall_topk
         lab_train_indices.extend(overall_topk)
+        # generate a new Subset
         self.lab_train_subset = Subset(self.original_trainset, lab_train_indices)
         
         
         # update the indices for the transform        
         self.original_trainset.lab_train_idxs = lab_train_indices
         
-
+        # temp variable
         unlab_train_indices = self.unlab_train_subset.indices
-        for idx_to_remove in overall_topk:
-            unlab_train_indices.remove(idx_to_remove)
+        # remove new labeled observations
+        for idx_to_remove in overall_topk: unlab_train_indices.remove(idx_to_remove)
+        # generate a new Subset
         self.unlab_train_subset = Subset(self.original_trainset, unlab_train_indices)
         
+        # sanity check
         if len(list(set(self.unlab_train_subset.indices) & set(self.lab_train_subset.indices))) == 0:
             print('Intersection between indices is EMPTY')
         else: raise Exception('NON EMPTY INDICES INTERSECTION')
 
+        # generate the new labeled DataLoader
         self.lab_train_dl = DataLoader(self.lab_train_subset, batch_size=self.batch_size, shuffle=True, num_workers=1, pin_memory=True)
         self.obtain_normalization()

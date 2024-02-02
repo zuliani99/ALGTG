@@ -14,9 +14,7 @@ class Class_Entropy(TrainEvaluate):
     
     def __init__(self, al_params, method_params):
         super().__init__(al_params)
-        
-        self.reintialize_model()
-        
+                
         self.method_name = self.__class__.__name__
         self.params = method_params                
     
@@ -65,6 +63,13 @@ class Class_Entropy(TrainEvaluate):
                 
             # iter = 0            
             print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
+            
+            
+            # reset the indices to the original one
+            self.original_trainset.lab_train_idxs = self.lab_train_subset.indices
+            self.reintialize_model()
+            
+            
             train_results = self.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
             
             save_train_val_curves(train_results, self.timestamp, iter)

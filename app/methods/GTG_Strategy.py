@@ -16,9 +16,7 @@ class GTG_Strategy(TrainEvaluate):
     
     def __init__(self, al_params, our_methods_params):
         super().__init__(al_params)
-        
-        self.reintialize_model()
-        
+                
         self.method_name = self.__class__.__name__
         self.params = our_methods_params 
 
@@ -100,6 +98,13 @@ class GTG_Strategy(TrainEvaluate):
                 
             # iter = 0            
             print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
+            
+            
+            # reset the indices to the original one
+            self.original_trainset.lab_train_idxs = self.lab_train_subset.indices
+            self.reintialize_model()
+            
+            
             train_results = self.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
             
             save_train_val_curves(train_results, self.timestamp, iter)
@@ -120,7 +125,7 @@ class GTG_Strategy(TrainEvaluate):
             while len(self.unlab_train_subset) > 0 and iter < al_iters:
                 print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')
                 
-                # Obtaining the updated batchsize
+                # Obtaining the actual batchsize for the unlabeled observations
                 iter_batch_size = len(self.unlab_train_subset) // n_splits
                                 
                 self.unlab_train_dl = DataLoader(
@@ -131,8 +136,7 @@ class GTG_Strategy(TrainEvaluate):
                     pin_memory=True
                 )
                 
-                # index are referred to slf.train_ds
-                # and are consistent emebdding creation and the read of the indices
+                # index are referred to self.train_ds
 
                 
                 self.labeled_embeddings = self.get_embeddings('Labeled', self.lab_train_dl)
@@ -147,11 +151,11 @@ class GTG_Strategy(TrainEvaluate):
 
                 # idx -> indices of the split
                 # indices -> are the list of indices for the given batch which ARE NOT CONSISTENT SINCE ARE REFERRED TO THE INDEX OF THE ORIGINAL DATASET
-                for idx, (indices, _, _) in enumerate(self.unlab_train_dl):
+                for split_idx, (indices, _, _) in enumerate(self.unlab_train_dl):
                                         
                     #pbar.set_description(f'WORKING WITH UNLABELED SAMPLE # {idx + 1}')
                                 
-                    self.get_A(self.unlab_embeddings[idx * iter_batch_size : (idx + 1) * iter_batch_size])
+                    self.get_A(self.unlab_embeddings[split_idx * iter_batch_size : (split_idx + 1) * iter_batch_size])
                     self.get_X(indices.shape[0])
                     self.gtg(self.params['gtg_tol'], self.params['gtg_max_iter'], indices)
                     

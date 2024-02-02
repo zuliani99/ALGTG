@@ -11,8 +11,6 @@ class Random_Strategy(TrainEvaluate):
     def __init__(self, al_params):
         super().__init__(al_params)
         
-        self.reintialize_model()
-        
         self.method_name = self.__class__.__name__      
         
         
@@ -30,6 +28,12 @@ class Random_Strategy(TrainEvaluate):
         
         # iter = 0
         print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
+        
+        
+        # reset the indices to the original one
+        self.original_trainset.lab_train_idxs = self.lab_train_subset.indices
+        self.reintialize_model()
+        
         
         train_results = self.fit(epochs, self.lab_train_dl, self.method_name)
         
