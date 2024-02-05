@@ -7,8 +7,6 @@ from TrainEvaluate import TrainEvaluate
 
 from utils import entropy, save_train_val_curves, write_csv
 
-from tqdm import tqdm
-
 
 class Class_Entropy(TrainEvaluate):
     
@@ -24,7 +22,6 @@ class Class_Entropy(TrainEvaluate):
 
         self.model.eval()
 
-        #pbar = tqdm(self.unlab_train_dl, total = len(self.unlab_train_dl), leave=False, desc = 'TESTING ON UNLABELED')
         
         prob_dist = torch.empty(0, self.n_classes, dtype=torch.float32).to(self.device)  
         indices = torch.empty(0, dtype=torch.int8).to(self.device) 
@@ -34,12 +31,7 @@ class Class_Entropy(TrainEvaluate):
                 
                 idxs, images = idxs.to(self.device), self.normalize(images.to(self.device))
                 
-                
-                #if self.model.__class__.__name__ == 'ResNet_Weird':
                 outputs, _, _, _ = self.model(images)
-                #else:
-                    #outputs = self.model(images)
-                    
                     
                 softmax = F.softmax(outputs, dim=1)
                 
@@ -70,11 +62,11 @@ class Class_Entropy(TrainEvaluate):
             self.reintialize_model()
             
             
-            train_results = self.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
+            train_results = self.train_evaluate(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
             
             save_train_val_curves(train_results, self.timestamp, iter)
             
-            test_accuracy, test_loss = self.test_AL()
+            test_accuracy, test_loss = self.test()
                 
             write_csv(
                 ts_dir=self.timestamp,
@@ -94,21 +86,24 @@ class Class_Entropy(TrainEvaluate):
                 
                 self.unlab_train_dl = DataLoader(self.unlab_train_subset, batch_size=iter_batch_size, shuffle=True, num_workers=1, pin_memory=True)
                 
+                print(' => Evalueting unlabeled observations')
                 indices_prob, prob_dist = self.evaluate_unlabeled()
+                print(' DONE\n')
                 
                 tot_entr = entropy(prob_dist).to(self.device)
-                
                 overall_topk = torch.topk(tot_entr, n_top_k_obs)
                 
+                print(' => Modifing the Subsets and Dataloader')
                 self.get_new_dataloaders([indices_prob[id].item() for id in overall_topk.indices])
+                print(' DONE\n')
                 
                 # iter + 1
                 self.reintialize_model()
-                train_results = self.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
+                train_results = self.train_evaluate(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
                 
                 save_train_val_curves(train_results, self.timestamp, iter + 1)
                 
-                test_accuracy, test_loss = self.test_AL()
+                test_accuracy, test_loss = self.test()
                 
                 write_csv(
                     ts_dir=self.timestamp,

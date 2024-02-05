@@ -11,9 +11,12 @@ import errno
 
 from ResNet18 import BasicBlock
 
+
 def save_init_checkpoint(model, optimizer, scheduler):
+    print(' => Saving initial checkpoint')
     checkpoint = { 'state_dict': model.state_dict(), 'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict() }
     torch.save(checkpoint, 'app/checkpoints/init_checkpoint.pth.tar')
+    print(' DONE\n')
 
 
 def get_mean_std(dataloader):
@@ -160,7 +163,7 @@ def create_ts_dir_res(timestamp):
         
         
 # weights initiaization
-'''def init_params(net):
+def init_params(net):
     for m in net.modules():
         if isinstance(m, nn.Conv2d):
             init.kaiming_normal_(m.weight, mode='fan_out')
@@ -172,9 +175,9 @@ def create_ts_dir_res(timestamp):
         elif isinstance(m, nn.Linear):
             init.normal_(m.weight, std=1e-3)
             if m.bias is not None:
-                init.constant_(m.bias, 0)'''
+                init.constant_(m.bias, 0)
                 
-def init_params(m):
+'''def init_params(m):
     if isinstance(m, nn.Conv2d):
         init.kaiming_normal_(m.weight, mode='fan_out')
         if m.bias is not None: init.constant_(m.bias, 0)
@@ -185,4 +188,4 @@ def init_params(m):
         init.constant_(m.weight, 1)
         init.constant_(m.bias, 0)
     elif isinstance(m, BasicBlock):
-        for c in list(m.children()): init_params(c)
+        for c in list(m.children()): init_params(c)'''

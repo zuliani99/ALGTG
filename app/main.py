@@ -3,7 +3,7 @@
 import torch
 import torch.backends.cudnn as cudnn
 
-from ResNet18 import BasicBlock, ResNet_Weird
+from ResNet18 import BasicBlock, LearningLoss, ResNet_Weird
 from CIFAR10 import Cifar10SubsetDataloaders
 
 from methods.GTG_Strategy import GTG_Strategy
@@ -24,7 +24,7 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, c
     n_lab_obs = [len_lab_train_ds + (iter * n_top_k_obs) for iter in range(al_iters + 1)]
     
     methods = [
-        #Random_Strategy(al_params), 
+        Random_Strategy(al_params), 
         Class_Entropy(al_params, class_entropy_params),
         GTG_Strategy(al_params, our_method_params)
     ]
@@ -57,30 +57,32 @@ def main():
 
     print(f'Application running on {device}\n')
 
-    epochs = 100#200
-    al_iters = 5#10 # the maximum is 36
+    epochs = 200
+    al_iters = 4#10 # the maximum is 36
     n_top_k_obs = 1000
     batch_size = 128
-    patience = 50
+    patience = 40#50
     
     
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     create_ts_dir_res(timestamp)
     
-    cifar10 = Cifar10SubsetDataloaders(batch_size, val_rateo = 0.2, labeled_ratio = 0.025)#val_rateo = 0.2, labeled_ratio = 1
+    cifar10 = Cifar10SubsetDataloaders(batch_size, val_rateo = 0.2, labeled_ratio = 0.025)
     
     model = ResNet_Weird(BasicBlock, [2, 2, 2, 2])
-    model.apply(init_params)
-    #init_params(model)
+    #model = ResNet(BasicBlock, [2, 2, 2, 2])
+    #model.apply(init_params)
+    init_params(model)
     
     if device == 'cuda':
-        model = torch.nn.DataParallel(model)
+        #model = torch.nn.DataParallel(model)
         cudnn.benchmark = True
     
     
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
-    loss_fn = torch.nn.CrossEntropyLoss()
+    loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
+    loss_werid = LearningLoss(device)
     
     save_init_checkpoint(model, optimizer, scheduler)
 
@@ -95,7 +97,8 @@ def main():
         'loss_fn': loss_fn,
         'model': model,
         'optimizer': optimizer,
-        'scheduler': scheduler
+        'scheduler': scheduler,
+        'loss_weird': loss_werid
     }    
     
     

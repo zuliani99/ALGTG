@@ -14,6 +14,7 @@ class Random_Strategy(TrainEvaluate):
         self.method_name = self.__class__.__name__      
         
         
+        
     def sample_unlab_obs(self, n_top_k_obs):
         if(len(self.unlab_train_subset.indices) > n_top_k_obs):
             return random.sample(self.unlab_train_subset.indices, n_top_k_obs)
@@ -35,11 +36,11 @@ class Random_Strategy(TrainEvaluate):
         self.reintialize_model()
         
         
-        train_results = self.fit(epochs, self.lab_train_dl, self.method_name)
+        train_results = self.train_evaluate(epochs, self.lab_train_dl, self.method_name)
         
         save_train_val_curves(train_results, self.timestamp, iter)
             
-        test_accuracy, test_loss = self.test_AL()
+        test_accuracy, test_loss = self.test()
         
         write_csv(
             ts_dir=self.timestamp,
@@ -55,19 +56,24 @@ class Random_Strategy(TrainEvaluate):
             print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')
                             
             #get random indices to move in the labeled datasets
+            print(' => Sampling random unlabeled observations')
             topk_idx_obs = self.sample_unlab_obs(n_top_k_obs)
+            print(' DONE\n')
+            
                         
             # modify the datasets and dataloader
+            print(' => Modifing the Subsets and Dataloader')
             self.get_new_dataloaders(topk_idx_obs)
+            print(' DONE\n')
             
             
             # iter + 1
             self.reintialize_model()
-            train_results = self.fit(epochs, self.lab_train_dl, self.method_name)
+            train_results = self.train_evaluate(epochs, self.lab_train_dl, self.method_name)
             
             save_train_val_curves(train_results, self.timestamp, iter + 1)
             
-            test_accuracy, test_loss = self.test_AL()
+            test_accuracy, test_loss = self.test()
             
             write_csv(
                 ts_dir=self.timestamp,

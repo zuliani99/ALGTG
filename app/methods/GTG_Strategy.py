@@ -7,8 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
-from tqdm import tqdm
-#import copy
+import copy
 
 
 
@@ -19,6 +18,8 @@ class GTG_Strategy(TrainEvaluate):
                 
         self.method_name = self.__class__.__name__
         self.params = our_methods_params 
+        
+        self.weights = torch.flip(torch.linspace(1, 0.1, self.params['gtg_max_iter'] - 1), [0]).to(self.device)
 
 
     def clear_memory(self):
@@ -59,7 +60,7 @@ class GTG_Strategy(TrainEvaluate):
         i = 0
         
         while err > tol and i < max_iter:
-            X_old = torch.clone(self.X) #copy.deepcopy(self.X)
+            X_old = copy.deepcopy(self.X)
             self.X *= torch.mm(self.A, self.X)
 
                 
@@ -69,12 +70,19 @@ class GTG_Strategy(TrainEvaluate):
             # I have to map only the sample_unlabeled to the correct position
             
             #for idx, unlab_ent_val in tqdm(enumerate(iter_entropy[len(self.lab_train_subset):]), total = len(iter_entropy) - len(self.lab_train_subset), desc = f'Computing the derivatives of iteration {i}', leave = False):
-            for idx, unlab_ent_val in enumerate(iter_entropy[len(self.lab_train_subset):]):
+            '''for idx, unlab_ent_val in enumerate(iter_entropy[len(self.lab_train_subset):]):
                 # I iterate only the sampled unlabeled one
                 
                 if(i != self.params['gtg_max_iter'] - 1): self.entropy_pairwise_der[indices[idx]][i] = unlab_ent_val
 
-                if i != 0: self.entropy_pairwise_der[indices[idx]][i - 1] = self.entropy_pairwise_der[indices[idx]][i - 1] - unlab_ent_val 
+                if i != 0: self.entropy_pairwise_der[indices[idx]][i - 1] = self.entropy_pairwise_der[indices[idx]][i - 1] - unlab_ent_val '''
+                
+            for idx, unlab_ent_val in zip(indices, iter_entropy[len(self.lab_train_subset):]):
+                # I iterate only the sampled unlabeled one
+                
+                if (i != self.params['gtg_max_iter'] - 1): self.entropy_pairwise_der[idx][i] = unlab_ent_val
+
+                if (i != 0): self.entropy_pairwise_der[idx][i - 1] = self.entropy_pairwise_der[idx][i - 1] - unlab_ent_val 
     
 
             err = torch.norm(self.X - X_old)
@@ -105,11 +113,11 @@ class GTG_Strategy(TrainEvaluate):
             self.reintialize_model()
             
             
-            train_results = self.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
+            train_results = self.train_evaluate(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
             
             save_train_val_curves(train_results, self.timestamp, iter)
             
-            test_accuracy, test_loss = self.test_AL()
+            test_accuracy, test_loss = self.test()
                 
             write_csv(
                 ts_dir=self.timestamp,
@@ -136,46 +144,51 @@ class GTG_Strategy(TrainEvaluate):
                     pin_memory=True
                 )
                 
-                
-                self.labeled_embeddings = self.get_embeddings('Labeled', self.lab_train_dl)
-                self.unlab_embeddings = self.get_embeddings('Unlabeled', self.unlab_train_dl)
-                
+                print(' => Getting the labeled and unlabeled embeddings')
+                self.labeled_embeddings = self.get_embeddings(self.lab_train_dl)
+                self.unlab_embeddings = self.get_embeddings(self.unlab_train_dl)
+                print(' DONE\n')
                 
                 # at each AL round I reinitialize the entropy_pairwise_der since I have to decide at each step what observations I want to move
                 self.entropy_pairwise_der = torch.zeros((len(self.original_trainset), self.params['gtg_max_iter'] - 1)).to(self.device)
 
                 # for each split
-                #pbar = tqdm(enumerate(self.unlab_train_dl), total=len(self.unlab_train_dl), leave=True)
 
-                # idx -> indices of the split
+                # split_idx -> indices of the split
                 # indices -> are the list of indices for the given batch which ARE CONSISTENT SINCE ARE REFERRED TO THE INDEX OF THE ORIGINAL DATASET
                 for split_idx, (indices, _, _) in enumerate(self.unlab_train_dl):
-                                        
-                    #pbar.set_description(f'WORKING WITH UNLABELED SAMPLE # {idx + 1}')
-                                
+                    print(f' => Running GTG for split {split_idx}')
                     self.get_A(self.unlab_embeddings[split_idx * iter_batch_size : (split_idx + 1) * iter_batch_size])
                     self.get_X(indices.shape[0])
                     self.gtg(self.params['gtg_tol'], self.params['gtg_max_iter'], indices)
                     
                     self.clear_memory()
+                    print(' DONE')
                     
                     
 
                 # mean of the entropy derivate 
                 #print(torch.sum(self.entropy_pairwise_der, dim = 1, dtype=torch.float32))
-                overall_topk = torch.topk((torch.sum(self.entropy_pairwise_der, dim = 1, dtype=torch.float32) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)
+                #overall_topk = torch.topk((torch.sum(self.entropy_pairwise_der, dim = 1, dtype=torch.float32) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)
+                
+                
+                # weighted average (* self.weights)
+                
+                overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der, dim = 1), n_top_k_obs)
                                 
                 #overall_topk.indices -> è riferito agli indici della matrice entropy_pairwise_der
                 
+                print(' => Modifing the Subsets and Dataloader')
                 self.get_new_dataloaders(overall_topk.indices.tolist())
+                print(' DONE\n')
                 
                 # iter + 1
                 self.reintialize_model()
-                train_results = self.fit(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
+                train_results = self.train_evaluate(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
                 
                 save_train_val_curves(train_results, self.timestamp, iter + 1)
                 
-                test_accuracy, test_loss = self.test_AL()
+                test_accuracy, test_loss = self.test()
                 
                 write_csv(
                     ts_dir=self.timestamp,
