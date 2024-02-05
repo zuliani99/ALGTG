@@ -58,7 +58,7 @@ def main():
     print(f'Application running on {device}\n')
 
     epochs = 200
-    al_iters = 4#10 # the maximum is 36
+    al_iters = 10 # the maximum is 36
     n_top_k_obs = 1000
     batch_size = 128
     patience = 40#50
