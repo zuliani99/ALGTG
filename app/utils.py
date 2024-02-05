@@ -125,7 +125,9 @@ def save_train_val_curves(results_info, ts_dir, al_iter):
     ax[1].legend()
     plt.suptitle(f'AL iter {al_iter} - {results_info["model_name"]}', fontsize = 30)
     
-    plt.savefig(f'results/{ts_dir}/train_val_plots/{al_iter}_{results_info["model_name"]}.png')
+    if(not os.path.exists(f'results/{ts_dir}/train_val_plots/{results_info["model_name"]}')):
+        os.makedirs(f'results/{ts_dir}/train_val_plots/{results_info["model_name"]}')
+    plt.savefig(f'results/{ts_dir}/train_val_plots/{results_info["model_name"]}/{al_iter}.png')
 
 
 
