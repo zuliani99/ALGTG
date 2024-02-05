@@ -224,8 +224,7 @@ class TrainEvaluate(object):
 
             # learning loss
             if epoch == 160:
-                for g in self.optimizer.param_groups:
-                    g['lr'] = 0.01
+                for g in self.optimizer.param_groups: g['lr'] = 0.01
                     
 
         self.__load_best_checkpoint(check_best_path)
@@ -239,7 +238,7 @@ class TrainEvaluate(object):
     def test(self):
         test_accuracy, test_loss = self.evaluate(self.test_dl)
 
-        print('\nTESTING RESULTS -> test_accuracy: {:.6f}, test_loss: {:.6f} \n'.format(test_accuracy, test_loss))
+        print('TESTING RESULTS -> test_accuracy: {:.6f}, test_loss: {:.6f} \n\n'.format(test_accuracy, test_loss))
 
         return test_accuracy, test_loss
 
@@ -247,20 +246,23 @@ class TrainEvaluate(object):
 
     def get_embeddings(self, dataloader):
 
-        embeddings = torch.empty(0, self.model.linear.in_features, dtype=torch.float32).to(self.device)  
+        embeddings = torch.empty(0, self.model.linear.in_features, dtype=torch.float32).to(self.device)
+        concat_labels = torch.empty(0, dtype=torch.int8).to(self.device)
         self.model.eval()
 
         # again no gradients needed
         with torch.inference_mode():
-            for _, images, _ in dataloader:
+            for _, images, labels in dataloader:
                 
                 images = self.normalize(images.to(self.device))
+                labels = labels.to(self.device)
                 
                 _, embed, _, _ = self.model(images)
                 
                 embeddings = torch.cat((embeddings, embed.squeeze()), dim=0)
+                concat_labels = torch.cat((concat_labels, labels), dim=0)
              
-        return embeddings
+        return embeddings, concat_labels
 
 
 

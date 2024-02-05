@@ -21,7 +21,6 @@ class Class_Entropy(TrainEvaluate):
     def evaluate_unlabeled(self):
 
         self.model.eval()
-
         
         prob_dist = torch.empty(0, self.n_classes, dtype=torch.float32).to(self.device)  
         indices = torch.empty(0, dtype=torch.int8).to(self.device) 
