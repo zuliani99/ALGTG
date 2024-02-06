@@ -19,7 +19,7 @@ class GTG_Strategy(TrainEvaluate):
         self.method_name = self.__class__.__name__
         self.params = our_methods_params 
         
-        self.weights = torch.flip(torch.linspace(1, 0.1, self.params['gtg_max_iter'] - 1), [0]).to(self.device)
+        #self.weights = torch.flip(torch.linspace(1, 0.1, self.params['gtg_max_iter'] - 1), [0]).to(self.device)
 
 
     def clear_memory(self):
@@ -160,7 +160,6 @@ class GTG_Strategy(TrainEvaluate):
                 
                 
                 # weighted average (* self.weights)
-                
                 overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der, dim = 1), n_top_k_obs)
                                 
                 #overall_topk.indices -> referred to the amtrix indices of entropy_pairwise_der

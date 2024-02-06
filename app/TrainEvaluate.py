@@ -86,11 +86,10 @@ class TrainEvaluate(object):
         
 
 
-    def evaluate(self, dataloader):
+    def evaluate(self, dataloader, flag_loss_weird = False):
         tot_accuracy, tot_loss = .0, .0
 
         self.model.eval()
-
 
         with torch.inference_mode(): # Allow inference mode
             for _, images, labels in dataloader:
@@ -100,11 +99,13 @@ class TrainEvaluate(object):
                 outputs, _, out_weird, _ = self.model(images)
 
                 loss_ce = self.loss_fn(outputs, labels)
-                    
-                loss_weird = self.loss_weird(out_weird, loss_ce)
-                loss_ce = torch.mean(loss_ce)
-                    
-                loss = loss_ce + loss_weird
+                
+                if flag_loss_weird:    
+                    loss_weird = self.loss_weird(out_weird, loss_ce)
+                    loss_ce = torch.mean(loss_ce)
+                    loss = loss_ce + loss_weird
+                else:
+                    loss = torch.mean(loss_ce)
                 
                 accuracy = self.score_fn(outputs, labels)
 
@@ -139,8 +140,7 @@ class TrainEvaluate(object):
             self.model.train()
             
             #resnet_weird
-            if epoch > 120:
-                weight = 0
+            if epoch > 70: weight = 0
             
             train_loss = 0.0
             train_accuracy = 0.0
@@ -183,7 +183,7 @@ class TrainEvaluate(object):
             train_loss /= len(dataloader)
             
             
-            val_accuracy, val_loss = self.evaluate(self.val_dl)
+            val_accuracy, val_loss = self.evaluate(self.val_dl, weight)
             
             
             # CosineAnnealingLR
@@ -206,7 +206,9 @@ class TrainEvaluate(object):
             if(val_loss < best_val_loss):
                 best_val_loss = val_loss
                 actual_patience = 0
+                print(' => Saving best checkpoint')
                 self.__save_best_checkpoint(check_best_path)
+                print(' DONE\n')
             else:
                 actual_patience += 1
                 if actual_patience >= self.patience:
@@ -221,9 +223,8 @@ class TrainEvaluate(object):
             print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}, best_val_loss: {:.6f} \n'.format(
                 epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss, best_val_loss))
 
-
-            # learning loss
-            if epoch == 160:
+            if epoch == 100:
+                print('Decreasing learning rate to 0.01 and ignoring the learning loss\n')
                 for g in self.optimizer.param_groups: g['lr'] = 0.01
                     
 

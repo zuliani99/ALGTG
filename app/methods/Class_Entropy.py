@@ -80,10 +80,14 @@ class Class_Entropy(TrainEvaluate):
             # start of the loop   
             while len(self.unlab_train_subset) > 0 and iter < al_iters:
                 print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')
-                
-                iter_batch_size = len(self.unlab_train_subset) // n_splits
-                
-                self.unlab_train_dl = DataLoader(self.unlab_train_subset, batch_size=iter_batch_size, shuffle=True, num_workers=1, pin_memory=True)
+                                
+                self.unlab_train_dl = DataLoader(
+                    self.unlab_train_subset,
+                    batch_size=len(self.unlab_train_subset) // n_splits, 
+                    shuffle=True, 
+                    num_workers=1,
+                    pin_memory=True
+                )
                 
                 print(' => Evalueting unlabeled observations')
                 indices_prob, prob_dist = self.evaluate_unlabeled()

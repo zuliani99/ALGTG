@@ -43,7 +43,6 @@ def accuracy_score(output, label):
 
 
 def entropy(tensor):
-    #x = torch.clone(tensor) + 1e-20
     x = tensor + 1e-20
     return -torch.sum(x * torch.log2(x), dim=1)
 
@@ -161,25 +160,24 @@ def create_ts_dir_res(timestamp):
         if e.errno != errno.EEXIST:
             raise
         
-        
-        
-        
-# weights initiaization
-def init_params(net):
+
+def init_params_fn(net):
     for m in net.modules():
         if isinstance(m, nn.Conv2d):
             init.kaiming_normal_(m.weight, mode='fan_out')
-            if m.bias is not None:
-                init.constant_(m.bias, 0)
+            if m.bias is not None: init.constant_(m.bias, 0)
+        elif isinstance(m, nn.Linear):
+            init.normal_(m.weight, std=1e-3)
+            if m.bias is not None: init.constant_(m.bias, 0)
         elif isinstance(m, nn.BatchNorm2d):
             init.constant_(m.weight, 1)
             init.constant_(m.bias, 0)
-        elif isinstance(m, nn.Linear):
-            init.normal_(m.weight, std=1e-3)
-            if m.bias is not None:
-                init.constant_(m.bias, 0)
-                
-'''def init_params(m):
+        #elif isinstance(m, BasicBlock):
+        #    for c in list(m.children()): init_params_apply(c)
+        
+        
+# weights initiaization
+def init_params_apply(m):
     if isinstance(m, nn.Conv2d):
         init.kaiming_normal_(m.weight, mode='fan_out')
         if m.bias is not None: init.constant_(m.bias, 0)
@@ -190,4 +188,4 @@ def init_params(net):
         init.constant_(m.weight, 1)
         init.constant_(m.bias, 0)
     elif isinstance(m, BasicBlock):
-        for c in list(m.children()): init_params(c)'''
+        for c in list(m.children()): init_params_apply(c)

@@ -58,7 +58,6 @@ class CIFAR10(Dataset):
         self.transform_labeled = transforms.Compose([
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
-            #transforms.RandomVerticalFlip(),
             transforms.ToTensor(),
         ])
         self.transform = transforms.Compose( [transforms.ToTensor()] )
