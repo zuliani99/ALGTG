@@ -176,7 +176,6 @@ def init_params_fn(net):
         #    for c in list(m.children()): init_params_apply(c)
         
         
-# weights initiaization
 def init_params_apply(m):
     if isinstance(m, nn.Conv2d):
         init.kaiming_normal_(m.weight, mode='fan_out')
