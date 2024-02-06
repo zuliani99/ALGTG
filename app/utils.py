@@ -165,7 +165,7 @@ def create_ts_dir_res(timestamp):
         
         
 # weights initiaization
-def init_params(net):
+def init_params_fn(net):
     for m in net.modules():
         if isinstance(m, nn.Conv2d):
             init.kaiming_normal_(m.weight, mode='fan_out')
@@ -179,7 +179,7 @@ def init_params(net):
             if m.bias is not None:
                 init.constant_(m.bias, 0)
                 
-'''def init_params(m):
+def init_params_apply(m):
     if isinstance(m, nn.Conv2d):
         init.kaiming_normal_(m.weight, mode='fan_out')
         if m.bias is not None: init.constant_(m.bias, 0)
@@ -190,4 +190,4 @@ def init_params(net):
         init.constant_(m.weight, 1)
         init.constant_(m.bias, 0)
     elif isinstance(m, BasicBlock):
-        for c in list(m.children()): init_params(c)'''
+        for c in list(m.children()): init_params_apply(c)

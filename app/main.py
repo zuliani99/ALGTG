@@ -10,7 +10,7 @@ from methods.GTG_Strategy import GTG_Strategy
 from methods.Random_Strategy import Random_Strategy
 from methods.Class_Entropy import Class_Entropy
 
-from utils import create_ts_dir_res, accuracy_score, plot_loss_curves, init_params, save_init_checkpoint
+from utils import create_ts_dir_res, accuracy_score, plot_loss_curves, init_params_fn, init_params_apply, save_init_checkpoint
 
 from datetime import datetime
 
@@ -58,7 +58,7 @@ def main():
     print(f'Application running on {device}\n')
 
     epochs = 200
-    al_iters = 10 # the maximum is 36
+    al_iters = 4#10 # the maximum is 36 for CIFAR10
     n_top_k_obs = 1000
     batch_size = 128
     patience = 40#50
@@ -70,12 +70,10 @@ def main():
     cifar10 = Cifar10SubsetDataloaders(batch_size, val_rateo = 0.2, labeled_ratio = 0.025)
     
     model = ResNet_Weird(BasicBlock, [2, 2, 2, 2])
-    #model = ResNet(BasicBlock, [2, 2, 2, 2])
-    #model.apply(init_params)
-    init_params(model)
+    model.apply(init_params_apply)
+    #init_params_fn(model)
     
     if device == 'cuda':
-        #model = torch.nn.DataParallel(model)
         cudnn.benchmark = True
     
     
