@@ -102,6 +102,7 @@ def save_train_val_curves(results_info, ts_dir, al_iter):
 
     ax[0].plot(epochs, res['train_loss'], label = 'train_loss')
     ax[0].plot(epochs, res['val_loss'], label = 'val_loss')
+    ax[0].set_ylim([0, 5])
     ax[0].axvline(minloss_ep, linestyle='--', color='r', label='Early Stopping Checkpoint')
 
     ax[0].axhline(minloss_val, linestyle='--', color='r')
@@ -176,6 +177,7 @@ def init_params_fn(net):
         #    for c in list(m.children()): init_params_apply(c)
         
         
+
 def init_params_apply(m):
     if isinstance(m, nn.Conv2d):
         init.kaiming_normal_(m.weight, mode='fan_out')

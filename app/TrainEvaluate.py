@@ -223,7 +223,8 @@ class TrainEvaluate(object):
             print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}, best_val_loss: {:.6f} \n'.format(
                 epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss, best_val_loss))
 
-            if epoch == 100:
+
+            if epoch == 70:
                 print('Decreasing learning rate to 0.01 and ignoring the learning loss\n')
                 for g in self.optimizer.param_groups: g['lr'] = 0.01
                     
@@ -247,8 +248,8 @@ class TrainEvaluate(object):
 
     def get_embeddings(self, dataloader):
 
-        embeddings = torch.empty(0, self.model.linear.in_features, dtype=torch.float32).to(self.device)
-        concat_labels = torch.empty(0, dtype=torch.int8).to(self.device)
+        embeddings = torch.empty(0, self.model.linear.in_features, dtype=torch.float32, device=self.device)
+        concat_labels = torch.empty(0, dtype=torch.int8, device=self.device)
         self.model.eval()
 
         # again no gradients needed

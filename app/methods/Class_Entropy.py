@@ -22,8 +22,8 @@ class Class_Entropy(TrainEvaluate):
 
         self.model.eval()
         
-        prob_dist = torch.empty(0, self.n_classes, dtype=torch.float32).to(self.device)  
-        indices = torch.empty(0, dtype=torch.int8).to(self.device) 
+        prob_dist = torch.empty(0, self.n_classes, dtype=torch.float32, device=self.device) 
+        indices = torch.empty(0, dtype=torch.int8, device=self.device) 
         
         with torch.inference_mode(): # Allow inference mode
             for idxs, images, _ in self.unlab_train_dl:

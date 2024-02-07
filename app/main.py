@@ -58,11 +58,11 @@ def main():
     print(f'Application running on {device}\n')
 
     epochs = 200
-    al_iters = 4#10 # the maximum is 36 for CIFAR10
+    al_iters = 36#10 # the maximum is 36 for CIFAR10
     n_top_k_obs = 1000
     batch_size = 128
     patience = 50
-    
+
     
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     create_ts_dir_res(timestamp)
@@ -75,7 +75,6 @@ def main():
     
     #if device == 'cuda':
     #    cudnn.benchmark = True
-
     
     
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)

@@ -44,7 +44,7 @@ class GTG_Strategy(TrainEvaluate):
 
     def get_X(self, target_lab_obs, len_samp_unlab_embeds):
         
-        self.X = torch.zeros(len(self.lab_train_subset) + len_samp_unlab_embeds, self.n_classes, dtype=torch.float32).to(self.device)
+        self.X = torch.zeros(len(self.lab_train_subset) + len_samp_unlab_embeds, self.n_classes, dtype=torch.float32, device=self.device)
 
         for idx, label in enumerate(target_lab_obs): self.X[idx][label] = 1
         
@@ -137,7 +137,7 @@ class GTG_Strategy(TrainEvaluate):
                 print(' DONE\n')
                 
                 # at each AL round I reinitialize the entropy_pairwise_der since I have to decide at each step what observations I want to move
-                self.entropy_pairwise_der = torch.zeros((len(self.original_trainset), self.params['gtg_max_iter'] - 1)).to(self.device)
+                self.entropy_pairwise_der = torch.zeros((len(self.original_trainset), self.params['gtg_max_iter'] - 1), device=self.device)
 
                 # for each split
 
