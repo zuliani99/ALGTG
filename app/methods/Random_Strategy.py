@@ -8,10 +8,10 @@ from utils import save_train_val_curves, write_csv
 
 class Random_Strategy(TrainEvaluate):
     
-    def __init__(self, al_params):
-        super().__init__(al_params)
+    def __init__(self, al_params, LL):
+        super().__init__(al_params, LL)
         
-        self.method_name = self.__class__.__name__      
+        self.method_name = self.__class__.__name__
         
         
         
@@ -43,9 +43,9 @@ class Random_Strategy(TrainEvaluate):
         test_accuracy, test_loss = self.test()
         
         write_csv(
-            ts_dir=self.timestamp,
-            head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
-            values = [self.method_name, iter, 'None', test_accuracy, test_loss]
+            ts_dir = self.timestamp,
+            head = ['method', 'LL', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
+            values = [self.method_name, self.LL, iter, 'None', test_accuracy, test_loss]
         )
         
         results['test_accuracy'].append(test_accuracy)
@@ -76,9 +76,9 @@ class Random_Strategy(TrainEvaluate):
             test_accuracy, test_loss = self.test()
             
             write_csv(
-                ts_dir=self.timestamp,
-                head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
-                values = [self.method_name, iter + 1, 'None', test_accuracy, test_loss]
+                ts_dir = self.timestamp,
+                head = ['method', 'LL', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
+                values = [self.method_name, self.LL, iter, 'None', test_accuracy, test_loss]
             )
 
             results['test_accuracy'].append(test_accuracy)

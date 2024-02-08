@@ -10,8 +10,8 @@ from utils import entropy, save_train_val_curves, write_csv
 
 class Class_Entropy(TrainEvaluate):
     
-    def __init__(self, al_params, method_params):
-        super().__init__(al_params)
+    def __init__(self, al_params, method_params, LL):
+        super().__init__(al_params, LL)
                 
         self.method_name = self.__class__.__name__
         self.params = method_params                
@@ -68,9 +68,9 @@ class Class_Entropy(TrainEvaluate):
             test_accuracy, test_loss = self.test()
                 
             write_csv(
-                ts_dir=self.timestamp,
-                head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
-                values = [self.method_name, iter, n_splits, test_accuracy, test_loss]
+                ts_dir = self.timestamp,
+                head = ['method', 'LL', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
+                values = [self.method_name, self.LL, iter, 'None', test_accuracy, test_loss]
             )
                 
             results[n_splits]['test_accuracy'].append(test_accuracy)
@@ -109,9 +109,9 @@ class Class_Entropy(TrainEvaluate):
                 test_accuracy, test_loss = self.test()
                 
                 write_csv(
-                    ts_dir=self.timestamp,
-                    head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
-                    values = [self.method_name, iter + 1, n_splits, test_accuracy, test_loss]
+                    ts_dir = self.timestamp,
+                    head = ['method', 'LL', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
+                    values = [self.method_name, self.LL, iter, 'None', test_accuracy, test_loss]
                 )
                 
                 results[n_splits]['test_accuracy'].append(test_accuracy)

@@ -63,6 +63,7 @@ class CIFAR10(Dataset):
         self.transform = transforms.Compose( [transforms.ToTensor()] )
         
         self.lab_train_idxs = None
+        self.flag_normalization = True
         
         self.bool_train = bool_train
         
@@ -72,7 +73,7 @@ class CIFAR10(Dataset):
     def __getitem__(self, index):
         image, label = self.cifar10[index]
         
-        if self.bool_train == True and index in self.lab_train_idxs:
+        if not self.flag_normalization and self.bool_train == True and index in self.lab_train_idxs:
             image = self.transform_labeled(image)
         else:
             image = self.transform(image)

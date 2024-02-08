@@ -24,9 +24,11 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, c
     n_lab_obs = [len_lab_train_ds + (iter * n_top_k_obs) for iter in range(al_iters + 1)]
     
     methods = [
-        Random_Strategy(al_params), 
-        Class_Entropy(al_params, class_entropy_params),
-        GTG_Strategy(al_params, our_method_params)
+        Random_Strategy(al_params, LL=False),
+        Random_Strategy(al_params, LL=True),  
+        Class_Entropy(al_params, class_entropy_params, LL=False),
+        Class_Entropy(al_params, class_entropy_params, LL=True),
+        #GTG_Strategy(al_params, our_method_params)
     ]
     
     print(f'----------------------- TRAINING ACTIVE LEARNING -----------------------')
@@ -58,10 +60,11 @@ def main():
     print(f'Application running on {device}\n')
 
     epochs = 200
-    al_iters = 36#10 # the maximum is 36 for CIFAR10
+    al_iters = 4 # the maximum is 36 for CIFAR10
     n_top_k_obs = 1000
     batch_size = 128
-    patience = 50
+
+    patience = 40
 
     
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')

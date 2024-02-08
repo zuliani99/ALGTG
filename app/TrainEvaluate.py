@@ -7,12 +7,10 @@ import copy
 from CIFAR10 import CIFAR10, Cifar10SubsetDataloaders
 from utils import get_mean_std
 
-import os
-
 
 class TrainEvaluate(object):
 
-    def __init__(self, params):
+    def __init__(self, params, LL):
         
         self.best_check_filename = 'app/checkpoints'
         self.init_check_filename = 'app/checkpoints/init_checkpoint.pth.tar'
@@ -39,6 +37,8 @@ class TrainEvaluate(object):
         self.optimizer = params['optimizer']
         self.scheduler = params['scheduler']
         self.loss_weird = params['loss_weird']
+        
+        self.LL = LL
             
         self.obtain_normalization()
         
@@ -53,8 +53,12 @@ class TrainEvaluate(object):
 
 
     def obtain_normalization(self):
+        self.original_trainset.flag_normalization = True
+
         mean, std = get_mean_std(self.lab_train_dl)
-        self.normalize = transforms.Compose([ transforms.Normalize(mean, std) ])  
+        self.normalize = transforms.Compose([ transforms.Normalize(mean, std) ])
+        
+        self.original_trainset.flag_normalization = False
         
         
         
@@ -86,9 +90,9 @@ class TrainEvaluate(object):
         
 
 
-    def evaluate(self, dataloader, flag_loss_weird = False):
-        tot_accuracy, tot_loss = .0, .0
-
+    def evaluate(self, dataloader, weight):
+        tot_loss, tot_loss_ce, tot_loss_weird, tot_accuracy = .0, .0, .0, .0
+        
         self.model.eval()
 
         with torch.inference_mode(): # Allow inference mode
@@ -100,10 +104,13 @@ class TrainEvaluate(object):
 
                 loss_ce = self.loss_fn(outputs, labels)
                 
-                if flag_loss_weird:    
+                if self.LL and weight:    
                     loss_weird = self.loss_weird(out_weird, loss_ce)
                     loss_ce = torch.mean(loss_ce)
                     loss = loss_ce + loss_weird
+                    
+                    tot_loss_ce += loss_ce
+                    tot_loss_weird += loss_weird
                 else:
                     loss = torch.mean(loss_ce)
                 
@@ -115,15 +122,16 @@ class TrainEvaluate(object):
 
             tot_accuracy /= len(dataloader)
             tot_loss /= len(dataloader)
+            tot_loss_ce /= len(dataloader)
+            tot_loss_weird /= len(dataloader)
             
-        return tot_accuracy, tot_loss
+        return tot_accuracy, tot_loss, tot_loss_ce, tot_loss_weird
 
 
 
 
     def train_evaluate(self, epochs, dataloader, method_str):
         
-        #resnet_weird
         weight = 1.   # 120 = 0
     
         check_best_path = f'{self.best_check_filename}/best_{method_str}.pth.tar'
@@ -132,20 +140,18 @@ class TrainEvaluate(object):
         actual_patience = 0
         
         
-        results = { 'train_loss': [], 'train_accuracy': [], 'val_loss': [], 'val_accuracy': [] }
+        results = { 'train_loss': [], 'train_loss_ce': [], 'train_loss_weird': [], 'train_accuracy': [], 
+                   'val_loss': [], 'val_loss_ce': [], 'val_loss_weird': [], 'val_accuracy': [] }
 	
 
         for epoch in range(epochs):
             
             self.model.train()
             
-            #resnet_weird
-            if epoch > 70: weight = 0
+            if epoch > 120: weight = 0
             
-            train_loss = 0.0
-            train_accuracy = 0.0
+            train_loss, train_loss_ce, train_loss_weird, train_accuracy = .0, .0, .0, .0
             
-
             for _, images, labels in dataloader:
 
                 # get the inputs; data is a list of [inputs, labels]
@@ -159,14 +165,15 @@ class TrainEvaluate(object):
                 
                 loss_ce = self.loss_fn(outputs, labels)
                     
-                loss_weird = self.loss_weird(out_weird, loss_ce)
-                loss_ce = torch.mean(loss_ce)
+                if self.LL and weight:
+                    loss_weird = self.loss_weird(out_weird, loss_ce)
+                    loss_ce = torch.mean(loss_ce)
+                    loss = loss_ce + loss_weird
                     
-                loss = loss_ce + weight * loss_weird
-                    
-                
-                #outputs, _, _, _ = self.model(images)
-                #loss = self.loss_fn(outputs, labels)
+                    train_loss_ce += loss_ce
+                    train_loss_weird += loss_weird
+                else:
+                    loss = torch.mean(loss_ce)
                 
                 
                 loss.backward()         
@@ -181,9 +188,11 @@ class TrainEvaluate(object):
 
             train_accuracy /= len(dataloader)
             train_loss /= len(dataloader)
+            train_loss_ce /= len(dataloader)
+            train_loss_weird /= len(dataloader)
             
             
-            val_accuracy, val_loss = self.evaluate(self.val_dl, weight)
+            val_accuracy, val_loss, val_loss_ce, val_loss_weird = self.evaluate(self.val_dl, weight)
             
             
             # CosineAnnealingLR
@@ -192,8 +201,14 @@ class TrainEvaluate(object):
             
 
             results['train_loss'].append(train_loss)
+            results['train_loss_ce'].append(train_loss_ce)
+            results['train_loss_weird'].append(train_loss_weird)
             results['train_accuracy'].append(train_accuracy)
+            
+            
             results['val_loss'].append(val_loss)
+            results['val_loss_ce'].append(val_loss_ce)
+            results['val_loss_weird'].append(val_loss_weird)
             results['val_accuracy'].append(val_accuracy)
             
             
@@ -224,7 +239,7 @@ class TrainEvaluate(object):
                 epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss, best_val_loss))
 
 
-            if epoch == 70:
+            if epoch == 160:
                 print('Decreasing learning rate to 0.01 and ignoring the learning loss\n')
                 for g in self.optimizer.param_groups: g['lr'] = 0.01
                     
