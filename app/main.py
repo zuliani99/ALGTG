@@ -59,7 +59,7 @@ def main():
 
     print(f'Application running on {device}\n')
 
-    epochs = 200
+    epochs = 5
     al_iters = 4#10 # the maximum is 36 for CIFAR10
     n_top_k_obs = 1000
     batch_size = 128

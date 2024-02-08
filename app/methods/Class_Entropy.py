@@ -65,16 +65,18 @@ class Class_Entropy(TrainEvaluate):
             
             save_train_val_curves(train_results, self.timestamp, iter, self.LL)
             
-            test_accuracy, test_loss = self.test()
+            test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
                 
             write_csv(
                 ts_dir = self.timestamp,
-                head = ['method', 'LL', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
-                values = [self.method_name, self.LL, iter, 'None', test_accuracy, test_loss]
+                head = ['method', 'LL', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
+                values = [self.method_name, self.LL, iter, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
             )
                 
-            results[n_splits]['test_accuracy'].append(test_accuracy)
-            results[n_splits]['test_loss'].append(test_loss)
+            results['test_accuracy'].append(test_accuracy)
+            results['test_loss'].append(test_loss)
+            results['test_loss_ce'].append(test_loss_ce)
+            results['test_loss_weird'].append(test_loss_weird)
             
                      
             # start of the loop   
@@ -106,16 +108,18 @@ class Class_Entropy(TrainEvaluate):
                 
                 save_train_val_curves(train_results, self.timestamp, iter + 1, self.LL)
                 
-                test_accuracy, test_loss = self.test()
+                test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
                 
                 write_csv(
                     ts_dir = self.timestamp,
-                    head = ['method', 'LL', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
-                    values = [self.method_name, self.LL, iter, 'None', test_accuracy, test_loss]
+                    head = ['method', 'LL', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
+                    values = [self.method_name, self.LL, iter, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
                 )
                 
-                results[n_splits]['test_accuracy'].append(test_accuracy)
-                results[n_splits]['test_loss'].append(test_loss)
+                results['test_accuracy'].append(test_accuracy)
+                results['test_loss'].append(test_loss)
+                results['test_loss_ce'].append(test_loss_ce)
+                results['test_loss_weird'].append(test_loss_weird)
                         
                 iter += 1
         

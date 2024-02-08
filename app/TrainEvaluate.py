@@ -55,12 +55,16 @@ class TrainEvaluate(object):
 
 
     def obtain_normalization(self):
+        print(' => Obtaining mean and std from the labeled set')
+
         self.original_trainset.flag_normalization = True
 
         mean, std = get_mean_std(self.lab_train_dl)
         self.normalize = transforms.Compose([ transforms.Normalize(mean, std) ])
         
         self.original_trainset.flag_normalization = False
+        print(' DONE\n')
+
         
         
         
@@ -108,11 +112,11 @@ class TrainEvaluate(object):
                 
                 if self.LL and weight:    
                     loss_weird = self.loss_weird(out_weird, loss_ce)
-                    loss_ce = torch.mean(loss_ce)
+                    loss_ce = torch.mean(loss_ce).detach().cpu()
                     loss = loss_ce + loss_weird
                     
                     tot_loss_ce += loss_ce
-                    tot_loss_weird += loss_weird
+                    tot_loss_weird += loss_weird.detach().cpu()
                 else:
                     loss = torch.mean(loss_ce)
                 
@@ -169,11 +173,11 @@ class TrainEvaluate(object):
                     
                 if self.LL and weight:
                     loss_weird = self.loss_weird(out_weird, loss_ce)
-                    loss_ce = torch.mean(loss_ce)
+                    loss_ce = torch.mean(loss_ce).detach().cpu()
                     loss = loss_ce + loss_weird
                     
                     train_loss_ce += loss_ce
-                    train_loss_weird += loss_weird
+                    train_loss_weird += loss_weird.detach().cpu()
                 else:
                     loss = torch.mean(loss_ce)
                 

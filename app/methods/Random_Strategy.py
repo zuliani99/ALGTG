@@ -44,8 +44,8 @@ class Random_Strategy(TrainEvaluate):
         
         write_csv(
             ts_dir = self.timestamp,
-            head = ['method', 'LL', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
-            values = [self.method_name, self.LL, iter, 'None', test_accuracy, test_loss]
+            head = ['method', 'LL', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
+            values = [self.method_name, self.LL, iter, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
         )
         
         results['test_accuracy'].append(test_accuracy)
@@ -79,8 +79,8 @@ class Random_Strategy(TrainEvaluate):
             
             write_csv(
                 ts_dir = self.timestamp,
-                head = ['method', 'LL', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
-                values = [self.method_name, self.LL, iter, 'None', test_accuracy, test_loss]
+                head = ['method', 'LL', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
+                values = [self.method_name, self.LL, iter, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
             )
 
             results['test_accuracy'].append(test_accuracy)
