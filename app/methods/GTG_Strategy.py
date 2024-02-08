@@ -13,8 +13,8 @@ import copy
 
 class GTG_Strategy(TrainEvaluate):
     
-    def __init__(self, al_params, our_methods_params):
-        super().__init__(al_params)
+    def __init__(self, al_params, our_methods_params, LL):
+        super().__init__(al_params, LL)
                 
         self.method_name = self.__class__.__name__
         self.params = our_methods_params 

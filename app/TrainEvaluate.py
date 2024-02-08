@@ -25,6 +25,8 @@ class TrainEvaluate(object):
         self.timestamp = params['timestamp']
         self.loss_fn = params['loss_fn']
         
+        self.flag_mean_std_train = cifar10.flag_mean_std_train
+        
         self.lab_train_dl: DataLoader = copy.deepcopy(cifar10.lab_train_dl)
         self.lab_train_subset: Subset = copy.deepcopy(cifar10.lab_train_subset)
         self.unlab_train_subset: Subset = copy.deepcopy(cifar10.unlab_train_subset)
@@ -39,8 +41,8 @@ class TrainEvaluate(object):
         self.loss_weird = params['loss_weird']
         
         self.LL = LL
-            
-        self.obtain_normalization()
+        
+        if self.flag_mean_std_train: self.obtain_normalization()
         
         
         
@@ -238,7 +240,6 @@ class TrainEvaluate(object):
             print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}, best_val_loss: {:.6f} \n'.format(
                 epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss, best_val_loss))
 
-
             if epoch == 160:
                 print('Decreasing learning rate to 0.01 and ignoring the learning loss\n')
                 for g in self.optimizer.param_groups: g['lr'] = 0.01
@@ -253,11 +254,11 @@ class TrainEvaluate(object):
 
 
     def test(self):
-        test_accuracy, test_loss = self.evaluate(self.test_dl)
+        test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.evaluate(self.test_dl, weight=1)
 
         print('TESTING RESULTS -> test_accuracy: {:.6f}, test_loss: {:.6f} \n\n'.format(test_accuracy, test_loss))
 
-        return test_accuracy, test_loss
+        return test_accuracy, test_loss, test_loss_ce, test_loss_weird
 
 
 
@@ -311,4 +312,6 @@ class TrainEvaluate(object):
 
         # generate the new labeled DataLoader
         self.lab_train_dl = DataLoader(self.lab_train_subset, batch_size=self.batch_size, shuffle=True, num_workers=1, pin_memory=True)
-        self.obtain_normalization()
+        
+        if self.flag_mean_std_train: self.obtain_normalization()
+        #self.obtain_normalization()

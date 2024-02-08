@@ -60,17 +60,16 @@ def main():
     print(f'Application running on {device}\n')
 
     epochs = 200
-    al_iters = 4 # the maximum is 36 for CIFAR10
+    al_iters = 4#10 # the maximum is 36 for CIFAR10
     n_top_k_obs = 1000
     batch_size = 128
-
     patience = 40
-
+    
     
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     create_ts_dir_res(timestamp)
     
-    cifar10 = Cifar10SubsetDataloaders(batch_size, val_rateo = 0.2, labeled_ratio = 0.025)
+    cifar10 = Cifar10SubsetDataloaders(batch_size, val_rateo = 0.2, labeled_ratio = 0.025, flag_mean_std_train = False)
     
     model = ResNet_Weird(BasicBlock, [2, 2, 2, 2])
     #model.apply(init_params_apply)

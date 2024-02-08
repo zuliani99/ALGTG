@@ -25,7 +25,7 @@ class Random_Strategy(TrainEvaluate):
     
     def run(self, al_iters, epochs, n_top_k_obs):
         iter = 0
-        results = { 'test_accuracy': [], 'test_loss': [] }
+        results = { 'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}
         
         # iter = 0
         print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
@@ -40,7 +40,7 @@ class Random_Strategy(TrainEvaluate):
         
         save_train_val_curves(train_results, self.timestamp, iter)
             
-        test_accuracy, test_loss = self.test()
+        test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
         
         write_csv(
             ts_dir = self.timestamp,
@@ -50,6 +50,8 @@ class Random_Strategy(TrainEvaluate):
         
         results['test_accuracy'].append(test_accuracy)
         results['test_loss'].append(test_loss)
+        results['test_loss_ce'].append(test_loss_ce)
+        results['test_loss_weird'].append(test_loss_weird)
         
         # start of the loop
         while len(self.unlab_train_subset) > 0 and iter < al_iters:
@@ -73,7 +75,7 @@ class Random_Strategy(TrainEvaluate):
             
             save_train_val_curves(train_results, self.timestamp, iter + 1)
             
-            test_accuracy, test_loss = self.test()
+            test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
             
             write_csv(
                 ts_dir = self.timestamp,
@@ -83,6 +85,8 @@ class Random_Strategy(TrainEvaluate):
 
             results['test_accuracy'].append(test_accuracy)
             results['test_loss'].append(test_loss)
+            results['test_loss_ce'].append(test_loss_ce)
+            results['test_loss_weird'].append(test_loss_weird)
             
             iter += 1
             
