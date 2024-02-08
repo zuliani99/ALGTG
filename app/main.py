@@ -65,11 +65,13 @@ def main():
     batch_size = 128
     patience = 40
     
+    flag_mean_std_train = False
+    
     
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     create_ts_dir_res(timestamp)
     
-    cifar10 = Cifar10SubsetDataloaders(batch_size, val_rateo = 0.2, labeled_ratio = 0.025, flag_mean_std_train = False)
+    cifar10 = Cifar10SubsetDataloaders(batch_size, val_rateo = 0.2, labeled_ratio = 0.025, flag_mean_std_train = flag_mean_std_train)
     
     model = ResNet_Weird(BasicBlock, [2, 2, 2, 2])
     #model.apply(init_params_apply)
@@ -117,7 +119,7 @@ def main():
                                         al_iters=al_iters, n_top_k_obs=n_top_k_obs,
                                         class_entropy_params=class_entropy_params, our_method_params=our_method_params)
     
-    plot_loss_curves(results, n_lab_obs, save_plot, timestamp, f'results_{epochs}_{al_iters}_{n_top_k_obs}.png')
+    plot_loss_curves(results, n_lab_obs, save_plot, timestamp, f'results_{epochs}_{al_iters}_{n_top_k_obs}.png', flag_mean_std_train)
     
     
 if __name__ == "__main__":

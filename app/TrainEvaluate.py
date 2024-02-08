@@ -42,7 +42,7 @@ class TrainEvaluate(object):
         
         self.LL = LL
         
-        if self.flag_mean_std_train: self.obtain_normalization()
+        if not self.flag_mean_std_train: self.obtain_normalization()
         
         
         

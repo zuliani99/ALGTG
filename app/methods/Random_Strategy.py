@@ -12,7 +12,7 @@ class Random_Strategy(TrainEvaluate):
         super().__init__(al_params, LL)
         
         self.method_name = self.__class__.__name__
-        
+        self.LL = LL
         
         
     def sample_unlab_obs(self, n_top_k_obs):
@@ -38,7 +38,7 @@ class Random_Strategy(TrainEvaluate):
         
         train_results = self.train_evaluate(epochs, self.lab_train_dl, self.method_name)
         
-        save_train_val_curves(train_results, self.timestamp, iter)
+        save_train_val_curves(train_results, self.timestamp, iter, self.LL)
             
         test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
         
@@ -73,7 +73,7 @@ class Random_Strategy(TrainEvaluate):
             self.reintialize_model()
             train_results = self.train_evaluate(epochs, self.lab_train_dl, self.method_name)
             
-            save_train_val_curves(train_results, self.timestamp, iter + 1)
+            save_train_val_curves(train_results, self.timestamp, iter + 1, self.LL)
             
             test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
             

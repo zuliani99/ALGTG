@@ -14,8 +14,8 @@ class Class_Entropy(TrainEvaluate):
         super().__init__(al_params, LL)
                 
         self.method_name = self.__class__.__name__
-        self.params = method_params                
-    
+        self.params = method_params  
+        self.LL = LL       
         
             
     def evaluate_unlabeled(self):
@@ -63,7 +63,7 @@ class Class_Entropy(TrainEvaluate):
             
             train_results = self.train_evaluate(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
             
-            save_train_val_curves(train_results, self.timestamp, iter)
+            save_train_val_curves(train_results, self.timestamp, iter, self.LL)
             
             test_accuracy, test_loss = self.test()
                 
@@ -104,7 +104,7 @@ class Class_Entropy(TrainEvaluate):
                 self.reintialize_model()
                 train_results = self.train_evaluate(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
                 
-                save_train_val_curves(train_results, self.timestamp, iter + 1)
+                save_train_val_curves(train_results, self.timestamp, iter + 1, self.LL)
                 
                 test_accuracy, test_loss = self.test()
                 

@@ -18,6 +18,7 @@ class GTG_Strategy(TrainEvaluate):
                 
         self.method_name = self.__class__.__name__
         self.params = our_methods_params 
+        self.LL = LL
         
         #self.weights = torch.flip(torch.linspace(1, 0.1, self.params['gtg_max_iter'] - 1), [0]).to(self.device)
 
