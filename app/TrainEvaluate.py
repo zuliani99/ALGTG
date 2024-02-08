@@ -260,7 +260,9 @@ class TrainEvaluate(object):
     def test(self):
         test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.evaluate(self.test_dl, weight=1)
 
-        print('TESTING RESULTS -> test_accuracy: {:.6f}, test_loss: {:.6f} \n\n'.format(test_accuracy, test_loss))
+        print('TESTING RESULTS -> \
+            test_accuracy: {:.6f}, test_loss: {:.6f}, test_loss_ce: {:.6f} , test_loss_weird: {:.6f}\n\n'
+            .format(test_accuracy, test_loss, test_loss_ce, test_loss_weird ))
 
         return test_accuracy, test_loss, test_loss_ce, test_loss_weird
 

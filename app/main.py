@@ -59,13 +59,13 @@ def main():
 
     print(f'Application running on {device}\n')
 
-    epochs = 5
+    epochs = 3
     al_iters = 4#10 # the maximum is 36 for CIFAR10
     n_top_k_obs = 1000
     batch_size = 128
-    patience = 40
+    patience = 50
     
-    flag_mean_std_train = False
+    flag_mean_std_train = True
     
     
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')

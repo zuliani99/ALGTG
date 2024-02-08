@@ -50,7 +50,8 @@ class Class_Entropy(TrainEvaluate):
                     
             iter = 0
 
-            results[n_splits] = { 'test_accuracy': [], 'test_loss': [] }
+            results[n_splits] = { 'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}
+            
                 
             # iter = 0            
             print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
