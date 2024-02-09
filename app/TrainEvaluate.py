@@ -44,7 +44,9 @@ class TrainEvaluate(object):
         
         if not self.flag_mean_std_train: 
             self.obtain_normalization()
-        else: self.normalize = transforms.Compose([ transforms.Normalize(
+        else:
+            # normalization using the entire train mean and std
+            self.normalize = transforms.Compose([ transforms.Normalize(
                 self.original_trainset.train_mean, self.original_trainset.train_std
             ) ])
         

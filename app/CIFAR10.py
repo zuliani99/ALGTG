@@ -16,6 +16,7 @@ class Cifar10SubsetDataloaders():
         self.original_trainset = CIFAR10(bool_train=True)
         # heare there are the indices of the labeled observation to transform
         
+        # flag to decide the normalization procedure
         self.flag_mean_std_train = flag_mean_std_train
         
         self.test_dl = DataLoader(CIFAR10(bool_train=False), self.batch_size, shuffle=False, num_workers=1, pin_memory=True)
