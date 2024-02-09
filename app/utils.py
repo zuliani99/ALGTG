@@ -60,16 +60,14 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, flag_LL, plo
     
     
     if flag_LL:
+        #test_loss
         for method_str, values in methods_results.items():
             if(isinstance(list(values.keys())[0], int)):
                 for n_samples, results in values.items():
                     ax[0][0].plot(n_lab_obs, results['test_loss'], label = f'{method_str} - {str(n_samples)} splits')
             else:
-                #print(len(n_lab_obs), n_lab_obs)
-                #print(len(values['test_loss']), values['test_loss'])
                 ax[0][0].plot(n_lab_obs, values['test_loss'], label = f'{method_str}')
 
-            
         ax[0][0].set_title('Total Loss - # Labeled Obs')
         ax[0][0].set_xlabel('# Labeled Obs')
         ax[0][0].set_ylabel('Total Loss')
@@ -77,6 +75,7 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, flag_LL, plo
         ax[0][0].legend()
 
         
+        #test_accuracy
         for method_str, values in methods_results.items():
             if(isinstance(list(values.keys())[0], int)):
                 for n_samples, results in values.items():
@@ -84,7 +83,6 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, flag_LL, plo
             else:
                 ax[0][1].plot(n_lab_obs, values['test_accuracy'], label = f'{method_str}')
                 
-        
         ax[0][1].set_title('Accuracy Score - # Labeled Obs')
         ax[0][1].set_ylabel('Accuracy Score')
         ax[0][1].set_xlabel('# Labeled Obs')
@@ -92,6 +90,7 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, flag_LL, plo
         ax[0][1].legend()
         
         
+        #test_loss_ce
         for method_str, values in methods_results.items():
             if(isinstance(list(values.keys())[0], int)):
                 for n_samples, results in values.items():
@@ -99,7 +98,6 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, flag_LL, plo
             else:
                 ax[1][0].plot(n_lab_obs, values['test_loss_ce'], label = f'{method_str}')
                 
-        
         ax[1][0].set_title('CE Loss - # Labeled Obs')
         ax[1][0].set_ylabel('CE Loss')
         ax[1][0].set_xlabel('# Labeled Obs')
@@ -107,7 +105,7 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, flag_LL, plo
         ax[1][0].legend()
         
         
-        
+        #test_loss_weird
         for method_str, values in methods_results.items():
             if(isinstance(list(values.keys())[0], int)):
                 for n_samples, results in values.items():
@@ -115,7 +113,6 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, flag_LL, plo
             else:
                 ax[1][1].plot(n_lab_obs, values['test_loss_weird'], label = f'{method_str}')
                 
-        
         ax[1][1].set_title('Loss Weird - # Labeled Obs')
         ax[1][1].set_ylabel('Loss Weird')
         ax[1][1].set_xlabel('# Labeled Obs')
@@ -123,6 +120,7 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, flag_LL, plo
         ax[1][1].legend()
     
     else:
+        #test_loss
         for method_str, values in methods_results.items():
             if(isinstance(list(values.keys())[0], int)):
                 for n_samples, results in values.items():
@@ -130,7 +128,6 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, flag_LL, plo
             else:
                 ax[0].plot(n_lab_obs, values['test_loss'], label = f'{method_str}')
 
-            
         ax[0].set_title('Total Loss - # Labeled Obs')
         ax[0].set_xlabel('# Labeled Obs')
         ax[0].set_ylabel('Total Loss')
@@ -138,6 +135,7 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, flag_LL, plo
         ax[0].legend()
 
         
+        #test_accuracy
         for method_str, values in methods_results.items():
             if(isinstance(list(values.keys())[0], int)):
                 for n_samples, results in values.items():
@@ -145,7 +143,6 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, flag_LL, plo
             else:
                 ax[1].plot(n_lab_obs, values['test_accuracy'], label = f'{method_str}')
                 
-        
         ax[1].set_title('Accuracy Score - # Labeled Obs')
         ax[1].set_ylabel('Accuracy Score')
         ax[1].set_xlabel('# Labeled Obs')
@@ -175,6 +172,7 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
     maxacc_ep = res['val_accuracy'][minloss_ep - 1]
     
     if flag_LL:
+        #train_loss, val_loss
         ax[0][0].plot(epochs, res['train_loss'], label = 'train_loss')
         ax[0][0].plot(epochs, res['val_loss'], label = 'val_loss')
         ax[0][0].set_ylim([0, 5])
@@ -188,6 +186,7 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
         ax[0][0].legend()
 
 
+        #train_accuracy, val_accuracy
         ax[0][1].plot(epochs, res['train_accuracy'], label = 'train_accuracy_score')
         ax[0][1].plot(epochs, res['val_accuracy'], label = 'val_accuracy_score')
         ax[0][1].axvline(minloss_ep, linestyle='--', color='r', label='Early Stopping Checkpoint')
@@ -200,11 +199,10 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
         ax[0][1].legend()
         
         
+        #train_loss_ce, val_loss_ce
         ax[1][0].plot(epochs, res['train_loss_ce'], label = 'train_loss_ce')
         ax[1][0].plot(epochs, res['val_loss_ce'], label = 'val_loss_ce')
-        ax[1][0].axvline(minloss_ep, linestyle='--', color='r', label='Early Stopping Checkpoint')
 
-        ax[1][0].axhline(maxacc_ep, linestyle='--', color='r')
         ax[1][0].set_title('CE Loss - Epochs')
         ax[1][0].set_ylabel('CE Loss')
         ax[1][0].set_xlabel('Epochs')
@@ -212,11 +210,10 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
         ax[1][0].legend()
 
         
+        #train_loss_weird, val_loss_weird
         ax[1][1].plot(epochs, res['train_loss_weird'], label = 'train_loss_weird')
         ax[1][1].plot(epochs, res['val_loss_weird'], label = 'val_loss_weird')
-        ax[1][1].axvline(minloss_ep, linestyle='--', color='r', label='Early Stopping Checkpoint')
 
-        ax[1][1].axhline(maxacc_ep, linestyle='--', color='r')
         ax[1][1].set_title('Loss Weird - Epochs')
         ax[1][1].set_ylabel('Loss Weird')
         ax[1][1].set_xlabel('Epochs')
@@ -226,6 +223,7 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
         
     
     else:
+        #train_loss, val_loss
         ax[0].plot(epochs, res['train_loss'], label = 'train_loss')
         ax[0].plot(epochs, res['val_loss'], label = 'val_loss')
         ax[0].set_ylim([0, 5])
@@ -239,6 +237,7 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
         ax[0].legend()
 
 
+        #train_accuracy, val_accuracy
         ax[1].plot(epochs, res['train_accuracy'], label = 'train_accuracy_score')
         ax[1].plot(epochs, res['val_accuracy'], label = 'val_accuracy_score')
         ax[1].axvline(minloss_ep, linestyle='--', color='r', label='Early Stopping Checkpoint')
