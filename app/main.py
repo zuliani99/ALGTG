@@ -16,6 +16,7 @@ from datetime import datetime
 
 
 save_plot = True
+flag_mean_std_train = True
 
 
 def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, class_entropy_params, our_method_params):
@@ -28,6 +29,7 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, c
         Random_Strategy(al_params, LL=True),  
         Class_Entropy(al_params, class_entropy_params, LL=False),
         Class_Entropy(al_params, class_entropy_params, LL=True),
+        
         #GTG_Strategy(al_params, our_method_params)
     ]
     
@@ -59,14 +61,12 @@ def main():
 
     print(f'Application running on {device}\n')
 
-    epochs = 3
-    al_iters = 4#10 # the maximum is 36 for CIFAR10
+    epochs = 30#200
+    al_iters = 2#10 # the maximum is 36 for CIFAR10
     n_top_k_obs = 1000
     batch_size = 128
-    patience = 50
-    
-    flag_mean_std_train = True
-    
+    patience = 10#50
+        
     
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     create_ts_dir_res(timestamp)
@@ -119,7 +119,12 @@ def main():
                                         al_iters=al_iters, n_top_k_obs=n_top_k_obs,
                                         class_entropy_params=class_entropy_params, our_method_params=our_method_params)
     
-    plot_loss_curves(results, n_lab_obs, save_plot, timestamp, f'results_{epochs}_{al_iters}_{n_top_k_obs}.png', flag_mean_std_train)
+    if flag_mean_std_train:
+        final_plot_name = f'results_{epochs}_{al_iters}_{n_top_k_obs}_NormTrain.png'
+    else: 
+        final_plot_name = f'results_{epochs}_{al_iters}_{n_top_k_obs}_NormLab.png'
+    
+    plot_loss_curves(results, n_lab_obs, save_plot, timestamp, flag_mean_std_train, final_plot_name)
     
     
 if __name__ == "__main__":

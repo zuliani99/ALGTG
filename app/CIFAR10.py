@@ -26,6 +26,7 @@ class Cifar10SubsetDataloaders():
         if self.flag_mean_std_train: self.original_trainset.get_std_mean_train()
     
     
+    
     def get_initial_dataloaders(self, val_rateo, labeled_ratio):
 
         train_size = len(self.original_trainset) #50000
@@ -89,7 +90,7 @@ class CIFAR10(Dataset):
     
     def get_std_mean_train(self):
         self.flag_normalization = True
-        x = np.concatenate([np.asarray(self.cifar10[i][1]) for i in range(len(self))])
+        x = np.concatenate([np.asarray(self.cifar10[i][0]) for i in range(len(self.cifar10))])
         self.flag_normalization = False
         
         # calculate the mean and std along the (0, 1) axes

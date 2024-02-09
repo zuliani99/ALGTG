@@ -65,6 +65,8 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, flag_LL, plo
                 for n_samples, results in values.items():
                     ax[0][0].plot(n_lab_obs, results['test_loss'], label = f'{method_str} - {str(n_samples)} splits')
             else:
+                #print(len(n_lab_obs), n_lab_obs)
+                #print(len(values['test_loss']), values['test_loss'])
                 ax[0][0].plot(n_lab_obs, values['test_loss'], label = f'{method_str}')
 
             

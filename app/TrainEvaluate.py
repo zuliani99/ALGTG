@@ -42,7 +42,12 @@ class TrainEvaluate(object):
         
         self.LL = LL
         
-        if not self.flag_mean_std_train: self.obtain_normalization()
+        if not self.flag_mean_std_train: 
+            self.obtain_normalization()
+        else: self.normalize = transforms.Compose([ transforms.Normalize(
+                self.original_trainset.train_mean, self.original_trainset.train_std
+            ) ])
+        
         
         
         
@@ -111,14 +116,14 @@ class TrainEvaluate(object):
                 loss_ce = self.loss_fn(outputs, labels)
                 
                 if self.LL and weight:    
-                    loss_weird = self.loss_weird(out_weird, loss_ce)
-                    loss_ce = torch.mean(loss_ce).detach().cpu()
-                    loss = loss_ce + loss_weird
+                    loss_weird = self.loss_weird(out_weird, loss_ce).cpu().item()
+                    loss_ce = torch.mean(loss_ce)#.item().detach().cpu()
+                    loss = loss_ce + loss_weird#.item()
                     
-                    tot_loss_ce += loss_ce
-                    tot_loss_weird += loss_weird.detach().cpu()
+                    tot_loss_ce += loss_ce.cpu().item()
+                    tot_loss_weird += loss_weird#.detach().cpu().item()
                 else:
-                    loss = torch.mean(loss_ce)
+                    loss = torch.mean(loss_ce)#.item()
                 
                 accuracy = self.score_fn(outputs, labels)
 
@@ -172,12 +177,12 @@ class TrainEvaluate(object):
                 loss_ce = self.loss_fn(outputs, labels)
                     
                 if self.LL and weight:
-                    loss_weird = self.loss_weird(out_weird, loss_ce)
-                    loss_ce = torch.mean(loss_ce).detach().cpu()
-                    loss = loss_ce + loss_weird
+                    loss_weird = self.loss_weird(out_weird, loss_ce).cpu().item()
+                    loss_ce = torch.mean(loss_ce)#.cpu()
+                    loss = loss_ce + loss_weird#.item()
                     
-                    train_loss_ce += loss_ce
-                    train_loss_weird += loss_weird.detach().cpu()
+                    train_loss_ce += loss_ce.cpu().item()#.item()
+                    train_loss_weird += loss_weird#.cpu().item()
                 else:
                     loss = torch.mean(loss_ce)
                 
@@ -259,11 +264,12 @@ class TrainEvaluate(object):
 
     def test(self):
         test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.evaluate(self.test_dl, weight=1)
-
-        print('TESTING RESULTS -> \
-            test_accuracy: {:.6f}, test_loss: {:.6f}, test_loss_ce: {:.6f} , test_loss_weird: {:.6f}\n\n'
-            .format(test_accuracy, test_loss, test_loss_ce, test_loss_weird ))
-
+        
+        if test_loss_ce != 0.0:
+            print('TESTING RESULTS -> test_accuracy: {:.6f}, test_loss: {:.6f}, test_loss_ce: {:.6f} , test_loss_weird: {:.6f}\n\n'.format(test_accuracy, test_loss, test_loss_ce, test_loss_weird ))
+        else:
+            print('TESTING RESULTS -> test_accuracy: {:.6f}, test_loss: {:.6f}\n\n'.format(test_accuracy, test_loss ))
+            
         return test_accuracy, test_loss, test_loss_ce, test_loss_weird
 
 

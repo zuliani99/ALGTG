@@ -11,7 +11,7 @@ class Random_Strategy(TrainEvaluate):
     def __init__(self, al_params, LL):
         super().__init__(al_params, LL)
         
-        self.method_name = self.__class__.__name__
+        self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
         self.LL = LL
         
         
@@ -44,8 +44,8 @@ class Random_Strategy(TrainEvaluate):
         
         write_csv(
             ts_dir = self.timestamp,
-            head = ['method', 'LL', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
-            values = [self.method_name, self.LL, iter, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
+            head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
+            values = [self.method_name, iter, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
         )
         
         results['test_accuracy'].append(test_accuracy)
@@ -53,6 +53,7 @@ class Random_Strategy(TrainEvaluate):
         results['test_loss_ce'].append(test_loss_ce)
         results['test_loss_weird'].append(test_loss_weird)
         
+                
         # start of the loop
         while len(self.unlab_train_subset) > 0 and iter < al_iters:
             print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')
@@ -79,8 +80,8 @@ class Random_Strategy(TrainEvaluate):
             
             write_csv(
                 ts_dir = self.timestamp,
-                head = ['method', 'LL', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
-                values = [self.method_name, self.LL, iter, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
+                head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
+                values = [self.method_name, iter + 1, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
             )
 
             results['test_accuracy'].append(test_accuracy)

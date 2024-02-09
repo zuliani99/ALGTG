@@ -13,7 +13,7 @@ class Class_Entropy(TrainEvaluate):
     def __init__(self, al_params, method_params, LL):
         super().__init__(al_params, LL)
                 
-        self.method_name = self.__class__.__name__
+        self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
         self.params = method_params  
         self.LL = LL       
         
@@ -53,7 +53,7 @@ class Class_Entropy(TrainEvaluate):
             results[n_splits] = { 'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}
             
                 
-            # iter = 0            
+            # iter = 0
             print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
             
             
@@ -70,16 +70,16 @@ class Class_Entropy(TrainEvaluate):
                 
             write_csv(
                 ts_dir = self.timestamp,
-                head = ['method', 'LL', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
-                values = [self.method_name, self.LL, iter, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
+                head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
+                values = [self.method_name, iter, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
             )
                 
-            results['test_accuracy'].append(test_accuracy)
-            results['test_loss'].append(test_loss)
-            results['test_loss_ce'].append(test_loss_ce)
-            results['test_loss_weird'].append(test_loss_weird)
+            results[n_splits]['test_accuracy'].append(test_accuracy)
+            results[n_splits]['test_loss'].append(test_loss)
+            results[n_splits]['test_loss_ce'].append(test_loss_ce)
+            results[n_splits]['test_loss_weird'].append(test_loss_weird)
             
-                     
+                                 
             # start of the loop   
             while len(self.unlab_train_subset) > 0 and iter < al_iters:
                 print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')
@@ -113,14 +113,14 @@ class Class_Entropy(TrainEvaluate):
                 
                 write_csv(
                     ts_dir = self.timestamp,
-                    head = ['method', 'LL', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
-                    values = [self.method_name, self.LL, iter, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
+                    head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
+                    values = [self.method_name, iter + 1, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
                 )
                 
-                results['test_accuracy'].append(test_accuracy)
-                results['test_loss'].append(test_loss)
-                results['test_loss_ce'].append(test_loss_ce)
-                results['test_loss_weird'].append(test_loss_weird)
+                results[n_splits]['test_accuracy'].append(test_accuracy)
+                results[n_splits]['test_loss'].append(test_loss)
+                results[n_splits]['test_loss_ce'].append(test_loss_ce)
+                results[n_splits]['test_loss_weird'].append(test_loss_weird)
                         
                 iter += 1
         
