@@ -61,11 +61,11 @@ def main():
 
     print(f'Application running on {device}\n')
 
-    epochs = 30#200
-    al_iters = 2#10 # the maximum is 36 for CIFAR10
+    epochs = 200
+    al_iters = 5#10 # the maximum is 36 for CIFAR10
     n_top_k_obs = 1000
     batch_size = 128
-    patience = 10#50
+    patience = 50
         
     
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')

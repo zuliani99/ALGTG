@@ -63,11 +63,11 @@ class TrainEvaluate(object):
         print(' => Obtaining mean and std from the labeled set')
 
         self.original_trainset.flag_normalization = True
-
         mean, std = get_mean_std(self.lab_train_dl)
+        self.original_trainset.flag_normalization = False
+
         self.normalize = transforms.Compose([ transforms.Normalize(mean, std) ])
         
-        self.original_trainset.flag_normalization = False
         print(' DONE\n')
 
         
@@ -102,6 +102,7 @@ class TrainEvaluate(object):
 
 
     def evaluate(self, dataloader, weight):
+                
         tot_loss, tot_loss_ce, tot_loss_weird, tot_accuracy = .0, .0, .0, .0
         
         self.model.eval()
@@ -152,7 +153,7 @@ class TrainEvaluate(object):
         
         
         results = { 'train_loss': [], 'train_loss_ce': [], 'train_loss_weird': [], 'train_accuracy': [], 
-                   'val_loss': [], 'val_loss_ce': [], 'val_loss_weird': [], 'val_accuracy': [] }
+                    'val_loss': [], 'val_loss_ce': [], 'val_loss_weird': [], 'val_accuracy': [] }
 	
 
         for epoch in range(epochs):

@@ -172,6 +172,7 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
     maxacc_ep = res['val_accuracy'][minloss_ep - 1]
     
     if flag_LL:
+        
         #train_loss, val_loss
         ax[0][0].plot(epochs, res['train_loss'], label = 'train_loss')
         ax[0][0].plot(epochs, res['val_loss'], label = 'val_loss')
@@ -200,6 +201,11 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
         
         
         #train_loss_ce, val_loss_ce
+        '''print(res['train_loss_ce'], res['val_loss_ce'])
+        res['train_loss_ce'] = list(filter(lambda c: c!= 0.0, res['train_loss_ce']))
+        res['val_loss_ce'] = list(filter(lambda c: c!= 0.0, res['val_loss_ce']))
+        print(res['train_loss_ce'], res['val_loss_ce'])'''
+        
         ax[1][0].plot(epochs, res['train_loss_ce'], label = 'train_loss_ce')
         ax[1][0].plot(epochs, res['val_loss_ce'], label = 'val_loss_ce')
 
@@ -211,6 +217,11 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
 
         
         #train_loss_weird, val_loss_weird
+        '''print(res['train_loss_weird'], res['val_loss_weird'])
+        res['train_loss_weird'] = list(filter(lambda c: c!= 0.0, res['train_loss_weird']))
+        res['val_loss_weird'] = list(filter(lambda c: c!= 0.0, res['val_loss_weird']))
+        print(res['train_loss_weird'], res['val_loss_weird'])'''
+        
         ax[1][1].plot(epochs, res['train_loss_weird'], label = 'train_loss_weird')
         ax[1][1].plot(epochs, res['val_loss_weird'], label = 'val_loss_weird')
 

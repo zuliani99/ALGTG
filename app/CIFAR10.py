@@ -69,7 +69,7 @@ class CIFAR10(Dataset):
         self.transform = transforms.Compose( [transforms.ToTensor()] )
         
         self.lab_train_idxs = None
-        self.flag_normalization = True
+        self.flag_normalization = False
         
         self.bool_train = bool_train
         
@@ -79,7 +79,7 @@ class CIFAR10(Dataset):
 
     def __getitem__(self, index):
         image, label = self.cifar10[index]
-        
+                
         if not self.flag_normalization and self.bool_train == True and index in self.lab_train_idxs:
             image = self.transform_labeled(image)
         else:
@@ -93,10 +93,11 @@ class CIFAR10(Dataset):
         x = np.concatenate([np.asarray(self.cifar10[i][0]) for i in range(len(self.cifar10))])
         self.flag_normalization = False
         
+        
         # calculate the mean and std along the (0, 1) axes
         self.train_mean = np.mean(x, axis=(0, 1)) / 255
         self.train_std = np.std(x, axis=(0, 1)) / 255
-
+        
     
 
 class UniqueShuffle(Sampler):
