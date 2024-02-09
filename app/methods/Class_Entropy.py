@@ -88,7 +88,7 @@ class Class_Entropy(TrainEvaluate):
                     self.unlab_train_subset,
                     batch_size=len(self.unlab_train_subset) // n_splits, 
                     shuffle=True, 
-                    num_workers=1,
+                    
                     pin_memory=True
                 )
                 

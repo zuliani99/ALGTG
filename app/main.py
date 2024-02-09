@@ -3,7 +3,7 @@
 import torch
 import torch.backends.cudnn as cudnn
 
-from ResNet18 import BasicBlock, LearningLoss, ResNet_Weird
+from ResNet18 import BasicBlock, ResNet_Weird, LearningLoss
 from CIFAR10 import Cifar10SubsetDataloaders
 
 from methods.GTG_Strategy import GTG_Strategy
@@ -16,7 +16,7 @@ from datetime import datetime
 
 
 save_plot = True
-flag_mean_std_train = True
+normalize_train = True
 
 
 def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, class_entropy_params, our_method_params):
@@ -62,7 +62,7 @@ def main():
     print(f'Application running on {device}\n')
 
     epochs = 200
-    al_iters = 5#10 # the maximum is 36 for CIFAR10
+    al_iters = 4#10 # the maximum is 36 for CIFAR10
     n_top_k_obs = 1000
     batch_size = 128
     patience = 50
@@ -71,13 +71,11 @@ def main():
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     create_ts_dir_res(timestamp)
     
-    cifar10 = Cifar10SubsetDataloaders(batch_size, val_rateo = 0.2, labeled_ratio = 0.025, flag_mean_std_train = flag_mean_std_train)
+    cifar10 = Cifar10SubsetDataloaders(batch_size, val_rateo = 0.2, labeled_ratio = 0.025, normalize_train = normalize_train)
     
     model = ResNet_Weird(BasicBlock, [2, 2, 2, 2])
-    model.apply(init_params_apply)
-    #init_params_fn(model)
-    
-    if device == 'cuda': cudnn.benchmark = True
+    #model.apply(init_params_apply)
+    init_params_fn(model)
     
     
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
@@ -118,13 +116,13 @@ def main():
                                         al_iters=al_iters, n_top_k_obs=n_top_k_obs,
                                         class_entropy_params=class_entropy_params, our_method_params=our_method_params)
     
-    if flag_mean_std_train:
+    if normalize_train:
         final_plot_name = f'results_{epochs}_{al_iters}_{n_top_k_obs}_NormTrain.png'
     else: 
         final_plot_name = f'results_{epochs}_{al_iters}_{n_top_k_obs}_NormLab.png'
     
-    plot_loss_curves(results, n_lab_obs, save_plot, timestamp, flag_mean_std_train, final_plot_name)
+    plot_loss_curves(results, n_lab_obs, save_plot, timestamp, normalize_train, final_plot_name)
     
-    
+
 if __name__ == "__main__":
     main()

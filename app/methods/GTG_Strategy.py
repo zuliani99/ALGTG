@@ -128,7 +128,7 @@ class GTG_Strategy(TrainEvaluate):
                     self.unlab_train_subset,
                     batch_size=iter_batch_size,
                     sampler=UniqueShuffle(self.unlab_train_subset),
-                    num_workers=1,
+                    
                     pin_memory=True
                 )
                 

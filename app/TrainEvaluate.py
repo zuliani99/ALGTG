@@ -25,7 +25,7 @@ class TrainEvaluate(object):
         self.timestamp = params['timestamp']
         self.loss_fn = params['loss_fn']
         
-        self.flag_mean_std_train = cifar10.flag_mean_std_train
+        self.normalize_train = cifar10.normalize_train
         
         self.lab_train_dl: DataLoader = copy.deepcopy(cifar10.lab_train_dl)
         self.lab_train_subset: Subset = copy.deepcopy(cifar10.lab_train_subset)
@@ -42,23 +42,18 @@ class TrainEvaluate(object):
         
         self.LL = LL
         
-        if not self.flag_mean_std_train: 
-            self.obtain_normalization()
-        else:
+        if self.normalize_train:
+            print(' => Setting the normalize with the mean and std from the entire train set')
             # normalization using the entire train mean and std
             self.normalize = transforms.Compose([ transforms.Normalize(
                 self.original_trainset.train_mean, self.original_trainset.train_std
             ) ])
-        
-        
-        
-        
+            print(' DONE\n')
+        else:
+            self.obtain_normalization()
 
-    def reintialize_model(self):
-        print(' => Load Initial Checkpoint')
-        self.__load_init_checkpoint()
-        print(' DONE\n')
-
+            
+    def reintialize_model(self): self.__load_init_checkpoint()
 
 
     def obtain_normalization(self):
@@ -69,38 +64,39 @@ class TrainEvaluate(object):
         self.original_trainset.flag_normalization = False
 
         self.normalize = transforms.Compose([ transforms.Normalize(mean, std) ])
-        
         print(' DONE\n')
 
         
         
-        
     def __save_best_checkpoint(self, filename):
+        print(' => Saving best checkpoint')
         checkpoint = {
             'state_dict': self.model.state_dict(), 
             'optimizer': self.optimizer.state_dict(),
             'scheduler': self.scheduler.state_dict()
         }
         torch.save(checkpoint, filename)
-
+        print(' DONE\n')
+    
     
     
     def __load_init_checkpoint(self):
-
+        print(' => Load initial checkpoint')
         checkpoint = torch.load(self.init_check_filename, map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['scheduler'])
+        print(' DONE\n')
         
 
 
     def __load_best_checkpoint(self, filename):
-
+        print(' => Loading best checkpoint')
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['scheduler'])
-        
+        print(' DONE\n')
 
 
     def evaluate(self, dataloader, weight):
@@ -229,9 +225,12 @@ class TrainEvaluate(object):
             if(val_loss < best_val_loss):
                 best_val_loss = val_loss
                 actual_patience = 0
-                print(' => Saving best checkpoint')
+                
+                print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}, best_val_loss: {:.6f} \n'.format(
+                        epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss, best_val_loss))
+                
                 self.__save_best_checkpoint(check_best_path)
-                print(' DONE\n')
+                
             else:
                 actual_patience += 1
                 if actual_patience >= self.patience:
@@ -242,10 +241,10 @@ class TrainEvaluate(object):
                     print(f'Early stopping, validation loss do not decreased for {self.patience} epochs')
                     break
                 
+                print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}, best_val_loss: {:.6f} \n'.format(
+                    epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss, best_val_loss))
+                    
                 
-            print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}, best_val_loss: {:.6f} \n'.format(
-                epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss, best_val_loss))
-
             if epoch == 160:
                 print('Decreasing learning rate to 0.01 and ignoring the learning loss\n')
                 for g in self.optimizer.param_groups: g['lr'] = 0.01
@@ -320,8 +319,8 @@ class TrainEvaluate(object):
         else: raise Exception('NON EMPTY INDICES INTERSECTION')
 
         # generate the new labeled DataLoader
-        self.lab_train_dl = DataLoader(self.lab_train_subset, batch_size=self.batch_size, shuffle=True, num_workers=1, pin_memory=True)
+        self.lab_train_dl = DataLoader(self.lab_train_subset, batch_size=self.batch_size, shuffle=True,  pin_memory=True)
         
-        if self.flag_mean_std_train: 
+        if not self.normalize_train: 
             self.obtain_normalization()
         
