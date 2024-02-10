@@ -42,15 +42,7 @@ class TrainEvaluate(object):
         
         self.LL = LL
         
-        if self.normalize_train:
-            print(' => Setting the normalize with the mean and std from the entire train set')
-            # normalization using the entire train mean and std
-            self.normalize = transforms.Compose([ transforms.Normalize(
-                self.original_trainset.train_mean, self.original_trainset.train_std
-            ) ])
-            print(' DONE\n')
-        else:
-            self.obtain_normalization()
+        if not self.normalize_train: self.obtain_normalization()
 
             
     def reintialize_model(self): self.__load_init_checkpoint()
@@ -108,7 +100,8 @@ class TrainEvaluate(object):
         with torch.inference_mode(): # Allow inference mode
             for _, images, labels in dataloader:
                 
-                images, labels = self.normalize(images.to(self.device)), labels.to(self.device)
+                images, labels = images.to(self.device), labels.to(self.device)
+                if not self.normalize_train: self.normalize(images)
 
                 outputs, _, out_weird, _ = self.model(images)
 
@@ -165,7 +158,8 @@ class TrainEvaluate(object):
             for _, images, labels in dataloader:
 
                 # get the inputs; data is a list of [inputs, labels]
-                images, labels = self.normalize(images.to(self.device)), labels.to(self.device)
+                images, labels = images.to(self.device), labels.to(self.device)
+                if not self.normalize_train: self.normalize(images)
                 
                 self.optimizer.zero_grad()
                                 
@@ -280,8 +274,8 @@ class TrainEvaluate(object):
         with torch.inference_mode():
             for _, images, labels in dataloader:
                 
-                images = self.normalize(images.to(self.device))
-                labels = labels.to(self.device)
+                images, labels = images.to(self.device), labels.to(self.device)
+                if not self.normalize_train: self.normalize(images)
                 
                 _, embed, _, _ = self.model(images)
                 
@@ -295,19 +289,18 @@ class TrainEvaluate(object):
     def get_new_dataloaders(self, overall_topk):
         
         # temp variable
-        lab_train_indices = self.lab_train_subset.indices
+        lab_train_indices = copy.deepcopy(self.lab_train_subset.indices)
         
         # extend with the overall_topk
         lab_train_indices.extend(overall_topk)
         # generate a new Subset
         self.lab_train_subset = Subset(self.original_trainset, lab_train_indices)
         
-        
         # update the indices for the transform        
         self.original_trainset.lab_train_idxs = lab_train_indices
-        
+            
         # temp variable
-        unlab_train_indices = self.unlab_train_subset.indices
+        unlab_train_indices = copy.deepcopy(self.unlab_train_subset.indices)
         # remove new labeled observations
         for idx_to_remove in overall_topk: unlab_train_indices.remove(idx_to_remove)
         # generate a new Subset
@@ -321,6 +314,5 @@ class TrainEvaluate(object):
         # generate the new labeled DataLoader
         self.lab_train_dl = DataLoader(self.lab_train_subset, batch_size=self.batch_size, shuffle=True,  pin_memory=True)
         
-        if not self.normalize_train: 
-            self.obtain_normalization()
+        if not self.normalize_train: self.obtain_normalization()
         

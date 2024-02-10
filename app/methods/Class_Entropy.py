@@ -28,7 +28,9 @@ class Class_Entropy(TrainEvaluate):
         with torch.inference_mode(): # Allow inference mode
             for idxs, images, _ in self.unlab_train_dl:
                 
-                idxs, images = idxs.to(self.device), self.normalize(images.to(self.device))
+                #idxs, images = idxs.to(self.device), self.normalize(images.to(self.device))
+                idxs, images = idxs.to(self.device), images.to(self.device)
+                if not self.normalize_train: self.normalize(images)
                 
                 outputs, _, _, _ = self.model(images)
                     

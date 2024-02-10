@@ -74,8 +74,9 @@ def main():
     cifar10 = Cifar10SubsetDataloaders(batch_size, val_rateo = 0.2, labeled_ratio = 0.025, normalize_train = normalize_train)
     
     model = ResNet_Weird(BasicBlock, [2, 2, 2, 2])
-    #model.apply(init_params_apply)
-    init_params_fn(model)
+    #model = ResNet(BasicBlock, [2, 2, 2, 2])
+    model.apply(init_params_apply)
+    #init_params_fn(model)
     
     
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
