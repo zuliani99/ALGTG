@@ -84,6 +84,7 @@ class CIFAR10(Dataset):
     def __getitem__(self, index):
         image, label = self.cifar10[index]
         
+        # correct
         if not self.flag_normalization and self.bool_train and index in self.lab_train_idxs:
             image = self.transform_labeled(image)
         else:

@@ -44,8 +44,8 @@ class Random_Strategy(TrainEvaluate):
         
         write_csv(
             ts_dir = self.timestamp,
-            head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
-            values = [self.method_name, iter, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
+            head = ['method', 'lab_obs', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
+            values = [self.method_name, n_top_k_obs, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
         )
         
         results['test_accuracy'].append(test_accuracy)
@@ -56,7 +56,9 @@ class Random_Strategy(TrainEvaluate):
                 
         # start of the loop
         while len(self.unlab_train_subset) > 0 and iter < al_iters:
-            print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')
+            iter += 1
+            
+            print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
                             
             #get random indices to move in the labeled datasets
             print(' => Sampling random unlabeled observations')
@@ -80,8 +82,8 @@ class Random_Strategy(TrainEvaluate):
             
             write_csv(
                 ts_dir = self.timestamp,
-                head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
-                values = [self.method_name, iter + 1, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
+                head = ['method', 'lab_obs', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
+                values = [self.method_name, (iter + 1) * n_top_k_obs, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
             )
 
             results['test_accuracy'].append(test_accuracy)
@@ -89,7 +91,6 @@ class Random_Strategy(TrainEvaluate):
             results['test_loss_ce'].append(test_loss_ce)
             results['test_loss_weird'].append(test_loss_weird)
             
-            iter += 1
             
         return results
         

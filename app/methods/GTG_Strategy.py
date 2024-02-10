@@ -109,8 +109,8 @@ class GTG_Strategy(TrainEvaluate):
                 
             write_csv(
                 ts_dir=self.timestamp,
-                head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
-                values = [self.method_name, iter, n_splits, test_accuracy, test_loss]
+                head = ['method', 'lab_obs', 'n_splits', 'test_accuracy', 'test_loss'],
+                values = [self.method_name, n_top_k_obs, n_splits, test_accuracy, test_loss]
             )
                 
             results[n_splits]['test_accuracy'].append(test_accuracy)
@@ -179,8 +179,8 @@ class GTG_Strategy(TrainEvaluate):
                 
                 write_csv(
                     ts_dir=self.timestamp,
-                    head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss'],
-                    values = [self.method_name, iter + 1, n_splits, test_accuracy, test_loss]
+                    head = ['method', 'lab_obs', 'n_splits', 'test_accuracy', 'test_loss'],
+                    values = [self.method_name, (iter + 1) * n_top_k_obs, n_splits, test_accuracy, test_loss]
                 )
                 
                 results[n_splits]['test_accuracy'].append(test_accuracy)

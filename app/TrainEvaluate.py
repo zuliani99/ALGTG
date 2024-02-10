@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
 import copy
 from CIFAR10 import CIFAR10, Cifar10SubsetDataloaders
+from ResNet18 import LossPredLoss
 from utils import get_mean_std
 
 
@@ -139,14 +140,15 @@ class TrainEvaluate(object):
     
         check_best_path = f'{self.best_check_filename}/best_{method_str}.pth.tar'
 		
-        best_val_loss = float('inf')
+        #best_val_loss = float('inf')
+        best_val_accuracy = float('-inf')
         actual_patience = 0
         
         
         results = { 'train_loss': [], 'train_loss_ce': [], 'train_loss_weird': [], 'train_accuracy': [], 
                     'val_loss': [], 'val_loss_ce': [], 'val_loss_weird': [], 'val_accuracy': [] }
 	
-
+ 
         for epoch in range(epochs):
             
             self.model.train()
@@ -169,7 +171,9 @@ class TrainEvaluate(object):
                 loss_ce = self.loss_fn(outputs, labels)
                     
                 if self.LL and weight:
+                    loss_weird_different = LossPredLoss(out_weird, loss_ce)
                     loss_weird = self.loss_weird(out_weird, loss_ce)
+                    print(loss_weird, loss_weird_different)
                     loss_ce = torch.mean(loss_ce)
                     loss = loss_ce + loss_weird
                     
@@ -216,12 +220,17 @@ class TrainEvaluate(object):
             
             
 
-            if(val_loss < best_val_loss):
-                best_val_loss = val_loss
+            #if(val_loss < best_val_loss):
+            #    best_val_loss = val_loss
+            if(val_accuracy > best_val_accuracy):
+                #best_val_loss = val_loss
+                best_val_accuracy = val_accuracy
                 actual_patience = 0
                 
-                print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}, best_val_loss: {:.6f} \n'.format(
-                        epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss, best_val_loss))
+                #print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}, best_val_loss: {:.6f} \n'.format(
+                #        epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss, best_val_loss))
+                print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
+                        epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
                 
                 self.__save_best_checkpoint(check_best_path)
                 
@@ -229,15 +238,18 @@ class TrainEvaluate(object):
                 actual_patience += 1
                 if actual_patience >= self.patience:
                     
-                    print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}, best_val_loss: {:.6f} \n'.format(
-                        epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss, best_val_loss))
+                    #print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}, best_val_loss: {:.6f} \n'.format(
+                    #    epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss, best_val_loss))
+                    print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
+                        epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
                     
                     print(f'Early stopping, validation loss do not decreased for {self.patience} epochs')
                     break
                 
-                print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}, best_val_loss: {:.6f} \n'.format(
-                    epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss, best_val_loss))
-                    
+                #print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}, best_val_loss: {:.6f} \n'.format(
+                #    epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss, best_val_loss))
+                print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
+                        epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))    
                 
             if epoch == 160:
                 print('Decreasing learning rate to 0.01 and ignoring the learning loss\n')

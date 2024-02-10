@@ -28,7 +28,6 @@ class Class_Entropy(TrainEvaluate):
         with torch.inference_mode(): # Allow inference mode
             for idxs, images, _ in self.unlab_train_dl:
                 
-                #idxs, images = idxs.to(self.device), self.normalize(images.to(self.device))
                 idxs, images = idxs.to(self.device), images.to(self.device)
                 if not self.normalize_train: self.normalize(images)
                 
@@ -72,8 +71,8 @@ class Class_Entropy(TrainEvaluate):
                 
             write_csv(
                 ts_dir = self.timestamp,
-                head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
-                values = [self.method_name, iter, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
+                head = ['method', 'lab_obs', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
+                values = [self.method_name, n_top_k_obs, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
             )
                 
             results[n_splits]['test_accuracy'].append(test_accuracy)
@@ -84,7 +83,9 @@ class Class_Entropy(TrainEvaluate):
                                  
             # start of the loop   
             while len(self.unlab_train_subset) > 0 and iter < al_iters:
-                print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')
+                iter += 1
+                
+                print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
                                 
                 self.unlab_train_dl = DataLoader(
                     self.unlab_train_subset,
@@ -115,8 +116,8 @@ class Class_Entropy(TrainEvaluate):
                 
                 write_csv(
                     ts_dir = self.timestamp,
-                    head = ['method', 'al_iter', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
-                    values = [self.method_name, iter + 1, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
+                    head = ['method', 'lab_obs', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
+                    values = [self.method_name, (iter + 1) * n_top_k_obs, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
                 )
                 
                 results[n_splits]['test_accuracy'].append(test_accuracy)
@@ -124,6 +125,5 @@ class Class_Entropy(TrainEvaluate):
                 results[n_splits]['test_loss_ce'].append(test_loss_ce)
                 results[n_splits]['test_loss_weird'].append(test_loss_weird)
                         
-                iter += 1
         
         return results

@@ -208,6 +208,7 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
         
         ax[1][0].plot(epochs, res['train_loss_ce'], label = 'train_loss_ce')
         ax[1][0].plot(epochs, res['val_loss_ce'], label = 'val_loss_ce')
+        ax[1][0].set_ylim([0, 5])
 
         ax[1][0].set_title('CE Loss - Epochs')
         ax[1][0].set_ylabel('CE Loss')
@@ -224,6 +225,7 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
         
         ax[1][1].plot(epochs, res['train_loss_weird'], label = 'train_loss_weird')
         ax[1][1].plot(epochs, res['val_loss_weird'], label = 'val_loss_weird')
+        ax[1][1].set_ylim([0, 5])
 
         ax[1][1].set_title('Loss Weird - Epochs')
         ax[1][1].set_ylabel('Loss Weird')
