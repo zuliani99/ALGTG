@@ -24,10 +24,11 @@ class Random_Strategy(TrainEvaluate):
 
     
     def run(self, al_iters, epochs, n_top_k_obs):
+        
         iter = 0
+        
         results = { 'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}
         
-        # iter = 0
         print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
         
         
@@ -76,7 +77,7 @@ class Random_Strategy(TrainEvaluate):
             self.reintialize_model()
             train_results = self.train_evaluate(epochs, self.lab_train_dl, self.method_name)
             
-            save_train_val_curves(train_results, self.timestamp, iter + 1, self.LL)
+            save_train_val_curves(train_results, self.timestamp, iter, self.LL)
             
             test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
             

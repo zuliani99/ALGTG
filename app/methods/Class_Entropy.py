@@ -45,16 +45,16 @@ class Class_Entropy(TrainEvaluate):
     def run(self, al_iters, epochs, n_top_k_obs):
         results = {}
         
-        for n_splits in self.params['list_n_samples']:           
+        for n_splits in self.params['list_n_samples']:
+            
+            iter = 0
                     
             print(f'----------------------- WORKING WITH {n_splits} UNLABELED SPLITS -----------------------\n')
                     
-            iter = 0
 
             results[n_splits] = { 'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}
             
                 
-            # iter = 0
             print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
             
             
@@ -110,7 +110,7 @@ class Class_Entropy(TrainEvaluate):
                 self.reintialize_model()
                 train_results = self.train_evaluate(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
                 
-                save_train_val_curves(train_results, self.timestamp, iter + 1, self.LL)
+                save_train_val_curves(train_results, self.timestamp, iter, self.LL)
                 
                 test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
                 

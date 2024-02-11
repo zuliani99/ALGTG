@@ -119,6 +119,8 @@ class GTG_Strategy(TrainEvaluate):
                      
             # start of the loop   
             while len(self.unlab_train_subset) > 0 and iter < al_iters:
+                iter =+ 1
+                
                 print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')
                 
                 # Obtaining the actual batchsize for the unlabeled observations
@@ -173,7 +175,7 @@ class GTG_Strategy(TrainEvaluate):
                 self.reintialize_model()
                 train_results = self.train_evaluate(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
                 
-                save_train_val_curves(train_results, self.timestamp, iter + 1)
+                save_train_val_curves(train_results, self.timestamp, iter)
                 
                 test_accuracy, test_loss = self.test()
                 
@@ -186,7 +188,5 @@ class GTG_Strategy(TrainEvaluate):
                 results[n_splits]['test_accuracy'].append(test_accuracy)
                 results[n_splits]['test_loss'].append(test_loss)
                 
-                        
-                iter += 1
-        
+                                
         return results
