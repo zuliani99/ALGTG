@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
 import copy
 from CIFAR10 import CIFAR10, Cifar10SubsetDataloaders
-from ResNet18 import LossPredLoss
+
 from utils import get_mean_std
 
 
@@ -171,17 +171,16 @@ class TrainEvaluate(object):
                 loss_ce = self.loss_fn(outputs, labels)
                     
                 if self.LL and weight:
-                    loss_weird_different = LossPredLoss(out_weird, loss_ce)
                     loss_weird = self.loss_weird(out_weird, loss_ce)
-                    print(loss_weird, loss_weird_different)
                     loss_ce = torch.mean(loss_ce)
                     loss = loss_ce + loss_weird
                     
                     train_loss_ce += loss_ce.cpu().item()
                     train_loss_weird += loss_weird.cpu().item()
-                else:
+                else:    
                     loss = torch.mean(loss_ce)
-                
+                    if self.LL: train_loss_ce += loss.item()
+                    
                 
                 loss.backward()         
                 self.optimizer.step()

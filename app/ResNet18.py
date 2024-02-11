@@ -172,27 +172,6 @@ class LearningLoss(nn.Module):
         return torch.mean(loss)
 
 
-def LossPredLoss(input, target, margin=1.0, reduction='mean'):
-    assert len(input) % 2 == 0, 'the batch size is not even.'
-    assert input.shape == input.flip(0).shape
-    
-    input = (input - input.flip(0))[:len(input)//2] # [l_1 - l_2B, l_2 - l_2B-1, ... , l_B - l_B+1], where batch_size = 2B
-    target = (target - target.flip(0))[:len(target)//2]
-    target = target.detach()
-
-    one = 2 * torch.sign(torch.clamp(target, min=0)) - 1 # 1 operation which is defined by the authors
-    
-    if reduction == 'mean':
-        loss = torch.sum(torch.clamp(margin - one * input, min=0))
-        loss = loss / input.size(0) # Note that the size of input is already halved
-    elif reduction == 'none':
-        loss = torch.clamp(margin - one * input, min=0)
-    else:
-        NotImplementedError()
-    
-    return loss
-
-
 
 # Define the ResNet18 model
 class OriginalResNet18(nn.Module):
