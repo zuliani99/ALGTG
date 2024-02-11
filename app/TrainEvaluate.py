@@ -28,14 +28,17 @@ class TrainEvaluate(object):
         
         self.normalize_train = cifar10.normalize_train
         
-        self.lab_train_dl: DataLoader = copy.deepcopy(cifar10.lab_train_dl)
+        #I need the deep copy only of the subsets, that have the indices referred to the original_trainset
         self.lab_train_subset: Subset = copy.deepcopy(cifar10.lab_train_subset)
         self.unlab_train_subset: Subset = copy.deepcopy(cifar10.unlab_train_subset)
         
+        #parameters that are used for all the strategies
+        self.lab_train_dl = DataLoader(self.lab_train_subset, batch_size=self.batch_size, shuffle=True, pin_memory=True)
         self.test_dl: DataLoader = cifar10.test_dl
         self.val_dl: DataLoader = cifar10.val_dl
         self.original_trainset: CIFAR10 = cifar10.original_trainset
-
+        
+        
         self.model = params['model'].to(self.device)
         self.optimizer = params['optimizer']
         self.scheduler = params['scheduler']

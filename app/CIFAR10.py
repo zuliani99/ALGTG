@@ -47,9 +47,7 @@ class Cifar10SubsetDataloaders():
         self.lab_train_subset = Subset(self.original_trainset, [train_data.indices[id] for id in labeled_set.indices])
         self.unlab_train_subset = Subset(self.original_trainset, [train_data.indices[id] for id in unlabeled_set.indices])
         
-        # Obtain the splitted dataloader
-        self.lab_train_dl = DataLoader(labeled_set, batch_size=self.batch_size, shuffle=True, pin_memory=True)
-    
+        #set up the indices for the labeled observations set
         self.original_trainset.lab_train_idxs = self.lab_train_subset.indices
             
     
