@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 
 import torch
-import torch.backends.cudnn as cudnn
 
 from ResNet18 import BasicBlock, ResNet_Weird, LearningLoss
 from CIFAR10 import Cifar10SubsetDataloaders
 
-from methods.GTG_Strategy import GTG_Strategy
+#from methods.GTG_Strategy import GTG_Strategy
 from methods.Random_Strategy import Random_Strategy
 from methods.Class_Entropy import Class_Entropy
 
@@ -36,7 +35,7 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, c
     print(f'----------------------- TRAINING ACTIVE LEARNING -----------------------')
     print('\n')
         
-    for method in methods:
+    '''for method in methods:
             
         print(f'-------------------------- {method.method_name} --------------------------\n')
             
@@ -49,7 +48,7 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, c
         
     print('Resulting number of observations')
     print(n_lab_obs)
-    print('\n')
+    print('\n')'''
         
     return results, n_lab_obs
 
@@ -62,7 +61,7 @@ def main():
     print(f'Application running on {device}\n')
 
     epochs = 200
-    al_iters = 4#10 # the maximum is 36 for CIFAR10
+    al_iters = 0#4#10 # the maximum is 36 for CIFAR10
     n_top_k_obs = 1000
     batch_size = 128
     patience = 50
@@ -74,9 +73,8 @@ def main():
     cifar10 = Cifar10SubsetDataloaders(batch_size, val_rateo = 0.2, labeled_ratio = 0.025, normalize_train = normalize_train)
     
     model = ResNet_Weird(BasicBlock, [2, 2, 2, 2])
-    #model = ResNet(BasicBlock, [2, 2, 2, 2])
-    #model.apply(init_params_apply)
-    init_params_fn(model)
+    model.apply(init_params_apply)
+    #init_params_fn(model)
     
     
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)

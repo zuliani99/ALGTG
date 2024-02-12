@@ -330,3 +330,11 @@ def init_params_apply(m):
         init.constant_(m.bias, 0)
     elif isinstance(m, BasicBlock):
         for c in list(m.children()): init_params_apply(c)
+        
+        
+        
+def save_list_number(numbers, strategy_name, type):
+    with open(f'{strategy_name}_{type}.txt', 'w') as f:
+        # Write each number to the file
+        for number in numbers:
+            f.write(str(number) + '\n')

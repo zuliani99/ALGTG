@@ -6,7 +6,7 @@ from torchvision import transforms
 import copy
 from CIFAR10 import CIFAR10, Cifar10SubsetDataloaders
 
-from utils import get_mean_std
+from utils import get_mean_std, save_list_number
 
 
 class TrainEvaluate(object):
@@ -47,6 +47,9 @@ class TrainEvaluate(object):
         self.LL = LL
         
         if not self.normalize_train: self.obtain_normalization()
+        
+        save_list_number(self.lab_train_subset, self.__class__.__name__, 'lab')
+        #save_list_number(self.unlab_train_subset, self.__class__.__name__, 'unlab')
 
             
     def reintialize_model(self): self.__load_init_checkpoint()

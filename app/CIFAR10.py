@@ -5,6 +5,7 @@ from torchvision import datasets
 from torchvision import transforms
 import torch
 
+from utils import save_list_number
 
 class Cifar10SubsetDataloaders():
     
@@ -47,9 +48,11 @@ class Cifar10SubsetDataloaders():
         self.lab_train_subset = Subset(self.original_trainset, [train_data.indices[id] for id in labeled_set.indices])
         self.unlab_train_subset = Subset(self.original_trainset, [train_data.indices[id] for id in unlabeled_set.indices])
         
-        #set up the indices for the labeled observations set
+        # Set up the indices for the labeled observations set
         self.original_trainset.lab_train_idxs = self.lab_train_subset.indices
             
+        save_list_number(self.lab_train_subset, self.__class__.__name__, 'lab')
+        #save_list_number(self.unlab_train_subset, self.__class__.__name__, 'unlab')
     
 
 class CIFAR10(Dataset):
@@ -62,8 +65,9 @@ class CIFAR10(Dataset):
         self.bool_train = bool_train
         
         self.transform_labeled = transforms.Compose([
-                transforms.RandomCrop(32, padding=4),
-                transforms.RandomHorizontalFlip(),
+                transforms.RandomCrop(32, padding=4), # <--------------------- E' RANDOM 
+                transforms.RandomHorizontalFlip(), # <------------------------ E' RANDOM 
+                # quindi non è detto che su ogni subset ottenga lo stesso trattamento 
                 transforms.ToTensor(),
                 transforms.Normalize([0.4913997551666284, 0.48215855929893703, 0.4465309133731618],
                                     [0.24703225141799082, 0.24348516474564, 0.26158783926049628])
