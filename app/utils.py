@@ -51,103 +51,69 @@ def entropy(tensor):
 
     
 
-def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, flag_LL, plot_png_name = None):
+def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, plot_png_name = None):
     
-    if flag_LL:
-        _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
-    else: 
-        _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
+    _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
     
-    
-    if flag_LL:
-        #test_loss
-        for method_str, values in methods_results.items():
-            if(isinstance(list(values.keys())[0], int)):
-                for n_samples, results in values.items():
-                    ax[0][0].plot(n_lab_obs, results['test_loss'], label = f'{method_str} - {str(n_samples)} splits')
-            else:
-                ax[0][0].plot(n_lab_obs, values['test_loss'], label = f'{method_str}')
+    #test_loss
+    for method_str, values in methods_results.items():
+        if(isinstance(list(values.keys())[0], int)):
+            for n_samples, results in values.items():
+                ax[0][0].plot(n_lab_obs, results['test_loss'], label = f'{method_str} - {str(n_samples)} splits')
+        else:
+            ax[0][0].plot(n_lab_obs, values['test_loss'], label = f'{method_str}')
 
-        ax[0][0].set_title('Total Loss - # Labeled Obs')
-        ax[0][0].set_xlabel('# Labeled Obs')
-        ax[0][0].set_ylabel('Total Loss')
-        ax[0][0].grid()
-        ax[0][0].legend()
+    ax[0][0].set_title('Total Loss - # Labeled Obs')
+    ax[0][0].set_xlabel('# Labeled Obs')
+    ax[0][0].set_ylabel('Total Loss')
+    ax[0][0].grid()
+    ax[0][0].legend()
 
         
-        #test_accuracy
-        for method_str, values in methods_results.items():
-            if(isinstance(list(values.keys())[0], int)):
-                for n_samples, results in values.items():
-                    ax[0][1].plot(n_lab_obs, results['test_accuracy'], label = f'{method_str} - {str(n_samples)} splits')
-            else:
-                ax[0][1].plot(n_lab_obs, values['test_accuracy'], label = f'{method_str}')
+    #test_accuracy
+    for method_str, values in methods_results.items():
+        if(isinstance(list(values.keys())[0], int)):
+            for n_samples, results in values.items():
+                ax[0][1].plot(n_lab_obs, results['test_accuracy'], label = f'{method_str} - {str(n_samples)} splits')
+        else:
+            ax[0][1].plot(n_lab_obs, values['test_accuracy'], label = f'{method_str}')
                 
-        ax[0][1].set_title('Accuracy Score - # Labeled Obs')
-        ax[0][1].set_ylabel('Accuracy Score')
-        ax[0][1].set_xlabel('# Labeled Obs')
-        ax[0][1].grid()
-        ax[0][1].legend()
+    ax[0][1].set_title('Accuracy Score - # Labeled Obs')
+    ax[0][1].set_ylabel('Accuracy Score')
+    ax[0][1].set_xlabel('# Labeled Obs')
+    ax[0][1].grid()
+    ax[0][1].legend()
         
         
-        #test_loss_ce
-        for method_str, values in methods_results.items():
-            if(isinstance(list(values.keys())[0], int)):
-                for n_samples, results in values.items():
-                    ax[1][0].plot(n_lab_obs, results['test_loss_ce'], label = f'{method_str} - {str(n_samples)} splits')
-            else:
-                ax[1][0].plot(n_lab_obs, values['test_loss_ce'], label = f'{method_str}')
+    #test_loss_ce
+    for method_str, values in methods_results.items():
+        if(isinstance(list(values.keys())[0], int)):
+            for n_samples, results in values.items():
+                ax[1][0].plot(n_lab_obs, results['test_loss_ce'], label = f'{method_str} - {str(n_samples)} splits')
+        else:
+            ax[1][0].plot(n_lab_obs, values['test_loss_ce'], label = f'{method_str}')
                 
-        ax[1][0].set_title('CE Loss - # Labeled Obs')
-        ax[1][0].set_ylabel('CE Loss')
-        ax[1][0].set_xlabel('# Labeled Obs')
-        ax[1][0].grid()
-        ax[1][0].legend()
+    ax[1][0].set_title('CE Loss - # Labeled Obs')
+    ax[1][0].set_ylabel('CE Loss')
+    ax[1][0].set_xlabel('# Labeled Obs')
+    ax[1][0].grid()
+    ax[1][0].legend()
         
         
-        #test_loss_weird
-        for method_str, values in methods_results.items():
-            if(isinstance(list(values.keys())[0], int)):
-                for n_samples, results in values.items():
-                    ax[1][1].plot(n_lab_obs, results['test_loss_weird'], label = f'{method_str} - {str(n_samples)} splits')
-            else:
-                ax[1][1].plot(n_lab_obs, values['test_loss_weird'], label = f'{method_str}')
+    #test_loss_weird
+    for method_str, values in methods_results.items():
+        if(isinstance(list(values.keys())[0], int)):
+            for n_samples, results in values.items():
+                ax[1][1].plot(n_lab_obs, results['test_loss_weird'], label = f'{method_str} - {str(n_samples)} splits')
+        else:
+            ax[1][1].plot(n_lab_obs, values['test_loss_weird'], label = f'{method_str}')
                 
-        ax[1][1].set_title('Loss Weird - # Labeled Obs')
-        ax[1][1].set_ylabel('Loss Weird')
-        ax[1][1].set_xlabel('# Labeled Obs')
-        ax[1][1].grid()
-        ax[1][1].legend()
+    ax[1][1].set_title('Loss Weird - # Labeled Obs')
+    ax[1][1].set_ylabel('Loss Weird')
+    ax[1][1].set_xlabel('# Labeled Obs')
+    ax[1][1].grid()
+    ax[1][1].legend()
     
-    else:
-        #test_loss
-        for method_str, values in methods_results.items():
-            if(isinstance(list(values.keys())[0], int)):
-                for n_samples, results in values.items():
-                    ax[0].plot(n_lab_obs, results['test_loss'], label = f'{method_str} - {str(n_samples)} splits')
-            else:
-                ax[0].plot(n_lab_obs, values['test_loss'], label = f'{method_str}')
-
-        ax[0].set_title('Total Loss - # Labeled Obs')
-        ax[0].set_xlabel('# Labeled Obs')
-        ax[0].set_ylabel('Total Loss')
-        ax[0].grid()
-        ax[0].legend()
-
-        
-        #test_accuracy
-        for method_str, values in methods_results.items():
-            if(isinstance(list(values.keys())[0], int)):
-                for n_samples, results in values.items():
-                    ax[1].plot(n_lab_obs, results['test_accuracy'], label = f'{method_str} - {str(n_samples)} splits')
-            else:
-                ax[1].plot(n_lab_obs, values['test_accuracy'], label = f'{method_str}')
-                
-        ax[1].set_title('Accuracy Score - # Labeled Obs')
-        ax[1].set_ylabel('Accuracy Score')
-        ax[1].set_xlabel('# Labeled Obs')
-        ax[1].grid()
-        ax[1].legend()
 
     plt.suptitle('Results', fontsize = 30)
     
@@ -201,10 +167,6 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
         
         
         #train_loss_ce, val_loss_ce
-        '''print(res['train_loss_ce'], res['val_loss_ce'])
-        res['train_loss_ce'] = list(filter(lambda c: c!= 0.0, res['train_loss_ce']))
-        res['val_loss_ce'] = list(filter(lambda c: c!= 0.0, res['val_loss_ce']))
-        print(res['train_loss_ce'], res['val_loss_ce'])'''
         
         ax[1][0].plot(epochs, res['train_loss_ce'], label = 'train_loss_ce')
         ax[1][0].plot(epochs, res['val_loss_ce'], label = 'val_loss_ce')
@@ -218,10 +180,6 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
 
         
         #train_loss_weird, val_loss_weird
-        '''print(res['train_loss_weird'], res['val_loss_weird'])
-        res['train_loss_weird'] = list(filter(lambda c: c!= 0.0, res['train_loss_weird']))
-        res['val_loss_weird'] = list(filter(lambda c: c!= 0.0, res['val_loss_weird']))
-        print(res['train_loss_weird'], res['val_loss_weird'])'''
         
         ax[1][1].plot(epochs, res['train_loss_weird'], label = 'train_loss_weird')
         ax[1][1].plot(epochs, res['val_loss_weird'], label = 'val_loss_weird')
@@ -332,9 +290,3 @@ def init_params_apply(m):
         for c in list(m.children()): init_params_apply(c)
         
         
-        
-def save_list_number(numbers, strategy_name, type):
-    with open(f'{strategy_name}_{type}.txt', 'w') as f:
-        # Write each number to the file
-        for number in numbers:
-            f.write(str(number) + '\n')

@@ -31,9 +31,7 @@ class Random_Strategy(TrainEvaluate):
         
         print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
         
-        
-        # reset the indices to the original one
-        self.original_trainset.lab_train_idxs = self.lab_train_subset.indices
+        # reinitialize the model
         self.reintialize_model()
         
         
@@ -61,7 +59,7 @@ class Random_Strategy(TrainEvaluate):
             
             print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
                             
-            '''#get random indices to move in the labeled datasets
+            #get random indices to move in the labeled datasets
             print(' => Sampling random unlabeled observations')
             topk_idx_obs = self.sample_unlab_obs(n_top_k_obs)
             print(' DONE\n')
@@ -70,7 +68,7 @@ class Random_Strategy(TrainEvaluate):
             # modify the datasets and dataloader
             print(' => Modifing the Subsets and Dataloader')
             self.get_new_dataloaders(topk_idx_obs)
-            print(' DONE\n')'''
+            print(' DONE\n')
             
             
             # iter + 1

@@ -96,8 +96,7 @@ class GTG_Strategy(TrainEvaluate):
             print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
             
             
-            # reset the indices to the original one
-            self.original_trainset.lab_train_idxs = self.lab_train_subset.indices
+            # reinitialize the model
             self.reintialize_model()
             
             
@@ -130,7 +129,6 @@ class GTG_Strategy(TrainEvaluate):
                     self.unlab_train_subset,
                     batch_size=iter_batch_size,
                     sampler=UniqueShuffle(self.unlab_train_subset),
-                    
                     pin_memory=True
                 )
                 
@@ -140,7 +138,7 @@ class GTG_Strategy(TrainEvaluate):
                 print(' DONE\n')
                 
                 # at each AL round I reinitialize the entropy_pairwise_der since I have to decide at each step what observations I want to move
-                self.entropy_pairwise_der = torch.zeros((len(self.original_trainset), self.params['gtg_max_iter'] - 1), device=self.device)
+                self.entropy_pairwise_der = torch.zeros((len(self.transformed_trainset), self.params['gtg_max_iter'] - 1), device=self.device)
 
                 # for each split
 

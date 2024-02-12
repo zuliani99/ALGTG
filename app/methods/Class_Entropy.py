@@ -58,8 +58,7 @@ class Class_Entropy(TrainEvaluate):
             print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
             
             
-            # reset the indices to the original one
-            self.original_trainset.lab_train_idxs = self.lab_train_subset.indices
+            # reinitialize the model
             self.reintialize_model()
             
             
@@ -87,7 +86,7 @@ class Class_Entropy(TrainEvaluate):
                 
                 print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
                                 
-                '''self.unlab_train_dl = DataLoader(
+                self.unlab_train_dl = DataLoader(
                     self.unlab_train_subset,
                     batch_size=len(self.unlab_train_subset) // n_splits, 
                     shuffle=True, 
@@ -103,7 +102,7 @@ class Class_Entropy(TrainEvaluate):
                 
                 print(' => Modifing the Subsets and Dataloader')
                 self.get_new_dataloaders([indices_prob[id].item() for id in overall_topk.indices])
-                print(' DONE\n')'''
+                print(' DONE\n')
                 
                 # iter + 1
                 self.reintialize_model()

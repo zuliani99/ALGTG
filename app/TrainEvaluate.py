@@ -6,7 +6,7 @@ from torchvision import transforms
 import copy
 from CIFAR10 import CIFAR10, Cifar10SubsetDataloaders
 
-from utils import get_mean_std, save_list_number
+#from utils import save_list_number, get_mean_std, 
 
 
 class TrainEvaluate(object):
@@ -26,7 +26,7 @@ class TrainEvaluate(object):
         self.timestamp = params['timestamp']
         self.loss_fn = params['loss_fn']
         
-        self.normalize_train = cifar10.normalize_train
+        #self.normalize_train = cifar10.normalize_train
         
         #I need the deep copy only of the subsets, that have the indices referred to the original_trainset
         self.lab_train_subset: Subset = copy.deepcopy(cifar10.lab_train_subset)
@@ -36,8 +36,10 @@ class TrainEvaluate(object):
         self.lab_train_dl = DataLoader(self.lab_train_subset, batch_size=self.batch_size, shuffle=True, pin_memory=True)
         self.test_dl: DataLoader = cifar10.test_dl
         self.val_dl: DataLoader = cifar10.val_dl
-        self.original_trainset: CIFAR10 = cifar10.original_trainset
         
+        #self.original_trainset: CIFAR10 = cifar10.original_trainset
+        self.transformed_trainset: CIFAR10 = cifar10.transformed_trainset 
+        self.non_transformed_trainset: CIFAR10 = cifar10.non_transformed_trainset 
         
         self.model = params['model'].to(self.device)
         self.optimizer = params['optimizer']
@@ -46,26 +48,11 @@ class TrainEvaluate(object):
         
         self.LL = LL
         
-        if not self.normalize_train: self.obtain_normalization()
         
-        save_list_number(self.lab_train_subset, self.__class__.__name__, 'lab')
-        #save_list_number(self.unlab_train_subset, self.__class__.__name__, 'unlab')
-
-            
+        
     def reintialize_model(self): self.__load_init_checkpoint()
 
 
-    def obtain_normalization(self):
-        print(' => Obtaining mean and std from the labeled set')
-
-        self.original_trainset.flag_normalization = True
-        mean, std = get_mean_std(self.lab_train_dl)
-        self.original_trainset.flag_normalization = False
-
-        self.normalize = transforms.Compose([ transforms.Normalize(mean, std) ])
-        print(' DONE\n')
-
-        
         
     def __save_best_checkpoint(self, filename):
         print(' => Saving best checkpoint')
@@ -98,6 +85,7 @@ class TrainEvaluate(object):
         print(' DONE\n')
 
 
+
     def evaluate(self, dataloader, weight):
                 
         tot_loss, tot_loss_ce, tot_loss_weird, tot_accuracy = .0, .0, .0, .0
@@ -108,7 +96,6 @@ class TrainEvaluate(object):
             for _, images, labels in dataloader:
                 
                 images, labels = images.to(self.device), labels.to(self.device)
-                if not self.normalize_train: self.normalize(images)
 
                 outputs, _, out_weird, _ = self.model(images)
 
@@ -167,7 +154,6 @@ class TrainEvaluate(object):
 
                 # get the inputs; data is a list of [inputs, labels]
                 images, labels = images.to(self.device), labels.to(self.device)
-                if not self.normalize_train: self.normalize(images)
                 
                 self.optimizer.zero_grad()
                                 
@@ -292,7 +278,6 @@ class TrainEvaluate(object):
             for _, images, labels in dataloader:
                 
                 images, labels = images.to(self.device), labels.to(self.device)
-                if not self.normalize_train: self.normalize(images)
                 
                 _, embed, _, _ = self.model(images)
                 
@@ -310,18 +295,18 @@ class TrainEvaluate(object):
         
         # extend with the overall_topk
         lab_train_indices.extend(overall_topk)
-        # generate a new Subset
-        self.lab_train_subset = Subset(self.original_trainset, lab_train_indices)
         
-        # update the indices for the transform        
-        self.original_trainset.lab_train_idxs = lab_train_indices
+        # generate a new Subset
+        self.lab_train_subset = Subset(self.transformed_trainset, lab_train_indices)
             
         # temp variable
         unlab_train_indices = copy.deepcopy(self.unlab_train_subset.indices)
+        
         # remove new labeled observations
         for idx_to_remove in overall_topk: unlab_train_indices.remove(idx_to_remove)
+        
         # generate a new Subset
-        self.unlab_train_subset = Subset(self.original_trainset, unlab_train_indices)
+        self.unlab_train_subset = Subset(self.non_transformed_trainset, unlab_train_indices)
         
         # sanity check
         if len(list(set(self.unlab_train_subset.indices) & set(self.lab_train_subset.indices))) == 0:
@@ -331,5 +316,4 @@ class TrainEvaluate(object):
         # generate the new labeled DataLoader
         self.lab_train_dl = DataLoader(self.lab_train_subset, batch_size=self.batch_size, shuffle=True,  pin_memory=True)
         
-        if not self.normalize_train: self.obtain_normalization()
         
