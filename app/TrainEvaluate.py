@@ -32,6 +32,7 @@ class TrainEvaluate(object):
         
         #parameters that are used for all the strategies
         self.lab_train_dl = DataLoader(self.lab_train_subset, batch_size=self.batch_size, shuffle=True, pin_memory=True)
+        self.len_lab_train_dl = len(self.lab_train_dl)
         self.test_dl: DataLoader = cifar10.test_dl
         self.val_dl: DataLoader = cifar10.val_dl
         
@@ -45,10 +46,6 @@ class TrainEvaluate(object):
         
         self.LL = LL
         
-        
-        
-    def reintialize_model(self): self.__load_init_checkpoint()
-
 
         
     def __save_best_checkpoint(self, filename):
@@ -63,7 +60,7 @@ class TrainEvaluate(object):
     
     
     
-    def __load_init_checkpoint(self):
+    def reintialize_model(self):
         print(' => Load initial checkpoint')
         checkpoint = torch.load(self.init_check_filename, map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
@@ -124,7 +121,7 @@ class TrainEvaluate(object):
 
 
 
-    def train_evaluate(self, epochs, dataloader, method_str):
+    def train_evaluate(self, epochs, method_str):
         
         weight = 1.   # 120 = 0
     
@@ -147,7 +144,7 @@ class TrainEvaluate(object):
             
             train_loss, train_loss_ce, train_loss_weird, train_accuracy = .0, .0, .0, .0
             
-            for _, images, labels in dataloader:
+            for _, images, labels in self.lab_train_dl:
 
                 # get the inputs; data is a list of [inputs, labels]
                 images, labels = images.to(self.device), labels.to(self.device)
@@ -181,10 +178,10 @@ class TrainEvaluate(object):
 
     
 
-            train_accuracy /= len(dataloader)
-            train_loss /= len(dataloader)
-            train_loss_ce /= len(dataloader)
-            train_loss_weird /= len(dataloader)
+            train_accuracy /= self.len_lab_train_dl
+            train_loss /= self.len_lab_train_dl
+            train_loss_ce /= self.len_lab_train_dl
+            train_loss_weird /= self.len_lab_train_dl
             
             
             val_accuracy, val_loss, val_loss_ce, val_loss_weird = self.evaluate(self.val_dl, weight)
@@ -320,10 +317,10 @@ class TrainEvaluate(object):
         # reinitialize the model
         self.reintialize_model()
         
-        train_results = self.train_evaluate(epochs, self.lab_train_dl, self.method_name)
+        train_results = self.train_evaluate(epochs, self.method_name)
         
         save_train_val_curves(train_results, self.timestamp, iter, self.LL)
-            
+        
         test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
         
         write_csv(
