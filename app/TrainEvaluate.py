@@ -6,8 +6,6 @@ from torchvision import transforms
 import copy
 from CIFAR10 import CIFAR10, Cifar10SubsetDataloaders
 
-#from utils import save_list_number, get_mean_std, 
-
 
 class TrainEvaluate(object):
 
@@ -26,7 +24,6 @@ class TrainEvaluate(object):
         self.timestamp = params['timestamp']
         self.loss_fn = params['loss_fn']
         
-        #self.normalize_train = cifar10.normalize_train
         
         #I need the deep copy only of the subsets, that have the indices referred to the original_trainset
         self.lab_train_subset: Subset = copy.deepcopy(cifar10.lab_train_subset)
@@ -37,7 +34,6 @@ class TrainEvaluate(object):
         self.test_dl: DataLoader = cifar10.test_dl
         self.val_dl: DataLoader = cifar10.val_dl
         
-        #self.original_trainset: CIFAR10 = cifar10.original_trainset
         self.transformed_trainset: CIFAR10 = cifar10.transformed_trainset 
         self.non_transformed_trainset: CIFAR10 = cifar10.non_transformed_trainset 
         

@@ -42,7 +42,7 @@ class Cifar10SubsetDataloaders():
         validation_indices = np.delete(shuffled_indices, random_indices_train_val)
                 
         # validation dataloader
-        self.val_dl = DataLoader(Subset(self.non_transformed_trainset, validation_indices), batch_size=self.batch_size, shuffle=False, pin_memory=True)
+        self.val_dl = DataLoader(Subset(self.non_transformed_trainset, validation_indices.tolist()), batch_size=self.batch_size, shuffle=False, pin_memory=True)
                 
         # calculate the number of samples for each split
         labeled_size = int(labeled_ratio * new_train_size)
@@ -53,8 +53,8 @@ class Cifar10SubsetDataloaders():
         unlabeled_indices = np.delete(train_indices, random_indices_lab_unlab)
 
         # subset for the labeled and unlabeled sets
-        self.lab_train_subset = Subset(self.transformed_trainset, labeled_indices)
-        self.unlab_train_subset = Subset(self.non_transformed_trainset, unlabeled_indices)
+        self.lab_train_subset = Subset(self.transformed_trainset, labeled_indices.tolist())
+        self.unlab_train_subset = Subset(self.non_transformed_trainset, unlabeled_indices.tolist())
     
 
 class CIFAR10(Dataset):

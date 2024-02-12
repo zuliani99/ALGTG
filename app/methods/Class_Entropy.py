@@ -15,7 +15,7 @@ class Class_Entropy(TrainEvaluate):
                 
         self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
         self.params = method_params  
-        self.LL = LL       
+        self.LL = LL
         
             
     def evaluate_unlabeled(self):
@@ -29,7 +29,6 @@ class Class_Entropy(TrainEvaluate):
             for idxs, images, _ in self.unlab_train_dl:
                 
                 idxs, images = idxs.to(self.device), images.to(self.device)
-                if not self.normalize_train: self.normalize(images)
                 
                 outputs, _, _, _ = self.model(images)
                     
