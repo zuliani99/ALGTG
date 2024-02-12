@@ -82,6 +82,7 @@ class GTG_Strategy(TrainEvaluate):
 
 
     def run(self, al_iters, epochs, n_top_k_obs):
+        
         results = {}
         
         for n_splits in self.params['list_n_samples']:
@@ -90,7 +91,7 @@ class GTG_Strategy(TrainEvaluate):
                     
             iter = 0
 
-            results[n_splits] = { 'test_accuracy': [], 'test_loss': [] }
+            results[n_splits] = { 'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}
                 
             # iter = 0            
             print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
@@ -104,16 +105,18 @@ class GTG_Strategy(TrainEvaluate):
             
             save_train_val_curves(train_results, self.timestamp, iter)
             
-            test_accuracy, test_loss = self.test()
+            test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
                 
             write_csv(
-                ts_dir=self.timestamp,
-                head = ['method', 'lab_obs', 'n_splits', 'test_accuracy', 'test_loss'],
-                values = [self.method_name, n_top_k_obs, n_splits, test_accuracy, test_loss]
+                ts_dir = self.timestamp,
+                head = ['method', 'lab_obs', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
+                values = [self.method_name, n_top_k_obs, n_splits, test_accuracy, test_loss, test_loss_ce, test_loss_weird]
             )
                 
             results[n_splits]['test_accuracy'].append(test_accuracy)
             results[n_splits]['test_loss'].append(test_loss)
+            results[n_splits]['test_loss_ce'].append(test_loss_ce)
+            results[n_splits]['test_loss_weird'].append(test_loss_weird)
                      
                      
             # start of the loop   
@@ -175,16 +178,18 @@ class GTG_Strategy(TrainEvaluate):
                 
                 save_train_val_curves(train_results, self.timestamp, iter)
                 
-                test_accuracy, test_loss = self.test()
+                test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
                 
                 write_csv(
-                    ts_dir=self.timestamp,
-                    head = ['method', 'lab_obs', 'n_splits', 'test_accuracy', 'test_loss'],
-                    values = [self.method_name, (iter + 1) * n_top_k_obs, n_splits, test_accuracy, test_loss]
+                    ts_dir = self.timestamp,
+                    head = ['method', 'lab_obs', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
+                    values = [self.method_name, (iter + 1) * n_top_k_obs, n_splits, test_accuracy, test_loss, test_loss_ce, test_loss_weird]
                 )
-                
+                    
                 results[n_splits]['test_accuracy'].append(test_accuracy)
                 results[n_splits]['test_loss'].append(test_loss)
+                results[n_splits]['test_loss_ce'].append(test_loss_ce)
+                results[n_splits]['test_loss_weird'].append(test_loss_weird)
                 
                                 
         return results

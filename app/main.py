@@ -9,7 +9,7 @@ from CIFAR10 import Cifar10SubsetDataloaders
 from methods.Random_Strategy import Random_Strategy
 from methods.Class_Entropy import Class_Entropy
 
-from utils import create_ts_dir_res, accuracy_score, plot_loss_curves, init_params_fn, save_init_checkpoint, init_params_apply
+from utils import create_ts_dir_res, accuracy_score, plot_loss_curves, save_init_checkpoint, init_weights_apply, init_weights_fn
 
 from datetime import datetime
 
@@ -25,10 +25,11 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, c
     methods = [
         Random_Strategy(al_params, LL=False),
         Random_Strategy(al_params, LL=True),  
+        
         Class_Entropy(al_params, class_entropy_params, LL=False),
         Class_Entropy(al_params, class_entropy_params, LL=True),
         
-        #GTG_Strategy(al_params, our_method_params, LL=Fasle)
+        #GTG_Strategy(al_params, our_method_params, LL=False)
         #GTG_Strategy(al_params, our_method_params, LL=True)
     ]
     
@@ -73,8 +74,8 @@ def main():
     cifar10 = Cifar10SubsetDataloaders(batch_size, val_rateo = 0.2, labeled_ratio = 0.025)
     
     model = ResNet_Weird(BasicBlock, [2, 2, 2, 2])
-    #model.apply(init_params_apply)
-    init_params_fn(model)
+    model.apply(init_weights_apply)
+    #init_weights_fn(model)
     
     
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)

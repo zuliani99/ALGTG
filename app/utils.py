@@ -1,5 +1,6 @@
 
 import torch
+
 import torch.nn as nn
 import torch.nn.init as init
 
@@ -9,7 +10,7 @@ import csv
 import os
 import errno
 
-from ResNet18 import BasicBlock
+#from ResNet18 import BasicBlock
 
 
 def save_init_checkpoint(model, optimizer, scheduler):
@@ -260,7 +261,7 @@ def create_ts_dir_res(timestamp):
             raise
         
 
-def init_params_fn(net):
+def init_weights_fn(net):
     for m in net.modules():
         if isinstance(m, nn.Conv2d):
             init.kaiming_normal_(m.weight, mode='fan_out')
@@ -276,7 +277,7 @@ def init_params_fn(net):
         
         
 # weights initiaization
-def init_params_apply(m):
+def init_weights_apply(m):
     if isinstance(m, nn.Conv2d):
         init.kaiming_normal_(m.weight, mode='fan_out')
         if m.bias is not None: init.constant_(m.bias, 0)
@@ -286,7 +287,7 @@ def init_params_apply(m):
     elif isinstance(m, nn.BatchNorm2d):
         init.constant_(m.weight, 1)
         init.constant_(m.bias, 0)
-    elif isinstance(m, BasicBlock):
-        for c in list(m.children()): init_params_apply(c)
+    #elif isinstance(m, BasicBlock):
+    #    for c in list(m.children()): init_params_apply(c)
         
         

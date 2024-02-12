@@ -20,18 +20,21 @@ class Cifar10SubsetDataloaders():
 
         self.classes = ['plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
     
-        self.get_initial_dataloaders(val_rateo, labeled_ratio)
+        self.get_initial_subsets_dls(val_rateo, labeled_ratio)
     
     
     
-    def get_initial_dataloaders(self, val_rateo, labeled_ratio):
+    def get_initial_subsets_dls(self, val_rateo, labeled_ratio):
 
         train_size = len(self.transformed_trainset) #50000
         
+        # computing the indice for the train and validation sets
         val_size = int(train_size * val_rateo)
         new_train_size = train_size - val_size
         
+        # random shuffle of the trian indices
         shuffled_indices = np.arange(train_size)
+        np.random.shuffle(shuffled_indices)
         
         # indices for the train and validation sets
         random_indices_train_val = np.random.choice(len(shuffled_indices), size=new_train_size, replace=False)
@@ -41,7 +44,7 @@ class Cifar10SubsetDataloaders():
         # validation dataloader
         self.val_dl = DataLoader(Subset(self.non_transformed_trainset, validation_indices), batch_size=self.batch_size, shuffle=False, pin_memory=True)
                 
-        # Calculate the number of samples for each split
+        # calculate the number of samples for each split
         labeled_size = int(labeled_ratio * new_train_size)
 
         # indices for the labeled and unlabeled sets

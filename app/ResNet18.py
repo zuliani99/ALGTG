@@ -2,10 +2,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.models as models
+import torch.nn.init as init
 
 
 class BasicBlock(nn.Module):
+    
     expansion = 1
 
     def __init__(self, in_planes, planes, stride=1):
@@ -25,6 +26,7 @@ class BasicBlock(nn.Module):
                 nn.BatchNorm2d(self.expansion*planes)
             )
 
+
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
@@ -36,6 +38,7 @@ class BasicBlock(nn.Module):
     
     
 class ResNet(nn.Module):
+    
     def __init__(self, block, num_blocks, num_classes=10):
         super(ResNet, self).__init__()
         self.in_planes = 64
@@ -49,6 +52,7 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
         self.linear = nn.Linear(512*block.expansion, num_classes)
 
+
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
         layers = []
@@ -56,6 +60,7 @@ class ResNet(nn.Module):
             layers.append(block(self.in_planes, planes, stride))
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
+
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
@@ -72,6 +77,7 @@ class ResNet(nn.Module):
 
 
 class ResNet_Weird(nn.Module):
+    
     def __init__(self, block, num_blocks, num_classes=10):
         super(ResNet_Weird, self).__init__()
         self.in_planes = 64
@@ -104,7 +110,7 @@ class ResNet_Weird(nn.Module):
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
 
-    
+
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
         
@@ -145,6 +151,7 @@ class LearningLoss(nn.Module):
         self.margin = margin
         self.device = device
 
+
     def forward(self, output, real_loss):
         output = output.squeeze()
         
@@ -172,14 +179,3 @@ class LearningLoss(nn.Module):
         return torch.mean(loss)
 
 
-
-# Define the ResNet18 model
-class OriginalResNet18(nn.Module):
-    def __init__(self, num_classes):
-        super(OriginalResNet18, self).__init__()
-        self.resnet18 = models.resnet18(weights=None)
-        self.resnet18.fc = nn.Linear(self.resnet18.fc.in_features, num_classes)
-
-    
-    def forward(self, x):
-        return self.resnet18(x)
