@@ -5,7 +5,7 @@ import torch
 from ResNet18 import BasicBlock, ResNet_Weird, LearningLoss
 from CIFAR10 import Cifar10SubsetDataloaders
 
-#from methods.GTG_Strategy import GTG_Strategy
+from methods.GTG_Strategy import GTG_Strategy
 from methods.Random_Strategy import Random_Strategy
 from methods.Class_Entropy import Class_Entropy
 

@@ -2,9 +2,10 @@
 import torch
 from torch.utils.data import DataLoader, Subset
 
-from torchvision import transforms
 import copy
+
 from CIFAR10 import CIFAR10, Cifar10SubsetDataloaders
+from utils import save_train_val_curves, write_csv
 
 
 class TrainEvaluate(object):
@@ -312,4 +313,33 @@ class TrainEvaluate(object):
         # generate the new labeled DataLoader
         self.lab_train_dl = DataLoader(self.lab_train_subset, batch_size=self.batch_size, shuffle=True,  pin_memory=True)
         
+
+
+    def train_evaluate_save(self, epochs, lab_obs, n_splits, results):
         
+        # reinitialize the model
+        self.reintialize_model()
+        
+        train_results = self.train_evaluate(epochs, self.lab_train_dl, self.method_name)
+        
+        save_train_val_curves(train_results, self.timestamp, iter, self.LL)
+            
+        test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
+        
+        write_csv(
+            ts_dir = self.timestamp,
+            head = ['method', 'lab_obs', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
+            values = [self.method_name, lab_obs, n_splits, test_accuracy, test_loss, test_loss_ce, test_loss_weird]
+        )
+        
+        if n_splits == None:
+            results['test_accuracy'].append(test_accuracy)
+            results['test_loss'].append(test_loss)
+            results['test_loss_ce'].append(test_loss_ce)
+            results['test_loss_weird'].append(test_loss_weird)
+        else:
+            results[n_splits]['test_accuracy'].append(test_accuracy)
+            results[n_splits]['test_loss'].append(test_loss)
+            results[n_splits]['test_loss_ce'].append(test_loss_ce)
+            results[n_splits]['test_loss_weird'].append(test_loss_weird)
+            

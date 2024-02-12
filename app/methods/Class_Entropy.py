@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 from TrainEvaluate import TrainEvaluate
 
-from utils import entropy, save_train_val_curves, write_csv
+from utils import entropy
 
 
 class Class_Entropy(TrainEvaluate):
@@ -49,36 +49,14 @@ class Class_Entropy(TrainEvaluate):
             iter = 0
                     
             print(f'----------------------- WORKING WITH {n_splits} UNLABELED SPLITS -----------------------\n')
-                    
-
+            
             results[n_splits] = { 'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}
             
-                
             print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
             
+            # iter = 0
+            self.train_evaluate_save(epochs, n_top_k_obs, n_splits, results)
             
-            # reinitialize the model
-            self.reintialize_model()
-            
-            
-            train_results = self.train_evaluate(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
-            
-            save_train_val_curves(train_results, self.timestamp, iter, self.LL)
-            
-            test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
-                
-            write_csv(
-                ts_dir = self.timestamp,
-                head = ['method', 'lab_obs', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
-                values = [self.method_name, n_top_k_obs, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
-            )
-                
-            results[n_splits]['test_accuracy'].append(test_accuracy)
-            results[n_splits]['test_loss'].append(test_loss)
-            results[n_splits]['test_loss_ce'].append(test_loss_ce)
-            results[n_splits]['test_loss_weird'].append(test_loss_weird)
-            
-                                 
             # start of the loop   
             while len(self.unlab_train_subset) > 0 and iter < al_iters:
                 iter += 1
@@ -104,23 +82,6 @@ class Class_Entropy(TrainEvaluate):
                 print(' DONE\n')
                 
                 # iter + 1
-                self.reintialize_model()
-                train_results = self.train_evaluate(epochs, self.lab_train_dl, self.method_name) # train in the labeled observations
-                
-                save_train_val_curves(train_results, self.timestamp, iter, self.LL)
-                
-                test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
-                
-                write_csv(
-                    ts_dir = self.timestamp,
-                    head = ['method', 'lab_obs', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
-                    values = [self.method_name, (iter + 1) * n_top_k_obs, 'None', test_accuracy, test_loss, test_loss_ce, test_loss_weird]
-                )
-                
-                results[n_splits]['test_accuracy'].append(test_accuracy)
-                results[n_splits]['test_loss'].append(test_loss)
-                results[n_splits]['test_loss_ce'].append(test_loss_ce)
-                results[n_splits]['test_loss_weird'].append(test_loss_weird)
-                        
+                self.train_evaluate_save(epochs, (iter + 1) * n_top_k_obs, n_splits, results)
         
         return results
