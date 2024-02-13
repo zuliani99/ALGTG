@@ -140,7 +140,8 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
     minloss_val = min(res['val_loss'])
     minloss_ep = res['val_loss'].index(minloss_val) + 1
 
-    maxacc_ep = res['val_accuracy'][minloss_ep - 1]
+    maxacc_val = max(res['val_accuracy'])
+    maxacc_ep = res['val_accuracy'].index(maxacc_val) + 1
     
     if flag_LL:
         
@@ -148,7 +149,7 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
         ax[0][0].plot(epochs, res['train_loss'], label = 'train_loss')
         ax[0][0].plot(epochs, res['val_loss'], label = 'val_loss')
         ax[0][0].set_ylim([0, 5])
-        ax[0][0].axvline(minloss_ep, linestyle='--', color='r', label='Early Stopping Checkpoint')
+        ax[0][0].axvline(minloss_ep, linestyle='--', color='r', label='Min loss')
 
         ax[0][0].axhline(minloss_val, linestyle='--', color='r')
         ax[0][0].set_title('Total Loss - Epochs')
@@ -161,9 +162,9 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
         #train_accuracy, val_accuracy
         ax[0][1].plot(epochs, res['train_accuracy'], label = 'train_accuracy_score')
         ax[0][1].plot(epochs, res['val_accuracy'], label = 'val_accuracy_score')
-        ax[0][1].axvline(minloss_ep, linestyle='--', color='r', label='Early Stopping Checkpoint')
+        ax[0][1].axvline(maxacc_ep, linestyle='--', color='r', label='Max Accuracy')
 
-        ax[0][1].axhline(maxacc_ep, linestyle='--', color='r')
+        ax[0][1].axhline(maxacc_val, linestyle='--', color='r')
         ax[0][1].set_title('Accuracy Score - Epochs')
         ax[0][1].set_ylabel('Accuracy Score')
         ax[0][1].set_xlabel('Epochs')
@@ -203,7 +204,7 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
         ax[0].plot(epochs, res['train_loss'], label = 'train_loss')
         ax[0].plot(epochs, res['val_loss'], label = 'val_loss')
         ax[0].set_ylim([0, 5])
-        ax[0].axvline(minloss_ep, linestyle='--', color='r', label='Early Stopping Checkpoint')
+        ax[0].axvline(minloss_ep, linestyle='--', color='r', label='Min Loss')
 
         ax[0].axhline(minloss_val, linestyle='--', color='r')
         ax[0].set_title('Total Loss - Epochs')
@@ -216,9 +217,9 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
         #train_accuracy, val_accuracy
         ax[1].plot(epochs, res['train_accuracy'], label = 'train_accuracy_score')
         ax[1].plot(epochs, res['val_accuracy'], label = 'val_accuracy_score')
-        ax[1].axvline(minloss_ep, linestyle='--', color='r', label='Early Stopping Checkpoint')
+        ax[1].axvline(maxacc_ep, linestyle='--', color='r', label='Max Accuracy')
 
-        ax[1].axhline(maxacc_ep, linestyle='--', color='r')
+        ax[1].axhline(maxacc_val, linestyle='--', color='r')
         ax[1].set_title('Accuracy Score - Epochs')
         ax[1].set_ylabel('Accuracy Score')
         ax[1].set_xlabel('Epochs')

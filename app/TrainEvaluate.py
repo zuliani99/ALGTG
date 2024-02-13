@@ -152,11 +152,12 @@ class TrainEvaluate(object):
             self.model.train()
             
             if epoch == 160:
-                print('Decreasing learning rate to 0.01 and ignoring the learning loss\n')
+                print('Decreasing learning rate to 0.01\n')
                 for g in self.optimizer.param_groups: g['lr'] = 0.01
             
-            # > 120 set weight = 0
-            if epoch == 121: weight = 0
+            if epoch == 121:
+                print('Ignoring the learning loss form now\n') 
+                weight = 0
             
             train_loss, train_loss_ce, train_loss_weird, train_accuracy = .0, .0, .0, .0
             
