@@ -80,6 +80,22 @@ class TrainEvaluate(object):
 
 
 
+    def compute_losses(self, weight, out_weird, loss_ce, tot_loss_ce, tot_loss_weird):
+        if self.LL and weight:    
+            loss_weird = self.loss_weird(out_weird, loss_ce)
+            loss_ce = torch.mean(loss_ce)
+            loss = loss_ce + loss_weird
+                    
+            tot_loss_ce += loss_ce.cpu().item()
+            tot_loss_weird += loss_weird.cpu().item()
+        else:
+            loss = torch.mean(loss_ce)
+            if self.LL: tot_loss_ce += loss.item()
+            
+        return loss
+
+
+
     def evaluate(self, dataloader, weight):
                 
         tot_loss, tot_loss_ce, tot_loss_weird, tot_accuracy = .0, .0, .0, .0
@@ -95,16 +111,7 @@ class TrainEvaluate(object):
 
                 loss_ce = self.loss_fn(outputs, labels)
                 
-                if self.LL and weight:    
-                    loss_weird = self.loss_weird(out_weird, loss_ce)
-                    loss_ce = torch.mean(loss_ce)
-                    loss = loss_ce + loss_weird
-                    
-                    tot_loss_ce += loss_ce.cpu().item()
-                    tot_loss_weird += loss_weird.cpu().item()
-                else:
-                    loss = torch.mean(loss_ce)
-                    if self.LL: tot_loss_ce += loss.item()
+                loss = self.compute_losses(weight, out_weird, loss_ce, tot_loss_ce, tot_loss_weird)
                 
                 tot_accuracy += self.score_fn(outputs, labels)
                 tot_loss += loss.item()
@@ -149,27 +156,15 @@ class TrainEvaluate(object):
             
             for _, images, labels in self.lab_train_dl:
 
-                # get the inputs; data is a list of [inputs, labels]
                 images, labels = images.to(self.device), labels.to(self.device)
                 
                 self.optimizer.zero_grad()
                                 
-                # learning loss
                 outputs, _, out_weird, _ = self.model(images)
                 
                 loss_ce = self.loss_fn(outputs, labels)
                     
-                if self.LL and weight:
-                    loss_weird = self.loss_weird(out_weird, loss_ce)
-                    loss_ce = torch.mean(loss_ce)
-                    loss = loss_ce + loss_weird
-                    
-                    train_loss_ce += loss_ce.cpu().item()
-                    train_loss_weird += loss_weird.cpu().item()
-                else:    
-                    loss = torch.mean(loss_ce)
-                    if self.LL: train_loss_ce += loss.item()
-                    
+                loss = self.compute_losses(weight, out_weird, loss_ce, train_loss_ce, train_loss_weird)
                 
                 loss.backward()         
                 self.optimizer.step()
@@ -298,6 +293,7 @@ class TrainEvaluate(object):
 
         # generate the new labeled DataLoader
         self.lab_train_dl = DataLoader(self.lab_train_subset, batch_size=self.batch_size, shuffle=True,  pin_memory=True)
+        self.len_lab_train_dl = len(self.lab_train_dl)
         
 
 

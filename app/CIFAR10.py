@@ -5,7 +5,7 @@ from torchvision import datasets
 from torchvision import transforms
 import torch
 
-import random
+#import random
 
 import numpy as np
 
@@ -61,6 +61,8 @@ class Cifar10SubsetDataloaders():
 
 class CIFAR10(Dataset):
     def __init__(self, bool_train, bool_transform = True):
+        
+        #self.bool_transform = bool_transform
 
         if bool_transform:
             # train
@@ -84,8 +86,9 @@ class CIFAR10(Dataset):
 
     def __getitem__(self, index):
         
-        torch.random.manual_seed(42)
-        random.seed(42)
+        '''if self.bool_transform:
+            torch.random.manual_seed(index)
+            random.seed(index)'''
         image, label = self.cifar10[index]
             
         return index, image, label
