@@ -5,6 +5,8 @@ from torchvision import datasets
 from torchvision import transforms
 import torch
 
+import random
+
 import numpy as np
 
 
@@ -81,6 +83,9 @@ class CIFAR10(Dataset):
         return len(self.cifar10)
 
     def __getitem__(self, index):
+        
+        torch.random.manual_seed(42)
+        random.seed(42)
         image, label = self.cifar10[index]
             
         return index, image, label

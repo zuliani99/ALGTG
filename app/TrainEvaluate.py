@@ -138,7 +138,12 @@ class TrainEvaluate(object):
             
             self.model.train()
             
-            if epoch > 120: weight = 0
+            if epoch == 160:
+                print('Decreasing learning rate to 0.01 and ignoring the learning loss\n')
+                for g in self.optimizer.param_groups: g['lr'] = 0.01
+            
+            # > 120 set weight = 0
+            if epoch == 121: weight = 0
             
             train_loss, train_loss_ce, train_loss_weird, train_accuracy = .0, .0, .0, .0
             
@@ -185,7 +190,7 @@ class TrainEvaluate(object):
             
             ###################################
             # CosineAnnealingLR
-            self.scheduler.step()
+            #self.scheduler.step()
             ###################################
             
 
@@ -201,8 +206,7 @@ class TrainEvaluate(object):
             results['val_accuracy'].append(val_accuracy)
             
             
-
-
+            
             if(val_accuracy > best_val_accuracy):
                 best_val_accuracy = val_accuracy
                 actual_patience = 0
@@ -224,10 +228,6 @@ class TrainEvaluate(object):
                 
                 print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
                         epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))    
-                
-            if epoch == 160:
-                print('Decreasing learning rate to 0.01 and ignoring the learning loss\n')
-                for g in self.optimizer.param_groups: g['lr'] = 0.01
                     
 
         self.__load_best_checkpoint(check_best_path)
@@ -315,7 +315,7 @@ class TrainEvaluate(object):
         write_csv(
             ts_dir = self.timestamp,
             head = ['method', 'lab_obs', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
-            values = [self.method_name, lab_obs, n_splits, test_accuracy, test_loss, test_loss_ce, test_loss_weird]
+            values = [self.method_name, lab_obs, str(n_splits), test_accuracy, test_loss, test_loss_ce, test_loss_weird]
         )
         
         if n_splits == None:
