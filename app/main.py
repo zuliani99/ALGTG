@@ -9,7 +9,7 @@ from methods.GTG_Strategy import GTG_Strategy
 from methods.Random_Strategy import Random_Strategy
 from methods.Class_Entropy import Class_Entropy
 
-from utils import create_ts_dir_res, accuracy_score, plot_loss_curves, save_init_checkpoint, init_weights_apply, init_weights_fn
+from utils import create_ts_dir_res, accuracy_score, plot_loss_curves, save_init_checkpoint, init_weights_apply
 
 from datetime import datetime
 
@@ -112,9 +112,15 @@ def main():
     }
     
                                                       
-    results, n_lab_obs = train_evaluate(al_params=al_params, epochs=epochs, len_lab_train_ds=len(cifar10.lab_train_subset),
-                                        al_iters=al_iters, n_top_k_obs=n_top_k_obs,
-                                        class_entropy_params=class_entropy_params, our_method_params=our_method_params)
+    results, n_lab_obs = train_evaluate(
+        al_params=al_params, 
+        epochs=epochs, 
+        len_lab_train_ds=len(cifar10.lab_train_subset),
+        al_iters=al_iters, 
+        n_top_k_obs=n_top_k_obs,
+        class_entropy_params=class_entropy_params, 
+        our_method_params=our_method_params
+    )
     
     final_plot_name = f'results_{epochs}_{al_iters}_{n_top_k_obs}.png'
     

@@ -31,7 +31,12 @@ class TrainEvaluate(object):
         self.unlab_train_subset: Subset = copy.deepcopy(cifar10.unlab_train_subset)
         
         #parameters that are used for all the strategies
-        self.lab_train_dl = DataLoader(self.lab_train_subset, batch_size=self.batch_size, shuffle=True, pin_memory=True)
+        self.lab_train_dl = DataLoader(
+            self.lab_train_subset, 
+            batch_size=self.batch_size, 
+            shuffle=True, 
+            pin_memory=True
+        )
         self.len_lab_train_dl = len(self.lab_train_dl)
         self.test_dl: DataLoader = cifar10.test_dl
         self.val_dl: DataLoader = cifar10.val_dl
@@ -291,7 +296,12 @@ class TrainEvaluate(object):
         else: raise Exception('NON EMPTY INDICES INTERSECTION')
 
         # generate the new labeled DataLoader
-        self.lab_train_dl = DataLoader(self.lab_train_subset, batch_size=self.batch_size, shuffle=True,  pin_memory=True)
+        self.lab_train_dl = DataLoader(
+            self.lab_train_subset, 
+            batch_size=self.batch_size, 
+            shuffle=True, 
+            pin_memory=True
+        )
         self.len_lab_train_dl = len(self.lab_train_dl)
         
 

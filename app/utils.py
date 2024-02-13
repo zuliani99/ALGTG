@@ -15,7 +15,11 @@ import errno
 
 def save_init_checkpoint(model, optimizer, scheduler):
     print(' => Saving initial checkpoint')
-    checkpoint = { 'state_dict': model.state_dict(), 'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict() }
+    checkpoint = {
+        'state_dict': model.state_dict(),
+        'optimizer': optimizer.state_dict(),
+        'scheduler': scheduler.state_dict()
+    }
     torch.save(checkpoint, 'app/checkpoints/init_checkpoint.pth.tar')
     print(' DONE\n')
 

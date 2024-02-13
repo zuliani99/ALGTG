@@ -7,9 +7,6 @@ import torch
 
 #import random
 
-import numpy as np
-
-
 class Cifar10SubsetDataloaders():
     
     def __init__(self, batch_size, val_rateo, labeled_ratio):
@@ -18,7 +15,12 @@ class Cifar10SubsetDataloaders():
         self.transformed_trainset = CIFAR10(bool_train=True, bool_transform=True)
         self.non_transformed_trainset = CIFAR10(bool_train=True, bool_transform=False)
         
-        self.test_dl = DataLoader(CIFAR10(bool_train=False, bool_transform=False), self.batch_size, shuffle=False, pin_memory=True)
+        self.test_dl = DataLoader(
+            CIFAR10(bool_train=False, bool_transform=False), 
+            self.batch_size, 
+            shuffle=False, 
+            pin_memory=True
+        )
 
         self.classes = ['plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
     
@@ -35,24 +37,26 @@ class Cifar10SubsetDataloaders():
         new_train_size = train_size - val_size
         
         # random shuffle of the trian indices
-        shuffled_indices = np.arange(train_size)
-        np.random.shuffle(shuffled_indices)
+        shuffled_indices = torch.randperm(train_size)
         
         # indices for the train and validation sets
-        random_indices_train_val = np.random.choice(len(shuffled_indices), size=new_train_size, replace=False)
-        train_indices = shuffled_indices[random_indices_train_val]
-        validation_indices = np.delete(shuffled_indices, random_indices_train_val)
+        train_indices = shuffled_indices[:new_train_size]
+        validation_indices = shuffled_indices[new_train_size:]
                 
         # validation dataloader
-        self.val_dl = DataLoader(Subset(self.non_transformed_trainset, validation_indices.tolist()), batch_size=self.batch_size, shuffle=False, pin_memory=True)
+        self.val_dl = DataLoader(
+            Subset(self.non_transformed_trainset, validation_indices.tolist()),
+            batch_size=self.batch_size, 
+            shuffle=False,
+            pin_memory=True
+        )
                 
         # calculate the number of samples for each split
         labeled_size = int(labeled_ratio * new_train_size)
 
-        # indices for the labeled and unlabeled sets
-        random_indices_lab_unlab = np.random.choice(len(train_indices), size=labeled_size, replace=False)
-        labeled_indices = train_indices[random_indices_lab_unlab]
-        unlabeled_indices = np.delete(train_indices, random_indices_lab_unlab)
+        # indices for the labeled and unlabeled sets      
+        labeled_indices = train_indices[:labeled_size]
+        unlabeled_indices = train_indices[labeled_size:]
 
         # subset for the labeled and unlabeled sets
         self.lab_train_subset = Subset(self.transformed_trainset, labeled_indices.tolist())
@@ -89,6 +93,7 @@ class CIFAR10(Dataset):
         '''if self.bool_transform:
             torch.random.manual_seed(index)
             random.seed(index)'''
+            
         image, label = self.cifar10[index]
             
         return index, image, label
