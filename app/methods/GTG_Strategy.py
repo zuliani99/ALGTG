@@ -94,7 +94,7 @@ class GTG_Strategy(TrainEvaluate):
             print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
             
             # iter = 0
-            self.train_evaluate_save(epochs, n_top_k_obs, n_splits, results)         
+            self.train_evaluate_save(epochs, n_top_k_obs, n_splits, iter, results)         
                      
             # start of the loop   
             while len(self.unlab_train_subset) > 0 and iter < al_iters:
@@ -150,6 +150,6 @@ class GTG_Strategy(TrainEvaluate):
                 print(' DONE\n')
                 
                 # iter + 1
-                self.train_evaluate_save(epochs, (iter + 1) * n_top_k_obs, n_splits, results)
+                self.train_evaluate_save(epochs, (iter + 1) * n_top_k_obs, n_splits, iter, results)
                                 
         return results

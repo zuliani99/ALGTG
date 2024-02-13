@@ -104,10 +104,9 @@ class TrainEvaluate(object):
                     tot_loss_weird += loss_weird.cpu().item()
                 else:
                     loss = torch.mean(loss_ce)
+                    if self.LL: tot_loss_ce += loss.item()
                 
-                accuracy = self.score_fn(outputs, labels)
-
-                tot_accuracy += accuracy
+                tot_accuracy += self.score_fn(outputs, labels)
                 tot_loss += loss.item()
 
 
@@ -127,7 +126,6 @@ class TrainEvaluate(object):
     
         check_best_path = f'{self.best_check_filename}/best_{method_str}.pth.tar'
 		
-        #best_val_loss = float('inf')
         best_val_accuracy = float('-inf')
         actual_patience = 0
         
@@ -170,11 +168,9 @@ class TrainEvaluate(object):
                 
                 loss.backward()         
                 self.optimizer.step()
-                
-                accuracy = self.score_fn(outputs, labels)
-                
+                                
                 train_loss += loss.item()
-                train_accuracy += accuracy
+                train_accuracy += self.score_fn(outputs, labels)
 
     
 
@@ -187,9 +183,10 @@ class TrainEvaluate(object):
             val_accuracy, val_loss, val_loss_ce, val_loss_weird = self.evaluate(self.val_dl, weight)
             
             
+            ###################################
             # CosineAnnealingLR
-            #self.scheduler.step()
-            #print(self.scheduler.get_last_lr())
+            self.scheduler.step()
+            ###################################
             
 
             results['train_loss'].append(train_loss)
@@ -205,15 +202,11 @@ class TrainEvaluate(object):
             
             
 
-            #if(val_loss < best_val_loss):
-            #    best_val_loss = val_loss
+
             if(val_accuracy > best_val_accuracy):
-                #best_val_loss = val_loss
                 best_val_accuracy = val_accuracy
                 actual_patience = 0
                 
-                #print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}, best_val_loss: {:.6f} \n'.format(
-                #        epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss, best_val_loss))
                 print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
                         epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
                 
@@ -223,16 +216,12 @@ class TrainEvaluate(object):
                 actual_patience += 1
                 if actual_patience >= self.patience:
                     
-                    #print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}, best_val_loss: {:.6f} \n'.format(
-                    #    epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss, best_val_loss))
                     print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
                         epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
                     
                     print(f'Early stopping, validation loss do not decreased for {self.patience} epochs')
                     break
                 
-                #print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f}, best_val_loss: {:.6f} \n'.format(
-                #    epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss, best_val_loss))
                 print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
                         epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))    
                 
@@ -312,7 +301,7 @@ class TrainEvaluate(object):
         
 
 
-    def train_evaluate_save(self, epochs, lab_obs, n_splits, results):
+    def train_evaluate_save(self, epochs, lab_obs, n_splits, iter, results):
         
         # reinitialize the model
         self.reintialize_model()

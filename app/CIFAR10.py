@@ -13,7 +13,7 @@ class Cifar10SubsetDataloaders():
     def __init__(self, batch_size, val_rateo, labeled_ratio):
         self.batch_size = batch_size
         
-        self.transformed_trainset = CIFAR10(bool_train=True)
+        self.transformed_trainset = CIFAR10(bool_train=True, bool_transform=True)
         self.non_transformed_trainset = CIFAR10(bool_train=True, bool_transform=False)
         
         self.test_dl = DataLoader(CIFAR10(bool_train=False, bool_transform=False), self.batch_size, shuffle=False, pin_memory=True)
@@ -60,7 +60,7 @@ class Cifar10SubsetDataloaders():
 class CIFAR10(Dataset):
     def __init__(self, bool_train, bool_transform = True):
 
-        if bool_train and bool_transform:
+        if bool_transform:
             # train
             self.cifar10 = datasets.CIFAR10('./cifar10', train=bool_train, download=True, transform=transforms.Compose([
                 transforms.RandomCrop(32, padding=4),
