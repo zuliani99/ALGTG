@@ -80,7 +80,10 @@ class TrainEvaluate(object):
 
 
 
-    def compute_losses(self, weight, out_weird, loss_ce, tot_loss_ce, tot_loss_weird):
+    def compute_losses(self, weight, out_weird, outputs, labels, tot_loss_ce, tot_loss_weird):
+        
+        loss_ce = self.loss_fn(outputs, labels)
+        
         if self.LL and weight:    
             loss_weird = self.loss_weird(out_weird, loss_ce)
             loss_ce = torch.mean(loss_ce)
@@ -109,9 +112,7 @@ class TrainEvaluate(object):
 
                 outputs, _, out_weird, _ = self.model(images)
 
-                loss_ce = self.loss_fn(outputs, labels)
-                
-                loss = self.compute_losses(weight, out_weird, loss_ce, tot_loss_ce, tot_loss_weird)
+                loss = self.compute_losses(weight, out_weird, outputs, labels, tot_loss_ce, tot_loss_weird)
                 
                 tot_accuracy += self.score_fn(outputs, labels)
                 tot_loss += loss.item()
@@ -161,10 +162,8 @@ class TrainEvaluate(object):
                 self.optimizer.zero_grad()
                                 
                 outputs, _, out_weird, _ = self.model(images)
-                
-                loss_ce = self.loss_fn(outputs, labels)
-                    
-                loss = self.compute_losses(weight, out_weird, loss_ce, train_loss_ce, train_loss_weird)
+                                    
+                loss = self.compute_losses(weight, out_weird, outputs, labels, train_loss_ce, train_loss_weird)
                 
                 loss.backward()         
                 self.optimizer.step()
