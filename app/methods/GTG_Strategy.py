@@ -82,6 +82,27 @@ class GTG_Strategy(TrainEvaluate):
     
             err = torch.norm(self.X - X_old)
             i += 1
+            
+    
+    
+    def get_embeddings(self, dataloader):
+
+        embeddings = torch.empty(0, self.model.linear.in_features, dtype=torch.float32, device=self.device)
+        concat_labels = torch.empty(0, dtype=torch.int8, device=self.device)
+        self.model.eval()
+
+        # again no gradients needed
+        with torch.inference_mode():
+            for _, images, labels in dataloader:
+                
+                images, labels = images.to(self.device), labels.to(self.device)
+                
+                _, embed, _, _ = self.model(images)
+                
+                embeddings = torch.cat((embeddings, embed.squeeze()), dim=0)
+                concat_labels = torch.cat((concat_labels, labels), dim=0)
+             
+        return embeddings, concat_labels
 
 
 
