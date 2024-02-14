@@ -275,7 +275,5 @@ def init_weights_apply(m):
     elif isinstance(m, nn.BatchNorm2d):
         init.constant_(m.weight, 1)
         init.constant_(m.bias, 0)
-    elif isinstance(m, BasicBlock) or isinstance(m, nn.Sequential):
-        for c in list(m.children()): init_weights_apply(c)
         
         
