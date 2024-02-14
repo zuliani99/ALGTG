@@ -100,7 +100,7 @@ class TrainEvaluate(object):
             loss = torch.mean(loss_ce)
             if self.LL: tot_loss_ce += loss.item()
             
-        return loss
+        return loss, tot_loss_ce, tot_loss_weird
 
 
 
@@ -117,7 +117,7 @@ class TrainEvaluate(object):
 
                 outputs, _, out_weird, _ = self.model(images)
 
-                loss = self.compute_losses(weight, out_weird, outputs, labels, tot_loss_ce, tot_loss_weird)
+                loss, tot_loss_ce, tot_loss_weird = self.compute_losses(weight, out_weird, outputs, labels, tot_loss_ce, tot_loss_weird)
                 
                 tot_accuracy += self.score_fn(outputs, labels)
                 tot_loss += loss.item()
@@ -135,7 +135,7 @@ class TrainEvaluate(object):
 
     def train_evaluate(self, epochs, method_str):
         
-        weight = 1.   # 120 = 0
+        weight = 1.
     
         check_best_path = f'{self.best_check_filename}/best_{method_str}.pth.tar'
 		
@@ -169,7 +169,7 @@ class TrainEvaluate(object):
                                 
                 outputs, _, out_weird, _ = self.model(images)
                                     
-                loss = self.compute_losses(weight, out_weird, outputs, labels, train_loss_ce, train_loss_weird)
+                loss, train_loss_ce, train_loss_weird  = self.compute_losses(weight, out_weird, outputs, labels, train_loss_ce, train_loss_weird)
                 
                 loss.backward()         
                 self.optimizer.step()

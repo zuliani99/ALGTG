@@ -10,7 +10,7 @@ import csv
 import os
 import errno
 
-#from ResNet18 import BasicBlock
+from ResNet18 import BasicBlock
 
 
 def save_init_checkpoint(model, optimizer, scheduler):
@@ -149,7 +149,7 @@ def save_train_val_curves(results_info, ts_dir, al_iter, flag_LL):
         ax[0][0].plot(epochs, res['train_loss'], label = 'train_loss')
         ax[0][0].plot(epochs, res['val_loss'], label = 'val_loss')
         ax[0][0].set_ylim([0, 5])
-        ax[0][0].axvline(minloss_ep, linestyle='--', color='r', label='Min loss')
+        ax[0][0].axvline(minloss_ep, linestyle='--', color='r', label='Min Loss')
 
         ax[0][0].axhline(minloss_val, linestyle='--', color='r')
         ax[0][0].set_title('Total Loss - Epochs')
@@ -265,21 +265,6 @@ def create_ts_dir_res(timestamp):
         if e.errno != errno.EEXIST:
             raise
         
-
-def init_weights_fn(net):
-    for m in net.modules():
-        if isinstance(m, nn.Conv2d):
-            init.kaiming_normal_(m.weight, mode='fan_out')
-            if m.bias is not None: init.constant_(m.bias, 0)
-        elif isinstance(m, nn.Linear):
-            init.normal_(m.weight, std=1e-3)
-            if m.bias is not None: init.constant_(m.bias, 0)
-        elif isinstance(m, nn.BatchNorm2d):
-            init.constant_(m.weight, 1)
-            init.constant_(m.bias, 0)
-        #elif isinstance(m, BasicBlock):
-        #    for c in list(m.children()): init_params_apply(c)
-        
         
 # weights initiaization
 def init_weights_apply(m):
@@ -292,7 +277,7 @@ def init_weights_apply(m):
     elif isinstance(m, nn.BatchNorm2d):
         init.constant_(m.weight, 1)
         init.constant_(m.bias, 0)
-    #elif isinstance(m, BasicBlock):
-    #    for c in list(m.children()): init_params_apply(c)
+    elif isinstance(m, BasicBlock) or isinstance(m, nn.Sequential):
+        for c in list(m.children()): init_weights_apply(c)
         
         

@@ -62,7 +62,7 @@ def main():
     print(f'Application running on {device}\n')
 
     epochs = 200
-    al_iters = 4#10 # the maximum is 36 for CIFAR10
+    al_iters = 6#10 # the maximum is 36 for CIFAR10
     n_top_k_obs = 1000
     batch_size = 128
     patience = 50
@@ -75,7 +75,6 @@ def main():
     
     model = ResNet_Weird(BasicBlock, [2, 2, 2, 2])
     model.apply(init_weights_apply)
-    #init_weights_fn(model)
     
     
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
