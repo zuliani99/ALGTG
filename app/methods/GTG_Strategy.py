@@ -20,7 +20,7 @@ class GTG_Strategy(TrainEvaluate):
         self.params = our_methods_params 
         self.LL = LL
         
-        #self.weights = torch.flip(torch.linspace(1, 0.1, self.params['gtg_max_iter'] - 1), [0]).to(self.device)
+        self.weights = torch.flip(torch.linspace(1, 0.1, self.params['gtg_max_iter'] - 1), [0]).to(self.device)
 
 
     def clear_memory(self):
@@ -56,7 +56,7 @@ class GTG_Strategy(TrainEvaluate):
         
         for idx in range(len(self.lab_train_subset), len(self.lab_train_subset) + len_samp_unlab_embeds):
             for label in range(self.n_classes):
-                self.X[idx][label] = 1 / self.n_classes
+                self.X[idx][label] = 1. / self.n_classes
         
         
 
@@ -144,7 +144,11 @@ class GTG_Strategy(TrainEvaluate):
                 print(' DONE\n')
                 
                 # at each AL round I reinitialize the entropy_pairwise_der since I have to decide at each step what observations I want to move
-                self.entropy_pairwise_der = torch.zeros((len(self.transformed_trainset), self.params['gtg_max_iter'] - 1), device=self.device)
+                self.entropy_pairwise_der = torch.zeros(
+                    (len(self.transformed_trainset), self.params['gtg_max_iter'] - 1),
+                    device=self.device
+                )
+
 
                 # for each split
 
@@ -166,10 +170,13 @@ class GTG_Strategy(TrainEvaluate):
                 #overall_topk = torch.topk((torch.sum(self.entropy_pairwise_der, dim = 1, dtype=torch.float32) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)
                 
                 
-                # weighted average (* self.weights)
-                overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der, dim = 1), n_top_k_obs)
+                # weighted average
+                overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der * self.weights, dim = 1), n_top_k_obs)
+                
+                # mean only
+                #overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der, dim = 1), n_top_k_obs)
                                 
-                #overall_topk.indices -> referred to the amtrix indices of entropy_pairwise_der
+                #overall_topk.indices -> referred to the matrix indices of entropy_pairwise_der, which are referred to the original trainset
                 
                 print(' => Modifing the Subsets and Dataloader')
                 self.get_new_dataloaders(overall_topk.indices.tolist())

@@ -36,7 +36,7 @@ class Cifar10SubsetDataloaders():
         val_size = int(train_size * val_rateo)
         new_train_size = train_size - val_size
         
-        # random shuffle of the trian indices
+        # random shuffle of the train indices
         shuffled_indices = torch.randperm(train_size)
         
         # indices for the train and validation sets

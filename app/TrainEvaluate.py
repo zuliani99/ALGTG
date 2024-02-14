@@ -26,11 +26,11 @@ class TrainEvaluate(object):
         self.loss_fn = params['loss_fn']
         
         
-        #I need the deep copy only of the subsets, that have the indices referred to the original_trainset
+        # I need the deep copy only of the subsets, that have the indices referred to the original_trainset
         self.lab_train_subset: Subset = copy.deepcopy(cifar10.lab_train_subset)
         self.unlab_train_subset: Subset = copy.deepcopy(cifar10.unlab_train_subset)
         
-        #parameters that are used for all the strategies
+        # parameters that are used for all the strategies
         self.lab_train_dl = DataLoader(
             self.lab_train_subset, 
             batch_size=self.batch_size, 
