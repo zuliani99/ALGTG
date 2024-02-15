@@ -60,11 +60,11 @@ class GTG_Strategy(TrainEvaluate):
         
         
 
-    def gtg(self, tol, max_iter, indices):
+    def gtg(self, indices):
         err = float('Inf')
         i = 0
         
-        while err > tol and i < max_iter:
+        while err > self.params['gtg_tol'] and i < self.params['gtg_max_iter']:
             X_old = copy.deepcopy(self.X)
             self.X *= torch.mm(self.A, self.X)
 
@@ -158,7 +158,7 @@ class GTG_Strategy(TrainEvaluate):
                     print(f' => Running GTG for split {split_idx}')
                     self.get_A(self.unlab_embeddings[split_idx * iter_batch_size : (split_idx + 1) * iter_batch_size])
                     self.get_X(target_lab_obs, indices.shape[0])
-                    self.gtg(self.params['gtg_tol'], self.params['gtg_max_iter'], indices)
+                    self.gtg(indices)
                     
                     self.clear_memory()
                     print(' DONE\n')
