@@ -124,7 +124,7 @@ class GTG_Strategy(TrainEvaluate):
                      
             # start of the loop   
             while len(self.unlab_train_subset) > 0 and iter < al_iters:
-                iter =+ 1
+                iter += 1
                 
                 print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')
                 
@@ -171,10 +171,10 @@ class GTG_Strategy(TrainEvaluate):
                 
                 
                 # weighted average
-                overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der * self.weights, dim = 1), n_top_k_obs)
+                #overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der * self.weights, dim = 1), n_top_k_obs)
                 
                 # mean only
-                #overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der, dim = 1), n_top_k_obs)
+                overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der, dim = 1), n_top_k_obs)
                                 
                 #overall_topk.indices -> referred to the matrix indices of entropy_pairwise_der, which are referred to the original trainset
                 
