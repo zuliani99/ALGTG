@@ -4,7 +4,7 @@ from utils import entropy
 from CIFAR10 import UniqueShuffle
 
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
 import copy
@@ -16,7 +16,7 @@ class GTG_Strategy(TrainEvaluate):
     def __init__(self, al_params, our_methods_params, LL):
         super().__init__(al_params, LL)
                 
-        self.method_name = self.__class__.__name__
+        self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
         self.params = our_methods_params 
         self.LL = LL
         
@@ -106,83 +106,85 @@ class GTG_Strategy(TrainEvaluate):
 
 
 
-    def run(self, al_iters, epochs, n_top_k_obs):
+    def run(self, al_iters, epochs, unlab_sample_dim, n_top_k_obs):
         
         results = {}
         
-        for n_splits in self.params['list_n_samples']:
-            iter = 0
+        iter = 0
                                 
-            print(f'----------------------- WORKING WITH {n_splits} UNLABELED SPLITS -----------------------\n')     
 
-            results[n_splits] = { 'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}
+        results = { 'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}
+                
+        print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
+            
+        # reinitialize the model
+        self.reintialize_model()
+        
+        # iter = 0
+        self.train_evaluate_save(epochs, n_top_k_obs, iter, results)         
+                     
+        # start of the loop   
+        while len(self.unlab_train_subset) > 0 and iter < al_iters:
+            iter += 1
                 
             print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
-            
-            # iter = 0
-            self.train_evaluate_save(epochs, n_top_k_obs, n_splits, iter, results)         
-                     
-            # start of the loop   
-            while len(self.unlab_train_subset) > 0 and iter < al_iters:
-                iter += 1
+                            
+            sample_unlab_subset = Subset(
+                self.non_transformed_trainset,
+                self.get_unlabebled_samples(unlab_sample_dim, iter)
+            )
+                        
+            self.unlab_train_dl = DataLoader(
+                sample_unlab_subset,
+                batch_size=self.batch_size,
+                sampler=UniqueShuffle(sample_unlab_subset),
+                pin_memory=True
+            )
                 
-                print(f'----------------------- ITERATION {iter + 1} / {al_iters} -----------------------\n')
+            print(' => Getting the labeled and unlabeled embeddings')
+            self.labeled_embeddings, target_lab_obs = self.get_embeddings(self.lab_train_dl)
+            self.unlab_embeddings, _ = self.get_embeddings(self.unlab_train_dl)
+            print(' DONE\n')
                 
-                # Obtaining the actual batchsize for the unlabeled observations
-                iter_batch_size = len(self.unlab_train_subset) // n_splits
-                                
-                self.unlab_train_dl = DataLoader(
-                    self.unlab_train_subset,
-                    batch_size=iter_batch_size,
-                    sampler=UniqueShuffle(self.unlab_train_subset),
-                    pin_memory=True
-                )
+            # at each AL round I reinitialize the entropy_pairwise_der since I have to decide at each step what observations I want to move
+            self.entropy_pairwise_der = torch.zeros(
+                (len(self.transformed_trainset), self.params['gtg_max_iter'] - 1),
+                device=self.device
+            )
+
+            # for each split
+
+            # split_idx -> indices of the split
+            # indices -> are the list of indices for the given batch which ARE CONSISTENT SINCE ARE REFERRED TO THE INDEX OF THE ORIGINAL DATASET
+            for split_idx, (indices, _, _) in enumerate(self.unlab_train_dl):
+                print(f' => Running GTG for split {split_idx}')
+                self.get_A(self.unlab_embeddings[split_idx * self.batch_size : (split_idx + 1) * self.batch_size])
+                self.get_X(target_lab_obs, indices.shape[0])
+                self.gtg(indices)
                 
-                print(' => Getting the labeled and unlabeled embeddings')
-                self.labeled_embeddings, target_lab_obs = self.get_embeddings(self.lab_train_dl)
-                self.unlab_embeddings, _ = self.get_embeddings(self.unlab_train_dl)
+                self.clear_memory()
                 print(' DONE\n')
-                
-                # at each AL round I reinitialize the entropy_pairwise_der since I have to decide at each step what observations I want to move
-                self.entropy_pairwise_der = torch.zeros(
-                    (len(self.transformed_trainset), self.params['gtg_max_iter'] - 1),
-                    device=self.device
-                )
-
-
-                # for each split
-
-                # split_idx -> indices of the split
-                # indices -> are the list of indices for the given batch which ARE CONSISTENT SINCE ARE REFERRED TO THE INDEX OF THE ORIGINAL DATASET
-                for split_idx, (indices, _, _) in enumerate(self.unlab_train_dl):
-                    print(f' => Running GTG for split {split_idx}')
-                    self.get_A(self.unlab_embeddings[split_idx * iter_batch_size : (split_idx + 1) * iter_batch_size])
-                    self.get_X(target_lab_obs, indices.shape[0])
-                    self.gtg(indices)
-                    
-                    self.clear_memory()
-                    print(' DONE\n')
-                    
+                                   
                     
 
-                # mean of the entropy derivate 
-                #print(torch.sum(self.entropy_pairwise_der, dim = 1, dtype=torch.float32))
-                #overall_topk = torch.topk((torch.sum(self.entropy_pairwise_der, dim = 1, dtype=torch.float32) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)
+            # mean of the entropy derivate 
+            #print(torch.sum(self.entropy_pairwise_der, dim = 1, dtype=torch.float32))
+            #overall_topk = torch.topk((torch.sum(self.entropy_pairwise_der, dim = 1, dtype=torch.float32) / self.entropy_pairwise_der.shape[1]), n_top_k_obs)
                 
                 
-                # weighted average
-                #overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der * self.weights, dim = 1), n_top_k_obs)
+            # weighted average
+            #overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der * self.weights, dim = 1), n_top_k_obs)
                 
-                # mean only
-                overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der, dim = 1), n_top_k_obs)
+            # mean only
+            overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der, dim = 1), n_top_k_obs)
                                 
-                #overall_topk.indices -> referred to the matrix indices of entropy_pairwise_der, which are referred to the original trainset
+            #overall_topk.indices -> referred to the matrix indices of entropy_pairwise_der, which are referred to the original trainset
                 
-                print(' => Modifing the Subsets and Dataloader')
-                self.get_new_dataloaders(overall_topk.indices.tolist())
-                print(' DONE\n')
+            print(' => Modifing the Subsets and Dataloader')
+            self.get_new_dataloaders(overall_topk.indices.tolist())
+            print(' DONE\n')
                 
-                # iter + 1
-                self.train_evaluate_save(epochs, (iter + 1) * n_top_k_obs, n_splits, iter, results)
+            # iter + 1
+            self.train_evaluate_save(epochs, (iter + 1) * n_top_k_obs, iter, results)
                                 
         return results

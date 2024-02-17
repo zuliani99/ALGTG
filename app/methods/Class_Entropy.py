@@ -1,20 +1,21 @@
 
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
 from TrainEvaluate import TrainEvaluate
 
 from utils import entropy
 
+import random
+
 
 class Class_Entropy(TrainEvaluate):
     
-    def __init__(self, al_params, method_params, LL):
+    def __init__(self, al_params, LL):
         super().__init__(al_params, LL)
                 
         self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
-        self.params = method_params  
         self.LL = LL
         
             
@@ -41,47 +42,49 @@ class Class_Entropy(TrainEvaluate):
     
         
         
-    def run(self, al_iters, epochs, n_top_k_obs):
+    def run(self, al_iters, epochs, unlab_sample_dim, n_top_k_obs):
         results = {}
-        
-        for n_splits in self.params['list_n_samples']:
-            
-            iter = 0
                     
-            print(f'----------------------- WORKING WITH {n_splits} UNLABELED SPLITS -----------------------\n')
+        iter = 0
             
-            results[n_splits] = { 'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}
+        results = { 'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}
             
+        print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
+            
+        # reinitialize the model
+        #self.reintialize_model()
+            
+        # iter = 0
+        self.train_evaluate_save(epochs, n_top_k_obs, iter, results)
+            
+        # start of the loop   
+        while len(self.unlab_train_subset) > 0 and iter < al_iters:
+            iter += 1
+                
             print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
-            
-            # iter = 0
-            self.train_evaluate_save(epochs, n_top_k_obs, n_splits, iter, results)
-            
-            # start of the loop   
-            while len(self.unlab_train_subset) > 0 and iter < al_iters:
-                iter += 1
                 
-                print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
+            # get random unlabeled sampple
+            sample_unlab = self.get_unlabebled_samples(unlab_sample_dim, iter)
                                 
-                self.unlab_train_dl = DataLoader(
-                    self.unlab_train_subset,
-                    batch_size=len(self.unlab_train_subset) // n_splits, 
-                    shuffle=True, 
-                    pin_memory=True
-                )
+            self.unlab_train_dl = DataLoader(
+                Subset(self.non_transformed_trainset, sample_unlab),
+                batch_size=self.batch_size, 
+                shuffle=True, 
+                pin_memory=True
+            )
                 
-                print(' => Evalueting unlabeled observations')
-                indices_prob, prob_dist = self.evaluate_unlabeled()
-                print(' DONE\n')
+            print(' => Evalueting unlabeled observations')
+            indices_prob, prob_dist = self.evaluate_unlabeled()
+            print(' DONE\n')
                 
-                tot_entr = entropy(prob_dist).to(self.device)
-                overall_topk = torch.topk(tot_entr, n_top_k_obs)
+            tot_entr = entropy(prob_dist).to(self.device)
+            overall_topk = torch.topk(tot_entr, n_top_k_obs)
                 
-                print(' => Modifing the Subsets and Dataloader')
-                self.get_new_dataloaders([indices_prob[id].item() for id in overall_topk.indices])
-                print(' DONE\n')
+            print(' => Modifing the Subsets and Dataloader')
+            self.get_new_dataloaders([indices_prob[id].item() for id in overall_topk.indices])
+            print(' DONE\n')
                 
-                # iter + 1
-                self.train_evaluate_save(epochs, (iter + 1) * n_top_k_obs, n_splits, iter, results)
+            # iter + 1
+            self.train_evaluate_save(epochs, (iter + 1) * n_top_k_obs, iter, results)
         
         return results

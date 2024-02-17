@@ -3,6 +3,7 @@ import torch
 from torch.utils.data import DataLoader, Subset
 
 import copy
+import random
 
 from CIFAR10 import CIFAR10, Cifar10SubsetDataloaders
 from utils import save_train_val_curves, write_csv
@@ -79,6 +80,7 @@ class TrainEvaluate(object):
         print(' => Loading best checkpoint')
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
+        self.model.to(self.device)
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['scheduler'])
         print(' DONE\n')
@@ -133,12 +135,13 @@ class TrainEvaluate(object):
 
 
 
-    def train_evaluate(self, epochs, method_str):
+    def train_evaluate(self, epochs):
         
         weight = 1.
     
-        check_best_path = f'{self.best_check_filename}/best_{method_str}.pth.tar'
+        check_best_path = f'{self.best_check_filename}/best_{self.method_name}.pth.tar'
 		
+        #best_val_loss = float('+inf')
         best_val_accuracy = float('-inf')
         actual_patience = 0
         
@@ -206,7 +209,8 @@ class TrainEvaluate(object):
             results['val_accuracy'].append(val_accuracy)
             
             
-            
+            #if(val_loss < best_val_loss):
+            #    best_val_loss = val_loss
             if(val_accuracy > best_val_accuracy):
                 best_val_accuracy = val_accuracy
                 actual_patience = 0
@@ -234,7 +238,7 @@ class TrainEvaluate(object):
 
         print('Finished Training\n')
         
-        return {'model_name': method_str, 'results': results}
+        return {'model_name': self.method_name, 'results': results}
 
 
 
@@ -286,13 +290,20 @@ class TrainEvaluate(object):
         self.len_lab_train_dl = len(self.lab_train_dl)
         
 
+    def get_unlabebled_samples(self, unlab_sample_dim, iter):
+        if(len(self.unlab_train_subset.indices) > unlab_sample_dim):
+            random.seed(iter)
+            return random.sample(self.unlab_train_subset.indices, unlab_sample_dim)
+        else:
+            return self.unlab_train_subset.indices
 
-    def train_evaluate_save(self, epochs, lab_obs, n_splits, iter, results):
+
+    def train_evaluate_save(self, epochs, lab_obs, iter, results):
         
         # reinitialize the model
         self.reintialize_model()
         
-        train_results = self.train_evaluate(epochs, self.method_name)
+        train_results = self.train_evaluate(epochs)
         
         save_train_val_curves(train_results, self.timestamp, iter, self.LL)
         
@@ -300,18 +311,11 @@ class TrainEvaluate(object):
         
         write_csv(
             ts_dir = self.timestamp,
-            head = ['method', 'lab_obs', 'n_splits', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
-            values = [self.method_name, lab_obs, str(n_splits), test_accuracy, test_loss, test_loss_ce, test_loss_weird]
+            head = ['method', 'lab_obs', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
+            values = [self.method_name, lab_obs, test_accuracy, test_loss, test_loss_ce, test_loss_weird]
         )
         
-        if n_splits == None:
-            results['test_accuracy'].append(test_accuracy)
-            results['test_loss'].append(test_loss)
-            results['test_loss_ce'].append(test_loss_ce)
-            results['test_loss_weird'].append(test_loss_weird)
-        else:
-            results[n_splits]['test_accuracy'].append(test_accuracy)
-            results[n_splits]['test_loss'].append(test_loss)
-            results[n_splits]['test_loss_ce'].append(test_loss_ce)
-            results[n_splits]['test_loss_weird'].append(test_loss_weird)
-            
+        results['test_accuracy'].append(test_accuracy)
+        results['test_loss'].append(test_loss)
+        results['test_loss_ce'].append(test_loss_ce)
+        results['test_loss_weird'].append(test_loss_weird)

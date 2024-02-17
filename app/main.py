@@ -14,10 +14,12 @@ from utils import create_ts_dir_res, accuracy_score, plot_loss_curves, save_init
 from datetime import datetime
 
 
+
 save_plot = True
+torch.backends.cudnn.deterministic = True
 
 
-def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, class_entropy_params, our_method_params):
+def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_dim, n_top_k_obs, our_method_params):
 
     results = { }
     n_lab_obs = [len_lab_train_ds + (iter * n_top_k_obs) for iter in range(al_iters + 1)]
@@ -26,8 +28,8 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, c
         Random_Strategy(al_params, LL=False),
         Random_Strategy(al_params, LL=True),  
         
-        Class_Entropy(al_params, class_entropy_params, LL=False),
-        Class_Entropy(al_params, class_entropy_params, LL=True),
+        Class_Entropy(al_params, LL=False),
+        Class_Entropy(al_params, LL=True),
         
         GTG_Strategy(al_params, our_method_params, LL=False),
         GTG_Strategy(al_params, our_method_params, LL=True)
@@ -35,12 +37,14 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, n_top_k_obs, c
     
     print(f'----------------------- TRAINING ACTIVE LEARNING -----------------------')
     print('\n')
+    
+    torch.backends.cudnn.deterministic = False
         
     for method in methods:
             
         print(f'-------------------------- {method.method_name} --------------------------\n')
             
-        results[method.method_name] = method.run(al_iters, epochs, n_top_k_obs)
+        results[method.method_name] = method.run(al_iters, epochs, unlab_sample_dim, n_top_k_obs)
             
                     
     print('Resulting dictionary')
@@ -62,16 +66,18 @@ def main():
     print(f'Application running on {device}\n')
 
     epochs = 200
-    al_iters = 4#10 # the maximum is 36 for CIFAR10
+    al_iters = 9 # the maximum is 36 for CIFAR10
     n_top_k_obs = 1000
+    unlab_sample_dim = 10000
     batch_size = 128
     patience = 50
+    
         
     
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     create_ts_dir_res(timestamp)
     
-    cifar10 = Cifar10SubsetDataloaders(batch_size, val_rateo = 0.2, labeled_ratio = 0.025)
+    cifar10 = Cifar10SubsetDataloaders(batch_size, val_rateo = 0.2, labeled_ratio = 0.025, al_iters = al_iters)
     
     model = ResNet_Weird(BasicBlock, [2, 2, 2, 2])
     model.apply(init_weights_apply)
@@ -103,11 +109,6 @@ def main():
     our_method_params = {
         'gtg_tol': 0.001,
         'gtg_max_iter': 20,
-        'list_n_samples': [10], #[5, 10, 15 20, 25, 30])
-    }
-    
-    class_entropy_params = {
-        'list_n_samples': [10], #[5, 10, 15 20, 25, 30])
     }
     
                                                       
@@ -116,8 +117,8 @@ def main():
         epochs=epochs, 
         len_lab_train_ds=len(cifar10.lab_train_subset),
         al_iters=al_iters, 
+        unlab_sample_dim=unlab_sample_dim,
         n_top_k_obs=n_top_k_obs,
-        class_entropy_params=class_entropy_params, 
         our_method_params=our_method_params
     )
     

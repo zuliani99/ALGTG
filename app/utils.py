@@ -10,8 +10,6 @@ import csv
 import os
 import errno
 
-from ResNet18 import BasicBlock
-
 
 def save_init_checkpoint(model, optimizer, scheduler):
     print(' => Saving initial checkpoint')
@@ -62,11 +60,11 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, plot_png_nam
     
     # test_loss
     for method_str, values in methods_results.items():
-        if(isinstance(list(values.keys())[0], int)):
+        '''if(isinstance(list(values.keys())[0], int)):
             for n_samples, results in values.items():
                 ax[0][0].plot(n_lab_obs, results['test_loss'], label = f'{method_str} - {str(n_samples)} splits')
-        else:
-            ax[0][0].plot(n_lab_obs, values['test_loss'], label = f'{method_str}')
+        else:'''
+        ax[0][0].plot(n_lab_obs, values['test_loss'], label = f'{method_str}')
 
     ax[0][0].set_title('Total Loss - # Labeled Obs')
     ax[0][0].set_xlabel('# Labeled Obs')
@@ -77,11 +75,11 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, plot_png_nam
         
     # test_accuracy
     for method_str, values in methods_results.items():
-        if(isinstance(list(values.keys())[0], int)):
+        '''if(isinstance(list(values.keys())[0], int)):
             for n_samples, results in values.items():
                 ax[0][1].plot(n_lab_obs, results['test_accuracy'], label = f'{method_str} - {str(n_samples)} splits')
-        else:
-            ax[0][1].plot(n_lab_obs, values['test_accuracy'], label = f'{method_str}')
+        else:'''
+        ax[0][1].plot(n_lab_obs, values['test_accuracy'], label = f'{method_str}')
                 
     ax[0][1].set_title('Accuracy Score - # Labeled Obs')
     ax[0][1].set_ylabel('Accuracy Score')
@@ -92,11 +90,11 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, plot_png_nam
         
     # test_loss_ce
     for method_str, values in methods_results.items():
-        if(isinstance(list(values.keys())[0], int)):
+        '''if(isinstance(list(values.keys())[0], int)):
             for n_samples, results in values.items():
                 ax[1][0].plot(n_lab_obs, results['test_loss_ce'], label = f'{method_str} - {str(n_samples)} splits')
-        else:
-            ax[1][0].plot(n_lab_obs, values['test_loss_ce'], label = f'{method_str}')
+        else:'''
+        ax[1][0].plot(n_lab_obs, values['test_loss_ce'], label = f'{method_str}')
                 
     ax[1][0].set_title('CE Loss - # Labeled Obs')
     ax[1][0].set_ylabel('CE Loss')
@@ -107,11 +105,11 @@ def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, plot_png_nam
         
     # test_loss_weird
     for method_str, values in methods_results.items():
-        if(isinstance(list(values.keys())[0], int)):
+        '''if(isinstance(list(values.keys())[0], int)):
             for n_samples, results in values.items():
                 ax[1][1].plot(n_lab_obs, results['test_loss_weird'], label = f'{method_str} - {str(n_samples)} splits')
-        else:
-            ax[1][1].plot(n_lab_obs, values['test_loss_weird'], label = f'{method_str}')
+        else:'''
+        ax[1][1].plot(n_lab_obs, values['test_loss_weird'], label = f'{method_str}')
                 
     ax[1][1].set_title('Loss Weird - # Labeled Obs')
     ax[1][1].set_ylabel('Loss Weird')

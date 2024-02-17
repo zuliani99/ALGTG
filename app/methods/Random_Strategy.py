@@ -14,15 +14,16 @@ class Random_Strategy(TrainEvaluate):
         
         
         
-    def sample_unlab_obs(self, n_top_k_obs):
-        if(len(self.unlab_train_subset.indices) > n_top_k_obs):
-            return random.sample(self.unlab_train_subset.indices, n_top_k_obs)
-        else:
-            return self.unlab_train_subset.indices
-                       
+    def sample_unlab_obs(self, unlab_sample_dim, n_top_k_obs, iter): 
+        sample_unlab = self.get_unlabebled_samples(unlab_sample_dim, iter)
+        
+        if(len(sample_unlab) > n_top_k_obs):
+            return random.sample(sample_unlab, n_top_k_obs)
+        else: 
+            return sample_unlab                      
 
 
-    def run(self, al_iters, epochs, n_top_k_obs):
+    def run(self, al_iters, epochs, unlab_sample_dim, n_top_k_obs):
         
         iter = 0
         
@@ -30,8 +31,11 @@ class Random_Strategy(TrainEvaluate):
         
         print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
         
+        # reinitialize the model
+        #self.reintialize_model()
+        
         # iter = 0
-        self.train_evaluate_save(epochs, n_top_k_obs, None, iter, results)
+        self.train_evaluate_save(epochs, n_top_k_obs, iter, results)
         
         # start of the loop
         while len(self.unlab_train_subset) > 0 and iter < al_iters:
@@ -41,7 +45,7 @@ class Random_Strategy(TrainEvaluate):
                             
             # get random indices to move in the labeled datasets
             print(' => Sampling random unlabeled observations')
-            topk_idx_obs = self.sample_unlab_obs(n_top_k_obs)
+            topk_idx_obs = self.sample_unlab_obs(unlab_sample_dim, n_top_k_obs, iter)
             print(' DONE\n')
                         
             # modify the datasets and dataloader
@@ -50,7 +54,7 @@ class Random_Strategy(TrainEvaluate):
             print(' DONE\n')
             
             # iter + 1
-            self.train_evaluate_save(epochs, (iter + 1) * n_top_k_obs, None, iter, results)
+            self.train_evaluate_save(epochs, (iter + 1) * n_top_k_obs, iter, results)
             
         return results
         

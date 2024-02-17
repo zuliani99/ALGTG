@@ -5,14 +5,14 @@ from torchvision import datasets
 from torchvision import transforms
 import torch
 
-#import random
+import random
 
 class Cifar10SubsetDataloaders():
     
-    def __init__(self, batch_size, val_rateo, labeled_ratio):
+    def __init__(self, batch_size, val_rateo, labeled_ratio, al_iters):
         self.batch_size = batch_size
         
-        self.transformed_trainset = CIFAR10(bool_train=True, bool_transform=True)
+        self.transformed_trainset = CIFAR10(bool_train=True, bool_transform=True, al_iters=al_iters)
         self.non_transformed_trainset = CIFAR10(bool_train=True, bool_transform=False)
         
         self.test_dl = DataLoader(
@@ -64,9 +64,10 @@ class Cifar10SubsetDataloaders():
     
 
 class CIFAR10(Dataset):
-    def __init__(self, bool_train, bool_transform = True):
+    def __init__(self, bool_train, bool_transform = True, al_iters = None):
         
-        #self.bool_transform = bool_transform
+        self.bool_transform = bool_transform
+        self.al_iters = al_iters
 
         if bool_transform:
             # train
@@ -90,12 +91,15 @@ class CIFAR10(Dataset):
 
     def __getitem__(self, index):
         
-        '''if self.bool_transform:
-            torch.random.manual_seed(index)
-            random.seed(index)'''
+        '''if self.bool_transform and self.al_iters != None:
+            torch.random.manual_seed(index + self.al_iters)
+            random.seed(index + self.al_iters)
             
-        image, label = self.cifar10[index]
-            
+            image, label = self.cifar10[index]
+        else:
+            image, label = self.cifar10[index]'''
+        
+        image, label = self.cifar10[index]    
         return index, image, label
 
 
