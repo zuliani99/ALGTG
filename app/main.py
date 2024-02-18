@@ -66,7 +66,7 @@ def main():
     print(f'Application running on {device}\n')
 
     epochs = 200
-    al_iters = 9 # the maximum is 36 for CIFAR10
+    al_iters = 4 # the maximum is 36 for CIFAR10
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
     batch_size = 128
