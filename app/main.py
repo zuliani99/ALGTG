@@ -2,7 +2,7 @@
 
 import torch
 
-from ResNet18 import BasicBlock, ResNet_Weird, LearningLoss
+from ResNet18 import BasicBlock, ResNet_Weird
 from CIFAR10 import Cifar10SubsetDataloaders
 
 from methods.GTG_Strategy import GTG_Strategy
@@ -31,14 +31,14 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
         Class_Entropy(al_params, LL=False),
         Class_Entropy(al_params, LL=True),
         
-        GTG_Strategy(al_params, our_method_params, LL=False),
-        GTG_Strategy(al_params, our_method_params, LL=True)
+        #GTG_Strategy(al_params, our_method_params, LL=False),
+        #GTG_Strategy(al_params, our_method_params, LL=True)
     ]
     
     print(f'----------------------- TRAINING ACTIVE LEARNING -----------------------')
     print('\n')
     
-    torch.backends.cudnn.deterministic = False
+    #torch.backends.cudnn.deterministic = False
         
     for method in methods:
             
@@ -66,7 +66,7 @@ def main():
     print(f'Application running on {device}\n')
 
     epochs = 200
-    al_iters = 4 # the maximum is 36 for CIFAR10
+    al_iters = 5 # the maximum is 36 for CIFAR10
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
     batch_size = 128
@@ -80,13 +80,13 @@ def main():
     cifar10 = Cifar10SubsetDataloaders(batch_size, val_rateo = 0.2, labeled_ratio = 0.025, al_iters = al_iters)
     
     model = ResNet_Weird(BasicBlock, [2, 2, 2, 2])
+    print(' => Initializing weights')
     model.apply(init_weights_apply)
+    print(' DONE\n')
     
     
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
-    loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
-    loss_werid = LearningLoss(device)
     
     save_init_checkpoint(model, optimizer, scheduler)
 
@@ -98,11 +98,7 @@ def main():
         'device': device,
         'patience': patience,
         'timestamp': timestamp,
-        'loss_fn': loss_fn,
         'model': model,
-        'optimizer': optimizer,
-        'scheduler': scheduler,
-        'loss_weird': loss_werid
     }    
     
     

@@ -107,20 +107,14 @@ class GTG_Strategy(TrainEvaluate):
 
 
     def run(self, al_iters, epochs, unlab_sample_dim, n_top_k_obs):
-        
-        results = {}
-        
-        iter = 0
-                                
+
+        iter = 1            
 
         results = { 'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}
                 
         print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
-            
-        # reinitialize the model
-        self.reintialize_model()
         
-        # iter = 0
+        # iter = 1
         self.train_evaluate_save(epochs, n_top_k_obs, iter, results)         
                      
         # start of the loop   
@@ -128,7 +122,7 @@ class GTG_Strategy(TrainEvaluate):
             iter += 1
                 
             print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
-                            
+                                                        
             sample_unlab_subset = Subset(
                 self.non_transformed_trainset,
                 self.get_unlabebled_samples(unlab_sample_dim, iter)
@@ -185,6 +179,6 @@ class GTG_Strategy(TrainEvaluate):
             print(' DONE\n')
                 
             # iter + 1
-            self.train_evaluate_save(epochs, (iter + 1) * n_top_k_obs, iter, results)
-                                
+            self.train_evaluate_save(epochs, iter * n_top_k_obs, iter, results)
+                                            
         return results

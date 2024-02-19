@@ -2,6 +2,8 @@
 import torch
 from torch.utils.data import DataLoader, Subset
 
+from ResNet18 import BasicBlock, ResNet_Weird, LearningLoss
+
 import copy
 import random
 
@@ -23,9 +25,7 @@ class TrainEvaluate(object):
         self.batch_size = params['batch_size']
         self.score_fn = params['score_fn']
         self.patience = params['patience']
-        self.timestamp = params['timestamp']
-        self.loss_fn = params['loss_fn']
-        
+        self.timestamp = params['timestamp']        
         
         # I need the deep copy only of the subsets, that have the indices referred to the original_trainset
         self.lab_train_subset: Subset = copy.deepcopy(cifar10.lab_train_subset)
@@ -45,10 +45,11 @@ class TrainEvaluate(object):
         self.transformed_trainset: CIFAR10 = cifar10.transformed_trainset 
         self.non_transformed_trainset: CIFAR10 = cifar10.non_transformed_trainset 
         
-        self.model = params['model'].to(self.device)
-        self.optimizer = params['optimizer']
-        self.scheduler = params['scheduler']
-        self.loss_weird = params['loss_weird']
+        self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2]).to(self.device)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
+        self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
+        self.loss_weird = LearningLoss(self.device)
         
         self.LL = LL
         
@@ -80,7 +81,6 @@ class TrainEvaluate(object):
         print(' => Loading best checkpoint')
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
-        self.model.to(self.device)
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['scheduler'])
         print(' DONE\n')
@@ -231,7 +231,10 @@ class TrainEvaluate(object):
                     break
                 
                 print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
-                        epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))    
+                        epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
+        
+            #print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
+                #epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss))
                     
 
         self.__load_best_checkpoint(check_best_path)
