@@ -17,7 +17,7 @@ class Random_Strategy(TrainEvaluate):
     def sample_unlab_obs(self, unlab_sample_dim, n_top_k_obs, iter): 
         sample_unlab = self.get_unlabebled_samples(unlab_sample_dim, iter)
         
-        if(len(sample_unlab) > n_top_k_obs):
+        if(len(sample_unlab) > n_top_k_obs):           
             return random.sample(sample_unlab, n_top_k_obs)
         else: 
             return sample_unlab                      
@@ -50,7 +50,7 @@ class Random_Strategy(TrainEvaluate):
             print(' DONE\n')
             
             # iter + 1
-            self.train_evaluate_save(epochs, iter * n_top_k_obs, iter, results)            
+            self.train_evaluate_save(epochs, iter * n_top_k_obs, iter, results)
             
         return results
         

@@ -7,8 +7,6 @@ from TrainEvaluate import TrainEvaluate
 
 from utils import entropy
 
-import random
-
 
 class Class_Entropy(TrainEvaluate):
     

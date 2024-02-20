@@ -8,7 +8,7 @@ import copy
 import random
 
 from CIFAR10 import CIFAR10, Cifar10SubsetDataloaders
-from utils import save_train_val_curves, write_csv
+from utils import save_train_val_curves, write_csv#, init_weights_apply
 
 
 class TrainEvaluate(object):
@@ -46,6 +46,7 @@ class TrainEvaluate(object):
         self.non_transformed_trainset: CIFAR10 = cifar10.non_transformed_trainset 
         
         self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2]).to(self.device)
+        #self.model.apply(init_weights_apply)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
         self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
@@ -295,6 +296,8 @@ class TrainEvaluate(object):
 
     def get_unlabebled_samples(self, unlab_sample_dim, iter):
         if(len(self.unlab_train_subset.indices) > unlab_sample_dim):
+            
+            # seed to impose the same sampled unlabeled subset for all strategies
             random.seed(iter)
             return random.sample(self.unlab_train_subset.indices, unlab_sample_dim)
         else:

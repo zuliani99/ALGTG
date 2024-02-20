@@ -22,7 +22,7 @@ torch.backends.cudnn.deterministic = True
 def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_dim, n_top_k_obs, our_method_params):
 
     results = { }
-    n_lab_obs = [len_lab_train_ds + (iter * n_top_k_obs) for iter in range(al_iters + 1)]
+    n_lab_obs = [len_lab_train_ds + (iter * n_top_k_obs) for iter in range(al_iters)]
     
     methods = [
         Random_Strategy(al_params, LL=False),
@@ -38,7 +38,7 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
     print(f'----------------------- TRAINING ACTIVE LEARNING -----------------------')
     print('\n')
     
-    #torch.backends.cudnn.deterministic = False
+    torch.backends.cudnn.benchmark = False
         
     for method in methods:
             
@@ -66,7 +66,7 @@ def main():
     print(f'Application running on {device}\n')
 
     epochs = 200
-    al_iters = 5 # the maximum is 36 for CIFAR10
+    al_iters = 1 # the maximum is 36 for CIFAR10
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
     batch_size = 128
@@ -98,7 +98,7 @@ def main():
         'device': device,
         'patience': patience,
         'timestamp': timestamp,
-        'model': model,
+        #'model': model,
     }    
     
     
