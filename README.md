@@ -24,7 +24,7 @@ git clone https://github.com/zuliani99/Active_Learning_GTG.git
 
 GitHub Token
 ```
-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
+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
 ```
 
 Connect to VPN UNIVE from Ubuntu
