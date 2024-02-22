@@ -2,17 +2,25 @@
 
 import torch
 
-from ResNet18 import BasicBlock, ResNet_Weird
-from CIFAR10 import Cifar10SubsetDataloaders
+from Datasets import SubsetDataloaders
 
-from methods.GTG_Strategy import GTG_Strategy
-from methods.Random_Strategy import Random_Strategy
-from methods.Class_Entropy import Class_Entropy
+from methods.GTG import GTG
+from methods.Random import Random
+from methods.Entropy import Entropy
 
-from utils import create_ts_dir_res, accuracy_score, plot_loss_curves, save_init_checkpoint, init_weights_apply
+from utils import create_ts_dir_res, accuracy_score, plot_loss_curves
 
 from datetime import datetime
+import argparse
 
+
+parser = argparse.ArgumentParser()
+#choices=['cifar10', 'cifar100', 'fmnist']
+parser.add_argument('-d', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100'], required=True, help='Possible datasets to chosoe')
+
+args = parser.parse_args()
+
+choosen_datasets = args.datasets
 
 
 save_plot = True
@@ -25,18 +33,15 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
     n_lab_obs = [len_lab_train_ds + (iter * n_top_k_obs) for iter in range(al_iters)]
     
     methods = [
-        Random_Strategy(al_params, LL=False),
-        Random_Strategy(al_params, LL=True),  
+        # random
+        Random(al_params, LL=False), Random(al_params, LL=True),  
         
-        Class_Entropy(al_params, LL=False),
-        Class_Entropy(al_params, LL=True),
+        # entropy
+        Entropy(al_params, LL=False), Entropy(al_params, LL=True),
         
-        #GTG_Strategy(al_params, our_method_params, LL=False),
-        #GTG_Strategy(al_params, our_method_params, LL=True)
+        # gtg
+        GTG(al_params, our_method_params, LL=False), GTG(al_params, our_method_params, LL=True)
     ]
-    
-    print(f'----------------------- TRAINING ACTIVE LEARNING -----------------------')
-    print('\n')
     
     torch.backends.cudnn.benchmark = False
         
@@ -65,63 +70,55 @@ def main():
 
     print(f'Application running on {device}\n')
 
-    epochs = 200
-    al_iters = 1 # the maximum is 36 for CIFAR10
+    epochs = 5
+    al_iters = 1
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
     batch_size = 128
     patience = 50
     
-        
-    
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    create_ts_dir_res(timestamp)
-    
-    cifar10 = Cifar10SubsetDataloaders(batch_size, val_rateo = 0.2, labeled_ratio = 0.025, al_iters = al_iters)
-    
-    model = ResNet_Weird(BasicBlock, [2, 2, 2, 2])
-    print(' => Initializing weights')
-    model.apply(init_weights_apply)
-    print(' DONE\n')
     
     
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
-    
-    save_init_checkpoint(model, optimizer, scheduler)
-
-
-    al_params = {
-        'cifar10': cifar10,
-        'batch_size': batch_size,
-        'score_fn': accuracy_score,
-        'device': device,
-        'patience': patience,
-        'timestamp': timestamp,
-        #'model': model,
-    }    
-    
-    
-    our_method_params = {
-        'gtg_tol': 0.001,
-        'gtg_max_iter': 20,
-    }
-    
-                                                      
-    results, n_lab_obs = train_evaluate(
-        al_params=al_params, 
-        epochs=epochs, 
-        len_lab_train_ds=len(cifar10.lab_train_subset),
-        al_iters=al_iters, 
-        unlab_sample_dim=unlab_sample_dim,
-        n_top_k_obs=n_top_k_obs,
-        our_method_params=our_method_params
-    )
-    
-    final_plot_name = f'results_{epochs}_{al_iters}_{n_top_k_obs}.png'
-    
-    
-    plot_loss_curves(results, n_lab_obs, save_plot, timestamp, final_plot_name)
+    for dataset_name in choosen_datasets:
+        print(f'----------------------- RUNING ACTIVE LEARNING BENCHMARK ON {dataset_name} -----------------------\n')
+        
+        create_ts_dir_res(timestamp, dataset_name)
+        
+        DatasetChoice = SubsetDataloaders(dataset_name, batch_size, val_rateo = 0.2, labeled_ratio = 0.025, al_iters = al_iters)
+        
+        
+        al_params = {
+            'DatasetChoice': DatasetChoice,
+            'batch_size': batch_size,
+            'score_fn': accuracy_score,
+            'device': device,
+            'patience': patience,
+            'timestamp': timestamp,
+            'dataset_name': dataset_name
+        }    
+        
+        
+        our_method_params = {
+            'gtg_tol': 0.001,
+            'gtg_max_iter': 20,
+        }
+        
+                                                        
+        results, n_lab_obs = train_evaluate(
+            al_params=al_params, 
+            epochs=epochs, 
+            len_lab_train_ds=len(DatasetChoice.lab_train_subset),
+            al_iters=al_iters, 
+            unlab_sample_dim=unlab_sample_dim,
+            n_top_k_obs=n_top_k_obs,
+            our_method_params=our_method_params
+        )
+        
+        final_plot_name = f'{dataset_name}/results_{epochs}_{al_iters}_{n_top_k_obs}.png'
+        
+        
+        plot_loss_curves(results, n_lab_obs, save_plot, timestamp, final_plot_name)
     
 
 if __name__ == "__main__":

@@ -5,24 +5,43 @@ from torchvision import datasets
 from torchvision import transforms
 import torch
 
-import random
+import numpy as np
 
-class Cifar10SubsetDataloaders():
+
+
+becnhmark_datasets = {
+    'cifar10': {
+        'method': datasets.CIFAR10,
+        'n_classes': 10,
+    },
+    'cifar100': {
+        'method': datasets.CIFAR100,
+        'n_classes': 100,
+        
+    },
+    'fmnist': {
+        'n_classes': 10,
+        'method': datasets.FashionMNIST,
+    }
+}
+
+
+class SubsetDataloaders():
     
-    def __init__(self, batch_size, val_rateo, labeled_ratio, al_iters):
+    def __init__(self, dataset_name,  batch_size, val_rateo, labeled_ratio, al_iters):
         self.batch_size = batch_size
         
-        self.transformed_trainset = CIFAR10(bool_train=True, bool_transform=True, al_iters=al_iters)
-        self.non_transformed_trainset = CIFAR10(bool_train=True, bool_transform=False)
+        self.transformed_trainset = DatasetChoice(dataset_name=dataset_name, bool_train=True, bool_transform=True, al_iters=al_iters)
+        self.non_transformed_trainset = DatasetChoice(dataset_name=dataset_name, bool_train=True, bool_transform=False)
         
         self.test_dl = DataLoader(
-            CIFAR10(bool_train=False, bool_transform=False), 
+            DatasetChoice(dataset_name=dataset_name, bool_train=False, bool_transform=False), 
             self.batch_size, 
             shuffle=False, 
             pin_memory=True
         )
 
-        self.classes = ['plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
+        self.n_classes = becnhmark_datasets[dataset_name]['n_classes']
     
         self.get_initial_subsets_dls(val_rateo, labeled_ratio)
     
@@ -30,7 +49,7 @@ class Cifar10SubsetDataloaders():
     
     def get_initial_subsets_dls(self, val_rateo, labeled_ratio):
 
-        train_size = len(self.transformed_trainset) #50000
+        train_size = len(self.transformed_trainset)
         
         # computing the indice for the train and validation sets
         val_size = int(train_size * val_rateo)
@@ -63,43 +82,46 @@ class Cifar10SubsetDataloaders():
         self.unlab_train_subset = Subset(self.non_transformed_trainset, unlabeled_indices.tolist())
     
 
-class CIFAR10(Dataset):
-    def __init__(self, bool_train, bool_transform = True, al_iters = None):
+
+class DatasetChoice(Dataset):
+    def __init__(self, dataset_name, bool_train, bool_transform = True, al_iters = None):
         
         self.bool_transform = bool_transform
         self.al_iters = al_iters
+        self.get_train_mean_std(dataset_name)
 
         if bool_transform:
             # train
-            self.cifar10 = datasets.CIFAR10('./cifar10', train=bool_train, download=True, transform=transforms.Compose([
+            self.ds = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True, transform=transforms.Compose([
                 transforms.RandomCrop(32, padding=4),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                transforms.Normalize([0.4913997551666284, 0.48215855929893703, 0.4465309133731618],
-                                    [0.24703225141799082, 0.24348516474564, 0.26158783926049628])
-                ]))
+                transforms.Normalize(self.train_mean, self.train_std)
+            ]))
         else:
             # validation or test
-            self.cifar10 = datasets.CIFAR10('./cifar10', train=bool_train, download=True, transform=transforms.Compose([
+            self.ds = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True, transform=transforms.Compose([
                 transforms.ToTensor(),
-                transforms.Normalize([0.4913997551666284, 0.48215855929893703, 0.4465309133731618],
-                                    [0.24703225141799082, 0.24348516474564, 0.26158783926049628])
-                ]))
+                transforms.Normalize(self.train_mean, self.train_std)
+            ]))
+            
+            
+    def get_train_mean_std(self, dataset_name):
+
+        train_data = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=True, download=True)
+        
+        x = np.concatenate([np.asarray(train_data[i][0]) for i in range(len(train_data))])
+        
+        self.train_mean = np.mean(x, axis=(0, 1)) / 255
+        self.train_std = np.std(x, axis=(0, 1)) / 255
+        
             
     def __len__(self):
-        return len(self.cifar10)
+        return len(self.ds)
 
     def __getitem__(self, index):
         
-        '''if self.bool_transform and self.al_iters != None:
-            torch.random.manual_seed(index + self.al_iters)
-            random.seed(index + self.al_iters)
-            
-            image, label = self.cifar10[index]
-        else:
-            image, label = self.cifar10[index]'''
-        
-        image, label = self.cifar10[index]    
+        image, label = self.ds[index]    
         return index, image, label
 
 

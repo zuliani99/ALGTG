@@ -1,7 +1,7 @@
 
 from TrainEvaluate import TrainEvaluate
 from utils import entropy
-from CIFAR10 import UniqueShuffle
+from Datasets import UniqueShuffle
 
 import torch
 from torch.utils.data import DataLoader, Subset
@@ -11,7 +11,7 @@ import copy
 
 
 
-class GTG_Strategy(TrainEvaluate):
+class GTG(TrainEvaluate):
     
     def __init__(self, al_params, our_methods_params, LL):
         super().__init__(al_params, LL)

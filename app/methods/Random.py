@@ -4,7 +4,7 @@ import random
 from TrainEvaluate import TrainEvaluate
 
 
-class Random_Strategy(TrainEvaluate):
+class Random(TrainEvaluate):
     
     def __init__(self, al_params, LL):
         super().__init__(al_params, LL)

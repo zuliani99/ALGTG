@@ -6,30 +6,33 @@ from ResNet18 import BasicBlock, ResNet_Weird, LearningLoss
 
 import copy
 import random
+import os
 
-from CIFAR10 import CIFAR10, Cifar10SubsetDataloaders
-from utils import save_train_val_curves, write_csv#, init_weights_apply
+from Datasets import DatasetChoice, SubsetDataloaders
+from utils import init_weights_apply, save_train_val_curves, write_csv, create_directory
 
 
 class TrainEvaluate(object):
 
     def __init__(self, params, LL):
+
+        self.LL = LL        
+        sdl: SubsetDataloaders = params['DatasetChoice']
         
-        self.best_check_filename = 'app/checkpoints'
-        self.init_check_filename = 'app/checkpoints/init_checkpoint.pth.tar'
-        
-        cifar10: Cifar10SubsetDataloaders = params['cifar10']
-        
-        self.n_classes = len(cifar10.classes)
+        self.n_classes = sdl.n_classes
         self.device = params['device']
         self.batch_size = params['batch_size']
         self.score_fn = params['score_fn']
         self.patience = params['patience']
-        self.timestamp = params['timestamp']        
+        self.timestamp = params['timestamp']
+        self.dataset_name = params['dataset_name']
+                
+        self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
+        self.init_check_filename = f'{self.best_check_filename}_init_checkpoint.pth.tar'
         
         # I need the deep copy only of the subsets, that have the indices referred to the original_trainset
-        self.lab_train_subset: Subset = copy.deepcopy(cifar10.lab_train_subset)
-        self.unlab_train_subset: Subset = copy.deepcopy(cifar10.unlab_train_subset)
+        self.lab_train_subset: Subset = copy.deepcopy(sdl.lab_train_subset)
+        self.unlab_train_subset: Subset = copy.deepcopy(sdl.unlab_train_subset)
         
         # parameters that are used for all the strategies
         self.lab_train_dl = DataLoader(
@@ -39,25 +42,32 @@ class TrainEvaluate(object):
             pin_memory=True
         )
         self.len_lab_train_dl = len(self.lab_train_dl)
-        self.test_dl: DataLoader = cifar10.test_dl
-        self.val_dl: DataLoader = cifar10.val_dl
+        self.test_dl: DataLoader = sdl.test_dl
+        self.val_dl: DataLoader = sdl.val_dl
         
-        self.transformed_trainset: CIFAR10 = cifar10.transformed_trainset 
-        self.non_transformed_trainset: CIFAR10 = cifar10.non_transformed_trainset 
+        self.transformed_trainset: DatasetChoice = sdl.transformed_trainset 
+        self.non_transformed_trainset: DatasetChoice = sdl.non_transformed_trainset 
         
-        self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2]).to(self.device)
-        #self.model.apply(init_weights_apply)
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
+        self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=self.n_classes).to(self.device)
         self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
         self.loss_weird = LearningLoss(self.device)
         
-        self.LL = LL
+        if not os.path.exists(self.init_check_filename):
+            print(' => Initializing weights')
+            self.model.apply(init_weights_apply)
+            print(' DONE\n')
+            
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
         
+        create_directory(self.best_check_filename)
+
+        if not os.path.exists(self.init_check_filename):
+            self.__save_checkpoint(self.init_check_filename, 'initial')
 
         
-    def __save_best_checkpoint(self, filename):
-        print(' => Saving best checkpoint')
+    def __save_checkpoint(self, filename, check_type):
+        print(f' => Saving {check_type} checkpoint')
         checkpoint = {
             'state_dict': self.model.state_dict(), 
             'optimizer': self.optimizer.state_dict(),
@@ -67,25 +77,13 @@ class TrainEvaluate(object):
         print(' DONE\n')
     
     
-    
-    def reintialize_model(self):
-        print(' => Load initial checkpoint')
-        checkpoint = torch.load(self.init_check_filename, map_location=self.device)
-        self.model.load_state_dict(checkpoint['state_dict'])
-        self.optimizer.load_state_dict(checkpoint['optimizer'])
-        self.scheduler.load_state_dict(checkpoint['scheduler'])
-        print(' DONE\n')
-        
-
-
-    def __load_best_checkpoint(self, filename):
-        print(' => Loading best checkpoint')
+    def __load_checkpoint(self, filename, check_type):
+        print(f' => Load {check_type} checkpoint')
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['scheduler'])
         print(' DONE\n')
-
 
 
     def compute_losses(self, weight, out_weird, outputs, labels, tot_loss_ce, tot_loss_weird):
@@ -143,8 +141,8 @@ class TrainEvaluate(object):
         check_best_path = f'{self.best_check_filename}/best_{self.method_name}.pth.tar'
 		
         #best_val_loss = float('+inf')
-        best_val_accuracy = float('-inf')
-        actual_patience = 0
+        best_val_accuracy = 0.0
+        #actual_patience = 0
         
         
         results = { 'train_loss': [], 'train_loss_ce': [], 'train_loss_weird': [], 'train_accuracy': [], 
@@ -214,31 +212,30 @@ class TrainEvaluate(object):
             #    best_val_loss = val_loss
             if(val_accuracy > best_val_accuracy):
                 best_val_accuracy = val_accuracy
-                actual_patience = 0
+                #actual_patience = 0
                 
                 print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
                         epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
                 
-                self.__save_best_checkpoint(check_best_path)
+                self.__save_checkpoint(check_best_path, 'best')
                 
             else:
-                actual_patience += 1
+                '''actual_patience += 1
                 if actual_patience >= self.patience:
                     
                     print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
                         epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
                     
                     print(f'Early stopping, validation loss do not decreased for {self.patience} epochs')
-                    break
+                    break'''
                 
                 print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
                         epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
         
-            #print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
-                #epoch + 1, train_accuracy, train_loss, val_accuracy, val_loss))
                     
-
-        self.__load_best_checkpoint(check_best_path)
+        # load best checkpoint
+        self.__load_checkpoint(check_best_path, 'best')
+        
 
         print('Finished Training\n')
         
@@ -307,16 +304,17 @@ class TrainEvaluate(object):
     def train_evaluate_save(self, epochs, lab_obs, iter, results):
         
         # reinitialize the model
-        self.reintialize_model()
+        self.__load_checkpoint(self.init_check_filename, 'initial')
         
         train_results = self.train_evaluate(epochs)
         
-        save_train_val_curves(train_results, self.timestamp, iter, self.LL)
+        save_train_val_curves(train_results, self.timestamp, self.dataset_name, iter, self.LL)
         
         test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
         
         write_csv(
             ts_dir = self.timestamp,
+            dataset_name = self.dataset_name,
             head = ['method', 'lab_obs', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
             values = [self.method_name, lab_obs, test_accuracy, test_loss, test_loss_ce, test_loss_weird]
         )
