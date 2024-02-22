@@ -13,22 +13,27 @@ becnhmark_datasets = {
     'cifar10': {
         'method': datasets.CIFAR10,
         'n_classes': 10,
+        #'image_size': 32,
+        'channels': 3
     },
     'cifar100': {
         'method': datasets.CIFAR100,
         'n_classes': 100,
-        
+        #'image_size': 32,
+        'channels': 3
     },
     'fmnist': {
         'n_classes': 10,
         'method': datasets.FashionMNIST,
+        #'image_size': 28,
+        'channels': 1
     }
 }
 
 
 class SubsetDataloaders():
     
-    def __init__(self, dataset_name,  batch_size, val_rateo, labeled_ratio, al_iters):
+    def __init__(self, dataset_name,  batch_size, val_rateo, init_lab_obs, al_iters):
         self.batch_size = batch_size
         
         self.transformed_trainset = DatasetChoice(dataset_name=dataset_name, bool_train=True, bool_transform=True, al_iters=al_iters)
@@ -42,12 +47,14 @@ class SubsetDataloaders():
         )
 
         self.n_classes = becnhmark_datasets[dataset_name]['n_classes']
+        #self.image_size = becnhmark_datasets[dataset_name]['image_size']
+        self.n_channels = becnhmark_datasets[dataset_name]['channels']
     
-        self.get_initial_subsets_dls(val_rateo, labeled_ratio)
+        self.get_initial_subsets_dls(val_rateo, init_lab_obs)
     
     
     
-    def get_initial_subsets_dls(self, val_rateo, labeled_ratio):
+    def get_initial_subsets_dls(self, val_rateo, init_lab_obs):
 
         train_size = len(self.transformed_trainset)
         
@@ -71,11 +78,11 @@ class SubsetDataloaders():
         )
                 
         # calculate the number of samples for each split
-        labeled_size = int(labeled_ratio * new_train_size)
+        #labeled_size = int(labeled_ratio * new_train_size)
 
         # indices for the labeled and unlabeled sets      
-        labeled_indices = train_indices[:labeled_size]
-        unlabeled_indices = train_indices[labeled_size:]
+        labeled_indices = train_indices[:init_lab_obs]#[:labeled_size]
+        unlabeled_indices = train_indices[init_lab_obs:]#[labeled_size:]
 
         # subset for the labeled and unlabeled sets
         self.lab_train_subset = Subset(self.transformed_trainset, labeled_indices.tolist())
@@ -92,23 +99,55 @@ class DatasetChoice(Dataset):
 
         if bool_transform:
             # train
-            self.ds = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True, transform=transforms.Compose([
-                transforms.RandomCrop(32, padding=4),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize(self.train_mean, self.train_std)
-            ]))
+            
+            # in case I selected the fmnist dataset I Pad each image of 2 px to compute the mean and std
+            self.ds = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True,
+                transform =
+                    transforms.Compose([
+                        transforms.RandomCrop(32, padding=4),
+                        transforms.RandomHorizontalFlip(),
+                        transforms.ToTensor(),
+                        transforms.Normalize(self.train_mean, self.train_std)
+                    ]) if dataset_name != 'fmnist' else
+                    transforms.Compose([
+                        transforms.Pad(2),
+                        transforms.RandomCrop(32, padding=4),
+                        transforms.RandomHorizontalFlip(),
+                        transforms.ToTensor(),
+                        transforms.Normalize(self.train_mean, self.train_std)
+                    ])
+            )
         else:
             # validation or test
-            self.ds = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True, transform=transforms.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize(self.train_mean, self.train_std)
-            ]))
+            
+            # in case I selected the fmnist dataset I Pad each image of 2 px to compute the mean and std
+            self.ds = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True,
+                transform=
+                    transforms.Compose([
+                        transforms.ToTensor(),
+                        transforms.Normalize(self.train_mean, self.train_std)
+                    ]) if dataset_name != 'fmnist' else
+                    transforms.Compose([
+                        transforms.Pad(2),
+                        transforms.ToTensor(),
+                        transforms.Normalize(self.train_mean, self.train_std)
+                    ])
+            )
             
             
     def get_train_mean_std(self, dataset_name):
 
-        train_data = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=True, download=True)
+        # in case I selected the fmnist dataset I Pad each image of 2 px to compute the mean and std
+        train_data = becnhmark_datasets[dataset_name]['method'](
+            f'./datasets/{dataset_name}', 
+            train=True,
+            download=True
+        ) if dataset_name != 'fmnist' else becnhmark_datasets[dataset_name]['method'](
+            f'./datasets/{dataset_name}',
+            train=True,
+            download=True,
+            transform=transforms.Compose([transforms.Pad(2)])
+        )
         
         x = np.concatenate([np.asarray(train_data[i][0]) for i in range(len(train_data))])
         

@@ -20,6 +20,8 @@ class TrainEvaluate(object):
         sdl: SubsetDataloaders = params['DatasetChoice']
         
         self.n_classes = sdl.n_classes
+        self.n_channels = sdl.n_channels
+        #self.image_size = sdl.image_size
         self.device = params['device']
         self.batch_size = params['batch_size']
         self.score_fn = params['score_fn']
@@ -48,7 +50,7 @@ class TrainEvaluate(object):
         self.transformed_trainset: DatasetChoice = sdl.transformed_trainset 
         self.non_transformed_trainset: DatasetChoice = sdl.non_transformed_trainset 
         
-        self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=self.n_classes).to(self.device)
+        self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=self.n_classes, n_channels=self.n_channels).to(self.device)
         self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
         self.loss_weird = LearningLoss(self.device)
         
