@@ -4,9 +4,9 @@ import torch
 
 from Datasets import SubsetDataloaders
 
-from methods.GTG import GTG
-from methods.Random import Random
-from methods.Entropy import Entropy
+from strategies.GTG import GTG
+from strategies.Random import Random
+from strategies.Entropy import Entropy
 
 from utils import create_ts_dir_res, accuracy_score, plot_loss_curves
 
@@ -15,7 +15,6 @@ import argparse
 
 
 parser = argparse.ArgumentParser()
-#choices=['cifar10', 'cifar100', 'fmnist']
 parser.add_argument('-d', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'fmnist'], required=True, help='Possible datasets to chosoe')
 
 args = parser.parse_args()
@@ -40,7 +39,7 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
         Entropy(al_params, LL=False), Entropy(al_params, LL=True),
         
         # gtg
-        #GTG(al_params, our_method_params, LL=False), GTG(al_params, our_method_params, LL=True)
+        GTG(al_params, our_method_params, LL=False), GTG(al_params, our_method_params, LL=True)
     ]
     
     torch.backends.cudnn.benchmark = False
@@ -70,8 +69,8 @@ def main():
 
     print(f'Application running on {device}\n')
 
-    epochs = 5
-    al_iters = 1
+    epochs = 200
+    al_iters = 5
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
     batch_size = 128
@@ -86,7 +85,6 @@ def main():
         create_ts_dir_res(timestamp, dataset_name)
         
         DatasetChoice = SubsetDataloaders(dataset_name, batch_size, val_rateo=0.2, init_lab_obs=1000, al_iters=al_iters)
-        #labeled_ratio=0.025
         
         
         al_params = {
@@ -102,7 +100,7 @@ def main():
         
         our_method_params = {
             'gtg_tol': 0.001,
-            'gtg_max_iter': 20,
+            'gtg_max_iter': 30, #20
         }
         
                                                         

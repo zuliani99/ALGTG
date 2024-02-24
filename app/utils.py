@@ -230,3 +230,23 @@ def init_weights_apply(m):
         init.constant_(m.bias, 0)
         
         
+        
+def plot_story_tensor(story_tensor, path, iter):
+    import numpy as np
+    
+    fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (10,8))
+    
+    x = np.arange(30)
+
+    row_sum = torch.sum(story_tensor, dim=1)
+    non_zero_mask = row_sum != 0
+    non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=False).squeeze()
+    non_zero_row_indices = torch.unique(non_zero_indices)
+    non_zero_rows = story_tensor[non_zero_row_indices]
+
+    for i in range(len(non_zero_rows)//2):
+        ax.plot(x, non_zero_rows[i].cpu().numpy(), linestyle="-")
+        
+    plt.suptitle(f'entropy story iteration {iter}', fontsize = 15)
+    plt.legend()
+    plt.savefig(path)

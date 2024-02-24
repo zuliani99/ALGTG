@@ -46,6 +46,7 @@ class SubsetDataloaders():
             pin_memory=True
         )
 
+        #self.dataset_name = dataset_name
         self.n_classes = becnhmark_datasets[dataset_name]['n_classes']
         #self.image_size = becnhmark_datasets[dataset_name]['image_size']
         self.n_channels = becnhmark_datasets[dataset_name]['channels']
