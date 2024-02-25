@@ -192,11 +192,7 @@ class GTG(TrainEvaluate):
                 self.get_A(self.unlab_embeddings[split_idx * self.unlab_batch_size : (split_idx + 1) * self.unlab_batch_size])
                 self.get_X(target_lab_obs, indices.shape[0])
                 self.gtg(indices)
-                
-                ####################
-                #self.clear_memory()
-                ####################
-                
+                self.clear_memory()                
                 print(' DONE\n')
 
 
