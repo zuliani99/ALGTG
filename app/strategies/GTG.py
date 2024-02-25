@@ -26,7 +26,7 @@ class GTG(TrainEvaluate):
         self.params = our_methods_params 
         self.LL = LL
         
-        self.weights = torch.flip(torch.linspace(1, 0.1, self.params['gtg_max_iter'] - 1), [0]).to(self.device)
+        #self.weights = torch.flip(torch.linspace(1, 0.1, self.params['gtg_max_iter'] - 1), [0]).to(self.device)
         
         
         
@@ -203,9 +203,18 @@ class GTG(TrainEvaluate):
             path = f'./app/gtg_entropy_story/derivates/{self.A_function}_{self.LL}_{iter}.png' if self.LL else f'./app/gtg_entropy_story/derivates/{self.A_function}_{iter}.png' 
             plot_story_tensor(self.entropy_pairwise_der, path, iter, self.params['gtg_max_iter'] - 1)
             ##########################################################
-
+            
+            # getting the last column that have at least one element with entropy greater than 1e-15
+            for col_index in range(self.entropy_pairwise_der.size(1) - 1, -1, -1):
+                column = self.entropy_pairwise_der[:, col_index]
+                if torch.any(column > 1e-15): break
+            
+            # set the weights to increasing value until col_index
+            weights = torch.zeros(self.params['gtg_max_iter'] - 1, dtype=torch.float32, device=self.device) 
+            weights[:col_index] = torch.flip(torch.linspace(1, 0.1, col_index), [0]).to(self.device)
+            
             # weighted average
-            overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der * self.weights, dim = 1), n_top_k_obs)
+            overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der * weights, dim = 1), n_top_k_obs)
             
             # mean only
             #overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der, dim = 1), n_top_k_obs)
