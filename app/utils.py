@@ -16,7 +16,6 @@ def accuracy_score(output, label):
     return (output_class == label).sum().item()/len(output)
 
 
-
 def entropy(tensor):
     x = tensor + 1e-20
     return -torch.sum(x * torch.log2(x), dim=1)
@@ -231,12 +230,12 @@ def init_weights_apply(m):
         
         
         
-def plot_story_tensor(story_tensor, path, iter):
+def plot_story_tensor(story_tensor, path, iter, max_x):
     import numpy as np
     
     fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (10,8))
     
-    x = np.arange(30)
+    x = np.arange(max_x)
 
     row_sum = torch.sum(story_tensor, dim=1)
     non_zero_mask = row_sum != 0

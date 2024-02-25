@@ -21,7 +21,6 @@ class TrainEvaluate(object):
         
         self.n_classes = sdl.n_classes
         self.n_channels = sdl.n_channels
-        #self.image_size = sdl.image_size
         self.device = params['device']
         self.batch_size = params['batch_size']
         self.score_fn = params['score_fn']
@@ -44,6 +43,7 @@ class TrainEvaluate(object):
             pin_memory=True
         )
         self.len_lab_train_dl = len(self.lab_train_dl)
+
         self.test_dl: DataLoader = sdl.test_dl
         self.val_dl: DataLoader = sdl.val_dl
         
@@ -117,7 +117,6 @@ class TrainEvaluate(object):
             for _, images, labels in dataloader:
                 
                 images, labels = images.to(self.device), labels.to(self.device)
-
                 outputs, _, out_weird, _ = self.model(images)
 
                 loss, tot_loss_ce, tot_loss_weird = self.compute_losses(weight, out_weird, outputs, labels, tot_loss_ce, tot_loss_weird)
@@ -142,10 +141,7 @@ class TrainEvaluate(object):
     
         check_best_path = f'{self.best_check_filename}/best_{self.method_name}.pth.tar'
 		
-        #best_val_loss = float('+inf')
         best_val_accuracy = 0.0
-        #actual_patience = 0
-        
         
         results = { 'train_loss': [], 'train_loss_ce': [], 'train_loss_weird': [], 'train_accuracy': [], 
                     'val_loss': [], 'val_loss_ce': [], 'val_loss_weird': [], 'val_accuracy': [] }
@@ -159,7 +155,7 @@ class TrainEvaluate(object):
                 print('Decreasing learning rate to 0.01\n')
                 for g in self.optimizer.param_groups: g['lr'] = 0.01
             
-            if epoch == 121:
+            if self.LL and epoch == 121 :
                 print('Ignoring the learning loss form now\n') 
                 weight = 0
             
@@ -168,16 +164,14 @@ class TrainEvaluate(object):
             for _, images, labels in self.lab_train_dl:
 
                 images, labels = images.to(self.device), labels.to(self.device)
-                
                 self.optimizer.zero_grad()
-                                
                 outputs, _, out_weird, _ = self.model(images)
-                                    
+                
                 loss, train_loss_ce, train_loss_weird  = self.compute_losses(weight, out_weird, outputs, labels, train_loss_ce, train_loss_weird)
                 
                 loss.backward()         
                 self.optimizer.step()
-                                
+                
                 train_loss += loss.item()
                 train_accuracy += self.score_fn(outputs, labels)
 
@@ -210,29 +204,17 @@ class TrainEvaluate(object):
             results['val_accuracy'].append(val_accuracy)
             
             
-            #if(val_loss < best_val_loss):
-            #    best_val_loss = val_loss
             if(val_accuracy > best_val_accuracy):
                 best_val_accuracy = val_accuracy
-                #actual_patience = 0
                 
                 print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
-                        epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
+                    epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
                 
                 self.__save_checkpoint(check_best_path, 'best')
                 
             else:
-                '''actual_patience += 1
-                if actual_patience >= self.patience:
-                    
-                    print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
-                        epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
-                    
-                    print(f'Early stopping, validation loss do not decreased for {self.patience} epochs')
-                    break'''
-                
                 print('Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
-                        epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
+                    epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
         
                     
         # load best checkpoint
@@ -291,16 +273,15 @@ class TrainEvaluate(object):
             pin_memory=True
         )
         self.len_lab_train_dl = len(self.lab_train_dl)
-        
+
 
     def get_unlabebled_samples(self, unlab_sample_dim, iter):
         if(len(self.unlab_train_subset.indices) > unlab_sample_dim):
-            
             # seed to impose the same sampled unlabeled subset for all strategies
             random.seed(iter)
             return random.sample(self.unlab_train_subset.indices, unlab_sample_dim)
-        else:
-            return self.unlab_train_subset.indices
+        else: return self.unlab_train_subset.indices
+
 
 
     def train_evaluate_save(self, epochs, lab_obs, iter, results):
@@ -309,9 +290,7 @@ class TrainEvaluate(object):
         self.__load_checkpoint(self.init_check_filename, 'initial')
         
         train_results = self.train_evaluate(epochs)
-        
         save_train_val_curves(train_results, self.timestamp, self.dataset_name, iter, self.LL)
-        
         test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
         
         write_csv(
