@@ -39,10 +39,16 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
         #Entropy(al_params, LL=False), Entropy(al_params, LL=True),
         
         # gtg cos_sim -> LL=False, cos_sim and corr as get_A
-        GTG(al_params, our_method_params, LL=False, A_function='cos_sim'), GTG(al_params, our_method_params, LL=False, A_function='corr'),
+        GTG(al_params, our_method_params, LL=False, A_function='cos_sim', zero_diag=True), GTG(al_params, our_method_params, LL=False, A_function='corr', zero_diag=True),
         
         # gtg cos_sim -> LL=True, cos_sim and corr as get_A
-        GTG(al_params, our_method_params, LL=True, A_function='cos_sim'), GTG(al_params, our_method_params, LL=True, A_function='corr'),
+        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=True), GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=True),
+        
+        
+        GTG(al_params, our_method_params, LL=False, A_function='cos_sim', zero_diag=False), GTG(al_params, our_method_params, LL=False, A_function='corr', zero_diag=False),
+        
+        # gtg cos_sim -> LL=True, cos_sim and corr as get_A
+        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False), GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False),
         
         #########################################################
         Random(al_params, LL=False), Random(al_params, LL=True),
@@ -78,7 +84,7 @@ def main():
     print(f'Application running on {device}\n')
 
     epochs = 200
-    al_iters = 10
+    al_iters = 5
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
     batch_size = 128

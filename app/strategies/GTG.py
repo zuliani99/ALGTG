@@ -10,28 +10,28 @@ import torch.nn.functional as F
 import copy
 
 
-
 class GTG(TrainEvaluate):
     
-    def __init__(self, al_params, our_methods_params, LL, A_function):
+    def __init__(self, al_params, our_methods_params, LL, A_function, zero_diag):
         super().__init__(al_params, LL)
         
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,
-            'corr': self.get_A_corr
+            'corr': self.get_A_corr,
         }
         self.A_function = A_function
+        self.zero_diag = zero_diag
+        
+        str_diag = '0_diag' if self.zero_diag else '1_diag'
                 
-        self.method_name = f'{self.__class__.__name__}_{self.A_function}_LL' if LL else f'{self.__class__.__name__}_{self.A_function}'
+        self.method_name = f'{self.__class__.__name__}_{self.A_function}_{str_diag}_LL' if LL else f'{self.__class__.__name__}_{str_diag}_{self.A_function}'
         self.params = our_methods_params 
         self.LL = LL
         
         #self.weights = torch.flip(torch.linspace(1, 0.1, self.params['gtg_max_iter'] - 1), [0]).to(self.device)
         
         
-        
     def get_A(self, samp_unlab_embeddings): self.get_A_fn[self.A_function](samp_unlab_embeddings)
-
 
 
     def clear_memory(self):
@@ -42,22 +42,27 @@ class GTG(TrainEvaluate):
 
 
     def get_A_cos_sim(self, samp_unlab_embeddings):
-        
+                
         normalized_embedding = F.normalize(
             torch.cat((self.labeled_embeddings, samp_unlab_embeddings)).to(self.device)
         , dim=-1).to(self.device)
         
         self.A = F.relu(
             torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device)
-        )#.fill_diagonal_(0)
+        )
+        
+        if self.zero_diag: self.A.fill_diagonal_(0)
         
         del normalized_embedding
+        
         
         
     def get_A_corr(self, samp_unlab_embeddings):
         self.A = (
                 F.relu(torch.corrcoef(torch.cat((self.labeled_embeddings, samp_unlab_embeddings)).to(self.device)))
-            )#.fill_diagonal_(0)
+            )
+        
+        if self.zero_diag: self.A.fill_diagonal_(0)
 
 
 
