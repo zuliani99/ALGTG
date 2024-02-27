@@ -9,8 +9,6 @@ import torch.nn.functional as F
 
 import copy
 
-from torchmetrics.functional.pairwise import pairwise_cosine_similarity
-
 
 class GTG(TrainEvaluate):
     
@@ -42,10 +40,8 @@ class GTG(TrainEvaluate):
 
 
     def get_A_cos_sim(self, samp_unlab_embeddings):
-        
-        self.A = F.relu(pairwise_cosine_similarity(torch.cat((self.labeled_embeddings, samp_unlab_embeddings)).to(self.device), zero_diagonal=self.zero_diag))
-                
-        '''normalized_embedding = F.normalize(
+                        
+        normalized_embedding = F.normalize(
             torch.cat((self.labeled_embeddings, samp_unlab_embeddings)).to(self.device)
         , dim=-1).to(self.device)
         
@@ -53,15 +49,16 @@ class GTG(TrainEvaluate):
             torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device)
         )
         
-        if self.zero_diag: self.A.fill_diagonal_(0)
+        if self.zero_diag: self.A.fill_diagonal_(0.)
+        else: self.A.fill_diagonal_(1.)
         
-        del normalized_embedding'''
+        del normalized_embedding
         
         
         
     def get_A_corr(self, samp_unlab_embeddings):
         self.A = F.relu(torch.corrcoef(torch.cat((self.labeled_embeddings, samp_unlab_embeddings)).to(self.device)))
-        if self.zero_diag: self.A.fill_diagonal_(0)
+        if self.zero_diag: self.A.fill_diagonal_(0.)
 
 
 
@@ -83,13 +80,23 @@ class GTG(TrainEvaluate):
     def gtg(self, indices):
         err = float('Inf')
         i = 0
+        old_rowsum_X = 0
         
         while err > self.params['gtg_tol'] and i < self.params['gtg_max_iter']:
             X_old = copy.deepcopy(self.X)
             
             self.X *= torch.mm(self.A, self.X)
+            
+            rowsum_X = torch.sum(self.X).item()
+
+            print(rowsum_X)
+            # it has to be increasing or at least equal
+            if rowsum_X < old_rowsum_X:
+                raise Exception('Sum of the denominator vectro lower than the previous step')
 
             self.X /= torch.sum(self.X, dim=1, keepdim=True)
+            
+            old_rowsum_X = rowsum_X
         
             iter_entropy = entropy(self.X).to(self.device) # both labeled and sample unlabeled
             # I have to map only the sample_unlabeled to the correct position
@@ -113,7 +120,7 @@ class GTG(TrainEvaluate):
     
     def get_embeddings(self, dataloader):
 
-        embeddings = torch.empty(0, self.model.linear.in_features, dtype=torch.float32, device=self.device)
+        embeddings = torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device)
         concat_labels = torch.empty(0, dtype=torch.int8, device=self.device)
         
         self.model.eval()
