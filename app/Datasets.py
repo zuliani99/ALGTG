@@ -1,5 +1,5 @@
 
-from torch.utils.data import Dataset, DataLoader, Sampler, DataLoader, Subset
+from torch.utils.data import Dataset, Sampler, DataLoader, Subset
 
 from torchvision import datasets
 from torchvision import transforms
@@ -13,19 +13,16 @@ becnhmark_datasets = {
     'cifar10': {
         'method': datasets.CIFAR10,
         'n_classes': 10,
-        #'image_size': 32,
         'channels': 3
     },
     'cifar100': {
         'method': datasets.CIFAR100,
         'n_classes': 100,
-        #'image_size': 32,
         'channels': 3
     },
     'fmnist': {
         'n_classes': 10,
         'method': datasets.FashionMNIST,
-        #'image_size': 28,
         'channels': 1
     }
 }
@@ -46,9 +43,7 @@ class SubsetDataloaders():
             pin_memory=True
         )
 
-        #self.dataset_name = dataset_name
         self.n_classes = becnhmark_datasets[dataset_name]['n_classes']
-        #self.image_size = becnhmark_datasets[dataset_name]['image_size']
         self.n_channels = becnhmark_datasets[dataset_name]['channels']
     
         self.get_initial_subsets_dls(val_rateo, init_lab_obs)
@@ -59,7 +54,7 @@ class SubsetDataloaders():
 
         train_size = len(self.transformed_trainset)
         
-        # computing the indice for the train and validation sets
+        # computing the size for the train and validation sets
         val_size = int(train_size * val_rateo)
         new_train_size = train_size - val_size
         
@@ -77,13 +72,10 @@ class SubsetDataloaders():
             shuffle=False,
             pin_memory=True
         )
-                
-        # calculate the number of samples for each split
-        #labeled_size = int(labeled_ratio * new_train_size)
 
         # indices for the labeled and unlabeled sets      
-        labeled_indices = train_indices[:init_lab_obs]#[:labeled_size]
-        unlabeled_indices = train_indices[init_lab_obs:]#[labeled_size:]
+        labeled_indices = train_indices[:init_lab_obs]
+        unlabeled_indices = train_indices[init_lab_obs:]
 
         # subset for the labeled and unlabeled sets
         self.lab_train_subset = Subset(self.transformed_trainset, labeled_indices.tolist())
@@ -155,6 +147,7 @@ class DatasetChoice(Dataset):
         self.train_mean = np.mean(x, axis=(0, 1)) / 255
         self.train_std = np.std(x, axis=(0, 1)) / 255
         
+            
             
     def __len__(self):
         return len(self.ds)

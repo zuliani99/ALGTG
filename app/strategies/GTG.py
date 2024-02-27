@@ -9,6 +9,8 @@ import torch.nn.functional as F
 
 import copy
 
+from torchmetrics.functional.pairwise import pairwise_cosine_similarity
+
 
 class GTG(TrainEvaluate):
     
@@ -22,13 +24,12 @@ class GTG(TrainEvaluate):
         self.A_function = A_function
         self.zero_diag = zero_diag
         
-        str_diag = '0_diag' if self.zero_diag else '1_diag'
+        str_diag = '0diag' if self.zero_diag else '1diag'
                 
-        self.method_name = f'{self.__class__.__name__}_{self.A_function}_{str_diag}_LL' if LL else f'{self.__class__.__name__}_{str_diag}_{self.A_function}'
+        self.method_name = f'{self.__class__.__name__}_{self.A_function}_{str_diag}_LL' if LL else f'{self.__class__.__name__}_{self.A_function}_{str_diag}'
         self.params = our_methods_params 
         self.LL = LL
         
-        #self.weights = torch.flip(torch.linspace(1, 0.1, self.params['gtg_max_iter'] - 1), [0]).to(self.device)
         
         
     def get_A(self, samp_unlab_embeddings): self.get_A_fn[self.A_function](samp_unlab_embeddings)
@@ -40,10 +41,11 @@ class GTG(TrainEvaluate):
         torch.cuda.empty_cache()
 
 
-
     def get_A_cos_sim(self, samp_unlab_embeddings):
+        
+        self.A = F.relu(pairwise_cosine_similarity(torch.cat((self.labeled_embeddings, samp_unlab_embeddings)).to(self.device), zero_diagonal=self.zero_diag))
                 
-        normalized_embedding = F.normalize(
+        '''normalized_embedding = F.normalize(
             torch.cat((self.labeled_embeddings, samp_unlab_embeddings)).to(self.device)
         , dim=-1).to(self.device)
         
@@ -53,15 +55,12 @@ class GTG(TrainEvaluate):
         
         if self.zero_diag: self.A.fill_diagonal_(0)
         
-        del normalized_embedding
+        del normalized_embedding'''
         
         
         
     def get_A_corr(self, samp_unlab_embeddings):
-        self.A = (
-                F.relu(torch.corrcoef(torch.cat((self.labeled_embeddings, samp_unlab_embeddings)).to(self.device)))
-            )
-        
+        self.A = F.relu(torch.corrcoef(torch.cat((self.labeled_embeddings, samp_unlab_embeddings)).to(self.device)))
         if self.zero_diag: self.A.fill_diagonal_(0)
 
 
@@ -104,7 +103,7 @@ class GTG(TrainEvaluate):
                 if (i != self.params['gtg_max_iter'] - 1): self.entropy_pairwise_der[idx][i] = unlab_ent_val
 
                 # subtract the previous with the new entropy except for the first iteration
-                if (i != 0): self.entropy_pairwise_der[idx][i - 1] = (self.entropy_pairwise_der[idx][i - 1] - unlab_ent_val) ** 2
+                if (i != 0): self.entropy_pairwise_der[idx][i - 1] = (self.entropy_pairwise_der[idx][i - 1] - unlab_ent_val)
 
             
             err = torch.norm(self.X - X_old)
@@ -161,9 +160,6 @@ class GTG(TrainEvaluate):
                         
             self.unlab_train_dl = DataLoader(
                 sample_unlab_subset,
-                #, # <-- this batch size is 128, but doing like so we exclude all the rest connection from the other
-                # observations that we do not have included
-                
                 # we have the batch size which is equal to the number of sampled observation from the unlabeled set
                 batch_size=self.unlab_batch_size,
                 sampler=UniqueShuffle(sample_unlab_subset),
@@ -199,13 +195,18 @@ class GTG(TrainEvaluate):
                 self.gtg(indices)
                 self.clear_memory()                
                 print(' DONE\n')
+                
+            
+            #################################################################
+            self.entropy_pairwise_der = torch.abs(self.entropy_pairwise_der)
+            #################################################################
 
 
-            ##########################################################
-            path = f'./app/gtg_entropy_story/history/{self.A_function}_{self.LL}_{iter}.png' if self.LL else f'./app/gtg_entropy_story/history/{self.A_function}_{iter}.png' 
+            ##########################################################                        
+            path = f'./app/gtg_entropy/history/{self.method_name}_LL_{iter}.png' if self.LL else f'./app/gtg_entropy/history/{self.method_name}_{iter}.png'
             plot_story_tensor(self.entropy_history, path, iter, self.params['gtg_max_iter'])
             
-            path = f'./app/gtg_entropy_story/derivates/{self.A_function}_{self.LL}_{iter}.png' if self.LL else f'./app/gtg_entropy_story/derivates/{self.A_function}_{iter}.png' 
+            path = f'./app/gtg_entropy/derivatives/{self.method_name}_LL_{iter}.png' if self.LL else f'./app/gtg_entropy/derivatives/{self.method_name}_{iter}.png' 
             plot_story_tensor(self.entropy_pairwise_der, path, iter, self.params['gtg_max_iter'] - 1)
             ##########################################################
             
@@ -219,7 +220,7 @@ class GTG(TrainEvaluate):
             weights[:col_index] = torch.flip(torch.linspace(1, 0.1, col_index), [0]).to(self.device)
             
             # weighted average
-            overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der * weights, dim = 1), n_top_k_obs)
+            overall_topk = torch.topk(torch.mean(torch.abs(self.entropy_pairwise_der) * weights, dim = 1), n_top_k_obs)
             
             # mean only
             #overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der, dim = 1), n_top_k_obs)
@@ -232,5 +233,7 @@ class GTG(TrainEvaluate):
                 
             # iter + 1
             self.train_evaluate_save(epochs, iter * n_top_k_obs, iter, results)
+            
+        self.remove_model_opt()
                                             
         return results

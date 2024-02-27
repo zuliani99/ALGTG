@@ -304,3 +304,9 @@ class TrainEvaluate(object):
         results['test_loss'].append(test_loss)
         results['test_loss_ce'].append(test_loss_ce)
         results['test_loss_weird'].append(test_loss_weird)
+        
+        
+    def remove_model_opt(self):
+        del self.model
+        del self.optimizer
+        torch.cuda.empty_cache()

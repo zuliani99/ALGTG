@@ -15,7 +15,8 @@ import argparse
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-d', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'fmnist'], required=True, help='Possible datasets to chosoe')
+parser.add_argument('-d', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'fmnist'],
+                    required=True, help='Possible datasets to chosoe')
 
 args = parser.parse_args()
 
@@ -38,17 +39,12 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
         # entropy
         #Entropy(al_params, LL=False), Entropy(al_params, LL=True),
         
-        # gtg cos_sim -> LL=False, cos_sim and corr as get_A
-        GTG(al_params, our_method_params, LL=False, A_function='cos_sim', zero_diag=True), GTG(al_params, our_method_params, LL=False, A_function='corr', zero_diag=True),
+        #zero_diag=False -> diagonal set to 1       # zero_diag=True -> diagonal set to 0 
+        GTG(al_params, our_method_params, LL=False, A_function='cos_sim', zero_diag=False),
+        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False),
         
-        # gtg cos_sim -> LL=True, cos_sim and corr as get_A
-        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=True), GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=True),
-        
-        
-        GTG(al_params, our_method_params, LL=False, A_function='cos_sim', zero_diag=False), GTG(al_params, our_method_params, LL=False, A_function='corr', zero_diag=False),
-        
-        # gtg cos_sim -> LL=True, cos_sim and corr as get_A
-        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False), GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False),
+        GTG(al_params, our_method_params, LL=False, A_function='cos_sim', zero_diag=True),
+        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=True),
         
         #########################################################
         Random(al_params, LL=False), Random(al_params, LL=True),
@@ -89,6 +85,7 @@ def main():
     unlab_sample_dim = 10000
     batch_size = 128
     patience = 50
+    init_lab_obs = 1000
     
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     
@@ -98,7 +95,7 @@ def main():
         
         create_ts_dir_res(timestamp, dataset_name)
         
-        DatasetChoice = SubsetDataloaders(dataset_name, batch_size, val_rateo=0.2, init_lab_obs=1000, al_iters=al_iters)
+        DatasetChoice = SubsetDataloaders(dataset_name, batch_size, val_rateo=0.2, init_lab_obs=init_lab_obs, al_iters=al_iters)
         
         
         al_params = {
@@ -121,7 +118,7 @@ def main():
         results, n_lab_obs = train_evaluate(
             al_params=al_params, 
             epochs=epochs, 
-            len_lab_train_ds=len(DatasetChoice.lab_train_subset),
+            len_lab_train_ds=init_lab_obs,
             al_iters=al_iters, 
             unlab_sample_dim=unlab_sample_dim,
             n_top_k_obs=n_top_k_obs,

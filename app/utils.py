@@ -243,7 +243,7 @@ def plot_story_tensor(story_tensor, path, iter, max_x):
     non_zero_row_indices = torch.unique(non_zero_indices)
     non_zero_rows = story_tensor[non_zero_row_indices]
 
-    for i in range(len(non_zero_rows)//2):
+    for i in range(len(non_zero_rows)): # //2
         ax.plot(x, non_zero_rows[i].cpu().numpy(), linestyle="-")
         
     plt.suptitle(f'entropy story iteration {iter}', fontsize = 15)

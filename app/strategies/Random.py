@@ -52,5 +52,7 @@ class Random(TrainEvaluate):
             # iter + 1
             self.train_evaluate_save(epochs, iter * n_top_k_obs, iter, results)
             
+        self.remove_model_opt()
+            
         return results
         

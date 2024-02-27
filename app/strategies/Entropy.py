@@ -38,6 +38,11 @@ class Entropy(TrainEvaluate):
                 
         return indices, prob_dist
     
+    
+    def remove_idxs_probs(self, indices_prob, prob_dist):
+        del indices_prob
+        del prob_dist
+        torch.cuda.empty_cache()
         
         
     def run(self, al_iters, epochs, unlab_sample_dim, n_top_k_obs):
@@ -78,7 +83,11 @@ class Entropy(TrainEvaluate):
             self.get_new_dataloaders([indices_prob[id].item() for id in overall_topk.indices])
             print(' DONE\n')
                             
+            self.remove_idxs_probs(indices_prob, prob_dist)
+                            
             # iter + 1
             self.train_evaluate_save(epochs, iter * n_top_k_obs, iter, results)
+            
+        self.remove_model_opt()
                     
         return results
