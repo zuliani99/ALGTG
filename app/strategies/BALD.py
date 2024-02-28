@@ -22,7 +22,7 @@ class BALD(TrainEvaluate):
 
         self.model.train()
         
-        prob_dist_drop = torch.zeros((0, len(self.unlab_train_subset), self.n_classes), dtype=torch.float32, device=self.device) 
+        prob_dist_drop = torch.zeros((n_drop, len(self.unlab_train_subset), self.n_classes), dtype=torch.float32, device=self.device) 
         indices = torch.empty(0, dtype=torch.int8, device=self.device) 
         
         for drop in range(n_drop):
@@ -32,9 +32,10 @@ class BALD(TrainEvaluate):
                     idxs, images = idxs.to(self.device), images.to(self.device)
                     
                     outputs, _, _, _ = self.model(images)
-                                            
-                    prob_dist_drop[drop][torch.arange(idx_dl * idxs.shape[0], (idx_dl + 1) * idxs.shape[0])] += F.softmax(outputs, dim=1)
-                    
+                                                         
+                    print(F.softmax(outputs, dim=1))
+                    prob_dist_drop[drop][idx_dl * idxs.shape[0] : (idx_dl + 1) * idxs.shape[0]] += F.softmax(outputs, dim=1)
+
                     if(drop == 0): indices = torch.cat((indices, idxs), dim = 0)
                     
         return indices, prob_dist_drop 
@@ -43,11 +44,15 @@ class BALD(TrainEvaluate):
 
     def disagreement_dropout(self):
         indices, prob_dist_drop  = self.evaluate_unlabeled_train()
+        print(indices.shape, prob_dist_drop.shape)
         
         mean_pb = torch.mean(prob_dist_drop, dim=0)
+        print(mean_pb.shape)
         
         entropy1 = entropy(mean_pb)
         entropy2 = torch.mean(entropy(prob_dist_drop, dim=2), dim=0)
+        
+        print(entropy2 - entropy1)
         
         return indices, entropy2 - entropy1
         
@@ -81,15 +86,19 @@ class BALD(TrainEvaluate):
                 sample_unlab_subset,
                 # we have the batch size which is equal to the number of sampled observation from the unlabeled set
                 batch_size=self.unlab_batch_size,
-                sampler=UniqueShuffle(sample_unlab_subset),
-                pin_memory=True
+                #sampler=UniqueShuffle(sample_unlab_subset),
+                shuffle=True, pin_memory=True
             )
             
             print(' => Performing the disagreement dropout')
             indices, res_entropy = self.disagreement_dropout()
             print(' DONE\n')
             
+            print(res_entropy.shape)
+            
             overall_topk = torch.topk(res_entropy, n_top_k_obs)
+            
+            print(overall_topk)
                         
             # modify the datasets and dataloader
             print(' => Modifing the Subsets and Dataloader')

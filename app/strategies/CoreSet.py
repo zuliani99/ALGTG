@@ -17,32 +17,29 @@ class CoreSet(TrainEvaluate):
         
 
     # X -> unlabeled X_set -> labeled
-    def furthest_first(self, n_top_k_obs, concat_indices):
+    def furthest_first(self, n_top_k_obs, unlabeled_indices):
         unlabeled_size = len(self.unlab_embeddings)
+        
         if len(self.labeled_embeddings) == 0:
             min_dist = torch.full(unlabeled_size, float('inf'))
         else:
             dist_ctr = torch.cdist(self.unlab_embeddings, self.labeled_embeddings, p=2)
-            
             # take the minimum for each row
             min_dist = torch.amin(dist_ctr, dim=1)
             
         overall_topk = []
         
-        for _ in range(n_top_k_obs):
-            idx = concat_indices[torch.argmax(min_dist)]
+        while len(overall_topk) < n_top_k_obs:
+            idx = torch.argmax(min_dist).item()
             overall_topk.append(idx)
-            
-            dist_new_ctr = torch.cdist(self.unlab_embeddings, self.unlab_embeddings[[idx], :])
-            
+            dist_new_ctr = torch.cdist(self.unlab_embeddings, self.unlab_embeddings[[idx], :], p=2)
+                        
             for j in range(n_top_k_obs):
-                min_dist[j] = min(min_dist[j], dist_new_ctr[j, 0])
-        
-        return overall_topk
+                min_dist[j] = min(min_dist[j].item(), dist_new_ctr[j, 0].item())
+
+        return [unlabeled_indices[id].item() for id in overall_topk]
     
     
-    
-        
     
 
     def run(self, al_iters, epochs, unlab_sample_dim, n_top_k_obs):
@@ -70,21 +67,20 @@ class CoreSet(TrainEvaluate):
             self.unlab_batch_size = len(sample_unlab_subset)
                         
             self.unlab_train_dl = DataLoader(
-                sample_unlab_subset,
-                # we have the batch size which is equal to the number of sampled observation from the unlabeled set
-                batch_size=self.unlab_batch_size,
-                sampler=UniqueShuffle(sample_unlab_subset),
-                pin_memory=True
+                sample_unlab_subset, batch_size=self.unlab_batch_size,
+                shuffle=True, pin_memory=True,
             )
             
             print(' => Getting the labeled and unlabeled embeddings')
-            self.labeled_embeddings, labeled_indices = self.get_embeddings(self.lab_train_dl)
-            self.unlab_embeddings, unlabeled_indices = self.get_embeddings(self.unlab_train_dl)
+            self.labeled_embeddings, _, _ = self.get_embeddings(self.lab_train_dl)
+            self.unlab_embeddings, _, unlabeled_indices = self.get_embeddings(self.unlab_train_dl)
             print(' DONE\n')
                         
-            print*(' => Top K extractio using furthest_first')
-            topk_idx_obs = self.furthest_first(n_top_k_obs, torch.cat((labeled_indices, unlabeled_indices)))
+            print(' => Top K extraction using furthest_first')
+            topk_idx_obs = self.furthest_first(n_top_k_obs, unlabeled_indices)
             print(' DONE\n')
+            
+            print(topk_idx_obs)
                         
             # modify the datasets and dataloader
             print(' => Modifing the Subsets and Dataloader')

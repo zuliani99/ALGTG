@@ -83,7 +83,7 @@ class BADGE(TrainEvaluate):
             )
             
             print(' => Getting the unlabeled embeddings')
-            self.unlab_embeddings, unlabeled_indices = self.get_embeddings(self.unlab_train_dl)
+            self.unlab_embeddings, _,  unlabeled_indices = self.get_embeddings(self.unlab_train_dl)
             print(' DONE\n')
                         
             print*(' => Top K extraction using init_centers')

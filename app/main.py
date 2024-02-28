@@ -49,24 +49,24 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
     
     methods = [
         # random
-        Random(al_params, LL=False), Random(al_params, LL=True),
+        #Random(al_params, LL=False), Random(al_params, LL=True),
         
         # entropy
-        Entropy(al_params, LL=False), Entropy(al_params, LL=True),
+        #Entropy(al_params, LL=False), Entropy(al_params, LL=True),
         
         # coreset
-        CoreSet(al_params, LL=False), CoreSet(al_params, LL=True),
+        #CoreSet(al_params, LL=False), CoreSet(al_params, LL=True),
         
         # BALD
         BALD(al_params, LL=False), BALD(al_params, LL=True),
         
         # BADGE
-        BADGE(al_params, LL=False), BADGE(al_params, LL=True),
+        #BADGE(al_params, LL=False), BADGE(al_params, LL=True),
         
         # GTG
         #zero_diag=False -> diagonal set to 1       
-        GTG(al_params, our_method_params, LL=False, A_function='cos_sim', zero_diag=False),
-        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False),
+        #GTG(al_params, our_method_params, LL=False, A_function='cos_sim', zero_diag=False),
+        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False),
     ]
         
     for method in methods:
@@ -94,9 +94,9 @@ def main():
 
     print(f'Application running on {device}\n')
 
-    epochs = 200
-    al_iters = 5
-    n_top_k_obs = 1000
+    epochs = 5
+    al_iters = 2#5
+    n_top_k_obs = 10#1000
     unlab_sample_dim = 10000
     batch_size = 128
     patience = 50
