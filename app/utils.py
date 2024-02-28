@@ -16,9 +16,9 @@ def accuracy_score(output, label):
     return (output_class == label).sum().item()/len(output)
 
 
-def entropy(tensor):
+def entropy(tensor, dim=1):
     x = tensor + 1e-20
-    return -torch.sum(x * torch.log2(x), dim=1)
+    return -torch.sum(x * torch.log2(x), dim=dim)
 
     
 

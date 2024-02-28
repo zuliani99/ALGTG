@@ -4,14 +4,19 @@ import torch
 
 from Datasets import SubsetDataloaders
 
-from strategies.GTG import GTG
 from strategies.Random import Random
 from strategies.Entropy import Entropy
+from strategies.GTG import GTG
+from strategies.CoreSet import CoreSet
+from strategies.BALD import BALD
+from strategies.BADGE import BADGE
 
 from utils import create_ts_dir_res, accuracy_score, plot_loss_curves
 
 from datetime import datetime
 import argparse
+
+import numpy as np
 
 # https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html
 import os
@@ -30,6 +35,7 @@ choosen_datasets = args.datasets
 # https://discuss.pytorch.org/t/determinism-in-pytorch-across-multiple-files/156269
 torch.manual_seed(0)
 torch.cuda.manual_seed_all(0)
+np.random.seed(0)
 torch.backends.cudnn.deterministic = True
 torch.use_deterministic_algorithms(True)
 torch.backends.cudnn.benchmark = False
@@ -48,6 +54,16 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
         # entropy
         Entropy(al_params, LL=False), Entropy(al_params, LL=True),
         
+        # coreset
+        CoreSet(al_params, LL=False), CoreSet(al_params, LL=True),
+        
+        # BALD
+        BALD(al_params, LL=False), BALD(al_params, LL=True),
+        
+        # BADGE
+        BADGE(al_params, LL=False), BADGE(al_params, LL=True),
+        
+        # GTG
         #zero_diag=False -> diagonal set to 1       
         GTG(al_params, our_method_params, LL=False, A_function='cos_sim', zero_diag=False),
         GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False),
