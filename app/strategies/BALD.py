@@ -22,7 +22,7 @@ class BALD(TrainEvaluate):
 
         self.model.train()
         
-        prob_dist_drop = torch.zeros((n_drop, len(self.unlab_train_subset), self.n_classes), dtype=torch.float32, device=self.device) 
+        prob_dist_drop = torch.zeros((n_drop, len(self.unlab_train_dl.dataset), self.n_classes), dtype=torch.float32, device=self.device) 
         indices = torch.empty(0, dtype=torch.int8, device=self.device) 
         
         for drop in range(n_drop):
@@ -33,7 +33,6 @@ class BALD(TrainEvaluate):
                     
                     outputs, _, _, _ = self.model(images)
                                                          
-                    print(F.softmax(outputs, dim=1))
                     prob_dist_drop[drop][idx_dl * idxs.shape[0] : (idx_dl + 1) * idxs.shape[0]] += F.softmax(outputs, dim=1)
 
                     if(drop == 0): indices = torch.cat((indices, idxs), dim = 0)
@@ -43,16 +42,20 @@ class BALD(TrainEvaluate):
     
 
     def disagreement_dropout(self):
-        indices, prob_dist_drop  = self.evaluate_unlabeled_train()
-        print(indices.shape, prob_dist_drop.shape)
+        indices, prob_dist_drop = self.evaluate_unlabeled_train()
+        #print(indices.shape, prob_dist_drop.shape)
         
         mean_pb = torch.mean(prob_dist_drop, dim=0)
-        print(mean_pb.shape)
+        #print(mean_pb)
         
         entropy1 = entropy(mean_pb)
         entropy2 = torch.mean(entropy(prob_dist_drop, dim=2), dim=0)
         
-        print(entropy2 - entropy1)
+        #print(entropy1, entropy2)
+        #print(entropy2 - entropy1)
+        
+        del prob_dist_drop
+        torch.cuda.empty_cache()
         
         return indices, entropy2 - entropy1
         
@@ -94,7 +97,7 @@ class BALD(TrainEvaluate):
             indices, res_entropy = self.disagreement_dropout()
             print(' DONE\n')
             
-            print(res_entropy.shape)
+            #print(res_entropy.shape, res_entropy)
             
             overall_topk = torch.topk(res_entropy, n_top_k_obs)
             

@@ -32,8 +32,11 @@ class CoreSet(TrainEvaluate):
         while len(overall_topk) < n_top_k_obs:
             idx = torch.argmax(min_dist).item()
             overall_topk.append(idx)
+            print(idx, overall_topk)
             dist_new_ctr = torch.cdist(self.unlab_embeddings, self.unlab_embeddings[[idx], :], p=2)
-                        
+            
+            print(dist_new_ctr)
+            
             for j in range(n_top_k_obs):
                 min_dist[j] = min(min_dist[j].item(), dist_new_ctr[j, 0].item())
 
