@@ -11,16 +11,19 @@ import numpy as np
 
 becnhmark_datasets = {
     'cifar10': {
+        'id': 1,
         'method': datasets.CIFAR10,
         'n_classes': 10,
         'channels': 3
     },
     'cifar100': {
+        'id': 2,
         'method': datasets.CIFAR100,
         'n_classes': 100,
         'channels': 3
     },
     'fmnist': {
+        'id': 3,
         'n_classes': 10,
         'method': datasets.FashionMNIST,
         'channels': 1
@@ -45,6 +48,7 @@ class SubsetDataloaders():
 
         self.n_classes = becnhmark_datasets[dataset_name]['n_classes']
         self.n_channels = becnhmark_datasets[dataset_name]['channels']
+        self.dataset_id = becnhmark_datasets[dataset_name]['id']
     
         self.get_initial_subsets_dls(val_rateo, init_lab_obs)
     
@@ -126,6 +130,7 @@ class DatasetChoice(Dataset):
                         transforms.Normalize(self.train_mean, self.train_std)
                     ])
             )
+            
             
             
     def get_train_mean_std(self, dataset_name):

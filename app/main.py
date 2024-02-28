@@ -13,6 +13,10 @@ from utils import create_ts_dir_res, accuracy_score, plot_loss_curves
 from datetime import datetime
 import argparse
 
+# https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html
+import os
+os.environ["CUBLAS_WORKSPACE_CONFIG"]=":16:8"
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'fmnist'],
@@ -22,9 +26,14 @@ args = parser.parse_args()
 
 choosen_datasets = args.datasets
 
-
-save_plot = True
+# setting seed and deterministic behaviour of pytorch for reproducibility
+# https://discuss.pytorch.org/t/determinism-in-pytorch-across-multiple-files/156269
+torch.manual_seed(0)
+torch.cuda.manual_seed_all(0)
 torch.backends.cudnn.deterministic = True
+torch.use_deterministic_algorithms(True)
+torch.backends.cudnn.benchmark = False
+
 
 
 def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_dim, n_top_k_obs, our_method_params):
@@ -34,25 +43,15 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
     
     methods = [
         # random
-        #Random(al_params, LL=False), Random(al_params, LL=True),
+        Random(al_params, LL=False), Random(al_params, LL=True),
         
         # entropy
-        #Entropy(al_params, LL=False), Entropy(al_params, LL=True),
+        Entropy(al_params, LL=False), Entropy(al_params, LL=True),
         
-        #zero_diag=False -> diagonal set to 1       # zero_diag=True -> diagonal set to 0 
+        #zero_diag=False -> diagonal set to 1       
         GTG(al_params, our_method_params, LL=False, A_function='cos_sim', zero_diag=False),
         GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False),
-        
-        GTG(al_params, our_method_params, LL=False, A_function='cos_sim', zero_diag=True),
-        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=True),
-        
-        #########################################################
-        Random(al_params, LL=False), Random(al_params, LL=True),
-        #########################################################
-        
     ]
-    
-    torch.backends.cudnn.benchmark = False
         
     for method in methods:
             
@@ -91,7 +90,7 @@ def main():
     
     
     for dataset_name in choosen_datasets:
-        print(f'----------------------- RUNING ACTIVE LEARNING BENCHMARK ON {dataset_name} -----------------------\n')
+        print(f'----------------------- RUNNING ACTIVE LEARNING BENCHMARK ON {dataset_name} -----------------------\n')
         
         create_ts_dir_res(timestamp, dataset_name)
         
@@ -128,7 +127,7 @@ def main():
         final_plot_name = f'{dataset_name}/results_{epochs}_{al_iters}_{n_top_k_obs}.png'
         
         
-        plot_loss_curves(results, n_lab_obs, save_plot, timestamp, final_plot_name)
+        plot_loss_curves(results, n_lab_obs, timestamp, plot_png_name=final_plot_name)
     
 
 if __name__ == "__main__":

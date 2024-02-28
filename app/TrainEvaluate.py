@@ -12,6 +12,7 @@ from Datasets import DatasetChoice, SubsetDataloaders
 from utils import init_weights_apply, save_train_val_curves, write_csv, create_directory
 
 
+
 class TrainEvaluate(object):
 
     def __init__(self, params, LL):
@@ -21,6 +22,8 @@ class TrainEvaluate(object):
         
         self.n_classes = sdl.n_classes
         self.n_channels = sdl.n_channels
+        self.dataset_id = sdl.dataset_id
+        
         self.device = params['device']
         self.batch_size = params['batch_size']
         self.score_fn = params['score_fn']
@@ -68,6 +71,7 @@ class TrainEvaluate(object):
             self.__save_checkpoint(self.init_check_filename, 'initial')
 
         
+        
     def __save_checkpoint(self, filename, check_type):
         print(f' => Saving {check_type} checkpoint')
         checkpoint = {
@@ -79,6 +83,7 @@ class TrainEvaluate(object):
         print(' DONE\n')
     
     
+    
     def __load_checkpoint(self, filename, check_type):
         print(f' => Load {check_type} checkpoint')
         checkpoint = torch.load(filename, map_location=self.device)
@@ -86,6 +91,7 @@ class TrainEvaluate(object):
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['scheduler'])
         print(' DONE\n')
+
 
 
     def compute_losses(self, weight, out_weird, outputs, labels, tot_loss_ce, tot_loss_weird):
@@ -220,7 +226,6 @@ class TrainEvaluate(object):
         # load best checkpoint
         self.__load_checkpoint(check_best_path, 'best')
         
-
         print('Finished Training\n')
         
         return {'model_name': self.method_name, 'results': results}
@@ -278,7 +283,7 @@ class TrainEvaluate(object):
     def get_unlabebled_samples(self, unlab_sample_dim, iter):
         if(len(self.unlab_train_subset.indices) > unlab_sample_dim):
             # seed to impose the same sampled unlabeled subset for all strategies
-            random.seed(iter)
+            random.seed(iter * self.dataset_id) # seed set to -> iter * self.dataset_id
             return random.sample(self.unlab_train_subset.indices, unlab_sample_dim)
         else: return self.unlab_train_subset.indices
 

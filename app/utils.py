@@ -22,7 +22,7 @@ def entropy(tensor):
 
     
 
-def plot_loss_curves(methods_results, n_lab_obs, save_plot, ts_dir, plot_png_name = None):
+def plot_loss_curves(methods_results, n_lab_obs, ts_dir, save_plot=True, plot_png_name = None):
     
     _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
     
@@ -208,7 +208,6 @@ def create_directory(dir):
 
             
 def create_ts_dir_res(timestamp, dataset_name):
-    
     mydir = os.path.join('results', timestamp)
     create_directory(mydir)
     create_directory(os.path.join(mydir, dataset_name))
@@ -243,9 +242,9 @@ def plot_story_tensor(story_tensor, path, iter, max_x):
     non_zero_row_indices = torch.unique(non_zero_indices)
     non_zero_rows = story_tensor[non_zero_row_indices]
 
-    for i in range(len(non_zero_rows)): # //2
+    for i in range(len(non_zero_rows)):
         ax.plot(x, non_zero_rows[i].cpu().numpy(), linestyle="-")
         
-    plt.suptitle(f'entropy story iteration {iter}', fontsize = 15)
+    plt.suptitle(f'entropy {path.split("/")[3]} - iteration {iter}', fontsize = 15)
     plt.legend()
     plt.savefig(path)

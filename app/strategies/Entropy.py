@@ -17,6 +17,7 @@ class Entropy(TrainEvaluate):
         self.LL = LL
         
             
+            
     def evaluate_unlabeled(self):
 
         self.model.eval()
@@ -39,10 +40,12 @@ class Entropy(TrainEvaluate):
         return indices, prob_dist
     
     
+    
     def remove_idxs_probs(self, indices_prob, prob_dist):
         del indices_prob
         del prob_dist
         torch.cuda.empty_cache()
+        
         
         
     def run(self, al_iters, epochs, unlab_sample_dim, n_top_k_obs):
