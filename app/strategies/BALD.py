@@ -70,7 +70,7 @@ class BALD(TrainEvaluate):
         self.train_evaluate_save(epochs, n_top_k_obs, iter, results)
         
         # start of the loop
-        while len(self.unlab_train_subset) > 0 and iter < al_iters:
+        while len(self.unlabeled_indices) > 0 and iter < al_iters:
             iter += 1
             
             print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')

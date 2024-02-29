@@ -67,14 +67,16 @@ class GTG(TrainEvaluate):
     def get_X(self, target_lab_obs, len_samp_unlab_embeds):
         
         self.X = torch.zeros(
-            (len(self.lab_train_subset) + len_samp_unlab_embeds, self.n_classes),
+            #(len(self.lab_train_subset) + len_samp_unlab_embeds, self.n_classes),
+            (len(self.labeled_indices) + len_samp_unlab_embeds, self.n_classes),
             dtype=torch.float32,
             device=self.device
         )
 
         for idx, label in enumerate(target_lab_obs): self.X[idx][label] = 1.
         
-        for idx in range(len(self.lab_train_subset), len(self.lab_train_subset) + len_samp_unlab_embeds):
+        #for idx in range(len(self.lab_train_subset), len(self.lab_train_subset) + len_samp_unlab_embeds):
+        for idx in range(len(self.labeled_indices), len(self.labeled_indices) + len_samp_unlab_embeds):
             for label in range(self.n_classes): self.X[idx][label] = 1. / self.n_classes
         
         
@@ -103,7 +105,8 @@ class GTG(TrainEvaluate):
             # I have to map only the sample_unlabeled to the correct position
 
             # I iterate only the sampled unlabeled one                
-            for idx, unlab_ent_val in zip(indices, iter_entropy[len(self.lab_train_subset):]):
+            #for idx, unlab_ent_val in zip(indices, iter_entropy[len(self.lab_train_subset):]):
+            for idx, unlab_ent_val in zip(indices, iter_entropy[len(self.labeled_indices):]):
                 
                 self.entropy_history[idx][i] = unlab_ent_val
                 
@@ -132,7 +135,7 @@ class GTG(TrainEvaluate):
         self.train_evaluate_save(epochs, n_top_k_obs, iter, results)         
                      
         # start of the loop   
-        while len(self.unlab_train_subset) > 0 and iter < al_iters:
+        while len(self.unlabeled_indices) > 0 and iter < al_iters:
             iter += 1
                 
             print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')

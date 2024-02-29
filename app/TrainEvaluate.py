@@ -48,7 +48,7 @@ class TrainEvaluate(object):
         
         # parameters that are used for all the strategies
         self.lab_train_dl = DataLoader(
-            Subset(self.transformed_trainset, self.lab_train_subset), 
+            Subset(self.transformed_trainset, self.labeled_indices),#self.lab_train_subset), 
             batch_size=self.batch_size, shuffle=True, pin_memory=True
         )
         self.len_lab_train_dl = len(self.lab_train_dl)
@@ -296,7 +296,7 @@ class TrainEvaluate(object):
 
         # generate the new labeled DataLoader
         self.lab_train_dl = DataLoader(
-            Subset(self.transformed_trainset, self.lab_train_subset), 
+            Subset(self.transformed_trainset, self.labeled_indices),#self.lab_train_subset), 
             batch_size=self.batch_size, shuffle=True, pin_memory=True
         )
         self.len_lab_train_dl = len(self.lab_train_dl)
