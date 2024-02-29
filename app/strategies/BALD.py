@@ -43,16 +43,14 @@ class BALD(TrainEvaluate):
 
     def disagreement_dropout(self):
         indices, prob_dist_drop = self.evaluate_unlabeled_train()
-        #print(indices.shape, prob_dist_drop.shape)
         
         mean_pb = torch.mean(prob_dist_drop, dim=0)
-        #print(mean_pb)
         
         entropy1 = entropy(mean_pb)
         entropy2 = torch.mean(entropy(prob_dist_drop, dim=2), dim=0)
         
-        #print(entropy1, entropy2)
-        #print(entropy2 - entropy1)
+        #print(torch.equal(entropy1, (-(mean_pb + 1e-20)*torch.log2(mean_pb + 1e-20)).sum(1)))
+        #print(torch.equal(entropy2, (-(prob_dist_drop + 1e-20)*torch.log2(prob_dist_drop + 1e-20)).sum(2).mean(0)))
         
         del prob_dist_drop
         torch.cuda.empty_cache()
@@ -76,20 +74,14 @@ class BALD(TrainEvaluate):
             iter += 1
             
             print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
-                                        
+
             sample_unlab_subset = Subset(
                 self.non_transformed_trainset,
                 self.get_unlabebled_samples(unlab_sample_dim, iter)
             )
-            
-            # set the entire batch size to the dimension of the sampled unlabeled set
-            self.unlab_batch_size = len(sample_unlab_subset)
                         
             self.unlab_train_dl = DataLoader(
-                sample_unlab_subset,
-                # we have the batch size which is equal to the number of sampled observation from the unlabeled set
-                batch_size=self.unlab_batch_size,
-                #sampler=UniqueShuffle(sample_unlab_subset),
+                sample_unlab_subset, batch_size=self.batch_size,
                 shuffle=True, pin_memory=True
             )
             
@@ -97,11 +89,9 @@ class BALD(TrainEvaluate):
             indices, res_entropy = self.disagreement_dropout()
             print(' DONE\n')
             
-            #print(res_entropy.shape, res_entropy)
-            
             overall_topk = torch.topk(res_entropy, n_top_k_obs)
             
-            print(overall_topk)
+            #print(overall_topk)
                         
             # modify the datasets and dataloader
             print(' => Modifing the Subsets and Dataloader')
