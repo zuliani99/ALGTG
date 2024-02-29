@@ -49,9 +49,6 @@ class BALD(TrainEvaluate):
         entropy1 = entropy(mean_pb)
         entropy2 = torch.mean(entropy(prob_dist_drop, dim=2), dim=0)
         
-        #print(torch.equal(entropy1, (-(mean_pb + 1e-20)*torch.log2(mean_pb + 1e-20)).sum(1)))
-        #print(torch.equal(entropy2, (-(prob_dist_drop + 1e-20)*torch.log2(prob_dist_drop + 1e-20)).sum(2).mean(0)))
-        
         del prob_dist_drop
         torch.cuda.empty_cache()
         

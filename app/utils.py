@@ -5,6 +5,8 @@ import torch.nn as nn
 import torch.nn.init as init
 
 import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 
 import csv
 import os
@@ -22,7 +24,7 @@ def entropy(tensor, dim=1):
 
     
 
-def plot_loss_curves(methods_results, n_lab_obs, ts_dir, save_plot=True, plot_png_name = None):
+def plot_loss_curves(methods_results, n_lab_obs, ts_dir, save_plot=True, plot_png_name=None):
     
     _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
     
@@ -77,7 +79,7 @@ def plot_loss_curves(methods_results, n_lab_obs, ts_dir, save_plot=True, plot_pn
     
     
     
-def save_train_val_curves(results_info, ts_dir, dataset_name, al_iter, flag_LL):
+def save_train_val_curves(results_info, ts_dir, dataset_name, al_iter, cicle_iter, flag_LL):
 
     res = results_info['results']
     epochs = range(1, len(res['train_loss']) + 1)
@@ -174,10 +176,10 @@ def save_train_val_curves(results_info, ts_dir, dataset_name, al_iter, flag_LL):
         ax[1].grid()
         ax[1].legend()
 
-    plt.suptitle(f'AL iter {al_iter} - {results_info["model_name"]}', fontsize = 30)
+    plt.suptitle(f'AL iter {cicle_iter}.{al_iter} - {results_info["model_name"]}', fontsize = 30)
     
     #dataset_name
-    path_plots = f'results/{ts_dir}/{dataset_name}/train_val_plots/{results_info["model_name"]}'
+    path_plots = f'results/{ts_dir}/{dataset_name}/{cicle_iter}/train_val_plots/{results_info["model_name"]}'
 
     if(not os.path.exists(path_plots)):
         os.makedirs(path_plots)
@@ -207,11 +209,12 @@ def create_directory(dir):
         os.makedirs(dir)
 
             
-def create_ts_dir_res(timestamp, dataset_name):
+def create_ts_dir_res(timestamp, dataset_name, iter):
     mydir = os.path.join('results', timestamp)
     create_directory(mydir)
     create_directory(os.path.join(mydir, dataset_name))
-    create_directory(os.path.join(mydir, dataset_name, 'train_val_plots'))
+    create_directory(os.path.join(mydir, dataset_name, iter))
+    create_directory(os.path.join(mydir, dataset_name, iter, 'train_val_plots'))
 
         
         
@@ -248,3 +251,35 @@ def plot_story_tensor(story_tensor, path, iter, max_x):
     plt.suptitle(f'entropy {path.split("/")[3]} - iteration {iter}', fontsize = 15)
     plt.legend()
     plt.savefig(path)
+
+
+
+def plot_accuracy_std_mean(timestamp, dataset_name):
+    df = pd.read_csv(f'results/{timestamp}/{dataset_name}/results.csv')
+
+    df_grouped = (
+        df[['method', 'lab_obs', 'test_accuracy']].groupby(['method', 'lab_obs']).agg(['mean', 'std', 'count'])
+    )
+    df_grouped = df_grouped.droplevel(axis=1, level=0).reset_index()
+    
+    df_grouped['ci'] = 1.96 * df_grouped['std'] / np.sqrt(df_grouped['count'])
+    df_grouped['ci_lower'] = df_grouped['mean'] - df_grouped['ci']
+    df_grouped['ci_upper'] = df_grouped['mean'] + df_grouped['ci']
+    
+    methods = df_grouped['method'].unique()
+
+    # Plot each method
+    plt.figure(figsize=(14, 10))
+    for method in methods:
+        method_data = df_grouped[df_grouped['method'] == method]
+        plt.plot(method_data['lab_obs'], method_data['mean'], label=method)
+        plt.fill_between(method_data['lab_obs'], method_data['ci_lower'], method_data['ci_upper'], alpha=0.3)
+
+    plt.xlabel('Labeled Observations')
+    plt.ylabel('Test Accuracy')
+    plt.title(f'{dataset_name} results')
+    plt.legend()
+    plt.grid(True)
+    
+    plt.savefig(f'results/{timestamp}/{dataset_name}/mean_std_accuracy_plot.png') 
+ 

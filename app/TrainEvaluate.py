@@ -36,6 +36,7 @@ class TrainEvaluate(object):
         self.patience = params['patience']
         self.timestamp = params['timestamp']
         self.dataset_name = params['dataset_name']
+        self.iter = params['iter']
 
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
         self.init_check_filename = f'{self.best_check_filename}_init_checkpoint.pth.tar'
@@ -306,7 +307,7 @@ class TrainEvaluate(object):
         #if(len(self.unlab_train_subset.indices) > unlab_sample_dim):
         if(len(self.unlabeled_indices) > unlab_sample_dim):
             # seed to impose the same sampled unlabeled subset for all strategies
-            random.seed(iter * self.dataset_id) # seed set to -> iter * self.dataset_id
+            random.seed(iter * self.dataset_id + 100 * self.iter) # seed set to -> iter * self.dataset_id
             #return random.sample(self.unlab_train_subset.indices, unlab_sample_dim)
             return random.sample(self.unlabeled_indices, unlab_sample_dim)
         #else: return self.unlab_train_subset.indices
@@ -320,14 +321,14 @@ class TrainEvaluate(object):
         self.__load_checkpoint(self.init_check_filename, 'initial')
         
         train_results = self.train_evaluate(epochs)
-        save_train_val_curves(train_results, self.timestamp, self.dataset_name, iter, self.LL)
+        save_train_val_curves(train_results, self.timestamp, self.dataset_name, iter, self.iter, self.LL)
         test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
         
         write_csv(
             ts_dir = self.timestamp,
             dataset_name = self.dataset_name,
-            head = ['method', 'lab_obs', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
-            values = [self.method_name, lab_obs, test_accuracy, test_loss, test_loss_ce, test_loss_weird]
+            head = ['method', 'iter', 'lab_obs', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
+            values = [self.method_name, self.iter, lab_obs, test_accuracy, test_loss, test_loss_ce, test_loss_weird]
         )
         
         results['test_accuracy'].append(test_accuracy)

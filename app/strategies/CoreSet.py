@@ -70,7 +70,7 @@ class CoreSet(TrainEvaluate):
             print(' DONE\n')
                         
             print(' => Top K extraction')
-            topk_idx_obs = self.furthest_first(n_top_k_obs, unlabeled_indices)
+            topk_idx_obs = self.furthest_first(n_top_k_obs)
             print(' DONE\n')
             
                         
