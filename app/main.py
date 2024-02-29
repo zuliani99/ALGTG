@@ -33,13 +33,14 @@ choosen_datasets = args.datasets
 
 # setting seed and deterministic behaviour of pytorch for reproducibility
 # https://discuss.pytorch.org/t/determinism-in-pytorch-across-multiple-files/156269
-torch.manual_seed(0)
-torch.cuda.manual_seed_all(0)
-np.random.seed(0)
+torch.manual_seed(42)
+torch.cuda.manual_seed(42)
+torch.cuda.manual_seed_all(42)
+np.random.seed(42)
 torch.backends.cudnn.deterministic = True
 torch.use_deterministic_algorithms(True)
 torch.backends.cudnn.benchmark = False
-
+torch.backends.cudnn.enabled = False
 
 
 def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_dim, n_top_k_obs, our_method_params):
@@ -94,8 +95,8 @@ def main():
 
     print(f'Application running on {device}\n')
 
-    epochs = 50
-    al_iters = 5
+    epochs = 200
+    al_iters = 6
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
     batch_size = 128
