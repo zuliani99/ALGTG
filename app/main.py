@@ -31,7 +31,7 @@ parser.add_argument('-i', '--iterations', type=int, nargs=1, required=True, help
 args = parser.parse_args()
 
 choosen_datasets = args.datasets
-iterations = args.iterations
+iterations = args.iterations[0]
 
 # setting seed and deterministic behaviour of pytorch for reproducibility
 # https://discuss.pytorch.org/t/determinism-in-pytorch-across-multiple-files/156269
@@ -112,11 +112,11 @@ def main():
 
         print(f'----------------------- RUNNING ACTIVE LEARNING BENCHMARK ON {dataset_name} -----------------------\n')
 
-        for iter in iterations:
+        for iter in range(iterations):
             
             print(f'----------------------- SAMPLE ITERATION {iter + 1} / {iterations} -----------------------\n')
             
-            create_ts_dir_res(timestamp, dataset_name, iter)
+            create_ts_dir_res(timestamp, dataset_name, str(iter))
             
             DatasetChoice = SubsetDataloaders(dataset_name, batch_size, val_rateo=0.2, init_lab_obs=init_lab_obs, al_iters=al_iters)
             
