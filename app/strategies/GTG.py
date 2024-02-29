@@ -157,8 +157,8 @@ class GTG(TrainEvaluate):
             )
                 
             print(' => Getting the labeled and unlabeled embeddings')
-            self.labeled_embeddings, target_lab_obs, _ = self.get_embeddings(self.lab_train_dl)
-            self.unlab_embeddings, _, _ = self.get_embeddings(self.unlab_train_dl)
+            _, self.labeled_embeddings, target_lab_obs = self.get_embeddings(self.lab_train_dl)
+            _, self.unlab_embeddings, _ = self.get_embeddings(self.unlab_train_dl)
             print(' DONE\n')
             
             

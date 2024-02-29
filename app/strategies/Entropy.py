@@ -16,36 +16,6 @@ class Entropy(TrainEvaluate):
         self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
         self.LL = LL
         
-            
-            
-    def evaluate_unlabeled(self):
-
-        self.model.eval()
-        
-        prob_dist = torch.empty(0, self.n_classes, dtype=torch.float32, device=self.device) 
-        indices = torch.empty(0, dtype=torch.int8, device=self.device) 
-        
-        with torch.inference_mode(): # Allow inference mode
-            for idxs, images, _ in self.unlab_train_dl:
-                
-                idxs, images = idxs.to(self.device), images.to(self.device)
-                
-                outputs, _, _, _ = self.model(images)
-                    
-                softmax = F.softmax(outputs, dim=1)
-                
-                prob_dist = torch.cat((prob_dist, softmax), dim = 0).to(self.device)
-                indices = torch.cat((indices, idxs), dim = 0)
-                
-        return indices, prob_dist
-    
-    
-    
-    def remove_idxs_probs(self, indices_prob, prob_dist):
-        del indices_prob
-        del prob_dist
-        torch.cuda.empty_cache()
-        
         
         
     def run(self, al_iters, epochs, unlab_sample_dim, n_top_k_obs):
@@ -74,7 +44,8 @@ class Entropy(TrainEvaluate):
             )
                 
             print(' => Evalueting unlabeled observations')
-            indices_prob, prob_dist = self.evaluate_unlabeled()
+            indices_prob, embeddings, _ = self.get_embeddings(self.unlab_train_dl)
+            prob_dist = F.softmax(embeddings, dim=1)
             print(' DONE\n')
                 
             tot_entr = entropy(prob_dist).to(self.device)
@@ -89,6 +60,4 @@ class Entropy(TrainEvaluate):
             # iter + 1
             self.train_evaluate_save(epochs, iter * n_top_k_obs, iter, results)
             
-        self.remove_model_opt()
-                    
         return results

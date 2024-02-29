@@ -65,8 +65,8 @@ class CoreSet(TrainEvaluate):
             )
             
             print(' => Getting the labeled and unlabeled embeddings')
-            self.labeled_embeddings, _, _ = self.get_embeddings(self.lab_train_dl)
-            self.unlab_embeddings, _, unlabeled_indices = self.get_embeddings(self.unlab_train_dl)
+            _, self.labeled_embeddings, _ = self.get_embeddings(self.lab_train_dl)
+            unlabeled_indices, self.unlab_embeddings, _ = self.get_embeddings(self.unlab_train_dl)
             print(' DONE\n')
                         
             print(' => Top K extraction')

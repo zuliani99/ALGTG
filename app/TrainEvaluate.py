@@ -159,7 +159,7 @@ class TrainEvaluate(object):
                 concat_labels = torch.cat((concat_labels, labels), dim=0)
                 concat_idxs = torch.cat((concat_idxs, idxs), dim=0)
              
-        return embeddings, concat_labels, concat_idxs
+        return concat_idxs, embeddings, concat_labels
 
 
 
