@@ -24,34 +24,35 @@ class TrainEvaluate(object):
         self.n_channels = sdl.n_channels
         self.dataset_id = sdl.dataset_id
         
+        self.test_dl: DataLoader = sdl.test_dl
+        self.val_dl: DataLoader = sdl.val_dl
+        
+        self.transformed_trainset: DatasetChoice = sdl.transformed_trainset 
+        self.non_transformed_trainset: DatasetChoice = sdl.non_transformed_trainset 
+        
         self.device = params['device']
         self.batch_size = params['batch_size']
         self.score_fn = params['score_fn']
         self.patience = params['patience']
         self.timestamp = params['timestamp']
         self.dataset_name = params['dataset_name']
-                
+
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
         self.init_check_filename = f'{self.best_check_filename}_init_checkpoint.pth.tar'
         
         # I need the deep copy only of the subsets, that have the indices referred to the original_trainset
-        self.lab_train_subset: Subset = copy.deepcopy(sdl.lab_train_subset)
-        self.unlab_train_subset: Subset = copy.deepcopy(sdl.unlab_train_subset)
+        #self.lab_train_subset: Subset = copy.deepcopy(sdl.lab_train_subset)
+        #self.unlab_train_subset: Subset = copy.deepcopy(sdl.unlab_train_subset)
+        self.labeled_indices = copy.deepcopy(sdl.labeled_indices)
+        self.unlabeled_indices = copy.deepcopy(sdl.unlabeled_indices)
         
         # parameters that are used for all the strategies
         self.lab_train_dl = DataLoader(
-            self.lab_train_subset, 
-            batch_size=self.batch_size, 
-            shuffle=True, 
-            pin_memory=True
+            Subset(self.transformed_trainset, self.lab_train_subset), 
+            batch_size=self.batch_size, shuffle=True, pin_memory=True
         )
         self.len_lab_train_dl = len(self.lab_train_dl)
 
-        self.test_dl: DataLoader = sdl.test_dl
-        self.val_dl: DataLoader = sdl.val_dl
-        
-        self.transformed_trainset: DatasetChoice = sdl.transformed_trainset 
-        self.non_transformed_trainset: DatasetChoice = sdl.non_transformed_trainset 
         
         self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=self.n_classes, n_channels=self.n_channels).to(self.device)
         self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
@@ -65,8 +66,6 @@ class TrainEvaluate(object):
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
         
-        create_directory(self.best_check_filename)
-
         if not os.path.exists(self.init_check_filename):
             self.__save_checkpoint(self.init_check_filename, 'initial')
 
@@ -147,7 +146,7 @@ class TrainEvaluate(object):
         concat_labels = torch.empty(0, dtype=torch.int8, device=self.device)
         concat_idxs = torch.empty(0, dtype=torch.int8, device=self.device)
         
-        self.model.train()
+        self.model.eval()
 
         # again no gradients needed
         with torch.inference_mode():
@@ -212,7 +211,7 @@ class TrainEvaluate(object):
             train_loss_ce /= self.len_lab_train_dl
             train_loss_weird /= self.len_lab_train_dl
             
-            
+            # evaluating using the validation set
             val_accuracy, val_loss, val_loss_ce, val_loss_weird = self.evaluate(self.val_dl, weight)
             
             
@@ -272,44 +271,46 @@ class TrainEvaluate(object):
     def get_new_dataloaders(self, overall_topk):
         
         # temp variable
-        lab_train_indices = copy.deepcopy(self.lab_train_subset.indices)
+        #lab_train_indices = copy.deepcopy(self.lab_train_subset.indices)
         
         # extend with the overall_topk
-        lab_train_indices.extend(overall_topk)
+        self.labeled_indices.extend(overall_topk)
         
         # generate a new Subset
-        self.lab_train_subset = Subset(self.transformed_trainset, lab_train_indices)
+        #self.lab_train_subset = Subset(self.transformed_trainset, lab_train_indices)
             
         # temp variable
-        unlab_train_indices = copy.deepcopy(self.unlab_train_subset.indices)
+        #unlab_train_indices = copy.deepcopy(self.unlab_train_subset.indices)
         
         # remove new labeled observations
-        for idx_to_remove in overall_topk: unlab_train_indices.remove(idx_to_remove)
+        for idx_to_remove in overall_topk: self.unlabeled_indices.remove(idx_to_remove)
         
         # generate a new Subset
-        self.unlab_train_subset = Subset(self.non_transformed_trainset, unlab_train_indices)
+        #self.unlab_train_subset = Subset(self.non_transformed_trainset, unlab_train_indices)
         
         # sanity check
-        if len(list(set(self.unlab_train_subset.indices) & set(self.lab_train_subset.indices))) == 0:
+        #if len(list(set(self.unlab_train_subset.indices) & set(self.lab_train_subset.indices))) == 0:
+        if len(list(set(self.unlabeled_indices) & set(self.labeled_indices))) == 0:
             print('Intersection between indices is EMPTY')
         else: raise Exception('NON EMPTY INDICES INTERSECTION')
 
         # generate the new labeled DataLoader
         self.lab_train_dl = DataLoader(
-            self.lab_train_subset, 
-            batch_size=self.batch_size, 
-            shuffle=True, 
-            pin_memory=True
+            Subset(self.transformed_trainset, self.lab_train_subset), 
+            batch_size=self.batch_size, shuffle=True, pin_memory=True
         )
         self.len_lab_train_dl = len(self.lab_train_dl)
 
 
     def get_unlabebled_samples(self, unlab_sample_dim, iter):
-        if(len(self.unlab_train_subset.indices) > unlab_sample_dim):
+        #if(len(self.unlab_train_subset.indices) > unlab_sample_dim):
+        if(len(self.unlabeled_indices) > unlab_sample_dim):
             # seed to impose the same sampled unlabeled subset for all strategies
             random.seed(iter * self.dataset_id) # seed set to -> iter * self.dataset_id
-            return random.sample(self.unlab_train_subset.indices, unlab_sample_dim)
-        else: return self.unlab_train_subset.indices
+            #return random.sample(self.unlab_train_subset.indices, unlab_sample_dim)
+            return random.sample(self.unlabeled_indices, unlab_sample_dim)
+        #else: return self.unlab_train_subset.indices
+        else: return self.unlabeled_indices
 
 
 

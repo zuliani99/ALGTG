@@ -73,17 +73,16 @@ class SubsetDataloaders():
         self.val_dl = DataLoader(
             Subset(self.non_transformed_trainset, validation_indices.tolist()),
             batch_size=self.batch_size, 
-            shuffle=False,
-            pin_memory=True
+            shuffle=False, pin_memory=True
         )
 
         # indices for the labeled and unlabeled sets      
-        labeled_indices = train_indices[:init_lab_obs]
-        unlabeled_indices = train_indices[init_lab_obs:]
+        self.labeled_indices = train_indices[:init_lab_obs].tolist()
+        self.unlabeled_indices = train_indices[init_lab_obs:].tolist()
 
         # subset for the labeled and unlabeled sets
-        self.lab_train_subset = Subset(self.transformed_trainset, labeled_indices.tolist())
-        self.unlab_train_subset = Subset(self.non_transformed_trainset, unlabeled_indices.tolist())
+        #self.lab_train_subset = Subset(self.transformed_trainset, labeled_indices.tolist())
+        #self.unlab_train_subset = Subset(self.non_transformed_trainset, unlabeled_indices.tolist())
     
 
 
@@ -152,8 +151,6 @@ class DatasetChoice(Dataset):
         self.train_mean = np.mean(x, axis=(0, 1)) / 255
         self.train_std = np.std(x, axis=(0, 1)) / 255
         
-            
-            
     def __len__(self):
         return len(self.ds)
 

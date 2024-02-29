@@ -70,9 +70,7 @@ class Entropy(TrainEvaluate):
                                 
             self.unlab_train_dl = DataLoader(
                 Subset(self.non_transformed_trainset, sample_unlab),
-                batch_size=self.batch_size, 
-                shuffle=True, 
-                pin_memory=True
+                batch_size=self.batch_size, shuffle=True, pin_memory=True
             )
                 
             print(' => Evalueting unlabeled observations')
