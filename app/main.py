@@ -10,6 +10,8 @@ from strategies.GTG import GTG
 from strategies.CoreSet import CoreSet
 from strategies.BALD import BALD
 from strategies.BADGE import BADGE
+from strategies.LeastConfidence import LeastConfidence
+from strategies.KMeans import KMeans
 
 from utils import create_ts_dir_res, accuracy_score, plot_loss_curves, plot_accuracy_std_mean
 
@@ -51,13 +53,19 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
     n_lab_obs = [len_lab_train_ds + (iter * n_top_k_obs) for iter in range(al_iters)]
     
     methods = [
-        # random
-        Random(al_params, LL=False), Random(al_params, LL=True),        
+        # Random
+        Random(al_params, LL=False), Random(al_params, LL=True),
         
-        # entropy
+        # LeastConfidence
+        LeastConfidence(al_params, LL=False), LeastConfidence(al_params, LL=True),
+        
+        # Rntropy
         Entropy(al_params, LL=False), Entropy(al_params, LL=True),
         
-        # coreset
+        # KMeans
+        KMeans(al_params, LL=False), KMeans(al_params, LL=True),
+        
+        # CoreSet
         CoreSet(al_params, LL=False), CoreSet(al_params, LL=True),
         
         # BALD

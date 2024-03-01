@@ -54,9 +54,7 @@ class Entropy(TrainEvaluate):
             print(' => Modifing the Subsets and Dataloader')
             self.get_new_dataloaders([indices_prob[id].item() for id in overall_topk.indices])
             print(' DONE\n')
-                            
-            self.remove_idxs_probs(indices_prob, prob_dist)
-                            
+                                        
             # iter + 1
             self.train_evaluate_save(epochs, iter * n_top_k_obs, iter, results)
             
