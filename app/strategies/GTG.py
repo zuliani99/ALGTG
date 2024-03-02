@@ -1,16 +1,16 @@
 
-from TrainEvaluate import TrainEvaluate
+from strategies.Strategies import Strategies
 from utils import entropy, plot_story_tensor
 from Datasets import UniqueShuffle
 
 import torch
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
 import copy
 
 
-class GTG(TrainEvaluate):
+class GTG(Strategies):
     
     def __init__(self, al_params, our_methods_params, LL, A_function, zero_diag):
         super().__init__(al_params, LL)
@@ -26,12 +26,10 @@ class GTG(TrainEvaluate):
                 
         self.method_name = f'{self.__class__.__name__}_{self.A_function}_{str_diag}_LL' if LL else f'{self.__class__.__name__}_{self.A_function}_{str_diag}'
         self.params = our_methods_params 
-        self.LL = LL
         
         
     # select the relative choosen affinity matrix method
     def get_A(self, samp_unlab_embeddings): self.get_A_fn[self.A_function](samp_unlab_embeddings)
-
 
 
     def clear_memory(self):
@@ -40,11 +38,10 @@ class GTG(TrainEvaluate):
         torch.cuda.empty_cache()
 
 
-
     def get_A_cos_sim(self, samp_unlab_embeddings):
                         
         normalized_embedding = F.normalize(
-            torch.cat((self.labeled_embeddings, samp_unlab_embeddings)).to(self.device)
+            torch.cat((self.lab_embedds_dict['embedds'], samp_unlab_embeddings)).to(self.device)
         , dim=-1).to(self.device)
         
         self.A = F.relu(torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device))
@@ -56,31 +53,26 @@ class GTG(TrainEvaluate):
         
         
         
-        
     def get_A_corr(self, samp_unlab_embeddings):
-        self.A = F.relu(torch.corrcoef(torch.cat((self.labeled_embeddings, samp_unlab_embeddings)).to(self.device)))
+        self.A = F.relu(torch.corrcoef(torch.cat((self.lab_embedds_dict['embedds'], samp_unlab_embeddings)).to(self.device)))
         if self.zero_diag: self.A.fill_diagonal_(0.)
 
 
 
-
-    def get_X(self, target_lab_obs, len_samp_unlab_embeds):
+    def get_X(self, len_samp_unlab_embeds):
         
         self.X = torch.zeros(
-            #(len(self.lab_train_subset) + len_samp_unlab_embeds, self.n_classes),
             (len(self.labeled_indices) + len_samp_unlab_embeds, self.n_classes),
             dtype=torch.float32,
             device=self.device
         )
 
-        for idx, label in enumerate(target_lab_obs): self.X[idx][label] = 1.
+        for idx, label in enumerate(self.lab_embedds_dict['labels']): self.X[idx][label] = 1.
         
-        #for idx in range(len(self.lab_train_subset), len(self.lab_train_subset) + len_samp_unlab_embeds):
         for idx in range(len(self.labeled_indices), len(self.labeled_indices) + len_samp_unlab_embeds):
             for label in range(self.n_classes): self.X[idx][label] = 1. / self.n_classes
         
         
-
 
     def gtg(self, indices):
         err = float('Inf')
@@ -105,7 +97,6 @@ class GTG(TrainEvaluate):
             # I have to map only the sample_unlabeled to the correct position
 
             # I iterate only the sampled unlabeled one                
-            #for idx, unlab_ent_val in zip(indices, iter_entropy[len(self.lab_train_subset):]):
             for idx, unlab_ent_val in zip(indices, iter_entropy[len(self.labeled_indices):]):
                 
                 self.entropy_history[idx][i] = unlab_ent_val
@@ -122,98 +113,76 @@ class GTG(TrainEvaluate):
 
 
 
-
-    def run(self, al_iters, epochs, unlab_sample_dim, n_top_k_obs):
-
-        iter = 1            
-
-        results = { 'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}
+    def query(self, sample_unlab_subset, n_top_k_obs):
+            
+        # set the entire batch size to the dimension of the sampled unlabeled set
+        self.unlab_batch_size = len(sample_unlab_subset)
+                    
+        self.unlab_train_dl = DataLoader(
+            sample_unlab_subset,
+            # we have the batch size which is equal to the number of sampled observation from the unlabeled set
+            batch_size=self.unlab_batch_size,
+            sampler=UniqueShuffle(sample_unlab_subset),
+            pin_memory=True
+        )
                 
-        print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
+        print(' => Getting the labeled and unlabeled embeddings')
+        self.lab_embedds_dict = {'embedds': None, 'labels': None}
+        self.unlab_embedds_dict = {'embedds': None}
+            
+        self.get_embeddings(self.lab_train_dl, self.lab_embedds_dict)
+        self.get_embeddings(self.unlab_train_dl, self.unlab_embedds_dict)
+        print(' DONE\n')
+            
+            
+        # at each AL round I reinitialize the entropy_pairwise_der since I have to decide at each step what observations I want to move
+        self.entropy_pairwise_der = torch.zeros(
+            (len(self.transformed_trainset), self.params['gtg_max_iter'] - 1), device=self.device
+        )
+        # I aslo save the entropy history in order to be able to plot it
+        self.entropy_history = torch.zeros(
+            (len(self.transformed_trainset), self.params['gtg_max_iter']), device=self.device
+        )
+            
+
+        # for each split
+        # split_idx -> indices of the split
+        # indices -> are the list of indices for the given batch which ARE CONSISTENT SINCE ARE REFERRED TO THE INDEX OF THE ORIGINAL DATASET
+        for split_idx, (indices, _, _) in enumerate(self.unlab_train_dl):
+            print(f' => Running GTG for split {split_idx}')
+            self.get_A(self.unlab_embedds_dict['embedds'][split_idx * self.unlab_batch_size : (split_idx + 1) * self.unlab_batch_size])
+            self.get_X(indices.shape[0])
+            self.gtg(indices)
+            self.clear_memory()                
+            print(' DONE\n')
+                
+                
+        # absolute value of the derivate to remove the oscilaltions -> observaion that have oscillation smeans that are difficult too
+        self.entropy_pairwise_der = torch.abs(self.entropy_pairwise_der)
+
+
+        # plot entropy history and derivatives
+        plot_story_tensor(self.entropy_history, f'./app/gtg_entropy/history/{self.method_name}_{iter}.png', iter, self.params['gtg_max_iter'])
+        plot_story_tensor(self.entropy_pairwise_der, f'./app/gtg_entropy/derivatives/{self.method_name}_{iter}.png', iter, self.params['gtg_max_iter'] - 1)
+            
+            
+        # getting the last column that have at least one element with entropy greater than 1e-15
+        for col_index in range(self.entropy_pairwise_der.size(1) - 1, -1, -1):
+            column = self.entropy_pairwise_der[:, col_index]
+            if torch.any(column > 1e-15): break
+            
+            
+        # set the weights to increasing value until col_index
+        weights = torch.zeros(self.params['gtg_max_iter'] - 1, dtype=torch.float32, device=self.device) 
+        weights[:col_index] = torch.flip(torch.linspace(1, 0.1, col_index), [0]).to(self.device)
+            
+        # weighted average
+        overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der * weights, dim = 1), n_top_k_obs)
         
-        # iter = 1
-        self.train_evaluate_save(epochs, n_top_k_obs, iter, results)         
-                     
-        # start of the loop   
-        while len(self.unlabeled_indices) > 0 and iter < al_iters:
-            iter += 1
-                
-            print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
-                                                        
-            sample_unlab_subset = Subset(
-                self.non_transformed_trainset,
-                self.get_unlabebled_samples(unlab_sample_dim, iter)
-            )
-            
-            # set the entire batch size to the dimension of the sampled unlabeled set
-            self.unlab_batch_size = len(sample_unlab_subset)
-                        
-            self.unlab_train_dl = DataLoader(
-                sample_unlab_subset,
-                # we have the batch size which is equal to the number of sampled observation from the unlabeled set
-                batch_size=self.unlab_batch_size,
-                sampler=UniqueShuffle(sample_unlab_subset),
-                pin_memory=True
-            )
-                
-            print(' => Getting the labeled and unlabeled embeddings')
-            _, self.labeled_embeddings, target_lab_obs = self.get_embeddings(self.lab_train_dl)
-            _, self.unlab_embeddings, _ = self.get_embeddings(self.unlab_train_dl)
-            print(' DONE\n')
-            
-            
-            # at each AL round I reinitialize the entropy_pairwise_der since I have to decide at each step what observations I want to move
-            self.entropy_pairwise_der = torch.zeros(
-                (len(self.transformed_trainset), self.params['gtg_max_iter'] - 1), device=self.device
-            )
-            # I aslo save the entropy history in order to be able to plot it
-            self.entropy_history = torch.zeros(
-                (len(self.transformed_trainset), self.params['gtg_max_iter']), device=self.device
-            )
-            
-
-            # for each split
-            # split_idx -> indices of the split
-            # indices -> are the list of indices for the given batch which ARE CONSISTENT SINCE ARE REFERRED TO THE INDEX OF THE ORIGINAL DATASET
-            for split_idx, (indices, _, _) in enumerate(self.unlab_train_dl):
-                print(f' => Running GTG for split {split_idx}')
-                self.get_A(self.unlab_embeddings[split_idx * self.unlab_batch_size : (split_idx + 1) * self.unlab_batch_size])
-                self.get_X(target_lab_obs, indices.shape[0])
-                self.gtg(indices)
-                self.clear_memory()                
-                print(' DONE\n')
-                
-                
-            # absolute value of the derivate to remove the oscilaltions -> observaion that have oscillation smeans that are difficult too
-            self.entropy_pairwise_der = torch.abs(self.entropy_pairwise_der)
-
-
-            # plot entropy history and derivatives
-            plot_story_tensor(self.entropy_history, f'./app/gtg_entropy/history/{self.method_name}_{iter}.png', iter, self.params['gtg_max_iter'])
-            plot_story_tensor(self.entropy_pairwise_der, f'./app/gtg_entropy/derivatives/{self.method_name}_{iter}.png', iter, self.params['gtg_max_iter'] - 1)
-            
-            
-            # getting the last column that have at least one element with entropy greater than 1e-15
-            for col_index in range(self.entropy_pairwise_der.size(1) - 1, -1, -1):
-                column = self.entropy_pairwise_der[:, col_index]
-                if torch.any(column > 1e-15): break
-            
-            
-            # set the weights to increasing value until col_index
-            weights = torch.zeros(self.params['gtg_max_iter'] - 1, dtype=torch.float32, device=self.device) 
-            weights[:col_index] = torch.flip(torch.linspace(1, 0.1, col_index), [0]).to(self.device)
-            
-            # weighted average
-            overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der * weights, dim = 1), n_top_k_obs)
-            
-            
-            print(' => Modifing the Subsets and Dataloader')
-            self.get_new_dataloaders(overall_topk.indices.tolist())
-            print(' DONE\n')
-                
-            # iter + 1
-            self.train_evaluate_save(epochs, iter * n_top_k_obs, iter, results)
-            
-        self.remove_model_opt()
-                                            
-        return results
+        self.clear_cuda_variables(
+            [self.entropy_pairwise_der, self.entropy_history, self.lab_embedds_dict,
+            self.unlab_embedds_dict, weights]
+        )
+        
+        return overall_topk.indices.tolist()
+    

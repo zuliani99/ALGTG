@@ -1,21 +1,19 @@
 
 import torch
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
-from TrainEvaluate import TrainEvaluate
-from Datasets import UniqueShuffle
-
+from strategies.Strategies import Strategies
 from utils import entropy
 
 
-class BALD(TrainEvaluate):
+class BALD(Strategies):
     
     def __init__(self, al_params, LL):
         super().__init__(al_params, LL)
         
         self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
-        self.LL = LL
+        
         
         
     def evaluate_unlabeled_train(self, n_drop=5):
@@ -56,49 +54,20 @@ class BALD(TrainEvaluate):
         
     
     
-    def run(self, al_iters, epochs, unlab_sample_dim, n_top_k_obs):
-        
-        iter = 1
-        
-        results = { 'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}
-        
-        print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
-        
-        self.train_evaluate_save(epochs, n_top_k_obs, iter, results)
-        
-        # start of the loop
-        while len(self.unlabeled_indices) > 0 and iter < al_iters:
-            iter += 1
-            
-            print(f'----------------------- ITERATION {iter} / {al_iters} -----------------------\n')
-
-            sample_unlab_subset = Subset(
-                self.non_transformed_trainset,
-                self.get_unlabebled_samples(unlab_sample_dim, iter)
-            )
+    def query(self, sample_unlab_subset, n_top_k_obs):
                         
-            self.unlab_train_dl = DataLoader(
-                sample_unlab_subset, batch_size=self.batch_size,
-                shuffle=True, pin_memory=True
-            )
+        self.unlab_train_dl = DataLoader(
+            sample_unlab_subset, batch_size=self.batch_size,
+            shuffle=True, pin_memory=True
+        )
             
-            print(' => Performing the disagreement dropout')
-            indices, res_entropy = self.disagreement_dropout()
-            print(' DONE\n')
+        print(' => Performing the disagreement dropout')
+        indices, res_entropy = self.disagreement_dropout()
+        print(' DONE\n')
             
-            overall_topk = torch.topk(res_entropy, n_top_k_obs)
-            
-            #print(overall_topk)
-                        
-            # modify the datasets and dataloader
-            print(' => Modifing the Subsets and Dataloader')
-            self.get_new_dataloaders([indices[id].item() for id in overall_topk.indices])
-            print(' DONE\n')
-            
-            # iter + 1
-            self.train_evaluate_save(epochs, iter * n_top_k_obs, iter, results)
-            
-        self.remove_model_opt()
-            
-        return results
+        overall_topk = torch.topk(res_entropy, n_top_k_obs)
         
+        self.clear_cuda_variables([indices, res_entropy])
+        
+        return [indices[id].item() for id in overall_topk.indices.tolist()]
+    

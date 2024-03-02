@@ -9,7 +9,7 @@ import random
 import os
 
 from Datasets import DatasetChoice, SubsetDataloaders
-from utils import init_weights_apply, save_train_val_curves, write_csv, create_directory
+from utils import init_weights_apply, save_train_val_curves, write_csv
 
 
 
@@ -36,20 +36,17 @@ class TrainEvaluate(object):
         self.patience = params['patience']
         self.timestamp = params['timestamp']
         self.dataset_name = params['dataset_name']
-        self.iter = params['iter']
+        self.iter_sample = params['samp_iter']
 
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
         self.init_check_filename = f'{self.best_check_filename}_init_checkpoint.pth.tar'
         
-        # I need the deep copy only of the subsets, that have the indices referred to the original_trainset
-        #self.lab_train_subset: Subset = copy.deepcopy(sdl.lab_train_subset)
-        #self.unlab_train_subset: Subset = copy.deepcopy(sdl.unlab_train_subset)
+        # I need the deep copy only of the list of labeled and unlabeled indices
         self.labeled_indices = copy.deepcopy(sdl.labeled_indices)
         self.unlabeled_indices = copy.deepcopy(sdl.unlabeled_indices)
         
-        # parameters that are used for all the strategies
         self.lab_train_dl = DataLoader(
-            Subset(self.transformed_trainset, self.labeled_indices),#self.lab_train_subset), 
+            Subset(self.transformed_trainset, self.labeled_indices),
             batch_size=self.batch_size, shuffle=True, pin_memory=True
         )
         self.len_lab_train_dl = len(self.lab_train_dl)
@@ -141,11 +138,14 @@ class TrainEvaluate(object):
     
     
     
-    def get_embeddings(self, dataloader):
+    def get_embeddings(self, dataloader, dict_to_modify):
 
-        embeddings = torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device)
-        concat_labels = torch.empty(0, dtype=torch.int8, device=self.device)
-        concat_idxs = torch.empty(0, dtype=torch.int8, device=self.device)
+        if 'embedds' in dict_to_modify:
+            dict_to_modify['embedds'] = torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device)
+        if 'labels' in dict_to_modify:
+            dict_to_modify['labels'] = torch.empty(0, dtype=torch.int8, device=self.device)
+        if 'idxs' in dict_to_modify:
+            dict_to_modify['idxs'] = torch.empty(0, dtype=torch.int8, device=self.device)
         
         self.model.eval()
 
@@ -156,11 +156,13 @@ class TrainEvaluate(object):
                 idxs, images, labels = idxs.to(self.device), images.to(self.device), labels.to(self.device)
                 _, embed, _, _ = self.model(images)
                 
-                embeddings = torch.cat((embeddings, embed.squeeze()), dim=0)
-                concat_labels = torch.cat((concat_labels, labels), dim=0)
-                concat_idxs = torch.cat((concat_idxs, idxs), dim=0)
+                if 'embedds' in dict_to_modify:
+                    dict_to_modify['embedds'] = torch.cat((dict_to_modify['embedds'], embed.squeeze()), dim=0)
+                if 'labels' in dict_to_modify:
+                    dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)
+                if 'idxs' in dict_to_modify:
+                    dict_to_modify['idxs'] = torch.cat((dict_to_modify['idxs'], idxs), dim=0)
              
-        return concat_idxs, embeddings, concat_labels
 
 
 
@@ -271,46 +273,37 @@ class TrainEvaluate(object):
 
     def get_new_dataloaders(self, overall_topk):
         
-        # temp variable
-        #lab_train_indices = copy.deepcopy(self.lab_train_subset.indices)
-        
         # extend with the overall_topk
         self.labeled_indices.extend(overall_topk)
-        
-        # generate a new Subset
-        #self.lab_train_subset = Subset(self.transformed_trainset, lab_train_indices)
-            
-        # temp variable
-        #unlab_train_indices = copy.deepcopy(self.unlab_train_subset.indices)
         
         # remove new labeled observations
         for idx_to_remove in overall_topk: self.unlabeled_indices.remove(idx_to_remove)
         
-        # generate a new Subset
-        #self.unlab_train_subset = Subset(self.non_transformed_trainset, unlab_train_indices)
-        
         # sanity check
-        #if len(list(set(self.unlab_train_subset.indices) & set(self.lab_train_subset.indices))) == 0:
         if len(list(set(self.unlabeled_indices) & set(self.labeled_indices))) == 0:
             print('Intersection between indices is EMPTY')
         else: raise Exception('NON EMPTY INDICES INTERSECTION')
 
         # generate the new labeled DataLoader
         self.lab_train_dl = DataLoader(
-            Subset(self.transformed_trainset, self.labeled_indices),#self.lab_train_subset), 
+            Subset(self.transformed_trainset, self.labeled_indices),
             batch_size=self.batch_size, shuffle=True, pin_memory=True
         )
         self.len_lab_train_dl = len(self.lab_train_dl)
 
 
     def get_unlabebled_samples(self, unlab_sample_dim, iter):
-        #if(len(self.unlab_train_subset.indices) > unlab_sample_dim):
         if(len(self.unlabeled_indices) > unlab_sample_dim):
-            # seed to impose the same sampled unlabeled subset for all strategies
-            random.seed(iter * self.dataset_id + 100 * self.iter) # seed set to -> iter * self.dataset_id
-            #return random.sample(self.unlab_train_subset.indices, unlab_sample_dim)
-            return random.sample(self.unlabeled_indices, unlab_sample_dim)
-        #else: return self.unlab_train_subset.indices
+            random.seed(iter * self.dataset_id + 100 * self.iter_sample)
+            
+            ##############################################################
+            l = random.sample(self.unlabeled_indices, unlab_sample_dim)
+            #printing only the last 5 sampled unlabeled observations
+            print(l[-5:])
+            ##############################################################
+            
+            return l
+            #return random.sample(self.unlabeled_indices, unlab_sample_dim)
         else: return self.unlabeled_indices
 
 
@@ -321,14 +314,14 @@ class TrainEvaluate(object):
         self.__load_checkpoint(self.init_check_filename, 'initial')
         
         train_results = self.train_evaluate(epochs)
-        save_train_val_curves(train_results, self.timestamp, self.dataset_name, iter, self.iter, self.LL)
+        save_train_val_curves(train_results, self.timestamp, self.dataset_name, iter, self.iter_sample, self.LL)
         test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.test()
         
         write_csv(
             ts_dir = self.timestamp,
             dataset_name = self.dataset_name,
             head = ['method', 'iter', 'lab_obs', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
-            values = [self.method_name, self.iter, lab_obs, test_accuracy, test_loss, test_loss_ce, test_loss_weird]
+            values = [self.method_name, self.iter_sample, lab_obs, test_accuracy, test_loss, test_loss_ce, test_loss_weird]
         )
         
         results['test_accuracy'].append(test_accuracy)
@@ -341,3 +334,9 @@ class TrainEvaluate(object):
         del self.model
         del self.optimizer
         torch.cuda.empty_cache()
+        
+        
+    def clear_cuda_variables(self, variables):
+        for var in variables: del var
+        torch.cuda.empty_cache()
+        

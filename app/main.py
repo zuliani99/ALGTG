@@ -11,7 +11,7 @@ from strategies.CoreSet import CoreSet
 from strategies.BALD import BALD
 from strategies.BADGE import BADGE
 from strategies.LeastConfidence import LeastConfidence
-from strategies.KMeans import KMeans
+from strategies.K_Means import K_Means
 
 from utils import create_ts_dir_res, accuracy_score, plot_loss_curves, plot_accuracy_std_mean
 
@@ -19,6 +19,7 @@ from datetime import datetime
 import argparse
 
 import numpy as np
+import random
 
 # https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html
 import os
@@ -33,18 +34,20 @@ parser.add_argument('-i', '--iterations', type=int, nargs=1, required=True, help
 args = parser.parse_args()
 
 choosen_datasets = args.datasets
-iterations = args.iterations[0]
+sample_iterations = args.iterations[0]
 
 # setting seed and deterministic behaviour of pytorch for reproducibility
 # https://discuss.pytorch.org/t/determinism-in-pytorch-across-multiple-files/156269
-torch.manual_seed(42)
-torch.cuda.manual_seed(42)
-torch.cuda.manual_seed_all(42)
-np.random.seed(42)
+torch.manual_seed(100001)
+torch.cuda.manual_seed(100001)
+torch.cuda.manual_seed_all(100001)
+np.random.seed(100001)
+random.seed(100001)
 torch.backends.cudnn.deterministic = True
 torch.use_deterministic_algorithms(True)
 torch.backends.cudnn.benchmark = False
-torch.backends.cudnn.enabled = False
+# if the results does not make so much sense decomment this
+#torch.backends.cudnn.enabled = False
 
 
 def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_dim, n_top_k_obs, our_method_params):
@@ -57,28 +60,29 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
         Random(al_params, LL=False), Random(al_params, LL=True),
         
         # LeastConfidence
-        LeastConfidence(al_params, LL=False), LeastConfidence(al_params, LL=True),
+        #LeastConfidence(al_params, LL=False), LeastConfidence(al_params, LL=True),
         
         # Rntropy
         Entropy(al_params, LL=False), Entropy(al_params, LL=True),
         
         # KMeans
-        KMeans(al_params, LL=False), KMeans(al_params, LL=True),
+        #K_Means(al_params, LL=False), K_Means(al_params, LL=True),
         
         # CoreSet
-        CoreSet(al_params, LL=False), CoreSet(al_params, LL=True),
+        #CoreSet(al_params, LL=False), CoreSet(al_params, LL=True),
         
         # BALD
-        BALD(al_params, LL=False), BALD(al_params, LL=True),
+        #BALD(al_params, LL=False), BALD(al_params, LL=True),
         
         # BADGE
-        BADGE(al_params, LL=False), BADGE(al_params, LL=True),
+        #BADGE(al_params, LL=False), BADGE(al_params, LL=True),
         
         # GTG
         #zero_diag=False -> diagonal set to 1       
         GTG(al_params, our_method_params, LL=False, A_function='cos_sim', zero_diag=False),
         GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False),
     ]
+        
         
     for method in methods:
             
@@ -106,7 +110,7 @@ def main():
     print(f'Application running on {device}\n')
 
     epochs = 200
-    al_iters = 6
+    al_iters = 5
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
     batch_size = 128
@@ -120,14 +124,15 @@ def main():
 
         print(f'----------------------- RUNNING ACTIVE LEARNING BENCHMARK ON {dataset_name} -----------------------\n')
 
-        for iter in range(iterations):
+        for samp_iter in range(sample_iterations):
             
-            print(f'----------------------- SAMPLE ITERATION {iter + 1} / {iterations} -----------------------\n')
+            print(f'----------------------- SAMPLE ITERATION {samp_iter + 1} / {sample_iterations} -----------------------\n')
             
-            create_ts_dir_res(timestamp, dataset_name, str(iter))
+            create_ts_dir_res(timestamp, dataset_name, str(samp_iter))
             
             DatasetChoice = SubsetDataloaders(dataset_name, batch_size, val_rateo=0.2, init_lab_obs=init_lab_obs, al_iters=al_iters)
             
+            print('\n')
             
             al_params = {
                 'DatasetChoice': DatasetChoice,
@@ -137,7 +142,7 @@ def main():
                 'patience': patience,
                 'timestamp': timestamp,
                 'dataset_name': dataset_name,
-                'iter': iter
+                'samp_iter': samp_iter
             }    
             
             
@@ -146,7 +151,7 @@ def main():
                 'gtg_max_iter': 30, #20
             }
             
-                                                            
+
             results, n_lab_obs = train_evaluate(
                 al_params=al_params, 
                 epochs=epochs, 
@@ -157,7 +162,7 @@ def main():
                 our_method_params=our_method_params
             )
             
-            final_plot_name = f'{dataset_name}/{iter}/results_{epochs}_{al_iters}_{n_top_k_obs}.png'
+            final_plot_name = f'{dataset_name}/{samp_iter}/results_{epochs}_{al_iters}_{n_top_k_obs}.png'
             
             
             plot_loss_curves(results, n_lab_obs, timestamp, plot_png_name=final_plot_name)

@@ -80,9 +80,6 @@ class SubsetDataloaders():
         self.labeled_indices = train_indices[:init_lab_obs].tolist()
         self.unlabeled_indices = train_indices[init_lab_obs:].tolist()
 
-        # subset for the labeled and unlabeled sets
-        #self.lab_train_subset = Subset(self.transformed_trainset, labeled_indices.tolist())
-        #self.unlab_train_subset = Subset(self.non_transformed_trainset, unlabeled_indices.tolist())
     
 
 
