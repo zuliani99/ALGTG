@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
 
+# https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html
+import os
+os.environ["CUBLAS_WORKSPACE_CONFIG"]=":4096:8"
+
+
+
 import torch
 
 from Datasets import SubsetDataloaders
@@ -21,9 +27,6 @@ import argparse
 import numpy as np
 import random
 
-# https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html
-import os
-os.environ["CUBLAS_WORKSPACE_CONFIG"]=":16:8"
 
 
 parser = argparse.ArgumentParser()
