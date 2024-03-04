@@ -103,6 +103,11 @@ class SubsetDataloaders():
         
         # random shuffle of the train indices
         shuffled_indices = torch.randperm(train_size)
+        # each time should be a new shuffle, thus a new train-validation, labeled-unlabeled split
+        
+        ##############################
+        print(shuffled_indices[-5:])
+        ##############################
         
         # indices for the train and validation sets
         train_indices = shuffled_indices[:new_train_size]
