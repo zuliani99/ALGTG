@@ -1,12 +1,7 @@
 # -*- coding: utf-8 -*-
 
-# https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html
-import os
-os.environ["CUBLAS_WORKSPACE_CONFIG"]=":4096:8"
-
-
-
 import torch
+import numpy as np
 
 from Datasets import SubsetDataloaders
 
@@ -21,11 +16,12 @@ from strategies.K_Means import K_Means
 
 from utils import create_ts_dir_res, accuracy_score, plot_loss_curves, plot_accuracy_std_mean
 
+import random
+import os
 from datetime import datetime
 import argparse
 
-import numpy as np
-import random
+
 
 
 
@@ -39,18 +35,17 @@ args = parser.parse_args()
 choosen_datasets = args.datasets
 sample_iterations = args.iterations[0]
 
+
 # setting seed and deterministic behaviour of pytorch for reproducibility
-# https://discuss.pytorch.org/t/determinism-in-pytorch-across-multiple-files/156269
+os.environ['PYTHONHASHSEED'] = str(100001)
 torch.manual_seed(100001)
 torch.cuda.manual_seed(100001)
 torch.cuda.manual_seed_all(100001)
 np.random.seed(100001)
 random.seed(100001)
 torch.backends.cudnn.deterministic = True
-torch.use_deterministic_algorithms(True)
 torch.backends.cudnn.benchmark = False
-# if the results does not make so much sense decomment this
-#torch.backends.cudnn.enabled = False
+
 
 
 def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_dim, n_top_k_obs, our_method_params):

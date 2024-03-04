@@ -10,7 +10,7 @@ import numpy as np
 
 import csv
 import os
-
+import random
     
 
 def accuracy_score(output, label):
@@ -232,8 +232,8 @@ def init_weights_apply(m):
         
         
         
-def plot_story_tensor(story_tensor, path, iter, max_x):
-    import numpy as np
+        
+def plot_history(story_tensor, path, iter, max_x):
     
     fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (10,8))
     
@@ -251,7 +251,38 @@ def plot_story_tensor(story_tensor, path, iter, max_x):
     plt.suptitle(f'entropy {path.split("/")[3]} - iteration {iter}', fontsize = 15)
     plt.legend()
     plt.savefig(path)
+    
+    
+    
+def plot_derivatives(der_tensor, der_weighted_tensor, path, iter, max_x):
+    
+    fig, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (20,8))
+    
+    x = np.arange(max_x)
 
+    row_sum = torch.sum(der_tensor, dim=1)
+    non_zero_mask = row_sum != 0
+    non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=False).squeeze()
+    non_zero_row_indices = torch.unique(non_zero_indices)
+    non_zero_rows_der = der_tensor[non_zero_row_indices]
+
+    for i in range(len(non_zero_rows_der)):
+        ax[0].plot(x, non_zero_rows_der[i].cpu().numpy(), linestyle="-")
+        
+    row_sum = torch.sum(der_weighted_tensor, dim=1)
+    non_zero_mask = row_sum != 0
+    non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=False).squeeze()
+    non_zero_row_indices = torch.unique(non_zero_indices)
+    non_zero_rows_der_wei = der_weighted_tensor[non_zero_row_indices]
+
+    for i in range(len(non_zero_rows_der_wei)):
+        ax[1].plot(x, non_zero_rows_der_wei[i].cpu().numpy(), linestyle="-")
+        
+    plt.suptitle(f'entropy {path.split("/")[3]} - iteration {iter}', fontsize = 15)
+    plt.legend()
+    plt.savefig(path)
+    
+    
 
 
 def plot_accuracy_std_mean(timestamp, dataset_name):
@@ -282,4 +313,40 @@ def plot_accuracy_std_mean(timestamp, dataset_name):
     plt.grid(True)
     
     plt.savefig(f'results/{timestamp}/{dataset_name}/mean_std_accuracy_plot.png') 
- 
+    
+
+
+
+def set_seeds():
+    # setting seed and deterministic behaviour of pytorch for reproducibility
+    # https://discuss.pytorch.org/t/determinism-in-pytorch-across-multiple-files/156269
+    os.environ['PYTHONHASHSEED'] = str(100001)
+    torch.manual_seed(100001)
+    torch.cuda.manual_seed(100001)
+    torch.cuda.manual_seed_all(100001)
+    np.random.seed(100001)
+    random.seed(100001)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
+
+
+'''def get_train_mean_std(self, dataset_name):
+
+        # in case I selected the fmnist dataset I Pad each image of 2 px to compute the mean and std
+        train_data = becnhmark_datasets[dataset_name]['method'](
+            f'./datasets/{dataset_name}', 
+            train=True,
+            download=True
+        ) if dataset_name != 'fmnist' else becnhmark_datasets[dataset_name]['method'](
+            f'./datasets/{dataset_name}',
+            train=True,
+            download=True,
+            transform=transforms.Compose([transforms.Pad(2)])
+        )
+        
+        x = np.concatenate([np.asarray(train_data[i][0]) for i in range(len(train_data))])
+        
+        self.train_mean = np.mean(x, axis=(0, 1)) / 255
+        self.train_std = np.std(x, axis=(0, 1)) / 255'''

@@ -1,7 +1,6 @@
 
 from strategies.Strategies import Strategies
-from utils import entropy, plot_story_tensor
-from Datasets import UniqueShuffle
+from utils import entropy, plot_history, plot_derivatives
 
 import torch
 from torch.utils.data import DataLoader
@@ -38,6 +37,7 @@ class GTG(Strategies):
         torch.cuda.empty_cache()
 
 
+    # correct
     def get_A_cos_sim(self, samp_unlab_embeddings):
                         
         normalized_embedding = F.normalize(
@@ -52,13 +52,13 @@ class GTG(Strategies):
         del normalized_embedding
         
         
-        
+    # correct
     def get_A_corr(self, samp_unlab_embeddings):
         self.A = F.relu(torch.corrcoef(torch.cat((self.lab_embedds_dict['embedds'], samp_unlab_embeddings)).to(self.device)))
         if self.zero_diag: self.A.fill_diagonal_(0.)
 
 
-
+    # correct
     def get_X(self, len_samp_unlab_embeds):
         
         self.X = torch.zeros(
@@ -73,7 +73,7 @@ class GTG(Strategies):
             for label in range(self.n_classes): self.X[idx][label] = 1. / self.n_classes
         
         
-
+    # correct
     def gtg(self, indices):
         err = float('Inf')
         i = 0
@@ -84,12 +84,12 @@ class GTG(Strategies):
             
             self.X *= torch.mm(self.A, self.X)
             
-            
+            #------------------------------------------------------------------------------------
             rowsum_X = torch.sum(self.X).item()
             if rowsum_X < old_rowsum_X: # it has to be increasing or at least equal
                 raise Exception('Sum of the denominator vectro lower than the previous step')
             old_rowsum_X = rowsum_X
-
+            #------------------------------------------------------------------------------------
 
             self.X /= torch.sum(self.X, dim=1, keepdim=True)            
         
@@ -98,15 +98,7 @@ class GTG(Strategies):
 
             # I iterate only the sampled unlabeled one                
             for idx, unlab_ent_val in zip(indices, iter_entropy[len(self.labeled_indices):]):
-                
                 self.entropy_history[idx][i] = unlab_ent_val
-                
-                # the last step I do not save otherwise i obtain an invald access
-                if (i != self.params['gtg_max_iter'] - 1): self.entropy_pairwise_der[idx][i] = unlab_ent_val
-
-                # subtract the previous with the new entropy except for the first iteration
-                if (i != 0): self.entropy_pairwise_der[idx][i - 1] = (self.entropy_pairwise_der[idx][i - 1] - unlab_ent_val)
-
             
             err = torch.norm(self.X - X_old)
             i += 1
@@ -117,13 +109,11 @@ class GTG(Strategies):
             
         # set the entire batch size to the dimension of the sampled unlabeled set
         self.unlab_batch_size = len(sample_unlab_subset)
-                    
+
+        # we have the batch size which is equal to the number of sampled observation from the unlabeled set                    
         self.unlab_train_dl = DataLoader(
-            sample_unlab_subset,
-            # we have the batch size which is equal to the number of sampled observation from the unlabeled set
-            batch_size=self.unlab_batch_size,
-            sampler=UniqueShuffle(sample_unlab_subset),
-            pin_memory=True
+            sample_unlab_subset, batch_size=self.unlab_batch_size,
+            shuffle=False, pin_memory=True
         )
                 
         print(' => Getting the labeled and unlabeled embeddings')
@@ -135,11 +125,8 @@ class GTG(Strategies):
         print(' DONE\n')
             
             
-        # at each AL round I reinitialize the entropy_pairwise_der since I have to decide at each step what observations I want to move
-        self.entropy_pairwise_der = torch.zeros(
-            (len(self.transformed_trainset), self.params['gtg_max_iter'] - 1), device=self.device
-        )
-        # I aslo save the entropy history in order to be able to plot it
+
+        # I save the entropy history in order to be able to plot it
         self.entropy_history = torch.zeros(
             (len(self.transformed_trainset), self.params['gtg_max_iter']), device=self.device
         )
@@ -157,27 +144,49 @@ class GTG(Strategies):
             print(' DONE\n')
                 
                 
-        # absolute value of the derivate to remove the oscilaltions -> observaion that have oscillation smeans that are difficult too
-        self.entropy_pairwise_der = torch.abs(self.entropy_pairwise_der)
+        # absolute value of the derivate to remove the oscilaltions -> observaion that have oscillations means that are difficult too
+        self.entropy_pairwise_der = torch.abs(-torch.diff(self.entropy_history, dim=1)) #torch.abs(self.entropy_pairwise_der)
 
 
-        # plot entropy history and derivatives
-        plot_story_tensor(self.entropy_history, f'./app/gtg_entropy/history/{self.method_name}_{iter}.png', iter, self.params['gtg_max_iter'])
-        plot_story_tensor(self.entropy_pairwise_der, f'./app/gtg_entropy/derivatives/{self.method_name}_{iter}.png', iter, self.params['gtg_max_iter'] - 1)
-            
+        # plot entropy history
+        plot_history(self.entropy_history, f'./app/gtg_entropy/history/{self.method_name}_{self.iter}.png', self.iter, self.params['gtg_max_iter'])
+
             
         # getting the last column that have at least one element with entropy greater than 1e-15
         for col_index in range(self.entropy_pairwise_der.size(1) - 1, -1, -1):
-            column = self.entropy_pairwise_der[:, col_index]
-            if torch.any(column > 1e-15): break
+            if torch.any(self.entropy_pairwise_der[:, col_index] > 1e-15): break
             
             
         # set the weights to increasing value until col_index
         weights = torch.zeros(self.params['gtg_max_iter'] - 1, dtype=torch.float32, device=self.device) 
         weights[:col_index] = torch.flip(torch.linspace(1, 0.1, col_index), [0]).to(self.device)
-            
+        
+        
+        # plot in the entropy derivatives and weighted entropy derivatives
+        plot_derivatives(
+            self.entropy_pairwise_der,
+            self.entropy_pairwise_der * weights,
+            f'./app/gtg_entropy/weighted_derivatives/{self.method_name}_{self.iter}.png',
+            self.iter,
+            self.params['gtg_max_iter'] - 1
+        )
+        
         # weighted average
-        overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der * weights, dim = 1), n_top_k_obs)
+        #overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der * weights, dim = 1), n_top_k_obs)
+        overall_topk = torch.topk(
+            torch.sum(self.entropy_pairwise_der * weights, dim = 1) / col_index,
+            n_top_k_obs
+        )
+        
+        # plot in the top k entropy derivatives and weighted entropy derivatives
+        plot_derivatives(
+            self.entropy_pairwise_der[overall_topk.indices.tolist()],
+            (self.entropy_pairwise_der * weights)[overall_topk.indices.tolist()],
+            f'./app/gtg_entropy/topk_weighted_derivatives/{self.method_name}_{self.iter}.png',
+            self.iter,
+            self.params['gtg_max_iter'] - 1
+        )
+        
         
         self.clear_cuda_variables(
             [self.entropy_pairwise_der, self.entropy_history, self.lab_embedds_dict,

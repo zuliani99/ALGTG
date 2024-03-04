@@ -1,10 +1,11 @@
 
 from strategies.Strategies import Strategies
 
+from torch.utils.data import DataLoader
+
+import numpy as np
 from sklearn.cluster import KMeans
 
-from torch.utils.data import DataLoader
-import numpy as np
 
 class K_Means(Strategies):
     
@@ -39,7 +40,7 @@ class K_Means(Strategies):
                         
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset, batch_size=self.batch_size,
-            shuffle=True, pin_memory=True
+            shuffle=False, pin_memory=True
         )
                             
         print(' => Getting the unlabeled embeddings')

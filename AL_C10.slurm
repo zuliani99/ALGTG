@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=AL_C10    # Job name
+#SBATCH --job-name=AL_C10_3    # Job name
 #SBATCH --mail-type=NONE          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=875532@stud.unive.it     # Where to send mail	
 #SBATCH --ntasks=1                    # Run on a single CPU
@@ -14,6 +14,6 @@ date
 
 conda activate al_env
 
-python3 app/main.py -d cifar10 -i 1
+python3 app/main.py -d cifar10 -i 3
 
 date

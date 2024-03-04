@@ -1,6 +1,6 @@
 
 import torch
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 
 from ResNet18 import BasicBlock, ResNet_Weird, LearningLoss
 
@@ -9,7 +9,8 @@ import random
 import os
 
 from Datasets import DatasetChoice, SubsetDataloaders
-from utils import init_weights_apply, save_train_val_curves, write_csv
+from torch.utils.data.sampler import SubsetRandomSampler
+from utils import init_weights_apply, save_train_val_curves, write_csv, set_seeds
 
 
 
@@ -45,9 +46,15 @@ class TrainEvaluate(object):
         self.labeled_indices = copy.deepcopy(sdl.labeled_indices)
         self.unlabeled_indices = copy.deepcopy(sdl.unlabeled_indices)
         
+        
+        ###########
+        set_seeds()
+        ###########
+        
+        
         self.lab_train_dl = DataLoader(
-            Subset(self.transformed_trainset, self.labeled_indices),
-            batch_size=self.batch_size, shuffle=True, pin_memory=True
+            self.transformed_trainset, batch_size=self.batch_size, 
+            sampler=SubsetRandomSampler(self.labeled_indices), pin_memory=True
         )
         self.len_lab_train_dl = len(self.lab_train_dl)
 
@@ -66,7 +73,9 @@ class TrainEvaluate(object):
         
         if not os.path.exists(self.init_check_filename):
             self.__save_checkpoint(self.init_check_filename, 'initial')
+            
 
+        
         
         
     def __save_checkpoint(self, filename, check_type):
@@ -78,6 +87,7 @@ class TrainEvaluate(object):
         }
         torch.save(checkpoint, filename)
         print(' DONE\n')
+    
     
     
     
@@ -107,6 +117,7 @@ class TrainEvaluate(object):
             if self.LL: tot_loss_ce += loss.item()
             
         return loss, tot_loss_ce, tot_loss_weird
+
 
 
 
@@ -194,7 +205,7 @@ class TrainEvaluate(object):
             train_loss, train_loss_ce, train_loss_weird, train_accuracy = .0, .0, .0, .0
             
             for _, images, labels in self.lab_train_dl:
-
+                    
                 images, labels = images.to(self.device), labels.to(self.device)
                 self.optimizer.zero_grad()
                 outputs, _, out_weird, _ = self.model(images)
@@ -258,6 +269,7 @@ class TrainEvaluate(object):
 
 
 
+
     def test(self):
         test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.evaluate(self.test_dl, weight=1)
         
@@ -284,27 +296,34 @@ class TrainEvaluate(object):
             print('Intersection between indices is EMPTY')
         else: raise Exception('NON EMPTY INDICES INTERSECTION')
 
+
         # generate the new labeled DataLoader
         self.lab_train_dl = DataLoader(
-            Subset(self.transformed_trainset, self.labeled_indices),
-            batch_size=self.batch_size, shuffle=True, pin_memory=True
+            self.transformed_trainset, batch_size=self.batch_size, 
+            sampler=SubsetRandomSampler(self.labeled_indices), pin_memory=True
         )
         self.len_lab_train_dl = len(self.lab_train_dl)
 
 
+
+
     def get_unlabebled_samples(self, unlab_sample_dim, iter):
         if(len(self.unlabeled_indices) > unlab_sample_dim):
+            
+            # custom seed for the sequence
             random.seed(iter * self.dataset_id + 100 * self.iter_sample)
             
-            ##############################################################
-            l = random.sample(self.unlabeled_indices, unlab_sample_dim)
+            seq = random.sample(self.unlabeled_indices, unlab_sample_dim)
             #printing only the last 5 sampled unlabeled observations
-            print(l[-5:])
-            ##############################################################
+            print(seq[-5:])
             
-            return l
-            #return random.sample(self.unlabeled_indices, unlab_sample_dim)
+            # set back the seed to the initial one, the one set on the main file
+            random.seed(100001)
+            
+            return seq
+        
         else: return self.unlabeled_indices
+
 
 
 
@@ -330,10 +349,14 @@ class TrainEvaluate(object):
         results['test_loss_weird'].append(test_loss_weird)
         
         
+        
+        
     def remove_model_opt(self):
         del self.model
         del self.optimizer
         torch.cuda.empty_cache()
+        
+        
         
         
     def clear_cuda_variables(self, variables):

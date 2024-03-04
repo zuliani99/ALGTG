@@ -1,5 +1,5 @@
 
-from torch.utils.data import Dataset, Sampler, DataLoader, Subset
+from torch.utils.data import Dataset, DataLoader, Subset
 
 from torchvision import datasets
 from torchvision import transforms
@@ -8,25 +8,66 @@ import torch
 import numpy as np
 
 
-
 becnhmark_datasets = {
     'cifar10': {
         'id': 1,
         'method': datasets.CIFAR10,
         'n_classes': 10,
-        'channels': 3
+        'channels': 3,
+        'transforms': {
+            'train': transforms.Compose([
+                        transforms.RandomCrop(32, padding=4),
+                        transforms.RandomHorizontalFlip(),
+                        transforms.ToTensor(),
+                        transforms.Normalize(np.array([0.49139968, 0.48215841, 0.44653091]),
+                                             np.array([0.24703223, 0.24348513, 0.26158784]))
+                    ]),
+            'test': transforms.Compose([
+                        transforms.ToTensor(),
+                        transforms.Normalize(np.array([0.49139968, 0.48215841, 0.44653091]),
+                                             np.array([0.24703223, 0.24348513, 0.26158784]))
+                    ])
+        }
     },
     'cifar100': {
         'id': 2,
         'method': datasets.CIFAR100,
         'n_classes': 100,
-        'channels': 3
+        'channels': 3,
+        'transforms': {
+            'train': transforms.Compose([
+                        transforms.RandomCrop(32, padding=4),
+                        transforms.RandomHorizontalFlip(),
+                        transforms.ToTensor(),
+                        transforms.Normalize(np.array([0.50707516, 0.48654887, 0.44091784]),
+                                             np.array([0.26733429, 0.25643846, 0.27615047]))
+                    ]),
+            'test': transforms.Compose([
+                        transforms.ToTensor(),
+                        transforms.Normalize(np.array([0.50707516, 0.48654887, 0.44091784]),
+                                             np.array([0.26733429, 0.25643846, 0.27615047]))
+                    ])
+        }
     },
     'fmnist': {
         'id': 3,
         'n_classes': 10,
         'method': datasets.FashionMNIST,
-        'channels': 1
+        'channels': 1,
+        'transforms': {
+            'train': transforms.Compose([
+                        transforms.Pad(2),
+                        transforms.RandomCrop(32, padding=4),
+                        transforms.RandomHorizontalFlip(),
+                        transforms.ToTensor(),
+                        transforms.Normalize(0.21899983206954657, 0.3318113729999592)
+                    ]),
+            'test': transforms.Compose([
+                        transforms.Pad(2),
+                        transforms.ToTensor(),
+                        transforms.Normalize(0.21899983206954657, 0.3318113729999592)
+                    ])
+        }
     }
 }
 
@@ -41,9 +82,7 @@ class SubsetDataloaders():
         
         self.test_dl = DataLoader(
             DatasetChoice(dataset_name=dataset_name, bool_train=False, bool_transform=False), 
-            self.batch_size, 
-            shuffle=False, 
-            pin_memory=True
+            self.batch_size, shuffle=False, pin_memory=True
         )
 
         self.n_classes = becnhmark_datasets[dataset_name]['n_classes']
@@ -88,90 +127,27 @@ class DatasetChoice(Dataset):
         
         self.bool_transform = bool_transform
         self.al_iters = al_iters
-        self.get_train_mean_std(dataset_name)
 
         if bool_transform:
             # train
+            self.ds = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',train=bool_train, download=True,
+                transform=becnhmark_datasets[dataset_name]['transforms']['train']
+            )    
             
-            # in case I selected the fmnist dataset I Pad each image of 2 px to compute the mean and std
-            self.ds = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True,
-                transform =
-                    transforms.Compose([
-                        transforms.RandomCrop(32, padding=4),
-                        transforms.RandomHorizontalFlip(),
-                        transforms.ToTensor(),
-                        transforms.Normalize(self.train_mean, self.train_std)
-                    ]) if dataset_name != 'fmnist' else
-                    transforms.Compose([
-                        transforms.Pad(2),
-                        transforms.RandomCrop(32, padding=4),
-                        transforms.RandomHorizontalFlip(),
-                        transforms.ToTensor(),
-                        transforms.Normalize(self.train_mean, self.train_std)
-                    ])
-            )
         else:
             # validation or test
-            
-            # in case I selected the fmnist dataset I Pad each image of 2 px to compute the mean and std
             self.ds = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True,
-                transform=
-                    transforms.Compose([
-                        transforms.ToTensor(),
-                        transforms.Normalize(self.train_mean, self.train_std)
-                    ]) if dataset_name != 'fmnist' else
-                    transforms.Compose([
-                        transforms.Pad(2),
-                        transforms.ToTensor(),
-                        transforms.Normalize(self.train_mean, self.train_std)
-                    ])
-            )
-            
-            
-            
-    def get_train_mean_std(self, dataset_name):
-
-        # in case I selected the fmnist dataset I Pad each image of 2 px to compute the mean and std
-        train_data = becnhmark_datasets[dataset_name]['method'](
-            f'./datasets/{dataset_name}', 
-            train=True,
-            download=True
-        ) if dataset_name != 'fmnist' else becnhmark_datasets[dataset_name]['method'](
-            f'./datasets/{dataset_name}',
-            train=True,
-            download=True,
-            transform=transforms.Compose([transforms.Pad(2)])
-        )
+                transform=becnhmark_datasets[dataset_name]['transforms']['test']
+            )           
         
-        x = np.concatenate([np.asarray(train_data[i][0]) for i in range(len(train_data))])
-        
-        self.train_mean = np.mean(x, axis=(0, 1)) / 255
-        self.train_std = np.std(x, axis=(0, 1)) / 255
         
     def __len__(self):
         return len(self.ds)
+
 
     def __getitem__(self, index):
         
         image, label = self.ds[index]    
         return index, image, label
 
-
-
-class UniqueShuffle(Sampler):
-    def __init__(self, dataset):
-        self.dataset = dataset
-        self.indices = dataset.indices
-        self.shuffle_indices()
-
-    def shuffle_indices(self):
-        self.indices = list(torch.randperm(len(self.indices)))
-        
-    def __iter__(self):
-        return iter(self.indices)
-
-    def __len__(self):
-        return len(self.dataset)
     
-    
-

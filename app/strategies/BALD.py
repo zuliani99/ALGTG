@@ -58,7 +58,7 @@ class BALD(Strategies):
                         
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset, batch_size=self.batch_size,
-            shuffle=True, pin_memory=True
+            shuffle=False, pin_memory=True
         )
             
         print(' => Performing the disagreement dropout')

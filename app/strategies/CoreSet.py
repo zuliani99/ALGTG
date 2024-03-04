@@ -40,7 +40,7 @@ class CoreSet(Strategies):
         # set the entire batch size to the dimension of the sampled unlabeled set
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset, batch_size=self.batch_size,
-            shuffle=True, pin_memory=True,
+            shuffle=False, pin_memory=True,
         )
             
         print(' => Getting the labeled and unlabeled embeddings')
