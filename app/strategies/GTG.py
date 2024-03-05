@@ -7,6 +7,8 @@ from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
 import gpytorch
+#from scipy.integrate import trapz
+#import numpy as np
 
 import copy
 
@@ -65,7 +67,7 @@ class GTG(Strategies):
     #https://docs.gpytorch.ai/en/stable/kernels.html#rbfkernel
     def get_A_rbfk(self, samp_unlab_embeddings):
         covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel()).to(self.device)
-        self.A = covar_module(torch.cat((self.lab_embedds_dict['embedds'], samp_unlab_embeddings)).to(self.device)).evaluate()
+        self.A = covar_module(torch.cat((self.lab_embedds_dict['embedds'], samp_unlab_embeddings)).to(self.device)).evaluate().detach()
         if self.zero_diag: self.A.fill_diagonal_(0.)
         
 
@@ -155,7 +157,14 @@ class GTG(Strategies):
             self.gtg(indices)
             self.clear_memory()                
             print(' DONE\n')
-                
+            
+        
+        
+        ###########-------------------------- AREA -------------------------###########
+        #area_trapz = trapz(-np.diff(self.entropy_history.cpu().numpy(), axis=1), np.arange(self.params['gtg_max_iter'] - 1), axis=0)
+        #overall_topk = torch.topk(torch.from_numpy(area_trapz), n_top_k_obs)
+        ###############################################################################
+        
         
         #----------------------------------------------------------------------------------------------------------------------------------------
         # every check that I've made before say that the implementation is correct thus I think the problem is how I manage the derivatives
@@ -171,36 +180,36 @@ class GTG(Strategies):
 
             
         # getting the last column that have at least one element with entropy greater than 1e-15
-        #for col_index in range(self.entropy_pairwise_der.size(1) - 1, -1, -1):
-        #    if torch.any(self.entropy_pairwise_der[:, col_index] > 1e-15): break
+        for col_index in range(self.entropy_pairwise_der.size(1) - 1, -1, -1):
+            if torch.any(self.entropy_pairwise_der[:, col_index] > 1e-15): break
             
             
         # set the weights to increasing value until col_index
-        #weights = torch.zeros(self.params['gtg_max_iter'] - 1, dtype=torch.float32, device=self.device) 
-        #weights[:col_index] = torch.flip(torch.linspace(1, 0.1, col_index), [0]).to(self.device)
+        weights = torch.zeros(self.params['gtg_max_iter'] - 1, dtype=torch.float32, device=self.device) 
+        weights[:col_index] = torch.flip(torch.linspace(1, 0.1, col_index), [0]).to(self.device)
         
         
         # plot in the entropy derivatives and weighted entropy derivatives
-        '''plot_derivatives(
+        plot_derivatives(
             self.entropy_pairwise_der,
             self.entropy_pairwise_der * weights,
             f'./app/gtg_entropy/weighted_derivatives/{self.method_name}_{self.iter}.png',
             self.iter,
             self.params['gtg_max_iter'] - 1
-        )'''
+        )
         
         # weighted average
         #overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der * weights, dim = 1), n_top_k_obs)
-        '''overall_topk = torch.topk(
+        overall_topk = torch.topk(
             torch.sum(self.entropy_pairwise_der * weights, dim = 1) / col_index,
             n_top_k_obs
-        )'''
-        overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der, dim=1), n_top_k_obs)
+        )
+        #overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der, dim=1), n_top_k_obs)
         
         # plot in the top k entropy derivatives and weighted entropy derivatives
         plot_derivatives(
             self.entropy_pairwise_der[overall_topk.indices.tolist()],
-            (self.entropy_pairwise_der)[overall_topk.indices.tolist()], # * weights
+            (self.entropy_pairwise_der * weights)[overall_topk.indices.tolist()],
             f'./app/gtg_entropy/topk_weighted_derivatives/{self.method_name}_{self.iter}.png',
             self.iter,
             self.params['gtg_max_iter'] - 1
@@ -209,7 +218,7 @@ class GTG(Strategies):
         
         self.clear_cuda_variables(
             [self.entropy_pairwise_der, self.entropy_history, self.lab_embedds_dict,
-            self.unlab_embedds_dict]#, weights]
+            self.unlab_embedds_dict, weights]
         )
         
         return overall_topk.indices.tolist()

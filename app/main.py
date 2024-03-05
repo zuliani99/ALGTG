@@ -23,8 +23,6 @@ import argparse
 
 
 
-
-
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'fmnist'],
                     required=True, help='Possible datasets to chosoe')
@@ -55,7 +53,8 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
     
     methods = [
         # Random
-        Random(al_params, LL=False), Random(al_params, LL=True),
+        #Random(al_params, LL=False), 
+        Random(al_params, LL=True),
         
         # LeastConfidence
         #LeastConfidence(al_params, LL=False), LeastConfidence(al_params, LL=True),
@@ -77,14 +76,17 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
         
         # GTG
         #zero_diag=False -> diagonal set to 1       
-        GTG(al_params, our_method_params, LL=False, A_function='cos_sim', zero_diag=False),
+        #GTG(al_params, our_method_params, LL=False,A_function='cos_sim', zero_diag=False),
         GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False),
+        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=True),
         
-        GTG(al_params, our_method_params, LL=False, A_function='corr', zero_diag=False),
+        #GTG(al_params, our_method_params, LL=False, A_function='corr', zero_diag=False),
         GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False),
+        GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=True),
         
-        GTG(al_params, our_method_params, LL=False, A_function='rbfk', zero_diag=False),
+        #GTG(al_params, our_method_params, LL=False, A_function='rbfk', zero_diag=False),
         GTG(al_params, our_method_params, LL=True, A_function='rbfk', zero_diag=False),
+        GTG(al_params, our_method_params, LL=True, A_function='rbfk', zero_diag=True),
     ]
         
         
@@ -114,7 +116,7 @@ def main():
     print(f'Application running on {device}\n')
 
     epochs = 200
-    al_iters = 3
+    al_iters = 4
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
     batch_size = 128

@@ -24,9 +24,9 @@ class Entropy(Strategies):
         )
                 
         print(' => Evalueting unlabeled observations')
-        embeds_dict = {'embedds': None, 'idxs': None}
+        embeds_dict = {'probs': None, 'idxs': None}
         self.get_embeddings(self.unlab_train_dl, embeds_dict)
-        prob_dist = F.softmax(embeds_dict['embedds'], dim=1)
+        prob_dist = F.softmax(embeds_dict['probs'], dim=1)
         print(' DONE\n')
                 
         tot_entr = entropy(prob_dist).to(self.device)

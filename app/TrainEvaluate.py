@@ -153,6 +153,8 @@ class TrainEvaluate(object):
 
         if 'embedds' in dict_to_modify:
             dict_to_modify['embedds'] = torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device)
+        if 'probs' in dict_to_modify:
+            dict_to_modify['probs'] = torch.empty((0, self.n_classes), dtype=torch.float32, device=self.device)
         if 'labels' in dict_to_modify:
             dict_to_modify['labels'] = torch.empty(0, dtype=torch.int8, device=self.device)
         if 'idxs' in dict_to_modify:
@@ -165,10 +167,12 @@ class TrainEvaluate(object):
             for idxs, images, labels in dataloader:
                 
                 idxs, images, labels = idxs.to(self.device), images.to(self.device), labels.to(self.device)
-                _, embed, _, _ = self.model(images)
+                outs, embed, _, _ = self.model(images)
                 
                 if 'embedds' in dict_to_modify:
                     dict_to_modify['embedds'] = torch.cat((dict_to_modify['embedds'], embed.squeeze()), dim=0)
+                if 'probs' in dict_to_modify:
+                    dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], outs.squeeze()), dim=0)
                 if 'labels' in dict_to_modify:
                     dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)
                 if 'idxs' in dict_to_modify:

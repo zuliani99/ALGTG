@@ -22,9 +22,9 @@ class LeastConfidence(Strategies):
         )
             
         print(' => Getting the unlabeled probebilities')
-        self.embedds_dict = {'embedds': None, 'idxs': None}
+        self.embedds_dict = {'probs': None, 'idxs': None}
         self.get_embeddings(self.unlab_train_dl, self.embedds_dict)
-        unlab_probs = F.softmax(self.embedds_dict['embedds'], dim=1)
+        unlab_probs = F.softmax(self.embedds_dict['probs'], dim=1)
         print(' DONE\n')
             
         topk_idx_obs = torch.topk(unlab_probs.max(1)[0], n_top_k_obs)
