@@ -124,8 +124,8 @@ def main():
 
     print(f'Application running on {device}\n')
 
-    epochs = 200
-    al_iters = 5
+    epochs = 50#200
+    al_iters = 3#5
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
     batch_size = 128
@@ -183,8 +183,10 @@ def main():
             
         plot_accuracy_std_mean(timestamp, dataset_name)
 
+
 if __name__ == "__main__":
     start = time.time()
     main()
     end = time.time()
-    print('elapsed seconds', end-start)
+    
+    print(f'####################################################### TOTAL ELAPSED SECONDS: {end-start }#######################################################')

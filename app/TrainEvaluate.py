@@ -69,7 +69,7 @@ class TrainEvaluate(object):
         
     def get_embeddings(self, dataloader, dict_to_modify):
         
-        checkpoint = torch.load(f'{self.best_check_filename}/best_{self.method_name}', map_location=self.device)
+        checkpoint = torch.load(f'{self.best_check_filename}/best_{self.method_name}.pth.tar', map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
 
         if 'embedds' in dict_to_modify:
@@ -235,10 +235,8 @@ def train_ddp(rank, world_size, params, epochs, conn):
     
     train_test = TrainDDP(rank, params)
     train_test.train_evaluate(epochs)
-    dist.barrier()
-    if rank == 0: 
-        test_res = train_test.test()
-        conn.send(test_res)
+    
+    if rank == 0: conn.send(train_test.test())
     
     destroy_process_group()
     

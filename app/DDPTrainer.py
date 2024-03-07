@@ -15,6 +15,8 @@ import torch.distributed as dist
 from utils import set_seeds, init_weights_apply
 from ResNet18 import LearningLoss
 
+import os
+
 
 class TrainDDP():
     def __init__(self, gpu_id, params):
@@ -44,14 +46,19 @@ class TrainDDP():
         set_seeds()
         ###########
         
-        print(' => Initializing weights')
-        self.model.apply(init_weights_apply)
-        print(' DONE\n')
-        
+        if not os.path.exists(self.init_check_filename):
+            print(' => Initializing weights')
+            self.model.apply(init_weights_apply)
+            print(' DONE\n')
+            
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
-    
-    
+        
+        if self.gpu_id == 0 and not os.path.exists(self.init_check_filename):
+            self.__save_checkpoint(self.init_check_filename, 'initial')
+
+        # wait all and the gpu:0 to save the inital checkpoint
+        dist.barrier()
     
     
     def __save_checkpoint(self, filename, check_type):
@@ -69,7 +76,7 @@ class TrainDDP():
     def __load_checkpoint(self, filename, check_type):
         print(f' => Load {check_type} checkpoint')
         checkpoint = torch.load(filename, map_location={'cuda:%d' % 0: 'cuda:%d' % self.gpu_id})
-        self.model.load_state_dict(checkpoint['state_dict'])
+        self.model.module.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['scheduler'])
         print(' DONE\n')
@@ -126,7 +133,10 @@ class TrainDDP():
     
     def train_evaluate(self, epochs):
         
+        self.__load_checkpoint(self.init_check_filename, 'initial')
+        
         weight = 1.
+        #flag_wait_check = False
     
         check_best_path = f'{self.best_check_filename}/best_{self.method_name}.pth.tar'
 		
@@ -207,6 +217,7 @@ class TrainDDP():
                 
                 if self.gpu_id == 0:
                     self.__save_checkpoint(check_best_path, 'best')
+                    #flag_wait_check = True
                 
             else:
                 print('GPU: [{}] | Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
@@ -214,7 +225,9 @@ class TrainDDP():
         
         
         # load best checkpoint
-        #self.__load_checkpoint(check_best_path, 'best')
+        if self.gpu_id == 0:#flag_wait_check:
+            #dist.barrier()
+            self.__load_checkpoint(check_best_path, 'best')
         
         print(f'GPU: {self.gpu_id} | Finished Training\n')
         
