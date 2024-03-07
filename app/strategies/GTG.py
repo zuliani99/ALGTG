@@ -6,15 +6,15 @@ import torch
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
-#from scipy.integrate import trapz
-#import numpy as np
+from scipy.integrate import trapz, simpson
+import numpy as np
 
 import copy
 
 
 class GTG(Strategies):
     
-    def __init__(self, al_params, our_methods_params, LL, A_function, zero_diag):
+    def __init__(self, al_params, our_methods_params, LL, A_function, zero_diag, derivatives):
         super().__init__(al_params, LL)
         
         self.get_A_fn = {
@@ -23,10 +23,11 @@ class GTG(Strategies):
         }
         self.A_function = A_function
         self.zero_diag = zero_diag
+        self.derivatives = derivatives
         
         str_diag = '0diag' if self.zero_diag else '1diag'
                 
-        self.method_name = f'{self.__class__.__name__}_{self.A_function}_{str_diag}_LL' if LL else f'{self.__class__.__name__}_{self.A_function}_{str_diag}'
+        self.method_name = f'{self.__class__.__name__}_{self.A_function}_{str_diag}_LL' if LL else f'{self.__class__.__name__}_{self.A_function}_{self.derivatives}_{str_diag}'
         self.params = our_methods_params 
         
         
@@ -150,66 +151,63 @@ class GTG(Strategies):
             print(' DONE\n')
             
         
+        if self.derivatives == 'integrals':
+            # computing the area of each entropies derivates fucntion via the trapezius formula 
+            area = trapz(-np.diff(self.entropy_history.cpu().numpy(), axis=1), np.arange(self.params['gtg_max_iter'] - 1), axis=0)
+            #area = simpson(-np.diff(self.entropy_history.cpu().numpy(), axis=1), np.arange(self.params['gtg_max_iter'] - 1), axis=0)
+            overall_topk = torch.topk(torch.from_numpy(area), n_top_k_obs)
         
-        ###########-------------------------- AREA -------------------------###########
-        #area_trapz = trapz(-np.diff(self.entropy_history.cpu().numpy(), axis=1), np.arange(self.params['gtg_max_iter'] - 1), axis=0)
-        #overall_topk = torch.topk(torch.from_numpy(area_trapz), n_top_k_obs)
-        ###############################################################################
-        
-        
-        #----------------------------------------------------------------------------------------------------------------------------------------
-        # every check that I've made before say that the implementation is correct thus I think the problem is how I manage the derivatives
-        # however logically it seems correct...
-        
-        
-        # absolute value of the derivate to remove the oscilaltions -> observaion that have oscillations means that are difficult too
-        self.entropy_pairwise_der = torch.abs(-torch.diff(self.entropy_history, dim=1))
+        else:
+            # absolute value of the derivate to remove the oscilaltions -> observaion that have oscillations means that are difficult too
+            self.entropy_pairwise_der = torch.abs(-torch.diff(self.entropy_history, dim=1))
 
 
-        # plot entropy history
-        plot_history(self.entropy_history, f'./app/gtg_entropy/history/{self.method_name}_{self.iter}.png', self.iter, self.params['gtg_max_iter'])
+            # plot entropy history
+            plot_history(self.entropy_history, f'./app/gtg_entropy/history/{self.method_name}_{self.iter}.png', self.iter, self.params['gtg_max_iter'])
+
+            if self.derivatives == 'weighted':
+                # getting the last column that have at least one element with entropy greater than 1e-15
+                for col_index in range(self.entropy_pairwise_der.size(1) - 1, -1, -1):
+                    if torch.any(self.entropy_pairwise_der[:, col_index] > 1e-15): break
+                    
+                    
+                # set the weights to increasing value until col_index
+                weights = torch.zeros(self.params['gtg_max_iter'] - 1, dtype=torch.float32, device=self.device) 
+                weights[:col_index] = torch.flip(torch.linspace(1, 0.1, col_index), [0]).to(self.device)
+                
+                
+                # weighted average excluding the derivates that are bellow the threshold
+                overall_topk = torch.topk(
+                    torch.sum(self.entropy_pairwise_der * weights, dim = 1) / col_index,
+                    n_top_k_obs
+                )    
+            
+            else:
+                # classic average among the derivates
+                overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der, dim=1), n_top_k_obs)
 
             
-        # getting the last column that have at least one element with entropy greater than 1e-15
-        for col_index in range(self.entropy_pairwise_der.size(1) - 1, -1, -1):
-            if torch.any(self.entropy_pairwise_der[:, col_index] > 1e-15): break
+            # plot in the entropy derivatives and weighted entropy derivatives
+            plot_derivatives(
+                self.entropy_pairwise_der,
+                self.entropy_pairwise_der * weights if self.derivatives == 'weighted' else self.entropy_pairwise_der,
+                f'./app/gtg_entropy/weighted_derivatives/{self.method_name}_{self.iter}.png',
+                self.iter, self.params['gtg_max_iter'] - 1
+            )
             
             
-        # set the weights to increasing value until col_index
-        weights = torch.zeros(self.params['gtg_max_iter'] - 1, dtype=torch.float32, device=self.device) 
-        weights[:col_index] = torch.flip(torch.linspace(1, 0.1, col_index), [0]).to(self.device)
-        
-        
-        # plot in the entropy derivatives and weighted entropy derivatives
-        plot_derivatives(
-            self.entropy_pairwise_der,
-            self.entropy_pairwise_der * weights,
-            f'./app/gtg_entropy/weighted_derivatives/{self.method_name}_{self.iter}.png',
-            self.iter,
-            self.params['gtg_max_iter'] - 1
-        )
-        
-        # weighted average
-        #overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der * weights, dim = 1), n_top_k_obs)
-        overall_topk = torch.topk(
-            torch.sum(self.entropy_pairwise_der * weights, dim = 1) / col_index,
-            n_top_k_obs
-        )
-        #overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der, dim=1), n_top_k_obs)
-        
-        # plot in the top k entropy derivatives and weighted entropy derivatives
-        plot_derivatives(
-            self.entropy_pairwise_der[overall_topk.indices.tolist()],
-            (self.entropy_pairwise_der * weights)[overall_topk.indices.tolist()],
-            f'./app/gtg_entropy/topk_weighted_derivatives/{self.method_name}_{self.iter}.png',
-            self.iter,
-            self.params['gtg_max_iter'] - 1
-        )
+            # plot in the top k entropy derivatives and weighted entropy derivatives
+            plot_derivatives(
+                self.entropy_pairwise_der[overall_topk.indices.tolist()],
+                (self.entropy_pairwise_der * weights if self.derivatives == 'weighted' else self.entropy_pairwise_der)[overall_topk.indices.tolist()],
+                f'./app/gtg_entropy/topk_weighted_derivatives/{self.method_name}_{self.iter}.png',
+                self.iter, self.params['gtg_max_iter'] - 1
+            )
         
         
         self.clear_cuda_variables(
             [self.entropy_pairwise_der, self.entropy_history, self.lab_embedds_dict,
-            self.unlab_embedds_dict, weights]
+            self.unlab_embedds_dict] #, weights
         )
         
         return overall_topk.indices.tolist()

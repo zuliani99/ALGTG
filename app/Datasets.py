@@ -1,5 +1,5 @@
 
-from torch.utils.data import Dataset, DataLoader, Subset
+from torch.utils.data import Dataset, Subset
 
 from torchvision import datasets
 from torchvision import transforms
@@ -80,10 +80,6 @@ class SubsetDataloaders():
         self.transformed_trainset = DatasetChoice(dataset_name=dataset_name, bool_train=True, bool_transform=True, al_iters=al_iters)
         self.non_transformed_trainset = DatasetChoice(dataset_name=dataset_name, bool_train=True, bool_transform=False)
         
-        '''self.test_dl = DataLoader(
-            DatasetChoice(dataset_name=dataset_name, bool_train=False, bool_transform=False), 
-            self.batch_size, shuffle=False, pin_memory=True
-        )'''
         self.test_ds = DatasetChoice(dataset_name=dataset_name, bool_train=False, bool_transform=False)
 
         self.n_classes = becnhmark_datasets[dataset_name]['n_classes']
@@ -114,12 +110,7 @@ class SubsetDataloaders():
         train_indices = shuffled_indices[:new_train_size]
         validation_indices = shuffled_indices[new_train_size:]
                 
-        # validation dataloader
-        '''self.val_dl = DataLoader(
-            Subset(self.non_transformed_trainset, validation_indices.tolist()),
-            batch_size=self.batch_size, 
-            shuffle=False, pin_memory=True
-        )'''
+        # validation dataset
         self.val_ds = Subset(self.non_transformed_trainset, validation_indices.tolist())
 
         # indices for the labeled and unlabeled sets      

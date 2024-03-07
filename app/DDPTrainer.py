@@ -200,7 +200,8 @@ class TrainDDP():
             results['train_accuracy'].append(train_accuracy)'''
             
             # evaluating using the validation set
-            val_accuracy, val_loss, val_loss_ce, val_loss_weird = self.evaluate(self.val_dl, weight)
+            #val_accuracy, val_loss, val_loss_ce, val_loss_weird = self.evaluate(self.val_dl, weight)
+            val_accuracy, val_loss, _, _ = self.evaluate(self.val_dl, weight)
             
             
             '''results['val_loss'].append(val_loss)
@@ -240,9 +241,9 @@ class TrainDDP():
         test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.evaluate(self.test_dl, weight=1)
         
         if test_loss_ce != 0.0:
-            print('TESTING RESULTS -> test_accuracy: {:.6f}, test_loss: {:.6f}, test_loss_ce: {:.6f} , test_loss_weird: {:.6f}\n\n'.format(test_accuracy, test_loss, test_loss_ce, test_loss_weird ))
+            print('TESTING RESULTS GPU:{} -> test_accuracy: {:.6f}, test_loss: {:.6f}, test_loss_ce: {:.6f} , test_loss_weird: {:.6f}\n\n'.format(self.gpu_id, test_accuracy, test_loss, test_loss_ce, test_loss_weird ))
         else:
-            print('TESTING RESULTS -> test_accuracy: {:.6f}, test_loss: {:.6f}\n\n'.format(test_accuracy, test_loss ))
+            print('TESTING RESULTS GPU:{} -> test_accuracy: {:.6f}, test_loss: {:.6f}\n\n'.format(self.gpu_id, test_accuracy, test_loss ))
             
             
         return test_accuracy, test_loss, test_loss_ce, test_loss_weird

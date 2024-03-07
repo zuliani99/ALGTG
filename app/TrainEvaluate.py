@@ -1,6 +1,6 @@
 
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 import torch.multiprocessing as mp
 from torch.utils.data.distributed import DistributedSampler
 import torch.distributed as dist
@@ -162,7 +162,7 @@ class TrainEvaluate(object):
         params = {
             'num_classes': self.n_classes, 'n_channels': self.n_channels,
             'LL': self.LL, 'patience': self.patience, 'dataset_name': self.dataset_name, 'method_name': self.method_name,
-            'train_dl': self.labeled_indices, 'val_dl': self.val_ds, 'test_dl': self.test_ds,
+            'train_ds': Subset(self.transformed_trainset, self.labeled_indices), 'val_ds': self.val_ds, 'test_ds': self.test_ds,
             'transformed_trainset': self.transformed_trainset, 'non_transformed_trainset': self.non_transformed_trainset,
             'batch_size': self.batch_size, 'score_fn': self.score_fn
         }
@@ -173,8 +173,15 @@ class TrainEvaluate(object):
         
         mp.spawn(train_ddp, args=(world_size, params, epochs, child_conn, ), nprocs=world_size)
         
+        test_accuracy, test_loss, test_loss_ce, test_loss_weird = .0, .0, .0, .0
+        
         while parent_conn.poll():
-            test_accuracy, test_loss, test_loss_ce, test_loss_weird = parent_conn.recv()
+            test_recv = parent_conn.recv()
+             
+            test_accuracy += test_recv[0] / world_size
+            test_loss += test_recv[1] / world_size
+            test_loss_ce += test_recv[2] / world_size
+            test_loss_weird += test_recv[3] / world_size
             
         results['test_accuracy'].append(test_accuracy)
         results['test_loss'].append(test_loss)
@@ -202,31 +209,23 @@ def train_ddp(rank, world_size, params, epochs, conn):
     ###########
     
     torch.cuda.set_device(rank)
+    
         
     params['train_dl'] = DataLoader(
-                            params['transformed_trainset'], batch_size=params['batch_size'],
-                            sampler=DistributedSampler(params['train_dl'],
-                                                       num_replicas=world_size, rank=rank,
-                                                       shuffle=True,
-                                                       seed=100001),
+                            params['train_ds'], batch_size=params['batch_size'],
+                            sampler=DistributedSampler(params['train_ds'], num_replicas=world_size, rank=rank, shuffle=True, seed=100001),
                             shuffle=False, pin_memory=True
                         )
     
     params['val_dl'] = DataLoader(
-                            params['non_transformed_trainset'], batch_size=params['batch_size'],
-                            sampler=DistributedSampler(params['val_dl'],
-                                                       num_replicas=world_size, rank=rank,
-                                                       shuffle=False,
-                                                       seed=100001),
+                            params['val_ds'], batch_size=params['batch_size'],
+                            sampler=DistributedSampler(params['val_ds'], num_replicas=world_size, rank=rank, shuffle=False, seed=100001),
                             shuffle=False, pin_memory=True
                         )
     
     params['test_dl'] = DataLoader(
-                            params['non_transformed_trainset'], batch_size=params['batch_size'],
-                            sampler=DistributedSampler(params['test_dl'],
-                                                       num_replicas=world_size, rank=rank,
-                                                       shuffle=False,
-                                                       seed=100001),
+                            params['test_ds'], batch_size=params['batch_size'],
+                            sampler=DistributedSampler(params['test_ds'], num_replicas=world_size, rank=rank, shuffle=False, seed=100001),
                             shuffle=False, pin_memory=True
                         )
     
@@ -236,7 +235,7 @@ def train_ddp(rank, world_size, params, epochs, conn):
     train_test = TrainDDP(rank, params)
     train_test.train_evaluate(epochs)
     
-    if rank == 0: conn.send(train_test.test())
+    conn.send(train_test.test())
     
     destroy_process_group()
     

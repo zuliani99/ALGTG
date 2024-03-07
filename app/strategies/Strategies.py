@@ -12,7 +12,7 @@ class Strategies(TrainEvaluate):
         
         
         ###########
-        set_seeds()
+        #set_seeds()
         ###########
 
         
@@ -47,7 +47,7 @@ class Strategies(TrainEvaluate):
             
             
             ###########
-            set_seeds()
+            #set_seeds()
             ###########
             
 
