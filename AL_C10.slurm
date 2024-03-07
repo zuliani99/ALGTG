@@ -6,8 +6,8 @@
 #SBATCH --mem=128gb                     # Job memory request
 #SBATCH --time=48:00:00               # Time limit hrs:min:sec
 #SBATCH --output=log_AL_C10.log   # Standard output and error log
-#SBATCH --gres=gpu:2
-#SBATCH --gpus-per-task=2       # number of GPUs per process
+#SBATCH --gres=gpu:1
+## #SBATCH --gpus-per-task=1       # number of GPUs per process
 ## #SBATCH --gpu-bind=single:1     # bind each process to its own GPU (single:<tasks_per_gpu>)
 
 date

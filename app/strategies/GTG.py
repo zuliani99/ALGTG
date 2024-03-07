@@ -6,6 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
+import gpytorch
 #from scipy.integrate import trapz
 #import numpy as np
 
@@ -20,6 +21,7 @@ class GTG(Strategies):
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,
             'corr': self.get_A_corr,
+            'rbfk': self.get_A_rbfk,
         }
         self.A_function = A_function
         self.zero_diag = zero_diag
@@ -60,6 +62,13 @@ class GTG(Strategies):
         self.A = F.relu(torch.corrcoef(torch.cat((self.lab_embedds_dict['embedds'], samp_unlab_embeddings)).to(self.device)))
         if self.zero_diag: self.A.fill_diagonal_(0.)
 
+
+    # correct
+    #https://docs.gpytorch.ai/en/stable/kernels.html#rbfkernel
+    def get_A_rbfk(self, samp_unlab_embeddings):
+        covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel()).to(self.device)
+        self.A = covar_module(torch.cat((self.lab_embedds_dict['embedds'], samp_unlab_embeddings)).to(self.device)).evaluate().detach()
+        if self.zero_diag: self.A.fill_diagonal_(0.)
         
 
     # correct

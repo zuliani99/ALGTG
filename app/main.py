@@ -20,7 +20,6 @@ import random
 import os
 from datetime import datetime
 import argparse
-import time
 
 
 
@@ -54,14 +53,14 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
     
     methods = [
         # Random
-        Random(al_params, LL=False), 
-        #Random(al_params, LL=True),
+        #Random(al_params, LL=False), 
+        Random(al_params, LL=True),
         
         # LeastConfidence
         #LeastConfidence(al_params, LL=False), LeastConfidence(al_params, LL=True),
         
         # Rntropy
-        Entropy(al_params, LL=False), Entropy(al_params, LL=True),
+        #Entropy(al_params, LL=False), Entropy(al_params, LL=True),
         
         # KMeans
         #K_Means(al_params, LL=False), K_Means(al_params, LL=True),
@@ -77,14 +76,17 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
         
         # GTG
         #zero_diag=False -> diagonal set to 1       
-        GTG(al_params, our_method_params, LL=False,A_function='cos_sim', zero_diag=False),
+        #GTG(al_params, our_method_params, LL=False,A_function='cos_sim', zero_diag=False),
         GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False),
         GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=True),
         
-        GTG(al_params, our_method_params, LL=False, A_function='corr', zero_diag=False),
+        #GTG(al_params, our_method_params, LL=False, A_function='corr', zero_diag=False),
         GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False),
         GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=True),
         
+        #GTG(al_params, our_method_params, LL=False, A_function='rbfk', zero_diag=False),
+        GTG(al_params, our_method_params, LL=True, A_function='rbfk', zero_diag=False),
+        GTG(al_params, our_method_params, LL=True, A_function='rbfk', zero_diag=True),
     ]
         
         
@@ -110,21 +112,11 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
 def main():
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    
-    if torch.cuda.is_available():
-        # Get the number of available GPUs
-        num_gpus = torch.cuda.device_count()
-        print("Number of available GPUs:", num_gpus)
-        device = torch.device('cuda')
-    else:
-        print("CUDA is not available. Using CPU.")
-        device = torch.device('cpu')
-        
 
     print(f'Application running on {device}\n')
 
     epochs = 200
-    al_iters = 5
+    al_iters = 4
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
     batch_size = 128
@@ -162,7 +154,7 @@ def main():
             
             our_method_params = {
                 'gtg_tol': 0.001,
-                'gtg_max_iter': 30,
+                'gtg_max_iter': 30, #20
             }
             
 
@@ -178,12 +170,10 @@ def main():
             
             final_plot_name = f'{dataset_name}/{samp_iter}/results_{epochs}_{al_iters}_{n_top_k_obs}.png'
             
+            
             plot_loss_curves(results, n_lab_obs, timestamp, plot_png_name=final_plot_name)
             
         plot_accuracy_std_mean(timestamp, dataset_name)
 
 if __name__ == "__main__":
-    start = time.time()
     main()
-    end = time.time()
-    print('elapsed seconds', end-start)
