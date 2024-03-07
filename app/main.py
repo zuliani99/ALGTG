@@ -61,7 +61,8 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
         #LeastConfidence(al_params, LL=False), LeastConfidence(al_params, LL=True),
         
         # Rntropy
-        Entropy(al_params, LL=False), Entropy(al_params, LL=True),
+        #Entropy(al_params, LL=False), 
+        Entropy(al_params, LL=True),
         
         # KMeans
         #K_Means(al_params, LL=False), K_Means(al_params, LL=True),
@@ -77,13 +78,13 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
         
         # GTG
         #zero_diag=False -> diagonal set to 1       
-        GTG(al_params, our_method_params, LL=False,A_function='cos_sim', zero_diag=False),
-        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False),
-        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=True),
+        #GTG(al_params, our_method_params, LL=False,A_function='cos_sim', zero_diag=False),
+        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False),
+        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=True),
         
         GTG(al_params, our_method_params, LL=False, A_function='corr', zero_diag=False),
         GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False),
-        GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=True),
+        #GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=True),
         
     ]
         

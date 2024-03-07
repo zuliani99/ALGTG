@@ -10,6 +10,7 @@ https://medium.com/@ramyamounir/distributed-data-parallel-with-slurm-submitit-py
 
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.distributed as dist
 
 from utils import set_seeds, init_weights_apply
 from ResNet18 import LearningLoss
@@ -143,7 +144,7 @@ class TrainDDP():
                 print('Decreasing learning rate to 0.01\n')
                 for g in self.optimizer.param_groups: g['lr'] = 0.01
             
-            if self.LL and epoch == 121 :
+            if self.LL and epoch == 121:
                 print('Ignoring the learning loss form now\n') 
                 weight = 0
             
@@ -151,9 +152,7 @@ class TrainDDP():
             
             self.train_dl.sampler.set_epoch(epoch)
             
-            #dist.barrier()
-
-            print(f"[GPU{self.gpu_id}] Epoch {epoch} | Batchsize: {len(next(iter(self.train_dl))[0])} | Steps: {len(self.train_dl)}")
+            print(f"\n[GPU{self.gpu_id}] Epoch {epoch + 1} | Batchsize: {len(next(iter(self.train_dl))[0])} | Steps: {len(self.train_dl)}")
             
             for _, images, labels in self.train_dl:                
                                     
@@ -161,9 +160,10 @@ class TrainDDP():
                 self.optimizer.zero_grad()
                 outputs, _, out_weird, _ = self.model(images)
                 
-                loss, train_loss_ce, train_loss_weird  = self.compute_losses(weight, out_weird, outputs, labels, train_loss_ce, train_loss_weird)
-                
-                loss.backward()         
+                loss, _, _  = self.compute_losses(weight, out_weird, outputs, labels, train_loss_ce, train_loss_weird)
+                                
+                loss.backward()
+
                 self.optimizer.step()
                 
                 train_loss += loss.item()
@@ -216,7 +216,7 @@ class TrainDDP():
         # load best checkpoint
         #self.__load_checkpoint(check_best_path, 'best')
         
-        print('Finished Training\n')
+        print(f'GPU: {self.gpu_id} | Finished Training\n')
         
         #return {'model_name': self.method_name, 'results': results}
 

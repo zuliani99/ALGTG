@@ -3,6 +3,7 @@ import torch
 from torch.utils.data import DataLoader
 import torch.multiprocessing as mp
 from torch.utils.data.distributed import DistributedSampler
+import torch.distributed as dist
 
 from torch.distributed import destroy_process_group, init_process_group
 from torch.utils.data.sampler import SubsetRandomSampler
@@ -14,7 +15,6 @@ from utils import write_csv, set_seeds
 
 import copy
 import random
-import os
 
 
 
@@ -59,8 +59,7 @@ class TrainEvaluate(object):
         
         self.lab_train_dl = DataLoader(
             self.transformed_trainset, batch_size=self.batch_size, 
-            sampler=SubsetRandomSampler(self.labeled_indices),
-            pin_memory=True
+            sampler=SubsetRandomSampler(self.labeled_indices), pin_memory=True
         )
         
         self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=self.n_classes, n_channels=self.n_channels).to(self.device)
@@ -70,7 +69,7 @@ class TrainEvaluate(object):
         
     def get_embeddings(self, dataloader, dict_to_modify):
         
-        checkpoint = torch.load(self.best_check_filename, map_location=self.device)
+        checkpoint = torch.load(f'{self.best_check_filename}/best_{self.method_name}', map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
 
         if 'embedds' in dict_to_modify:
@@ -147,7 +146,6 @@ class TrainEvaluate(object):
     
     def remove_model_opt(self):
         del self.model
-        #del self.optimizer
         torch.cuda.empty_cache()
         
         
@@ -175,15 +173,8 @@ class TrainEvaluate(object):
         
         mp.spawn(train_ddp, args=(world_size, params, epochs, child_conn, ), nprocs=world_size)
         
-        test_accuracy, test_loss, test_loss_ce, test_loss_weird = .0, .0, .0, .0
-        
         while parent_conn.poll():
-            test_res = parent_conn.recv()
-            
-            test_accuracy += test_res[0] / world_size
-            test_loss += test_res[1] / world_size
-            test_loss_ce += test_res[2] / world_size
-            test_loss_weird += test_res[3] / world_size
+            test_accuracy, test_loss, test_loss_ce, test_loss_weird = parent_conn.recv()
             
         results['test_accuracy'].append(test_accuracy)
         results['test_loss'].append(test_loss)
@@ -204,9 +195,7 @@ class TrainEvaluate(object):
         
 def train_ddp(rank, world_size, params, epochs, conn):
     
-    os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "62457"
-    init_process_group(backend="nccl", rank=rank, world_size=world_size)
+    init_process_group(backend='nccl', init_method='env://', rank=rank, world_size=world_size)
     
     ###########
     set_seeds()
@@ -220,8 +209,7 @@ def train_ddp(rank, world_size, params, epochs, conn):
                                                        num_replicas=world_size, rank=rank,
                                                        shuffle=True,
                                                        seed=100001),
-                            shuffle=False,
-                            pin_memory=True
+                            shuffle=False, pin_memory=True
                         )
     
     params['val_dl'] = DataLoader(
@@ -230,8 +218,7 @@ def train_ddp(rank, world_size, params, epochs, conn):
                                                        num_replicas=world_size, rank=rank,
                                                        shuffle=False,
                                                        seed=100001),
-                            shuffle=False,
-                            pin_memory=True
+                            shuffle=False, pin_memory=True
                         )
     
     params['test_dl'] = DataLoader(
@@ -240,19 +227,18 @@ def train_ddp(rank, world_size, params, epochs, conn):
                                                        num_replicas=world_size, rank=rank,
                                                        shuffle=False,
                                                        seed=100001),
-                            shuffle=False,
-                            pin_memory=True
+                            shuffle=False, pin_memory=True
                         )
     
     params['model'] = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=params['num_classes'], n_channels=params['n_channels']).to(rank)
     
     
     train_test = TrainDDP(rank, params)
-    
     train_test.train_evaluate(epochs)
-    test_results = train_test.test()
-    
-    conn.send(test_results)
+    dist.barrier()
+    if rank == 0: 
+        test_res = train_test.test()
+        conn.send(test_res)
     
     destroy_process_group()
     
