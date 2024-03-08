@@ -3,13 +3,16 @@
 #SBATCH --mail-type=NONE          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=875532@stud.unive.it     # Where to send mail	
 #SBATCH --nodes=1
-#sbatch --ntasks-per-node=2
-#sbatch --ncpus-per-task=1
+#SBATCH --ntasks-per-node=2
+## #SBATCH --cpus-per-task=1
+#SBATCH --hint=nomultithread
 #SBATCH --mem=128gb                     # Job memory request
 #SBATCH --time=48:00:00               # Time limit hrs:min:sec
 #SBATCH --output=log_AL.log   # Standard output and error log
 #SBATCH --gres=gpu:2
+#SBATCH --gpus-per-node=2      # number of GPUs per node
 #SBATCH --gpus-per-task=1      # number of GPUs per process
+
 
 date
 

@@ -109,7 +109,7 @@ class TrainDDP():
         
         self.model.eval()
 
-        with torch.inference_mode(): # Allow inference mode
+        with torch.no_grad(): # Allow inference mode
             for _, images, labels in dataloader:
                 
                 images, labels = images.to(self.gpu_id, non_blocking=True), labels.to(self.gpu_id, non_blocking=True)
@@ -136,16 +136,13 @@ class TrainDDP():
         self.__load_checkpoint(self.init_check_filename, 'initial')
         
         weight = 1.
-        #flag_wait_check = False
     
         check_best_path = f'{self.best_check_filename}/best_{self.method_name}.pth.tar'
 		
         best_val_accuracy = 0.0
-        
-        #results = { 'train_loss': [], 'train_loss_ce': [], 'train_loss_weird': [], 'train_accuracy': [], 
-        #            'val_loss': [], 'val_loss_ce': [], 'val_loss_weird': [], 'val_accuracy': [] }
-	
- 
+
+        results = torch.zeros((8, epochs), device=self.gpu_id)
+    
         for epoch in range(epochs):
                         
             self.model.train()
@@ -193,22 +190,17 @@ class TrainDDP():
             #self.scheduler.step()
             ###################################
             
-
-            '''results['train_loss'].append(train_loss)
-            results['train_loss_ce'].append(train_loss_ce)
-            results['train_loss_weird'].append(train_loss_weird)
-            results['train_accuracy'].append(train_accuracy)'''
+            
+            
+            for pos, metric in zip(range(4), [train_loss, train_loss_ce, train_loss_weird, train_accuracy]):
+                results[pos][epoch] = metric
             
             # evaluating using the validation set
-            #val_accuracy, val_loss, val_loss_ce, val_loss_weird = self.evaluate(self.val_dl, weight)
-            val_accuracy, val_loss, _, _ = self.evaluate(self.val_dl, weight)
+            val_accuracy, val_loss, val_loss_ce, val_loss_weird = self.evaluate(self.val_dl, weight)
             
-            
-            '''results['val_loss'].append(val_loss)
-            results['val_loss_ce'].append(val_loss_ce)
-            results['val_loss_weird'].append(val_loss_weird)
-            results['val_accuracy'].append(val_accuracy)'''
-            
+            for pos, metric in zip(range(4,8), [val_loss, val_loss_ce, val_loss_weird, val_accuracy]):
+                results[pos][epoch] = metric
+                
             
             if(val_accuracy > best_val_accuracy):
                 best_val_accuracy = val_accuracy
@@ -216,9 +208,7 @@ class TrainDDP():
                 print('GPU: [{}] | Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
                     self.gpu_id, epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
                 
-                if self.gpu_id == 0:
-                    self.__save_checkpoint(check_best_path, 'best')
-                    #flag_wait_check = True
+                if self.gpu_id == 0: self.__save_checkpoint(check_best_path, 'best')
                 
             else:
                 print('GPU: [{}] | Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
@@ -226,14 +216,11 @@ class TrainDDP():
         
         
         # load best checkpoint
-        if self.gpu_id == 0:#flag_wait_check:
-            #dist.barrier()
-            self.__load_checkpoint(check_best_path, 'best')
+        if self.gpu_id == 0: self.__load_checkpoint(check_best_path, 'best')
         
         print(f'GPU: {self.gpu_id} | Finished Training\n')
         
-        #return {'model_name': self.method_name, 'results': results}
-
+        return results
 
 
 
@@ -246,7 +233,7 @@ class TrainDDP():
             print('TESTING RESULTS GPU:{} -> test_accuracy: {:.6f}, test_loss: {:.6f}\n\n'.format(self.gpu_id, test_accuracy, test_loss ))
             
             
-        return test_accuracy, test_loss, test_loss_ce, test_loss_weird
+        return torch.tensor([test_accuracy, test_loss, test_loss_ce, test_loss_weird], device=self.gpu_id)
 
         
         

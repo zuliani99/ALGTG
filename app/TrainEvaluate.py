@@ -3,15 +3,15 @@ import torch
 from torch.utils.data import DataLoader, Subset
 import torch.multiprocessing as mp
 from torch.utils.data.distributed import DistributedSampler
-import torch.distributed as dist
 
 from torch.distributed import destroy_process_group, init_process_group
 from torch.utils.data.sampler import SubsetRandomSampler
+import torch.distributed as dist
 
 from DDPTrainer import TrainDDP
 from ResNet18 import BasicBlock, ResNet_Weird
 from Datasets import DatasetChoice, SubsetDataloaders
-from utils import write_csv, set_seeds
+from utils import save_train_val_curves, write_csv, set_seeds
 
 import copy
 import random
@@ -167,22 +167,30 @@ class TrainEvaluate(object):
             'batch_size': self.batch_size, 'score_fn': self.score_fn
         }
         
+        
+        
+        
         parent_conn, child_conn = mp.Pipe()
-        
         world_size = torch.cuda.device_count()
-        
         mp.spawn(train_ddp, args=(world_size, params, epochs, child_conn, ), nprocs=world_size)
-        
-        test_accuracy, test_loss, test_loss_ce, test_loss_weird = .0, .0, .0, .0
-        
         while parent_conn.poll():
-            test_recv = parent_conn.recv()
-             
-            test_accuracy += test_recv[0] / world_size
-            test_loss += test_recv[1] / world_size
-            test_loss_ce += test_recv[2] / world_size
-            test_loss_weird += test_recv[3] / world_size
+            train_recv, test_recv = parent_conn.recv()
+                
+    
             
+        
+        train_results = {
+            'model_name': self.method_name, 
+            'results': {
+                    'train_loss': train_recv[0], 'train_loss_ce': train_recv[1],
+                    'train_loss_weird': train_recv[2], 'train_accuracy': train_recv[3], 
+                    'val_loss': train_recv[4], 'val_loss_ce': train_recv[5],
+                    'val_loss_weird': train_recv[6], 'val_accuracy': train_recv[7]
+                }
+        }
+             
+        test_accuracy, test_loss, test_loss_ce, test_loss_weird = test_recv
+             
         results['test_accuracy'].append(test_accuracy)
         results['test_loss'].append(test_loss)
         results['test_loss_ce'].append(test_loss_ce)
@@ -195,8 +203,7 @@ class TrainEvaluate(object):
             values = [self.method_name, self.iter_sample, lab_obs, test_accuracy, test_loss, test_loss_ce, test_loss_weird]
         )
         
-        # NO LONGER AVAILABLE SINCE I NEED ALSO THE TRAINING RESULTS STATISTICS
-        #save_train_val_curves(train_results, self.timestamp, self.dataset_name, iter, self.iter_sample, self.LL)
+        save_train_val_curves(train_results, self.timestamp, self.dataset_name, iter, self.iter_sample, self.LL)
 
         
         
@@ -204,38 +211,59 @@ def train_ddp(rank, world_size, params, epochs, conn):
     
     init_process_group(backend='nccl', init_method='env://', rank=rank, world_size=world_size)
     
+    train_results = [torch.zeros((8, epochs), device=rank) for _ in range(world_size)]
+    test_results = [torch.zeros(4, device=rank) for _ in range(world_size)]
+    
     ###########
     set_seeds()
     ###########
     
     torch.cuda.set_device(rank)
     
-        
     params['train_dl'] = DataLoader(
                             params['train_ds'], batch_size=params['batch_size'],
                             sampler=DistributedSampler(params['train_ds'], num_replicas=world_size, rank=rank, shuffle=True, seed=100001),
-                            shuffle=False, pin_memory=True
+                            shuffle=False, pin_memory=True,
+                            num_workers=0
                         )
     
     params['val_dl'] = DataLoader(
                             params['val_ds'], batch_size=params['batch_size'],
                             sampler=DistributedSampler(params['val_ds'], num_replicas=world_size, rank=rank, shuffle=False, seed=100001),
-                            shuffle=False, pin_memory=True
+                            shuffle=False, pin_memory=True,
+                            num_workers=0
+                            
                         )
     
     params['test_dl'] = DataLoader(
                             params['test_ds'], batch_size=params['batch_size'],
                             sampler=DistributedSampler(params['test_ds'], num_replicas=world_size, rank=rank, shuffle=False, seed=100001),
-                            shuffle=False, pin_memory=True
+                            shuffle=False, pin_memory=True,
+                            num_workers=0
+                            
                         )
     
     params['model'] = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=params['num_classes'], n_channels=params['n_channels']).to(rank)
     
     
     train_test = TrainDDP(rank, params)
-    train_test.train_evaluate(epochs)
+    if rank == 0:
+        dist.gather(train_test.train_evaluate(epochs), train_results)
+        dist.gather(train_test.test(), test_results)
+    else:
+        dist.gather(train_test.train_evaluate(epochs))
+        dist.gather(train_test.test())
+                
     
-    conn.send(train_test.test())
+    dist.barrier() 
+    
+    
+    if rank == 0:
+        train_results = (torch.sum(torch.stack(train_results), dim=0) / world_size).cpu().tolist()
+        test_results = (torch.sum(torch.stack(test_results), dim=0) / world_size).cpu().tolist()
+        
+        conn.send((train_results, test_results))           
+    
     
     destroy_process_group()
     
