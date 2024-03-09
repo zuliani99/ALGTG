@@ -3,6 +3,7 @@ import torch
 from torch.utils.data import DataLoader, Subset
 import torch.multiprocessing as mp
 from torch.utils.data.distributed import DistributedSampler
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from torch.distributed import destroy_process_group, init_process_group
 from torch.utils.data.sampler import SubsetRandomSampler
@@ -210,42 +211,55 @@ class TrainEvaluate(object):
         
 def train_ddp(rank, world_size, params, epochs, conn):
     
+    #MASTER_ADDR:MASTER_PORT=ppv-gpu1:16217
+    os.environ["MASTER_ADDR"] = "ppv-gpu1"
+    os.environ["MASTER_PORT"] = "16217"
+    
     init_process_group(backend='nccl', init_method='env://', rank=rank, world_size=world_size)
+    
+    torch.cuda.set_device(rank)
+    
+    
     
     train_results = [torch.zeros((8, epochs), device=rank) for _ in range(world_size)]
     test_results = [torch.zeros(4, device=rank) for _ in range(world_size)]
     
-    ###########
-    set_seeds()
-    ###########
     
-    torch.cuda.set_device(rank)
+    
+    batch_size = int(params['batch_size'])
+
+    model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=params['num_classes'], n_channels=params['n_channels']).cuda(rank)#to(rank)
+    model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
+    params['model'] = model
+    
+    num_workers = int((int(os.environ['SLURM_CPUS_PER_TASK']) + world_size - 1) / world_size)
+    
     
     params['train_dl'] = DataLoader(
-                            params['train_ds'], batch_size=params['batch_size'],
+                            params['train_ds'], batch_size=batch_size,
                             sampler=DistributedSampler(params['train_ds'], num_replicas=world_size, rank=rank, shuffle=True, seed=100001),
                             shuffle=False, pin_memory=True, persistent_workers=True,
-                            num_workers=int(os.environ['SLURM_CPUS_PER_TASK'])
+                            num_workers=num_workers
                         )
     
     params['val_dl'] = DataLoader(
-                            params['val_ds'], batch_size=params['batch_size'],
+                            params['val_ds'], batch_size=batch_size,
                             sampler=DistributedSampler(params['val_ds'], num_replicas=world_size, rank=rank, shuffle=False, seed=100001),
                             shuffle=False, pin_memory=True, persistent_workers=True,
-                            num_workers=int(os.environ['SLURM_CPUS_PER_TASK'])#0
+                            num_workers=num_workers
                         )
     
     params['test_dl'] = DataLoader(
-                            params['test_ds'], batch_size=params['batch_size'],
+                            params['test_ds'], batch_size=batch_size,
                             sampler=DistributedSampler(params['test_ds'], num_replicas=world_size, rank=rank, shuffle=False, seed=100001),
                             shuffle=False, pin_memory=True, persistent_workers=True,
-                            num_workers=int(os.environ['SLURM_CPUS_PER_TASK'])#0
+                            num_workers=num_workers
                         )
-    
-    params['model'] = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=params['num_classes'], n_channels=params['n_channels']).to(rank)
-    
+   
     
     train_test = TrainDDP(rank, params)
+    
+    
     if rank == 0:
         dist.gather(train_test.train_evaluate(epochs), train_results)
         dist.gather(train_test.test(), test_results)
@@ -253,9 +267,7 @@ def train_ddp(rank, world_size, params, epochs, conn):
         dist.gather(train_test.train_evaluate(epochs))
         dist.gather(train_test.test())
                 
-    
-    dist.barrier() 
-    
+        
     
     if rank == 0:
         train_results = (torch.sum(torch.stack(train_results), dim=0) / world_size).cpu().tolist()

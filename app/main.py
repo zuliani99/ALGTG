@@ -54,8 +54,8 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
     
     methods = [
         # Random
-        Random(al_params, LL=False)
-        #, Random(al_params, LL=True),
+        #Random(al_params, LL=False)
+        Random(al_params, LL=True),
         
         # LeastConfidence
         #LeastConfidence(al_params, LL=False), LeastConfidence(al_params, LL=True),
@@ -123,7 +123,7 @@ def main():
 
     print(f'Application running on {device}\n')
 
-    epochs = 10#200
+    epochs = 200
     al_iters = 2#10
     n_top_k_obs = 1000
     unlab_sample_dim = 10000

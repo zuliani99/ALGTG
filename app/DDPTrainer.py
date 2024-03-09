@@ -9,22 +9,22 @@ https://medium.com/@ramyamounir/distributed-data-parallel-with-slurm-submitit-py
 '''
 
 import torch
-from torch.nn.parallel import DistributedDataParallel as DDP
-import torch.distributed as dist
+#import torch.distributed as dist
 
 from utils import set_seeds, init_weights_apply
 from ResNet18 import LearningLoss
 
-import os
+#import os
 
 
 class TrainDDP():
     def __init__(self, gpu_id, params):
         
-        self.gpu_id = gpu_id
+        self.device = torch.device(f'cuda:{gpu_id}')
+        
         self.LL = params['LL']
         self.patience = params['patience'],
-        self.model = DDP(params['model'], device_ids=[self.gpu_id], output_device=self.gpu_id, find_unused_parameters=True)
+        self.model = params['model']
         
         self.dataset_name = params['dataset_name']
         self.method_name = params['method_name']
@@ -34,9 +34,9 @@ class TrainDDP():
         self.test_dl = params['test_dl']
         
         
-        self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
+        self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none').to(self.device)
         self.score_fn = params['score_fn']
-        self.loss_weird = LearningLoss(self.gpu_id)
+        self.loss_weird = LearningLoss(self.device).to(self.device)
         
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
         self.init_check_filename = f'{self.best_check_filename}_init_checkpoint.pth.tar'
@@ -46,19 +46,19 @@ class TrainDDP():
         set_seeds()
         ###########
         
-        if not os.path.exists(self.init_check_filename):
-            print(' => Initializing weights')
-            self.model.apply(init_weights_apply)
-            print(' DONE\n')
+        #if not os.path.exists(self.init_check_filename):
+        #    print(' => Initializing weights')
+        self.model.apply(init_weights_apply)
+        #    print(' DONE\n')
             
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
         
-        if self.gpu_id == 0 and not os.path.exists(self.init_check_filename):
-            self.__save_checkpoint(self.init_check_filename, 'initial')
+        #if self.device == 0 and not os.path.exists(self.init_check_filename):
+        #    self.__save_checkpoint(self.init_check_filename, 'initial')
 
         # wait all and the gpu:0 to save the inital checkpoint
-        dist.barrier()
+        #dist.barrier()
     
     
     def __save_checkpoint(self, filename, check_type):
@@ -75,7 +75,8 @@ class TrainDDP():
     
     def __load_checkpoint(self, filename, check_type):
         print(f' => Load {check_type} checkpoint')
-        checkpoint = torch.load(filename, map_location={'cuda:%d' % 0: 'cuda:%d' % self.gpu_id})
+        #checkpoint = torch.load(filename, map_location={'cuda:%d' % 0: 'cuda:%d' % self.gpu_id})
+        checkpoint = torch.load(filename, map_location=self.device)
         self.model.module.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['scheduler'])
@@ -112,7 +113,7 @@ class TrainDDP():
         with torch.no_grad(): # Allow inference mode
             for _, images, labels in dataloader:
                 
-                images, labels = images.to(self.gpu_id, non_blocking=True), labels.to(self.gpu_id, non_blocking=True)
+                images, labels = images.to(self.device, non_blocking=True), labels.to(self.device, non_blocking=True)
                 outputs, _, out_weird, _ = self.model(images)
 
                 loss, tot_loss_ce, tot_loss_weird = self.compute_losses(weight, out_weird, outputs, labels, tot_loss_ce, tot_loss_weird)
@@ -133,20 +134,17 @@ class TrainDDP():
     
     def train_evaluate(self, epochs):
         
-        self.__load_checkpoint(self.init_check_filename, 'initial')
+        #self.__load_checkpoint(self.init_check_filename, 'initial')
         
         weight = 1.
-    
-        check_best_path = f'{self.best_check_filename}/best_{self.method_name}.pth.tar'
-		
+        check_best_path = f'{self.best_check_filename}/best_{self.method_name}_{self.device}.pth.tar'
         best_val_accuracy = 0.0
-
-        results = torch.zeros((8, epochs), device=self.gpu_id)
+        results = torch.zeros((8, epochs), device=self.device)
     
         for epoch in range(epochs):
-                        
-            self.model.train()
-            
+
+            train_loss, train_loss_ce, train_loss_weird, train_accuracy = .0, .0, .0, .0
+
             if epoch == 160:
                 print('Decreasing learning rate to 0.01\n')
                 for g in self.optimizer.param_groups: g['lr'] = 0.01
@@ -155,15 +153,18 @@ class TrainDDP():
                 print('Ignoring the learning loss form now\n') 
                 weight = 0
             
-            train_loss, train_loss_ce, train_loss_weird, train_accuracy = .0, .0, .0, .0
+            
             
             self.train_dl.sampler.set_epoch(epoch)
+            self.model.train()
             
-            print(f"\n[GPU{self.gpu_id}] Epoch {epoch + 1} | Batchsize: {len(next(iter(self.train_dl))[0])} | Steps: {len(self.train_dl)}")
+            
+            
+            #print(f"\n[GPU{self.device}] Epoch {epoch + 1} | Batchsize: {len(next(iter(self.train_dl))[0])} | Steps: {len(self.train_dl)}")
             
             for _, images, labels in self.train_dl:                
                                     
-                images, labels = images.to(self.gpu_id, non_blocking=True), labels.to(self.gpu_id, non_blocking=True)
+                images, labels = images.to(self.device, non_blocking=True), labels.to(self.device, non_blocking=True)
                 self.optimizer.zero_grad()
                 outputs, _, out_weird, _ = self.model(images)
                 
@@ -206,19 +207,20 @@ class TrainDDP():
                 best_val_accuracy = val_accuracy
                 
                 print('GPU: [{}] | Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
-                    self.gpu_id, epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
+                    self.device, epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
                 
-                if self.gpu_id == 0: self.__save_checkpoint(check_best_path, 'best')
+                self.__save_checkpoint(check_best_path, 'best')
                 
             else:
                 print('GPU: [{}] | Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
-                   self.gpu_id, epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
+                   self.device, epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
         
         
         # load best checkpoint
-        if self.gpu_id == 0: self.__load_checkpoint(check_best_path, 'best')
+        #if self.device == 0: 
+        self.__load_checkpoint(check_best_path, 'best')
         
-        print(f'GPU: {self.gpu_id} | Finished Training\n')
+        print(f'GPU: {self.device} | Finished Training\n')
         
         return results
 
@@ -228,12 +230,12 @@ class TrainDDP():
         test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.evaluate(self.test_dl, weight=1)
         
         if test_loss_ce != 0.0:
-            print('TESTING RESULTS GPU:{} -> test_accuracy: {:.6f}, test_loss: {:.6f}, test_loss_ce: {:.6f} , test_loss_weird: {:.6f}\n\n'.format(self.gpu_id, test_accuracy, test_loss, test_loss_ce, test_loss_weird ))
+            print('TESTING RESULTS GPU:{} -> test_accuracy: {:.6f}, test_loss: {:.6f}, test_loss_ce: {:.6f} , test_loss_weird: {:.6f}\n\n'.format(self.device, test_accuracy, test_loss, test_loss_ce, test_loss_weird ))
         else:
-            print('TESTING RESULTS GPU:{} -> test_accuracy: {:.6f}, test_loss: {:.6f}\n\n'.format(self.gpu_id, test_accuracy, test_loss ))
+            print('TESTING RESULTS GPU:{} -> test_accuracy: {:.6f}, test_loss: {:.6f}\n\n'.format(self.device, test_accuracy, test_loss ))
             
             
-        return torch.tensor([test_accuracy, test_loss, test_loss_ce, test_loss_weird], device=self.gpu_id)
+        return torch.tensor([test_accuracy, test_loss, test_loss_ce, test_loss_weird], device=self.device)
 
         
         
