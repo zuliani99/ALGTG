@@ -54,13 +54,14 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
     
     methods = [
         # Random
-        Random(al_params, LL=False), Random(al_params, LL=True),
+        Random(al_params, LL=False)
+        #, Random(al_params, LL=True),
         
         # LeastConfidence
         #LeastConfidence(al_params, LL=False), LeastConfidence(al_params, LL=True),
         
         # Rntropy
-        Entropy(al_params, LL=False), Entropy(al_params, LL=True),
+        #Entropy(al_params, LL=False), Entropy(al_params, LL=True),
         
         # KMeans
         #K_Means(al_params, LL=False), K_Means(al_params, LL=True),
@@ -81,8 +82,8 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
         #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=True),
         
         #derivates = ['mean', 'weighted', 'integral']
-        GTG(al_params, our_method_params, LL=False, A_function='corr', zero_diag=False, derivatives='mean'),
-        GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, derivatives='mean'),
+        #GTG(al_params, our_method_params, LL=False, A_function='corr', zero_diag=False, derivatives='mean'),
+        #GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, derivatives='mean'),
         #GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=True),
     ]
         
@@ -122,8 +123,8 @@ def main():
 
     print(f'Application running on {device}\n')
 
-    epochs = 200
-    al_iters = 10
+    epochs = 10#200
+    al_iters = 2#10
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
     batch_size = 128

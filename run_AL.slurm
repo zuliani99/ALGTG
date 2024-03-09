@@ -4,7 +4,7 @@
 #SBATCH --mail-user=875532@stud.unive.it     # Where to send mail	
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=2
-## #SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task=4
 #SBATCH --hint=nomultithread
 #SBATCH --mem=128gb                     # Job memory request
 #SBATCH --time=48:00:00               # Time limit hrs:min:sec
