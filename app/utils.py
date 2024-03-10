@@ -1,4 +1,5 @@
 
+from enum import Enum
 import torch
 
 import torch.nn as nn
@@ -11,20 +12,21 @@ import numpy as np
 import csv
 import os
 import random
+from typing import List, Dict, Any
     
 
-def accuracy_score(output, label):
+def accuracy_score(output: torch.Tensor, label: torch.Tensor) -> float:
     output_class = torch.argmax(torch.softmax(output, dim=1), dim=1)
     return (output_class == label).sum().item()/len(output)
 
 
-def entropy(tensor, dim=1):
+def entropy(tensor: torch.Tensor, dim=1) -> torch.Tensor:
     x = tensor + 1e-20
     return -torch.sum(x * torch.log2(x), dim=dim)
 
     
 
-def plot_loss_curves(methods_results, n_lab_obs, ts_dir, save_plot=True, plot_png_name=None):
+def plot_loss_curves(methods_results: Dict[str, List[float]], n_lab_obs: List[int], ts_dir: str, save_plot=True, plot_png_name=None) -> None:
     
     _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
     
@@ -79,7 +81,7 @@ def plot_loss_curves(methods_results, n_lab_obs, ts_dir, save_plot=True, plot_pn
     
     
     
-def save_train_val_curves(results_info, ts_dir, dataset_name, al_iter, cicle_iter, flag_LL):
+def save_train_val_curves(results_info: Dict[str, Any], ts_dir: str, dataset_name: str, al_iter: str, cicle_iter: str, flag_LL: bool) -> None:
 
     res = results_info['results']
     epochs = range(1, len(res['train_loss']) + 1)
@@ -187,7 +189,7 @@ def save_train_val_curves(results_info, ts_dir, dataset_name, al_iter, cicle_ite
 
 
 
-def write_csv(ts_dir, dataset_name, head, values):
+def write_csv(ts_dir: str, dataset_name: str, head: List[str], values: List[str]) -> None:
     res_path = os.path.join('results', ts_dir, dataset_name, 'results.csv')
     
     if (not os.path.exists(res_path)):
@@ -204,12 +206,12 @@ def write_csv(ts_dir, dataset_name, head, values):
                  
             
 
-def create_directory(dir):
+def create_directory(dir: str) -> None:
     if not os.path.exists(dir):
         os.makedirs(dir)
 
             
-def create_ts_dir_res(timestamp, dataset_name, iter):
+def create_ts_dir_res(timestamp: str, dataset_name: str, iter: str) -> None:
     mydir = os.path.join('results', timestamp)
     create_directory(mydir)
     create_directory(os.path.join(mydir, dataset_name))
@@ -219,7 +221,7 @@ def create_ts_dir_res(timestamp, dataset_name, iter):
         
         
 # weights initiaization
-def init_weights_apply(m):
+def init_weights_apply(m: torch.nn.Module) -> None:
     if isinstance(m, nn.Conv2d):
         init.kaiming_normal_(m.weight, mode='fan_out')
         if m.bias is not None: init.constant_(m.bias, 0)
@@ -233,7 +235,7 @@ def init_weights_apply(m):
         
         
         
-def plot_history(story_tensor, path, iter, max_x):
+def plot_history(story_tensor: torch.Tensor, path: str, iter: int, max_x: int) -> None:
     
     fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (10,8))
     
@@ -254,7 +256,7 @@ def plot_history(story_tensor, path, iter, max_x):
     
     
     
-def plot_derivatives(der_tensor, der_weighted_tensor, path, iter, max_x):
+def plot_derivatives(der_tensor: torch.Tensor, der_weighted_tensor: torch.Tensor, path: str, iter: int, max_x: int) -> None:
     
     fig, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (20,8))
     
@@ -285,7 +287,7 @@ def plot_derivatives(der_tensor, der_weighted_tensor, path, iter, max_x):
     
 
 
-def plot_accuracy_std_mean(timestamp, dataset_name):
+def plot_accuracy_std_mean(timestamp: str, dataset_name: str) -> None:
     df = pd.read_csv(f'results/{timestamp}/{dataset_name}/results.csv')
 
     df_grouped = (
@@ -298,13 +300,17 @@ def plot_accuracy_std_mean(timestamp, dataset_name):
     df_grouped['ci_upper'] = df_grouped['mean'] + df_grouped['ci']
     
     methods = df_grouped['method'].unique()
+    shapes = ['o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v']
 
     # Plot each method
     plt.figure(figsize=(14, 10))
-    for method in methods:
+    for idx, method in enumerate(methods):
         method_data = df_grouped[df_grouped['method'] == method]
         plt.plot(method_data['lab_obs'], method_data['mean'], label=method)
-        plt.fill_between(method_data['lab_obs'], method_data['ci_lower'], method_data['ci_upper'], alpha=0.3)
+        #plt.fill_between(method_data['lab_obs'], method_data['ci_lower'], method_data['ci_upper'], alpha=0.3)
+        plt.plot(method_data['lab_obs'], method_data['ci_lower'], linewidth=0.8, linestyle='--', color=plt.gca().lines[-1].get_color())
+        plt.plot(method_data['lab_obs'], method_data['ci_upper'], linewidth=0.8, linestyle='--', color=plt.gca().lines[-1].get_color())
+        plt.scatter(method_data['lab_obs'], method_data['mean'], marker=shapes[idx], color=plt.gca().lines[-1].get_color(), zorder=5)
 
     plt.xlabel('Labeled Observations')
     plt.ylabel('Test Accuracy')
@@ -315,9 +321,13 @@ def plot_accuracy_std_mean(timestamp, dataset_name):
     plt.savefig(f'results/{timestamp}/{dataset_name}/mean_std_accuracy_plot.png') 
     
 
+class Derivates_Enum(Enum):
+    MEAN = 0
+    WEIGHTED_AVERAGE = 1
+    INTEGRAL = 2
 
 
-def set_seeds():
+def set_seeds() -> None:
     # setting seed and deterministic behaviour of pytorch for reproducibility
     # https://discuss.pytorch.org/t/determinism-in-pytorch-across-multiple-files/156269
     os.environ['PYTHONHASHSEED'] = str(100001)

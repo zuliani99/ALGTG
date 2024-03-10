@@ -1,11 +1,13 @@
 
-from torch.utils.data import Dataset, DataLoader, Subset
+from torch.utils.data import Dataset, Subset
 
 from torchvision import datasets
 from torchvision import transforms
 import torch
 
 import numpy as np
+
+from typing import List, Tuple
 
 
 becnhmark_datasets = {
@@ -74,26 +76,23 @@ becnhmark_datasets = {
 
 class SubsetDataloaders():
     
-    def __init__(self, dataset_name,  batch_size, val_rateo, init_lab_obs, al_iters):
+    def __init__(self, dataset_name: str, batch_size: int, val_rateo: int, init_lab_obs: int) -> None:
         self.batch_size = batch_size
         
-        self.transformed_trainset = DatasetChoice(dataset_name=dataset_name, bool_train=True, bool_transform=True, al_iters=al_iters)
+        self.transformed_trainset = DatasetChoice(dataset_name=dataset_name, bool_train=True, bool_transform=True)
         self.non_transformed_trainset = DatasetChoice(dataset_name=dataset_name, bool_train=True, bool_transform=False)
         
-        self.test_dl = DataLoader(
-            DatasetChoice(dataset_name=dataset_name, bool_train=False, bool_transform=False), 
-            self.batch_size, shuffle=False, pin_memory=True
-        )
+        self.test_ds = DatasetChoice(dataset_name=dataset_name, bool_train=False, bool_transform=False)
 
-        self.n_classes = becnhmark_datasets[dataset_name]['n_classes']
-        self.n_channels = becnhmark_datasets[dataset_name]['channels']
-        self.dataset_id = becnhmark_datasets[dataset_name]['id']
+        self.n_classes: int = becnhmark_datasets[dataset_name]['n_classes']
+        self.n_channels: str = becnhmark_datasets[dataset_name]['channels']
+        self.dataset_id: int = becnhmark_datasets[dataset_name]['id']
     
         self.get_initial_subsets_dls(val_rateo, init_lab_obs)
     
     
     
-    def get_initial_subsets_dls(self, val_rateo, init_lab_obs):
+    def get_initial_subsets_dls(self, val_rateo: int, init_lab_obs: int) -> None:
 
         train_size = len(self.transformed_trainset)
         
@@ -113,46 +112,41 @@ class SubsetDataloaders():
         train_indices = shuffled_indices[:new_train_size]
         validation_indices = shuffled_indices[new_train_size:]
                 
-        # validation dataloader
-        self.val_dl = DataLoader(
-            Subset(self.non_transformed_trainset, validation_indices.tolist()),
-            batch_size=self.batch_size, 
-            shuffle=False, pin_memory=True
-        )
+        # validation dataset
+        self.val_ds = Subset(self.non_transformed_trainset, validation_indices.tolist())
 
         # indices for the labeled and unlabeled sets      
-        self.labeled_indices = train_indices[:init_lab_obs].tolist()
-        self.unlabeled_indices = train_indices[init_lab_obs:].tolist()
+        self.labeled_indices: List[int] = train_indices[:init_lab_obs].tolist()
+        self.unlabeled_indices: List[int] = train_indices[init_lab_obs:].tolist()
 
     
 
 
 class DatasetChoice(Dataset):
-    def __init__(self, dataset_name, bool_train, bool_transform = True, al_iters = None):
+    def __init__(self, dataset_name: str, bool_train: bool, bool_transform = True) -> None:
         
         self.bool_transform = bool_transform
-        self.al_iters = al_iters
 
         if bool_transform:
             # train
-            self.ds = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',train=bool_train, download=True,
+            self.ds: Dataset = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',train=bool_train, download=True,
                 transform=becnhmark_datasets[dataset_name]['transforms']['train']
             )    
             
         else:
             # validation or test
-            self.ds = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True,
+            self.ds: Dataset = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True,
                 transform=becnhmark_datasets[dataset_name]['transforms']['test']
             )           
         
         
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.ds)
 
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> Tuple[int, torch.Tensor, int]:
         
-        image, label = self.ds[index]    
+        image, label = self.ds[index]
         return index, image, label
 
     

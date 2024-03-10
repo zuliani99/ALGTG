@@ -5,17 +5,19 @@ from torch.utils.data import DataLoader
 
 from strategies.Strategies import Strategies
 
+from typing import Dict, Any, List
+
 
 
 class CDAL(Strategies):
     
-    def __init__(self, al_params, LL):
+    def __init__(self, al_params: Dict[str, Any], LL: bool) -> None:
         super().__init__(al_params, LL)
         
         self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
 
 
-    def furthest_first(self, X, X_set, n_top_k_obs):
+    def furthest_first(self, X: torch.Tensor, X_set: torch.Tensor, n_top_k_obs: int) -> List[int]:
         m = X.size(0)
         if X_set.size(0) == 0:
             min_dist = float('inf') * torch.ones(m)
@@ -34,7 +36,7 @@ class CDAL(Strategies):
         return overall_topk
 
 
-    def query(self, sample_unlab_subset, n_top_k_obs):
+    def query(self, sample_unlab_subset: List[int], n_top_k_obs: int) -> List[int]:
                                 
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset, batch_size=self.batch_size,
