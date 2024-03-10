@@ -70,11 +70,10 @@ def train_evaluate(al_params: Dict[str, Any], epochs: int, len_lab_train_ds: int
         
         # GTG
         #zero_diag=False -> diagonal set to 1       
-        #GTG(al_params, our_method_params, LL=False,A_function='cos_sim', zero_diag=False),
-        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False),
-        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=True),
+        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, derivatives=Derivates_Enum.MEAN),
+        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, derivatives=Derivates_Enum.WEIGHTED_AVERAGE),
+        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, derivatives=Derivates_Enum.INTEGRAL),
         
-        #GTG(al_params, our_method_params, LL=False, A_function='corr', zero_diag=False, derivatives='mean'),
         GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, derivatives=Derivates_Enum.MEAN),
         GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, derivatives=Derivates_Enum.WEIGHTED_AVERAGE),
         GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, derivatives=Derivates_Enum.INTEGRAL),

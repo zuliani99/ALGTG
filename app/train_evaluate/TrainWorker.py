@@ -65,7 +65,7 @@ class TrainWorker():
     def __save_checkpoint(self, filename: str, check_type: str) -> None:
         print(f' => Saving {check_type} checkpoint')
         checkpoint = {
-            'state_dict': self.model.module.state_dict(),
+            'state_dict': self.model.module.state_dict() if self.world_size > 1 else self.model.state_dict(),
             'optimizer': self.optimizer.state_dict(),
             'scheduler': self.scheduler.state_dict()
         }
@@ -76,8 +76,9 @@ class TrainWorker():
     
     def __load_checkpoint(self, filename: str, check_type: str) -> None:
         print(f' => Load {check_type} checkpoint')
-        checkpoint = torch.load(filename, map_location={'cuda:%d' % 0: 'cuda:%d' % self.gpu_id})
-        self.model.module.load_state_dict(checkpoint['state_dict'])
+        #checkpoint = torch.load(filename, map_location={'cuda:%d' % 0: 'cuda:%d' % self.device.index})
+        checkpoint = torch.load(filename, map_location=self.device)
+        self.model.module.load_state_dict(checkpoint['state_dict']) if self.world_size > 1 else self.model.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['scheduler'])
         print(' DONE\n')
