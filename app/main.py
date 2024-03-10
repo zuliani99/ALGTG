@@ -14,13 +14,12 @@ from strategies.BADGE import BADGE
 from strategies.LeastConfidence import LeastConfidence
 from strategies.K_Means import K_Means
 
-from utils import create_ts_dir_res, accuracy_score, plot_loss_curves, plot_accuracy_std_mean
+from utils import create_ts_dir_res, accuracy_score, plot_loss_curves, plot_accuracy_std_mean, set_seeds, Derivates_Enum
 
-import random
-import os
 from datetime import datetime
 import argparse
 import time
+from typing import Dict, Any, List, Tuple
 
 
 
@@ -36,18 +35,12 @@ sample_iterations = args.iterations[0]
 
 
 # setting seed and deterministic behaviour of pytorch for reproducibility
-os.environ['PYTHONHASHSEED'] = str(100001)
-torch.manual_seed(100001)
-torch.cuda.manual_seed(100001)
-torch.cuda.manual_seed_all(100001)
-np.random.seed(100001)
-random.seed(100001)
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
+set_seeds()
 
 
 
-def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_dim, n_top_k_obs, our_method_params):
+def train_evaluate(al_params: Dict[str, Any], epochs: int, len_lab_train_ds: int, al_iters: int, unlab_sample_dim: int, n_top_k_obs: int, our_method_params: Dict[str, int]) \
+    -> Tuple[Dict[str, List[float]], List[int]]:
 
     results = { }
     n_lab_obs = [len_lab_train_ds + (iter * n_top_k_obs) for iter in range(al_iters)]
@@ -55,13 +48,14 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
     methods = [
         # Random
         #Random(al_params, LL=False)
-        Random(al_params, LL=True),
+        #Random(al_params, LL=True),
         
         # LeastConfidence
         #LeastConfidence(al_params, LL=False), LeastConfidence(al_params, LL=True),
         
         # Rntropy
-        #Entropy(al_params, LL=False), Entropy(al_params, LL=True),
+        #Entropy(al_params, LL=False),
+        #Entropy(al_params, LL=True),
         
         # KMeans
         #K_Means(al_params, LL=False), K_Means(al_params, LL=True),
@@ -81,10 +75,10 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
         #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False),
         #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=True),
         
-        #derivates = ['mean', 'weighted', 'integral']
         #GTG(al_params, our_method_params, LL=False, A_function='corr', zero_diag=False, derivatives='mean'),
-        #GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, derivatives='mean'),
-        #GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=True),
+        #GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, derivatives=Derivates_Enum.MEAN),
+        #GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, derivatives=Derivates_Enum.WEIGHTED_AVERAGE),
+        GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, derivatives=Derivates_Enum.INTEGRAL),
     ]
         
         
@@ -107,23 +101,27 @@ def train_evaluate(al_params, epochs, len_lab_train_ds, al_iters, unlab_sample_d
 
 
 
-def main():
+def main() -> None:
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     if torch.cuda.is_available():
-        # Get the number of available GPUs
         num_gpus = torch.cuda.device_count()
         print("Number of available GPUs:", num_gpus)
         device = torch.device('cuda')
+        if torch.distributed.is_available(): print('We can train on multiple GPU')
+        if torch.distributed.is_nccl_available(): print('NCCL backend available')
     else:
         print("CUDA is not available. Using CPU.")
         device = torch.device('cpu')
-        
 
     print(f'Application running on {device}\n')
 
-    epochs = 200
+
+    
+
+
+    epochs = 10#200
     al_iters = 2#10
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
@@ -144,7 +142,7 @@ def main():
             
             create_ts_dir_res(timestamp, dataset_name, str(samp_iter))
             
-            DatasetChoice = SubsetDataloaders(dataset_name, batch_size, val_rateo=0.2, init_lab_obs=init_lab_obs, al_iters=al_iters)
+            DatasetChoice = SubsetDataloaders(dataset_name, batch_size, val_rateo=0.2, init_lab_obs=init_lab_obs)
             
             print('\n')
             
@@ -188,4 +186,4 @@ if __name__ == "__main__":
     main()
     end = time.time()
     
-    print(f'####################################################### TOTAL ELAPSED SECONDS: {end-start }#######################################################')
+    print(f'####################################################### TOTAL ELAPSED SECONDS: {end-start} #######################################################')

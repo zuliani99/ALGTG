@@ -1,20 +1,16 @@
 
-from utils import set_seeds
-from TrainEvaluate import TrainEvaluate
+from train_evaluate.TrainEvaluate import TrainEvaluate
 
 from torch.utils.data import Subset
 
+from typing import List, Dict, Any
+
+
 class Strategies(TrainEvaluate):
-    def __init__(self, al_params, LL):
+    def __init__(self, al_params: Dict[str, Any], LL: bool) -> None:
         super().__init__(al_params, LL)
         
-    def run(self, al_iters, epochs, unlab_sample_dim, n_top_k_obs):
-        
-        
-        ###########
-        #set_seeds()
-        ###########
-
+    def run(self, al_iters: int, epochs: int, unlab_sample_dim: int, n_top_k_obs: int) -> Dict[str, List[float]]:
         
         self.iter = 1
         
@@ -44,11 +40,6 @@ class Strategies(TrainEvaluate):
             print(' => Modifing the Subsets and Dataloader')
             self.get_new_dataloaders(topk_idx_obs)
             print(' DONE\n')
-            
-            
-            ###########
-            #set_seeds()
-            ###########
             
 
             # iter + 1

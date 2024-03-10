@@ -9,33 +9,33 @@ https://medium.com/@ramyamounir/distributed-data-parallel-with-slurm-submitit-py
 '''
 
 import torch
-#import torch.distributed as dist
 
 from utils import set_seeds, init_weights_apply
-from ResNet18 import LearningLoss
+from ResNet18 import LearningLoss, ResNet_Weird
+from torch.utils.data import DataLoader
 
-#import os
+from typing import Tuple, Dict, Any
 
 
-class TrainDDP():
-    def __init__(self, gpu_id, params):
+class TrainWorker():
+    def __init__(self, gpu_id: int, params: Dict[str, Any]) -> None:
         
         self.device = torch.device(f'cuda:{gpu_id}')
         
-        self.LL = params['LL']
-        self.patience = params['patience'],
-        self.model = params['model']
+        self.LL: bool = params['LL']
+        self.patience: int = params['patience'],
+        self.model: ResNet_Weird = params['model']
         
-        self.dataset_name = params['dataset_name']
-        self.method_name = params['method_name']
+        self.dataset_name: str = params['dataset_name']
+        self.method_name: str = params['method_name']
         
-        self.train_dl = params['train_dl']
-        self.val_dl = params['val_dl']
-        self.test_dl = params['test_dl']
+        self.train_dl: DataLoader = params['train_dl']
+        self.val_dl: DataLoader = params['val_dl']
+        self.test_dl: DataLoader = params['test_dl']
         
         
         self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none').to(self.device)
-        self.score_fn = params['score_fn']
+        self.score_fn: function = params['score_fn']
         self.loss_weird = LearningLoss(self.device).to(self.device)
         
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
@@ -61,7 +61,7 @@ class TrainDDP():
         #dist.barrier()
     
     
-    def __save_checkpoint(self, filename, check_type):
+    def __save_checkpoint(self, filename: str, check_type: str) -> None:
         print(f' => Saving {check_type} checkpoint')
         checkpoint = {
             'state_dict': self.model.module.state_dict(),
@@ -73,9 +73,8 @@ class TrainDDP():
     
     
     
-    def __load_checkpoint(self, filename, check_type):
+    def __load_checkpoint(self, filename: str, check_type: str) -> None:
         print(f' => Load {check_type} checkpoint')
-        #checkpoint = torch.load(filename, map_location={'cuda:%d' % 0: 'cuda:%d' % self.gpu_id})
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.module.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
@@ -84,7 +83,8 @@ class TrainDDP():
 
 
 
-    def compute_losses(self, weight, out_weird, outputs, labels, tot_loss_ce, tot_loss_weird):
+    def compute_losses(self, weight: int, out_weird: torch.Tensor, outputs: torch.Tensor, \
+        labels: torch.Tensor, tot_loss_ce: float, tot_loss_weird: float) -> Tuple[torch.Tensor, float, float]:
         
         loss_ce = self.loss_fn(outputs, labels)
         
@@ -104,7 +104,7 @@ class TrainDDP():
 
 
 
-    def evaluate(self, dataloader, weight):
+    def evaluate(self, dataloader: DataLoader, weight: int) -> Tuple[float, float, float, float]:
                 
         tot_loss, tot_loss_ce, tot_loss_weird, tot_accuracy = .0, .0, .0, .0
         
@@ -116,7 +116,9 @@ class TrainDDP():
                 images, labels = images.to(self.device, non_blocking=True), labels.to(self.device, non_blocking=True)
                 outputs, _, out_weird, _ = self.model(images)
 
-                loss, tot_loss_ce, tot_loss_weird = self.compute_losses(weight, out_weird, outputs, labels, tot_loss_ce, tot_loss_weird)
+                loss, tot_loss_ce, tot_loss_weird = self.compute_losses(
+                        weight, out_weird, outputs, labels, tot_loss_ce, tot_loss_weird
+                    )
                 
                 tot_accuracy += self.score_fn(outputs, labels)
                 tot_loss += loss.item()
@@ -132,7 +134,7 @@ class TrainDDP():
     
     
     
-    def train_evaluate(self, epochs):
+    def train_evaluate(self, epochs: int) -> torch.Tensor:
         
         #self.__load_checkpoint(self.init_check_filename, 'initial')
         
@@ -160,7 +162,6 @@ class TrainDDP():
             
             
             
-            #print(f"\n[GPU{self.device}] Epoch {epoch + 1} | Batchsize: {len(next(iter(self.train_dl))[0])} | Steps: {len(self.train_dl)}")
             
             for _, images, labels in self.train_dl:                
                                     
@@ -226,7 +227,7 @@ class TrainDDP():
 
 
 
-    def test(self):
+    def test(self) -> torch.Tensor:
         test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.evaluate(self.test_dl, weight=1)
         
         if test_loss_ce != 0.0:

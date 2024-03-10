@@ -2,27 +2,21 @@
 import torch
 from torch.utils.data import DataLoader, Subset
 import torch.multiprocessing as mp
-from torch.utils.data.distributed import DistributedSampler
-from torch.nn.parallel import DistributedDataParallel as DDP
-
-from torch.distributed import destroy_process_group, init_process_group
 from torch.utils.data.sampler import SubsetRandomSampler
-import torch.distributed as dist
+from train_evaluate.Train_DDP import train, train_ddp
 
-from DDPTrainer import TrainDDP
 from ResNet18 import BasicBlock, ResNet_Weird
 from Datasets import DatasetChoice, SubsetDataloaders
 from utils import save_train_val_curves, write_csv, set_seeds
 
 import copy
 import random
-import os
-
-
-
+from typing import List, Dict, Any
+    
+    
 class TrainEvaluate(object):
 
-    def __init__(self, params, LL):
+    def __init__(self, params: Dict[str, Any], LL: bool) -> None:
 
         self.LL = LL        
         sdl: SubsetDataloaders = params['DatasetChoice']
@@ -38,14 +32,14 @@ class TrainEvaluate(object):
         self.transformed_trainset: DatasetChoice = sdl.transformed_trainset 
         self.non_transformed_trainset: DatasetChoice = sdl.non_transformed_trainset 
         
-        self.device = params['device']
-        self.batch_size = params['batch_size']
+        self.device: torch.device = params['device']
+        self.batch_size: int = params['batch_size']
        
-        self.patience = params['patience']
-        self.score_fn = params['score_fn']
-        self.timestamp = params['timestamp']
-        self.dataset_name = params['dataset_name']
-        self.iter_sample = params['samp_iter']
+        self.patience: int = params['patience']
+        self.score_fn: function = params['score_fn']
+        self.timestamp: str = params['timestamp']
+        self.dataset_name: str = params['dataset_name']
+        self.iter_sample: int = params['samp_iter']
 
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
                 
@@ -69,9 +63,9 @@ class TrainEvaluate(object):
 
         
         
-    def get_embeddings(self, dataloader, dict_to_modify):
+    def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, torch.Tensor]) -> None:
         
-        checkpoint = torch.load(f'{self.best_check_filename}/best_{self.method_name}.pth.tar', map_location=self.device)
+        checkpoint: Dict = torch.load(f'{self.best_check_filename}/best_{self.method_name}_cuda:0.pth.tar', map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
 
         if 'embedds' in dict_to_modify:
@@ -103,7 +97,7 @@ class TrainEvaluate(object):
 
 
 
-    def get_new_dataloaders(self, overall_topk):
+    def get_new_dataloaders(self, overall_topk: int) -> None:
         
         # extend with the overall_topk
         self.labeled_indices.extend(overall_topk)
@@ -127,7 +121,7 @@ class TrainEvaluate(object):
 
 
 
-    def get_unlabebled_samples(self, unlab_sample_dim, iter):
+    def get_unlabebled_samples(self, unlab_sample_dim: int, iter: int) -> List[int]:
         if(len(self.unlabeled_indices) > unlab_sample_dim):
             
             # custom seed for the sequence
@@ -146,20 +140,20 @@ class TrainEvaluate(object):
         
     
     
-    def remove_model_opt(self):
+    def remove_model_opt(self) -> None:
         del self.model
         torch.cuda.empty_cache()
         
         
         
-    def clear_cuda_variables(self, variables):
+    def clear_cuda_variables(self, variables) -> None:
         for var in variables: del var
         torch.cuda.empty_cache()
 
 
 
 
-    def train_evaluate_save(self, epochs, lab_obs, iter, results):
+    def train_evaluate_save(self, epochs: int, lab_obs: List[int], iter: int, results: Dict[str, List[float]]) -> None:
                 
         params = {
             'num_classes': self.n_classes, 'n_channels': self.n_channels,
@@ -174,11 +168,19 @@ class TrainEvaluate(object):
         
         parent_conn, child_conn = mp.Pipe()
         world_size = torch.cuda.device_count()
-        mp.spawn(train_ddp, args=(world_size, params, epochs, child_conn, ), nprocs=world_size)
-        while parent_conn.poll():
-            train_recv, test_recv = parent_conn.recv()
+        
+        # if we are using multiple gpus
+        if world_size > 1:
+            # spawn the process
+            mp.spawn(train_ddp, args=(world_size, params, epochs, child_conn, ), nprocs=world_size)
+            # obtain the results
+            while parent_conn.poll():
+                train_recv, test_recv = parent_conn.recv()
                 
-    
+        else:
+            train_recv, test_recv = train(params, epochs)
+
+
             
         
         train_results = {
@@ -209,73 +211,3 @@ class TrainEvaluate(object):
 
         
         
-def train_ddp(rank, world_size, params, epochs, conn):
-    
-    #MASTER_ADDR:MASTER_PORT=ppv-gpu1:16217
-    os.environ["MASTER_ADDR"] = "ppv-gpu1"
-    os.environ["MASTER_PORT"] = "16217"
-    
-    init_process_group(backend='nccl', init_method='env://', rank=rank, world_size=world_size)
-    
-    torch.cuda.set_device(rank)
-    
-    
-    
-    train_results = [torch.zeros((8, epochs), device=rank) for _ in range(world_size)]
-    test_results = [torch.zeros(4, device=rank) for _ in range(world_size)]
-    
-    
-    
-    batch_size = int(params['batch_size'])
-
-    model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=params['num_classes'], n_channels=params['n_channels']).cuda(rank)#to(rank)
-    model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
-    params['model'] = model
-    
-    num_workers = int((int(os.environ['SLURM_CPUS_PER_TASK']) + world_size - 1) / world_size)
-    
-    
-    params['train_dl'] = DataLoader(
-                            params['train_ds'], batch_size=batch_size,
-                            sampler=DistributedSampler(params['train_ds'], num_replicas=world_size, rank=rank, shuffle=True, seed=100001),
-                            shuffle=False, pin_memory=True, persistent_workers=True,
-                            num_workers=num_workers
-                        )
-    
-    params['val_dl'] = DataLoader(
-                            params['val_ds'], batch_size=batch_size,
-                            sampler=DistributedSampler(params['val_ds'], num_replicas=world_size, rank=rank, shuffle=False, seed=100001),
-                            shuffle=False, pin_memory=True, persistent_workers=True,
-                            num_workers=num_workers
-                        )
-    
-    params['test_dl'] = DataLoader(
-                            params['test_ds'], batch_size=batch_size,
-                            sampler=DistributedSampler(params['test_ds'], num_replicas=world_size, rank=rank, shuffle=False, seed=100001),
-                            shuffle=False, pin_memory=True, persistent_workers=True,
-                            num_workers=num_workers
-                        )
-   
-    
-    train_test = TrainDDP(rank, params)
-    
-    
-    if rank == 0:
-        dist.gather(train_test.train_evaluate(epochs), train_results)
-        dist.gather(train_test.test(), test_results)
-    else:
-        dist.gather(train_test.train_evaluate(epochs))
-        dist.gather(train_test.test())
-                
-        
-    
-    if rank == 0:
-        train_results = (torch.sum(torch.stack(train_results), dim=0) / world_size).cpu().tolist()
-        test_results = (torch.sum(torch.stack(test_results), dim=0) / world_size).cpu().tolist()
-        
-        conn.send((train_results, test_results))           
-    
-    
-    destroy_process_group()
-    
-    

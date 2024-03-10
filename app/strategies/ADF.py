@@ -3,11 +3,13 @@ import numpy as np
 import torch
 
 from strategies.Strategies import Strategies
+from typing import Dict, Any, List
+
 
 
 class AdversarialDeepFool(Strategies):
     
-    def __init__(self, al_params, LL):
+    def __init__(self, al_params: Dict[str, Any], LL: bool) -> None:
         super().__init__(al_params, LL)
         
         self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
@@ -55,7 +57,10 @@ class AdversarialDeepFool(Strategies):
         return (eta*eta).sum()
 
 
-    def query(self, sample_unlab_subset, n_top_k_obs):
+    def query(self, sample_unlab_subset: List[int], n_top_k_obs: int) -> List[int]:
+
+        checkpoint = torch.load(f'{self.best_check_filename}/best_{self.method_name}_cuda:0.pth.tar', map_location=self.device)
+        self.model.load_state_dict(checkpoint['state_dict'])
 
         self.model.cpu()
         self.model.eval()

@@ -6,17 +6,23 @@ import torch.nn.functional as F
 from strategies.Strategies import Strategies
 from utils import entropy
 
+from typing import Dict, Any, List, Tuple
+
+
 
 class BALD(Strategies):
     
-    def __init__(self, al_params, LL):
+    def __init__(self, al_params: Dict[str, Any], LL: bool) -> None:
         super().__init__(al_params, LL)
         
         self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
         
         
         
-    def evaluate_unlabeled_train(self, n_drop=5):
+    def evaluate_unlabeled_train(self, n_drop=5) -> Tuple[torch.Tensor, torch.Tensor]:
+        
+        checkpoint = torch.load(f'{self.best_check_filename}/best_{self.method_name}_cuda:0.pth.tar', map_location=self.device)
+        self.model.load_state_dict(checkpoint['state_dict'])
 
         self.model.train()
         
@@ -39,7 +45,7 @@ class BALD(Strategies):
         
     
 
-    def disagreement_dropout(self):
+    def disagreement_dropout(self) -> Tuple[torch.Tensor, torch.Tensor]:
         indices, prob_dist_drop = self.evaluate_unlabeled_train()
         
         mean_pb = torch.mean(prob_dist_drop, dim=0)
@@ -54,7 +60,7 @@ class BALD(Strategies):
         
     
     
-    def query(self, sample_unlab_subset, n_top_k_obs):
+    def query(self, sample_unlab_subset: List[int], n_top_k_obs: int) -> List[int]:
                         
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset, batch_size=self.batch_size,

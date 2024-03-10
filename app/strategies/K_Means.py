@@ -6,16 +6,19 @@ from torch.utils.data import DataLoader
 import numpy as np
 from sklearn.cluster import KMeans
 
+from typing import Dict, Any, List
+
+
 
 class K_Means(Strategies):
     
-    def __init__(self, al_params, LL):
+    def __init__(self, al_params: Dict[str, Any], LL: bool) -> None:
         super().__init__(al_params, LL)
         
         self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
                            
         
-    def apply_kmeans(self, n_clusters):
+    def apply_kmeans(self, n_clusters: int) -> np.ndarray:
         unlab_embeddings = self.embedds_dict['embedds'].cpu().numpy()
         
         cluster_learner = KMeans(n_clusters=n_clusters)
@@ -36,7 +39,7 @@ class K_Means(Strategies):
         return closest_indices
     
     
-    def query(self, sample_unlab_subset, n_top_k_obs):
+    def query(self, sample_unlab_subset: List[int], n_top_k_obs: int) -> List[int]:
                         
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset, batch_size=self.batch_size,
