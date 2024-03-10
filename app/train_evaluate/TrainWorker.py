@@ -18,11 +18,12 @@ from typing import Tuple, Dict, Any
 
 
 class TrainWorker():
-    def __init__(self, gpu_id: int, params: Dict[str, Any]) -> None:
+    def __init__(self, gpu_id: int, params: Dict[str, Any], world_size: int = 1) -> None:
         
-        self.device = torch.device(f'cuda:{gpu_id}')
+        self.device = torch.device(gpu_id)
         
         self.LL: bool = params['LL']
+        self.world_size = world_size
         self.patience: int = params['patience'],
         self.model: ResNet_Weird = params['model']
         
@@ -75,7 +76,7 @@ class TrainWorker():
     
     def __load_checkpoint(self, filename: str, check_type: str) -> None:
         print(f' => Load {check_type} checkpoint')
-        checkpoint = torch.load(filename, map_location=self.device)
+        checkpoint = torch.load(filename, map_location={'cuda:%d' % 0: 'cuda:%d' % self.gpu_id})
         self.model.module.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['scheduler'])
@@ -156,13 +157,12 @@ class TrainWorker():
                 weight = 0
             
             
-            
-            self.train_dl.sampler.set_epoch(epoch)
+            if self.world_size > 1:
+                self.train_dl.sampler.set_epoch(epoch)
             self.model.train()
             
             
-            
-            
+                        
             for _, images, labels in self.train_dl:                
                                     
                 images, labels = images.to(self.device, non_blocking=True), labels.to(self.device, non_blocking=True)

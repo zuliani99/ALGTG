@@ -159,8 +159,7 @@ class TrainEvaluate(object):
             'num_classes': self.n_classes, 'n_channels': self.n_channels,
             'LL': self.LL, 'patience': self.patience, 'dataset_name': self.dataset_name, 'method_name': self.method_name,
             'train_ds': Subset(self.transformed_trainset, self.labeled_indices), 'val_ds': self.val_ds, 'test_ds': self.test_ds,
-            'transformed_trainset': self.transformed_trainset, 'non_transformed_trainset': self.non_transformed_trainset,
-            'batch_size': self.batch_size, 'score_fn': self.score_fn
+            'batch_size': self.batch_size, 'score_fn': self.score_fn, 'main_device': self.device
         }
         
         
@@ -178,6 +177,8 @@ class TrainEvaluate(object):
                 train_recv, test_recv = parent_conn.recv()
                 
         else:
+            # add the already created labeeld train dataloader
+            params['train_dl'] = self.lab_train_dl
             train_recv, test_recv = train(params, epochs)
 
 
