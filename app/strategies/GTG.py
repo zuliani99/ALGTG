@@ -24,6 +24,7 @@ class GTG(Strategies):
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,
             'corr': self.get_A_corr,
+            'rbfk': self.get_A_rbfk,
         }
         self.A_function = A_function
         self.zero_diag = zero_diag
