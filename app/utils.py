@@ -326,6 +326,7 @@ class Entropy_Strategy(Enum):
     MEAN_DERIVATIVES = 0
     WEIGHTED_AVERAGE_DERIVATIVES = 1
     HISTORY_INTEGRAL = 2
+    LAST = 3
 
 
 def set_seeds() -> None:

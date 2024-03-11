@@ -156,6 +156,10 @@ class GTG(Strategies):
             self.clear_memory()                
             print(' DONE\n')
             
+            
+        if self.ent_strategy is Entropy_Strategy.LAST:
+            # returning the last entropies values
+            overall_topk = torch.topk(self.entropy_history[-1], n_top_k_obs)
         
         if self.ent_strategy is Entropy_Strategy.HISTORY_INTEGRAL:
             # computing the area of each entropies derivates fucntion via the trapezius formula 
