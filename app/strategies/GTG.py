@@ -1,7 +1,6 @@
 
-from enum import Enum
 from strategies.Strategies import Strategies
-from utils import entropy, plot_history, plot_derivatives, Derivates_Enum
+from utils import entropy, plot_history, plot_derivatives, Entropy_Strategy
 
 import torch
 from torch.utils.data import DataLoader
@@ -18,7 +17,7 @@ from typing import Dict, Any, List
 
 class GTG(Strategies):
     
-    def __init__(self, al_params: Dict[str, Any], our_methods_params: Dict[str, int], LL: bool, A_function: str, zero_diag: bool, derivatives: Derivates_Enum) -> None:
+    def __init__(self, al_params: Dict[str, Any], our_methods_params: Dict[str, int], LL: bool, A_function: str, zero_diag: bool, ent_strategy: Entropy_Strategy) -> None:
         super().__init__(al_params, LL)
         
         self.get_A_fn = {
@@ -27,12 +26,12 @@ class GTG(Strategies):
         }
         self.A_function = A_function
         self.zero_diag = zero_diag
-        self.derivatives = derivatives
+        self.ent_strategy = ent_strategy
         
         str_diag = '0diag' if self.zero_diag else '1diag'
                 
-        self.method_name = f'{self.__class__.__name__}_{self.A_function}_{self.derivatives.name}_{str_diag}_LL' if LL \
-            else f'{self.__class__.__name__}_{self.A_function}_{self.derivatives.name}_{str_diag}'
+        self.method_name = f'{self.__class__.__name__}_{self.A_function}_{self.ent_strategy.name}_{str_diag}_LL' if LL \
+            else f'{self.__class__.__name__}_{self.A_function}_{self.ent_strategy.name}_{str_diag}'
             
         self.params = our_methods_params 
                 
@@ -158,11 +157,17 @@ class GTG(Strategies):
             print(' DONE\n')
             
         
-        if self.derivatives == Derivates_Enum.INTEGRAL:
-            
+        if self.ent_strategy is Entropy_Strategy.HISTORY_INTEGRAL:
             # computing the area of each entropies derivates fucntion via the trapezius formula 
-            area: np.ndarray = trapz(-np.diff(self.entropy_history.cpu().numpy(), axis=1))
-            #area = simpson(-np.diff(self.entropy_history.cpu().numpy(), axis=1), np.arange(self.params['gtg_max_iter'] - 1), axis=0)
+            #area: np.ndarray = trapz(-np.diff(self.entropy_history.cpu().numpy(), axis=1))
+            #area: np.ndarray = simpson(-np.diff(self.entropy_history.cpu().numpy(), axis=1))
+            
+            #-----------------------------------------------------------------------------------------------
+            # WRONG COMPUTING THE AREA OVER THE DERIVATIVES OF THE ENTROPY
+            # I WANT THE ARE OF THE ORIGINAL FUNCTION ENTROPIES THUS THE THEIR HISOTRY OVER GTG ITERATIONS
+            area: np.ndarray = simpson(self.entropy_history.cpu().numpy())
+            #-----------------------------------------------------------------------------------------------
+                        
             overall_topk = torch.topk(torch.from_numpy(area), n_top_k_obs)
         
         else:
@@ -173,7 +178,7 @@ class GTG(Strategies):
             # plot entropy history
             plot_history(self.entropy_history, f'./app/gtg_entropy/history/{self.method_name}_{self.iter}.png', self.iter, self.params['gtg_max_iter'])
 
-            if self.derivatives is Derivates_Enum.WEIGHTED_AVERAGE:
+            if self.ent_strategy is Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES:
                 # getting the last column that have at least one element with entropy greater than 1e-15
                 for col_index in range(self.entropy_pairwise_der.size(1) - 1, -1, -1):
                     if torch.any(self.entropy_pairwise_der[:, col_index] > 1e-15): break
@@ -190,7 +195,7 @@ class GTG(Strategies):
                     n_top_k_obs
                 )    
             
-            elif self.derivatives == Derivates_Enum.MEAN:
+            elif self.ent_strategy is Entropy_Strategy.MEAN_DERIVATIVES:
                 # classic average among the derivates
                 overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der, dim=1), n_top_k_obs)
             else:
@@ -200,7 +205,7 @@ class GTG(Strategies):
             # plot in the entropy derivatives and weighted entropy derivatives
             plot_derivatives(
                 self.entropy_pairwise_der,
-                self.entropy_pairwise_der * weights if self.derivatives == 'weighted' else self.entropy_pairwise_der,
+                self.entropy_pairwise_der * weights if self.ent_strategy is Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES else self.entropy_pairwise_der,
                 f'./app/gtg_entropy/weighted_derivatives/{self.method_name}_{self.iter}.png',
                 self.iter, self.params['gtg_max_iter'] - 1
             )
@@ -209,7 +214,7 @@ class GTG(Strategies):
             # plot in the top k entropy derivatives and weighted entropy derivatives
             plot_derivatives(
                 self.entropy_pairwise_der[overall_topk.indices.tolist()],
-                (self.entropy_pairwise_der * weights if self.derivatives == 'weighted' else self.entropy_pairwise_der)[overall_topk.indices.tolist()],
+                (self.entropy_pairwise_der * weights if self.ent_strategy is Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES else self.entropy_pairwise_der)[overall_topk.indices.tolist()],
                 f'./app/gtg_entropy/topk_weighted_derivatives/{self.method_name}_{self.iter}.png',
                 self.iter, self.params['gtg_max_iter'] - 1
             )

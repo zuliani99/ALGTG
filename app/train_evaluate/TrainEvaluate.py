@@ -171,7 +171,7 @@ class TrainEvaluate(object):
         # if we are using multiple gpus
         if world_size > 1:
             # spawn the process
-            mp.spawn(train_ddp, args=(world_size, params, epochs, child_conn, ), nprocs=world_size)
+            mp.spawn(train_ddp, args=(world_size, params, epochs, child_conn, ), nprocs=world_size, join=True)
             # obtain the results
             while parent_conn.poll():
                 train_recv, test_recv = parent_conn.recv()

@@ -322,10 +322,10 @@ def plot_accuracy_std_mean(timestamp: str, dataset_name: str) -> None:
     plt.savefig(f'results/{timestamp}/{dataset_name}/mean_std_accuracy_plot.png') 
     
 
-class Derivates_Enum(Enum):
-    MEAN = 0
-    WEIGHTED_AVERAGE = 1
-    INTEGRAL = 2
+class Entropy_Strategy(Enum):
+    MEAN_DERIVATIVES = 0
+    WEIGHTED_AVERAGE_DERIVATIVES = 1
+    HISTORY_INTEGRAL = 2
 
 
 def set_seeds() -> None:

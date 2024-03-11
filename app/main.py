@@ -13,7 +13,7 @@ from strategies.BADGE import BADGE
 from strategies.LeastConfidence import LeastConfidence
 from strategies.K_Means import K_Means
 
-from utils import create_ts_dir_res, accuracy_score, plot_loss_curves, plot_accuracy_std_mean, set_seeds, Derivates_Enum
+from utils import create_ts_dir_res, accuracy_score, plot_loss_curves, plot_accuracy_std_mean, set_seeds, Entropy_Strategy
 
 from datetime import datetime
 import argparse
@@ -70,13 +70,13 @@ def train_evaluate(al_params: Dict[str, Any], epochs: int, len_lab_train_ds: int
         
         # GTG
         #zero_diag=False -> diagonal set to 1       
-        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, derivatives=Derivates_Enum.MEAN),
-        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, derivatives=Derivates_Enum.WEIGHTED_AVERAGE),
-        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, derivatives=Derivates_Enum.INTEGRAL),
+        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, ent_strategy=Entropy_Strategy.MEAN_DERIVATIVES),
+        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, ent_strategy=Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES),
+        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, ent_strategy=Entropy_Strategy.HISTORY_INTEGRAL),
         
-        GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, derivatives=Derivates_Enum.MEAN),
-        GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, derivatives=Derivates_Enum.WEIGHTED_AVERAGE),
-        GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, derivatives=Derivates_Enum.INTEGRAL),
+        GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, ent_strategy=Entropy_Strategy.MEAN_DERIVATIVES),
+        GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, ent_strategy=Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES),
+        GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, ent_strategy=Entropy_Strategy.HISTORY_INTEGRAL),
     ]
         
         
@@ -158,7 +158,7 @@ def main() -> None:
             
             our_method_params = {
                 'gtg_tol': 0.001,
-                'gtg_max_iter': 30,
+                'gtg_max_iter': 30 # remember that simpson's rule need an even number of observations to compute the integrals
             }
             
 
