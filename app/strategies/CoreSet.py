@@ -58,7 +58,8 @@ class CoreSet(Strategies):
         topk_idx_obs = self.furthest_first(n_top_k_obs)
         print(' DONE\n')
         
-        self.clear_cuda_variables([self.lab_embedds_dict, self.unlab_embedds_dict])
+        del self.lab_embedds_dict
+        torch.cuda.empty_cache()
         
         return [self.unlab_embedds_dict['idxs'][id].item() for id in topk_idx_obs]
     

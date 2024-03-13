@@ -83,6 +83,7 @@ class TrainEvaluate(object):
         # again no gradients needed
         with torch.inference_mode():
             for idxs, images, labels in dataloader:
+                
                 if('embedds' in dict_to_modify or 'probs' in dict_to_modify):
                     outs, embed, _, _ = self.model(images.to(self.device))
                 
@@ -152,9 +153,9 @@ class TrainEvaluate(object):
         
         
     # seems not woking properly
-    def clear_cuda_variables(self, variables) -> None:
+    '''def clear_cuda_variables(self, variables) -> None:
         for var in variables: del var
-        torch.cuda.empty_cache()
+        torch.cuda.empty_cache()'''
 
 
 

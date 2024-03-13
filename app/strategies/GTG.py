@@ -80,7 +80,9 @@ class GTG(Strategies):
         if self.zero_diag: A.fill_diagonal_(0.)
         else: A.fill_diagonal_(1.)
         
-        self.clear_cuda_variables([concat_embedds, normalized_embedding])
+        del concat_embedds
+        del normalized_embedding
+        torch.cuda.empty_cache()
         return A
         
         
@@ -91,7 +93,8 @@ class GTG(Strategies):
         
         if self.zero_diag: A.fill_diagonal_(0.)
         
-        self.clear_cuda_variables([concat_embedds])
+        del concat_embedds
+        torch.cuda.empty_cache()
         return A
 
         

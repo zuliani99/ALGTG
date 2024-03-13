@@ -32,7 +32,6 @@ class LeastConfidence(Strategies):
             
         topk_idx_obs = torch.topk(unlab_probs.max(1)[0], n_top_k_obs)
         
-        self.clear_cuda_variables([self.embedds_dict])
-        
+                
         return [self.embedds_dict['idxs'][id].item() for id in topk_idx_obs.indices.tolist()]
     

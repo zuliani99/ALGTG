@@ -73,7 +73,8 @@ class BALD(Strategies):
             
         overall_topk = torch.topk(res_entropy, n_top_k_obs)
         
-        self.clear_cuda_variables([indices, res_entropy])
+        del res_entropy
+        torch.cuda.empty_cache()
         
         return [indices[id].item() for id in overall_topk.indices.tolist()]
     

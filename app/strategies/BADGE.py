@@ -67,8 +67,7 @@ class BADGE(Strategies):
         topk_idx_obs = self.init_centers(n_top_k_obs)
         print(' DONE\n')
         
-        self.clear_cuda_variables([self.embedds_dict])
-        
+                
         return [self.embedds_dict['idxs'][id].item() for id in topk_idx_obs]
 
     

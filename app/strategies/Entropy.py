@@ -35,8 +35,4 @@ class Entropy(Strategies):
         overall_topk = torch.topk(tot_entr, n_top_k_obs)
         
         
-        del embeds_dict
-        del tot_entr
-        torch.cuda.empty_cache()
-        
         return [embeds_dict['idxs'][id].item() for id in overall_topk.indices.tolist()]

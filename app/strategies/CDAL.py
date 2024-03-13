@@ -55,7 +55,6 @@ class CDAL(Strategies):
         
         topk_idx_obs = self.furthest_first(unlab_probs, lab_probs, n_top_k_obs)
                     
-        self.clear_cuda_variables([self.embedds_dict])
         
         return [self.embedds_dict['idxs'][id].item() for id in topk_idx_obs.indices.tolist()]
     
