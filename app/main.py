@@ -70,15 +70,20 @@ def train_evaluate(al_params: Dict[str, Any], epochs: int, len_lab_train_ds: int
         
         # GTG
         #zero_diag=False -> diagonal set to 1
-        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, ent_strategy=Entropy_Strategy.LAST),
-        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, ent_strategy=Entropy_Strategy.MEAN_DERIVATIVES),
-        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, ent_strategy=Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES),
-        GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, ent_strategy=Entropy_Strategy.HISTORY_INTEGRAL),
+        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, ent_strategy=Entropy_Strategy.LAST),
+        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, ent_strategy=Entropy_Strategy.MEAN_DERIVATIVES),
+        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, ent_strategy=Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES),
+        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, ent_strategy=Entropy_Strategy.HISTORY_INTEGRAL),
         
-        GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, ent_strategy=Entropy_Strategy.LAST),
-        GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, ent_strategy=Entropy_Strategy.MEAN_DERIVATIVES),
+        #GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, ent_strategy=Entropy_Strategy.LAST),
+        #GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, ent_strategy=Entropy_Strategy.MEAN_DERIVATIVES),
         GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, ent_strategy=Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES),
         GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, ent_strategy=Entropy_Strategy.HISTORY_INTEGRAL),
+        
+        #GTG(al_params, our_method_params, LL=True, A_function='rbfk', zero_diag=False, ent_strategy=Entropy_Strategy.LAST),
+        #GTG(al_params, our_method_params, LL=True, A_function='rbfk', zero_diag=False, ent_strategy=Entropy_Strategy.MEAN_DERIVATIVES),
+        GTG(al_params, our_method_params, LL=True, A_function='rbfk', zero_diag=False, ent_strategy=Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES),
+        GTG(al_params, our_method_params, LL=True, A_function='rbfk', zero_diag=False, ent_strategy=Entropy_Strategy.HISTORY_INTEGRAL),
     ]
         
         

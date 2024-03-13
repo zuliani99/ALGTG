@@ -53,7 +53,8 @@ class TrainWorker():
         #    print(' DONE\n')
             
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
+        self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[160], gamma=0.1)
+        #self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
         
         #if self.device == 0 and not os.path.exists(self.init_check_filename):
         #    self.__save_checkpoint(self.init_check_filename, 'initial')
@@ -149,9 +150,9 @@ class TrainWorker():
 
             train_loss, train_loss_ce, train_loss_weird, train_accuracy = .0, .0, .0, .0
 
-            if epoch == 160:
-                print('Decreasing learning rate to 0.01\n')
-                for g in self.optimizer.param_groups: g['lr'] = 0.01
+            #if epoch == 160:
+            #    print('Decreasing learning rate to 0.01\n')
+            #    for g in self.optimizer.param_groups: g['lr'] = 0.01
             
             if self.LL and epoch == 121:
                 print('Ignoring the learning loss form now\n') 
@@ -192,7 +193,7 @@ class TrainWorker():
             # CosineAnnealingLR
             #self.scheduler.step()
             ###################################
-            
+
             
             
             for pos, metric in zip(range(4), [train_loss, train_loss_ce, train_loss_weird, train_accuracy]):
@@ -200,6 +201,9 @@ class TrainWorker():
             
             # evaluating using the validation set
             val_accuracy, val_loss, val_loss_ce, val_loss_weird = self.evaluate(self.val_dl, weight)
+            
+            #MultiStepLR
+            self.scheduler.step()
             
             for pos, metric in zip(range(4,8), [val_loss, val_loss_ce, val_loss_weird, val_accuracy]):
                 results[pos][epoch] = metric

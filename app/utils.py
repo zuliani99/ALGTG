@@ -307,10 +307,10 @@ def plot_accuracy_std_mean(timestamp: str, dataset_name: str) -> None:
     plt.figure(figsize=(14, 10))
     for idx, method in enumerate(methods):
         method_data = df_grouped[df_grouped['method'] == method]
-        plt.plot(method_data['lab_obs'], method_data['mean'], label=method)
-        #plt.fill_between(method_data['lab_obs'], method_data['ci_lower'], method_data['ci_upper'], alpha=0.3)
-        plt.plot(method_data['lab_obs'], method_data['ci_lower'], linewidth=0.8, linestyle='--', color=plt.gca().lines[-1].get_color())
-        plt.plot(method_data['lab_obs'], method_data['ci_upper'], linewidth=0.8, linestyle='--', color=plt.gca().lines[-1].get_color())
+        plt.plot(method_data['lab_obs'], method_data['mean'], label=method, linestyle = 'dashed' if method in ['Random_LL', 'Random'] else 'solid')
+        plt.fill_between(method_data['lab_obs'], method_data['ci_lower'], method_data['ci_upper'], alpha=0.3)
+        #plt.plot(method_data['lab_obs'], method_data['ci_lower'], linewidth=0.8, linestyle='--', color=plt.gca().lines[-1].get_color())
+        #plt.plot(method_data['lab_obs'], method_data['ci_upper'], linewidth=0.8, linestyle='--', color=plt.gca().lines[-1].get_color())
         plt.scatter(method_data['lab_obs'], method_data['mean'], marker=shapes[idx], color=plt.gca().lines[-1].get_color(), zorder=5)
 
     plt.xlabel('Labeled Observations')

@@ -10,6 +10,7 @@ from scipy.integrate import trapz, simpson
 import numpy as np
 
 import copy
+import gc
 from typing import Dict, Any, List
 
 
@@ -23,6 +24,7 @@ class GTG(Strategies):
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,
             'corr': self.get_A_corr,
+            'rbfk': self.get_A_rbfk
         }
         self.A_function = A_function
         self.zero_diag = zero_diag
@@ -37,35 +39,60 @@ class GTG(Strategies):
                 
         
         
-    # select the relative choosen affinity matrix method
-    def get_A(self, samp_unlab_embeddings: torch.Tensor) -> None: self.get_A_fn[self.A_function](samp_unlab_embeddings)
+    # select the relative choosen affinity matrix method and perform rbfk
+    def get_A(self, samp_unlab_embeddings: torch.Tensor) -> None:
+        self.A = self.get_A_fn[self.A_function](
+            concat_embedds = torch.cat((self.lab_embedds_dict['embedds'], samp_unlab_embeddings)).to(self.device)
+        )
 
 
-    def clear_memory(self) -> None:
-        del self.X
-        del self.A
-        torch.cuda.empty_cache()
+
+    # should be correct
+    # see if I can turn it back to cuda and not doing [cuda -> cpu -> cuda]
+    def get_A_rbfk(self, concat_embedds: torch.Tensor) -> torch.Tensor:
+        
+        concat_embedds_cpu = concat_embedds.cpu() 
+        del concat_embedds
+        torch.cuda.empty_cache()  
+        
+        e_d = torch.cdist(concat_embedds_cpu, concat_embedds_cpu)
+        seventh_neigh = concat_embedds_cpu[torch.argsort(e_d, dim=1, descending=True)[:, 6]]
+        
+        sigmas = torch.unsqueeze(torch.tensor([
+            torch.cdist(torch.unsqueeze(concat_embedds_cpu[i], dim=0), torch.unsqueeze(seventh_neigh[i], dim=0))
+            for i in range(concat_embedds_cpu.shape[0])
+        ]), dim=0)
+        
+        A = torch.exp(-e_d.pow(2) / (torch.mm(sigmas.T, sigmas))).to(self.device)
+        
+        if self.zero_diag: A.fill_diagonal_(0.)        
+        return A
+
 
 
     # correct
-    def get_A_cos_sim(self, samp_unlab_embeddings: torch.Tensor) -> None:
-                        
-        normalized_embedding = F.normalize(
-            torch.cat((self.lab_embedds_dict['embedds'], samp_unlab_embeddings)).to(self.device)
-        , dim=-1).to(self.device)
+    def get_A_cos_sim(self, concat_embedds: torch.Tensor) -> torch.Tensor:
+                                
+        normalized_embedding = F.normalize(concat_embedds, dim=-1).to(self.device)
         
-        self.A = F.relu(torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device))
+        A = F.relu(torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device))
         
-        if self.zero_diag: self.A.fill_diagonal_(0.)
-        else: self.A.fill_diagonal_(1.)
+        if self.zero_diag: A.fill_diagonal_(0.)
+        else: A.fill_diagonal_(1.)
         
-        del normalized_embedding
+        self.clear_cuda_variables([concat_embedds, normalized_embedding])
+        return A
+        
         
         
     # correct
-    def get_A_corr(self, samp_unlab_embeddings: torch.Tensor) -> None:
-        self.A = F.relu(torch.corrcoef(torch.cat((self.lab_embedds_dict['embedds'], samp_unlab_embeddings)).to(self.device)))
-        if self.zero_diag: self.A.fill_diagonal_(0.)
+    def get_A_corr(self, concat_embedds: torch.Tensor) -> torch.Tensor:
+        A = F.relu(torch.corrcoef(concat_embedds).to(self.device))
+        
+        if self.zero_diag: A.fill_diagonal_(0.)
+        
+        self.clear_cuda_variables([concat_embedds])
+        return A
 
         
 
@@ -84,8 +111,10 @@ class GTG(Strategies):
             for label in range(self.n_classes): self.X[idx][label] = 1. / self.n_classes
         
         
+        
     # correct
-    def gtg(self, indices: List[int]) -> None:
+    def gtg(self, indices: List[int]) -> None:       
+        
         err = float('Inf')
         i = 0
         old_rowsum_X = 0
@@ -113,10 +142,16 @@ class GTG(Strategies):
             
             err = torch.norm(self.X - X_old)
             i += 1
-
+            
+            del X_old
+            del iter_entropy
+            torch.cuda.empty_cache()
+            
 
 
     def query(self, sample_unlab_subset: List[int], n_top_k_obs: int) -> List[int]:
+        gc.collect()
+        torch.cuda.empty_cache()
             
         # set the entire batch size to the dimension of the sampled unlabeled set
         unlab_batch_size = len(sample_unlab_subset)
@@ -138,12 +173,11 @@ class GTG(Strategies):
         print(' DONE\n')
             
             
-
         # I save the entropy history in order to be able to plot it
         self.entropy_history = torch.zeros(
             (len(self.transformed_trainset), self.params['gtg_max_iter']), device=self.device
         )
-            
+        
 
         # for each split
         # split_idx -> indices of the split
@@ -153,9 +187,16 @@ class GTG(Strategies):
             self.get_A(self.unlab_embedds_dict['embedds'][split_idx * unlab_batch_size : (split_idx + 1) * unlab_batch_size])
             self.get_X(indices.shape[0])
             self.gtg(indices)
-            self.clear_memory()                
+            
+            del self.A
+            del self.X
+            torch.cuda.empty_cache()
+            
             print(' DONE\n')
             
+        del self.lab_embedds_dict
+        del self.unlab_embedds_dict
+        torch.cuda.empty_cache()         
             
         if self.ent_strategy is Entropy_Strategy.LAST:
             # returning the last entropies values
@@ -223,11 +264,11 @@ class GTG(Strategies):
                 self.iter, self.params['gtg_max_iter'] - 1
             )
         
-        
-            self.clear_cuda_variables(
-                [self.entropy_pairwise_der, self.entropy_history, self.lab_embedds_dict,
-                self.unlab_embedds_dict]
-            )
+            del self.entropy_pairwise_der
+            torch.cuda.empty_cache()  
             
+        del self.entropy_history
+        gc.collect()
+        torch.cuda.empty_cache() 
         
         return overall_topk.indices.tolist()

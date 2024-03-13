@@ -2,6 +2,7 @@
 from train_evaluate.TrainEvaluate import TrainEvaluate
 
 from torch.utils.data import Subset
+import torch
 
 from typing import List, Dict, Any
 
@@ -45,6 +46,9 @@ class Strategies(TrainEvaluate):
             # iter + 1
             self.train_evaluate_save(epochs, self.iter * n_top_k_obs, self.iter, results)
                         
-        self.remove_model_opt()
+        #self.remove_model_opt()
+        #self.clear_cuda_variables([self.model])
+        del self.model
+        torch.cuda.empty_cache()
             
         return results

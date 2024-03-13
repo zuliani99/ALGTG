@@ -34,6 +34,9 @@ class Entropy(Strategies):
         tot_entr = entropy(prob_dist).to(self.device)
         overall_topk = torch.topk(tot_entr, n_top_k_obs)
         
-        self.clear_cuda_variables([embeds_dict, tot_entr])
+        
+        del embeds_dict
+        del tot_entr
+        torch.cuda.empty_cache()
         
         return [embeds_dict['idxs'][id].item() for id in overall_topk.indices.tolist()]

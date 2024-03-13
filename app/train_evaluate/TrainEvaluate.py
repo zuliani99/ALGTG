@@ -11,6 +11,7 @@ from utils import save_train_val_curves, write_csv, set_seeds
 
 import copy
 import random
+import gc
 from typing import List, Dict, Any
     
     
@@ -67,7 +68,7 @@ class TrainEvaluate(object):
         
         checkpoint: Dict = torch.load(f'{self.best_check_filename}/best_{self.method_name}_cuda:0.pth.tar', map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
-
+        
         if 'embedds' in dict_to_modify:
             dict_to_modify['embedds'] = torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device)
         if 'probs' in dict_to_modify:
@@ -82,20 +83,30 @@ class TrainEvaluate(object):
         # again no gradients needed
         with torch.inference_mode():
             for idxs, images, labels in dataloader:
-                
-                idxs, images, labels = idxs.to(self.device), images.to(self.device), labels.to(self.device)
-                outs, embed, _, _ = self.model(images)
+                if('embedds' in dict_to_modify or 'probs' in dict_to_modify):
+                    outs, embed, _, _ = self.model(images.to(self.device))
                 
                 if 'embedds' in dict_to_modify:
                     dict_to_modify['embedds'] = torch.cat((dict_to_modify['embedds'], embed.squeeze()), dim=0)
+                    #self.clear_cuda_variables([embed])
+                    del embed
+                    
                 if 'probs' in dict_to_modify:
                     dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], outs.squeeze()), dim=0)
+                    #self.clear_cuda_variables([outs])
+                    del outs
+                    
                 if 'labels' in dict_to_modify:
-                    dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)
+                    dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels.to(self.device)), dim=0)
                 if 'idxs' in dict_to_modify:
-                    dict_to_modify['idxs'] = torch.cat((dict_to_modify['idxs'], idxs), dim=0)    
+                    dict_to_modify['idxs'] = torch.cat((dict_to_modify['idxs'], idxs.to(self.device)), dim=0)    
 
-
+                
+        #self.clear_cuda_variables([checkpoint])
+        del checkpoint
+        gc.collect()
+        torch.cuda.empty_cache()
+        
 
     def get_new_dataloaders(self, overall_topk: int) -> None:
         
@@ -138,14 +149,9 @@ class TrainEvaluate(object):
         
         else: return self.unlabeled_indices
         
-    
-    
-    def remove_model_opt(self) -> None:
-        del self.model
-        torch.cuda.empty_cache()
         
         
-        
+    # seems not woking properly
     def clear_cuda_variables(self, variables) -> None:
         for var in variables: del var
         torch.cuda.empty_cache()

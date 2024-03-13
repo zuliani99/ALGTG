@@ -71,8 +71,10 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], epochs: int, c
     else:
         dist.gather(train_test.train_evaluate(epochs))
         dist.gather(train_test.test())
-                
-    dist.barrier()
+              
+    # tried to remove the barrier, let's see what happend and if the semaphore warning is raised again or not   
+    # I've notice that the application run first the other gpu and then the gpu:0, like the dist.gather is blocking 
+    #dist.barrier()
     
     if rank == 0:
         train_results = (torch.sum(torch.stack(train_results), dim=0) / world_size).cpu().tolist()
