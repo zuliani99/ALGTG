@@ -7,10 +7,10 @@ from train_evaluate.Train_DDP import train, train_ddp
 
 from ResNet18 import BasicBlock, ResNet_Weird
 from Datasets import DatasetChoice, SubsetDataloaders
-from utils import save_train_val_curves, write_csv, set_seeds
+from utils import save_train_val_curves, write_csv
 
 import copy
-import random
+#import random
 import gc
 from typing import List, Dict, Any
     
@@ -25,6 +25,7 @@ class TrainEvaluate(object):
         self.n_classes = sdl.n_classes
         self.n_channels = sdl.n_channels
         self.dataset_id = sdl.dataset_id
+        #self.image_size = sdl.image_size
         
         
         self.test_ds: DatasetChoice = sdl.test_ds
@@ -49,16 +50,12 @@ class TrainEvaluate(object):
         self.unlabeled_indices = copy.deepcopy(sdl.unlabeled_indices)
         
         
-        ###########
-        set_seeds()
-        ###########
-        
-        
         self.lab_train_dl = DataLoader(
             self.transformed_trainset, batch_size=self.batch_size, 
             sampler=SubsetRandomSampler(self.labeled_indices), pin_memory=True
         )
         
+        #image_size=self.image_size,
         self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=self.n_classes, n_channels=self.n_channels).to(self.device)
     
 
@@ -108,14 +105,18 @@ class TrainEvaluate(object):
         gc.collect()
         torch.cuda.empty_cache()
         
+        
 
-    def get_new_dataloaders(self, overall_topk: int) -> None:
+
+    def get_new_dataloaders(self, overall_topk: int, idx_samp_unlab_obs: int) -> None:
         
         # extend with the overall_topk
         self.labeled_indices.extend(overall_topk)
         
         # remove new labeled observations
-        for idx_to_remove in overall_topk: self.unlabeled_indices.remove(idx_to_remove)
+        for idx_to_remove in overall_topk: 
+            self.unlabeled_indices.remove(idx_to_remove)
+            self.sampled_list[idx_samp_unlab_obs].remove(idx_to_remove)
         
         # sanity check
         if len(list(set(self.unlabeled_indices) & set(self.labeled_indices))) == 0:
@@ -133,22 +134,27 @@ class TrainEvaluate(object):
 
 
 
-    def get_unlabebled_samples(self, unlab_sample_dim: int, iter: int) -> List[int]:
+    #def get_unlabebled_samples(self, unlab_sample_dim: int, iter: int) -> List[int]:
+    '''def get_unlabebled_samples(self, unlab_sample_dim: int) -> List[int]:
         if(len(self.unlabeled_indices) > unlab_sample_dim):
             
             # custom seed for the sequence
-            random.seed(iter * self.dataset_id + 100 * self.iter_sample)
+            #random.seed(iter * self.dataset_id + 100 * self.iter_sample)
+            #random.seed(self.dataset_id * self.iter_sample)
+            #print('random seed for sampling', self.dataset_id + 100 * self.iter_sample)
             
             seq = random.sample(self.unlabeled_indices, unlab_sample_dim)
             #printing only the last 5 sampled unlabeled observations
+            #print(self.unlabeled_indices[-5:])
             print(seq[-5:])
             
             # set back the seed to the initial one, the one set on the main file
-            random.seed(100001)
+            #random.seed(100001)
             
             return seq
         
-        else: return self.unlabeled_indices
+        else: return self.unlabeled_indices'''
+        
         
         
         
@@ -163,7 +169,7 @@ class TrainEvaluate(object):
     def train_evaluate_save(self, epochs: int, lab_obs: List[int], iter: int, results: Dict[str, List[float]]) -> None:
                 
         params = {
-            'num_classes': self.n_classes, 'n_channels': self.n_channels,
+            'num_classes': self.n_classes, 'n_channels': self.n_channels, #'image_size': self.image_size,
             'LL': self.LL, 'patience': self.patience, 'dataset_name': self.dataset_name, 'method_name': self.method_name,
             'train_ds': Subset(self.transformed_trainset, self.labeled_indices), 'val_ds': self.val_ds, 'test_ds': self.test_ds,
             'batch_size': self.batch_size, 'score_fn': self.score_fn, 'main_device': self.device

@@ -4,14 +4,14 @@ import torch
 
 from Datasets import SubsetDataloaders
 
-from strategies.Random import Random
-from strategies.Entropy import Entropy
+from strategies.baselines.Random import Random
+from strategies.baselines.Entropy import Entropy
 from strategies.GTG import GTG
-from strategies.CoreSet import CoreSet
-from strategies.BALD import BALD
-from strategies.BADGE import BADGE
-from strategies.LeastConfidence import LeastConfidence
-from strategies.K_Means import K_Means
+from strategies.competitors.CoreSet import CoreSet
+from strategies.competitors.BALD import BALD
+from strategies.competitors.BADGE import BADGE
+from strategies.competitors.LeastConfidence import LeastConfidence
+from strategies.competitors.K_Means import K_Means
 
 from utils import create_ts_dir_res, accuracy_score, plot_loss_curves, plot_accuracy_std_mean, set_seeds, Entropy_Strategy
 
@@ -23,8 +23,8 @@ from typing import Dict, Any, List, Tuple
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-d', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'fmnist'],
-                    required=True, help='Possible datasets to chosoe')
+parser.add_argument('-d', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'fmnist', 'tinyimagenet'],
+                    required=True, help='Possible datasets to choose')
 parser.add_argument('-i', '--iterations', type=int, nargs=1, required=True, help='Number or iterations of AL benchmark for each dataset')
 
 args = parser.parse_args()
@@ -47,51 +47,44 @@ def train_evaluate(al_params: Dict[str, Any], epochs: int, len_lab_train_ds: int
     methods = [
         # Random
         #Random(al_params, LL=False)
-        Random(al_params, LL=True),
+        Random(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
         
         # LeastConfidence
         #LeastConfidence(al_params, LL=False), LeastConfidence(al_params, LL=True),
         
         # Rntropy
         #Entropy(al_params, LL=False),
-        Entropy(al_params, LL=True),
+        Entropy(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
         
         # KMeans
-        #K_Means(al_params, LL=False), K_Means(al_params, LL=True),
+        #K_Means(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
+        #K_Means(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
         
         # CoreSet
-        #CoreSet(al_params, LL=False), CoreSet(al_params, LL=True),
+        #CoreSet(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
+        #CoreSet(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
         
         # BALD
-        #BALD(al_params, LL=False), BALD(al_params, LL=True),
+        #BALD(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
+        #BALD(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
         
         # BADGE
-        #BADGE(al_params, LL=False), BADGE(al_params, LL=True),
+        #BADGE(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim), 
+        #BADGE(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
         
         # GTG
-        #zero_diag=False -> diagonal set to 1
-        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, ent_strategy=Entropy_Strategy.LAST),
-        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, ent_strategy=Entropy_Strategy.MEAN_DERIVATIVES),
-        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, ent_strategy=Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES),
-        #GTG(al_params, our_method_params, LL=True, A_function='cos_sim', zero_diag=False, ent_strategy=Entropy_Strategy.HISTORY_INTEGRAL),
-        
-        #GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, ent_strategy=Entropy_Strategy.LAST),
-        #GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, ent_strategy=Entropy_Strategy.MEAN_DERIVATIVES),
-        GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, ent_strategy=Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES),
-        GTG(al_params, our_method_params, LL=True, A_function='corr', zero_diag=False, ent_strategy=Entropy_Strategy.HISTORY_INTEGRAL),
-        
-        #GTG(al_params, our_method_params, LL=True, A_function='rbfk', zero_diag=False, ent_strategy=Entropy_Strategy.LAST),
-        #GTG(al_params, our_method_params, LL=True, A_function='rbfk', zero_diag=False, ent_strategy=Entropy_Strategy.MEAN_DERIVATIVES),
-        GTG(al_params, our_method_params, LL=True, A_function='rbfk', zero_diag=False, ent_strategy=Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES),
-        GTG(al_params, our_method_params, LL=True, A_function='rbfk', zero_diag=False, ent_strategy=Entropy_Strategy.HISTORY_INTEGRAL),
+        GTG(al_params=al_params, our_methods_params=our_method_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim, A_function='rbfk',
+            zero_diag=False, ent_strategy=Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES),
+        GTG(al_params=al_params, our_methods_params=our_method_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim, A_function='rbfk',
+            zero_diag=False, ent_strategy=Entropy_Strategy.HISTORY_INTEGRAL),
     ]
-        
-        
+
+
     for method in methods:
             
         print(f'-------------------------- {method.method_name} --------------------------\n')
             
-        results[method.method_name] = method.run(al_iters, epochs, unlab_sample_dim, n_top_k_obs)
+        results[method.method_name] = method.run(epochs)
             
                     
     print('Resulting dictionary')

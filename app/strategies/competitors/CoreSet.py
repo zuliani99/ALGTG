@@ -10,7 +10,7 @@ from typing import Dict, Any, List
 
 class CoreSet(Strategies):
     
-    def __init__(self, al_params: Dict[str, Any], LL: bool) -> None:
+    def __init__(self, al_params: Dict[str, Any], LL: bool, al_iters: int, n_top_k_obs: int, unlab_sample_dim: int) -> None:
         super().__init__(al_params, LL)
         
         self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__

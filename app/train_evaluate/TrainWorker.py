@@ -10,7 +10,7 @@ https://medium.com/@ramyamounir/distributed-data-parallel-with-slurm-submitit-py
 
 import torch
 
-from utils import set_seeds, init_weights_apply
+from utils import init_weights_apply
 from ResNet18 import LearningLoss, ResNet_Weird
 from torch.utils.data import DataLoader
 
@@ -42,47 +42,30 @@ class TrainWorker():
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
         self.init_check_filename = f'{self.best_check_filename}_init_checkpoint.pth.tar'
         
-        
-        ###########
-        set_seeds()
-        ###########
-        
-        #if not os.path.exists(self.init_check_filename):
-        #    print(' => Initializing weights')
+
         self.model.apply(init_weights_apply)
-        #    print(' DONE\n')
             
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[160], gamma=0.1)
         #self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
-        
-        #if self.device == 0 and not os.path.exists(self.init_check_filename):
-        #    self.__save_checkpoint(self.init_check_filename, 'initial')
 
-        # wait all and the gpu:0 to save the inital checkpoint
-        #dist.barrier()
     
     
     def __save_checkpoint(self, filename: str, check_type: str) -> None:
-        print(f' => Saving {check_type} checkpoint')
         checkpoint = {
             'state_dict': self.model.module.state_dict() if self.world_size > 1 else self.model.state_dict(),
             'optimizer': self.optimizer.state_dict(),
             'scheduler': self.scheduler.state_dict()
         }
         torch.save(checkpoint, filename)
-        print(' DONE\n')
     
     
     
     def __load_checkpoint(self, filename: str, check_type: str) -> None:
-        print(f' => Load {check_type} checkpoint')
-        #checkpoint = torch.load(filename, map_location={'cuda:%d' % 0: 'cuda:%d' % self.device.index})
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.module.load_state_dict(checkpoint['state_dict']) if self.world_size > 1 else self.model.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler.load_state_dict(checkpoint['scheduler'])
-        print(' DONE\n')
 
 
 
@@ -138,9 +121,7 @@ class TrainWorker():
     
     
     def train_evaluate(self, epochs: int) -> torch.Tensor:
-        
-        #self.__load_checkpoint(self.init_check_filename, 'initial')
-        
+                
         weight = 1.
         check_best_path = f'{self.best_check_filename}/best_{self.method_name}_{self.device}.pth.tar'
         best_val_accuracy = 0.0
@@ -149,20 +130,13 @@ class TrainWorker():
         for epoch in range(epochs):
 
             train_loss, train_loss_ce, train_loss_weird, train_accuracy = .0, .0, .0, .0
+            
+            if self.LL and epoch == 121: weight = 0
 
-            #if epoch == 160:
-            #    print('Decreasing learning rate to 0.01\n')
-            #    for g in self.optimizer.param_groups: g['lr'] = 0.01
-            
-            if self.LL and epoch == 121:
-                print('Ignoring the learning loss form now\n') 
-                weight = 0
-            
             
             if self.world_size > 1:
                 self.train_dl.sampler.set_epoch(epoch)
             self.model.train()
-            
             
                         
             for _, images, labels in self.train_dl:                
@@ -187,14 +161,7 @@ class TrainWorker():
             train_loss_ce /= len(self.train_dl)
             train_loss_weird /= len(self.train_dl)
             
-            
-            
-            ###################################
-            # CosineAnnealingLR
-            #self.scheduler.step()
-            ###################################
 
-            
             
             for pos, metric in zip(range(4), [train_loss, train_loss_ce, train_loss_weird, train_accuracy]):
                 results[pos][epoch] = metric
@@ -212,14 +179,8 @@ class TrainWorker():
             if(val_accuracy > best_val_accuracy):
                 best_val_accuracy = val_accuracy
                 
-                print('GPU: [{}] | Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
-                    self.device, epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
-                
                 self.__save_checkpoint(check_best_path, 'best')
                 
-            else:
-                print('GPU: [{}] | Epoch [{}], train_accuracy: {:.6f}, train_loss: {:.6f}, val_accuracy: {:.6f}, best_val_accuracy: {:.6f}, val_loss: {:.6f} \n'.format(
-                   self.device, epoch + 1, train_accuracy, train_loss, val_accuracy, best_val_accuracy, val_loss))
         
         
         # load best checkpoint
@@ -236,9 +197,11 @@ class TrainWorker():
         test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.evaluate(self.test_dl, weight=1)
         
         if test_loss_ce != 0.0:
-            print('TESTING RESULTS GPU:{} -> test_accuracy: {:.6f}, test_loss: {:.6f}, test_loss_ce: {:.6f} , test_loss_weird: {:.6f}\n\n'.format(self.device, test_accuracy, test_loss, test_loss_ce, test_loss_weird ))
+            print('TESTING RESULTS GPU:{} -> test_accuracy: {:.6f}, test_loss: {:.6f}, test_loss_ce: {:.6f} , test_loss_weird: {:.6f}\n\n'.format(
+                self.device, test_accuracy, test_loss, test_loss_ce, test_loss_weird ))
         else:
-            print('TESTING RESULTS GPU:{} -> test_accuracy: {:.6f}, test_loss: {:.6f}\n\n'.format(self.device, test_accuracy, test_loss ))
+            print('TESTING RESULTS GPU:{} -> test_accuracy: {:.6f}, test_loss: {:.6f}\n\n'.format(
+                self.device, test_accuracy, test_loss ))
             
             
         return torch.tensor([test_accuracy, test_loss, test_loss_ce, test_loss_weird], device=self.device)

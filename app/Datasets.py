@@ -1,13 +1,16 @@
 
-from torch.utils.data import Dataset, Subset
+from torch.utils.data import Dataset, Subset, ConcatDataset
 
 from torchvision import datasets
-from torchvision import transforms
+from torchvision.transforms import v2
 import torch
 
 import numpy as np
 
 from typing import List, Tuple
+
+from utils import download_tinyimagenet
+
 
 
 becnhmark_datasets = {
@@ -17,17 +20,20 @@ becnhmark_datasets = {
         'n_classes': 10,
         'channels': 3,
         'transforms': {
-            'train': transforms.Compose([
-                        transforms.RandomCrop(32, padding=4),
-                        transforms.RandomHorizontalFlip(),
-                        transforms.ToTensor(),
-                        transforms.Normalize(np.array([0.49139968, 0.48215841, 0.44653091]),
-                                             np.array([0.24703223, 0.24348513, 0.26158784]))
+            'train': v2.Compose([
+                        v2.ToImage(),
+                        v2.RandomCrop(32, padding=4),
+                        v2.RandomHorizontalFlip(),
+                        v2.RandomRotation(15),
+                        v2.ToDtype(torch.float32, scale=True),
+                        v2.Normalize(np.array([0.49139968, 0.48215841, 0.44653091]),
+                                     np.array([0.24703223, 0.24348513, 0.26158784]))
                     ]),
-            'test': transforms.Compose([
-                        transforms.ToTensor(),
-                        transforms.Normalize(np.array([0.49139968, 0.48215841, 0.44653091]),
-                                             np.array([0.24703223, 0.24348513, 0.26158784]))
+            'test': v2.Compose([
+                        v2.ToImage(),
+                        v2.ToDtype(torch.float32, scale=True),
+                        v2.Normalize(np.array([0.49139968, 0.48215841, 0.44653091]),
+                                     np.array([0.24703223, 0.24348513, 0.26158784]))
                     ])
         }
     },
@@ -37,37 +43,67 @@ becnhmark_datasets = {
         'n_classes': 100,
         'channels': 3,
         'transforms': {
-            'train': transforms.Compose([
-                        transforms.RandomCrop(32, padding=4),
-                        transforms.RandomHorizontalFlip(),
-                        transforms.ToTensor(),
-                        transforms.Normalize(np.array([0.50707516, 0.48654887, 0.44091784]),
-                                             np.array([0.26733429, 0.25643846, 0.27615047]))
+            'train': v2.Compose([
+                        v2.ToImage(),
+                        v2.RandomCrop(32, padding=4),
+                        v2.RandomHorizontalFlip(),
+                        v2.RandomRotation(15),
+                        v2.ToDtype(torch.float32, scale=True),
+                        v2.Normalize(np.array([0.50707516, 0.48654887, 0.44091784]),
+                                     np.array([0.26733429, 0.25643846, 0.27615047]))
                     ]),
-            'test': transforms.Compose([
-                        transforms.ToTensor(),
-                        transforms.Normalize(np.array([0.50707516, 0.48654887, 0.44091784]),
-                                             np.array([0.26733429, 0.25643846, 0.27615047]))
+            'test': v2.Compose([
+                        v2.ToImage(),
+                        v2.ToDtype(torch.float32, scale=True),
+                        v2.Normalize(np.array([0.50707516, 0.48654887, 0.44091784]),
+                                     np.array([0.26733429, 0.25643846, 0.27615047]))
                     ])
         }
     },
-    'fmnist': {
+    'svhn': {
         'id': 3,
         'n_classes': 10,
-        'method': datasets.FashionMNIST,
-        'channels': 1,
+        'method': datasets.SVHN,
+        'channels': 3,
         'transforms': {
-            'train': transforms.Compose([
-                        transforms.Pad(2),
-                        transforms.RandomCrop(32, padding=4),
-                        transforms.RandomHorizontalFlip(),
-                        transforms.ToTensor(),
-                        transforms.Normalize(0.21899983206954657, 0.3318113729999592)
+            'train': v2.Compose([
+                        v2.ToImage(),
+                        v2.RandomCrop(32, padding=4),
+                        v2.RandomHorizontalFlip(),
+                        v2.RandomRotation(15),
+                        v2.ToDtype(torch.float32, scale=True),
+                        v2.Normalize(np.array([0.4376821 , 0.4437697 , 0.47280442]),
+                                     np.array([0.19803012, 0.20101562, 0.19703614]))
                     ]),
-            'test': transforms.Compose([
-                        transforms.Pad(2),
-                        transforms.ToTensor(),
-                        transforms.Normalize(0.21899983206954657, 0.3318113729999592)
+            'test': v2.Compose([
+                        v2.ToImage(),
+                        v2.ToDtype(torch.float32, scale=True),
+                        v2.Normalize(np.array([0.4376821 , 0.4437697 , 0.47280442]),
+                                     np.array([0.19803012, 0.20101562, 0.19703614]))
+                    ])
+        }
+    },
+    'tinyimagenet': {
+        'id': 4,
+        'n_classes': 200,
+        'channels': 3,
+        'transforms': {
+            'train': v2.Compose([
+                        v2.ToImage(),
+                        v2.Resize((32,32)),
+                        v2.RandomCrop(32, padding=4),
+                        v2.RandomHorizontalFlip(),
+                        v2.RandomRotation(15),
+                        v2.ToDtype(torch.float32, scale=True),
+                        v2.Normalize(np.array([0.48090275, 0.448667  , 0.39801573]),
+                                     np.array([0.25377703, 0.24550787, 0.26023096]))
+                    ]),
+            'test': v2.Compose([
+                        v2.ToImage(),
+                        v2.Resize((32,32)),
+                        v2.ToDtype(torch.float32, scale=True),
+                        v2.Normalize(np.array([0.48090275, 0.448667  , 0.39801573]),
+                                     np.array([0.25377703, 0.24550787, 0.26023096]))
                     ])
         }
     }
@@ -87,6 +123,7 @@ class SubsetDataloaders():
         self.n_classes: int = becnhmark_datasets[dataset_name]['n_classes']
         self.n_channels: str = becnhmark_datasets[dataset_name]['channels']
         self.dataset_id: int = becnhmark_datasets[dataset_name]['id']
+        #self.image_size: int = becnhmark_datasets[dataset_name]['image_size']
     
         self.get_initial_subsets_dls(val_rateo, init_lab_obs)
     
@@ -95,7 +132,7 @@ class SubsetDataloaders():
     def get_initial_subsets_dls(self, val_rateo: int, init_lab_obs: int) -> None:
 
         train_size = len(self.transformed_trainset)
-        
+
         # computing the size for the train and validation sets
         val_size = int(train_size * val_rateo)
         new_train_size = train_size - val_size
@@ -103,15 +140,15 @@ class SubsetDataloaders():
         # random shuffle of the train indices
         shuffled_indices = torch.randperm(train_size)
         # each time should be a new shuffle, thus a new train-validation, labeled-unlabeled split
-        
+            
         ##############################
         print(shuffled_indices[-5:])
         ##############################
-        
+            
         # indices for the train and validation sets
         train_indices = shuffled_indices[:new_train_size]
         validation_indices = shuffled_indices[new_train_size:]
-                
+                    
         # validation dataset
         self.val_ds = Subset(self.non_transformed_trainset, validation_indices.tolist())
 
@@ -129,15 +166,32 @@ class DatasetChoice(Dataset):
 
         if bool_transform:
             # train
-            self.ds: Dataset = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',train=bool_train, download=True,
-                transform=becnhmark_datasets[dataset_name]['transforms']['train']
-            )    
+            if dataset_name == 'tinyimagenet':
+                download_tinyimagenet()
+                self.ds = ConcatDataset([
+                    datasets.ImageFolder('datasets/tiny-imagenet-200/train', transform=becnhmark_datasets[dataset_name]['transforms']['train']), 
+                    datasets.ImageFolder('datasets/tiny-imagenet-200/val', transform=becnhmark_datasets[dataset_name]['transforms']['train'])
+                ])
+            else:
+                self.ds: Dataset = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True,
+                    transform=becnhmark_datasets[dataset_name]['transforms']['train']
+                )    
             
         else:
             # validation or test
-            self.ds: Dataset = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True,
-                transform=becnhmark_datasets[dataset_name]['transforms']['test']
-            )           
+            if dataset_name == 'tinyimagenet':
+                download_tinyimagenet()
+                if bool_train:
+                    self.ds = ConcatDataset([
+                        datasets.ImageFolder('datasets/tiny-imagenet-200/train', transform=becnhmark_datasets[dataset_name]['transforms']['test']), 
+                        datasets.ImageFolder('datasets/tiny-imagenet-200/val', transform=becnhmark_datasets[dataset_name]['transforms']['test'])
+                    ])
+                else:
+                    self.ds: Dataset = datasets.ImageFolder('datasets/tiny-imagenet-200/test', transform=becnhmark_datasets[dataset_name]['transforms']['test'])
+            else:
+                self.ds: Dataset = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True,
+                    transform=becnhmark_datasets[dataset_name]['transforms']['test']
+                )           
         
         
     def __len__(self) -> int:
@@ -145,7 +199,7 @@ class DatasetChoice(Dataset):
 
 
     def __getitem__(self, index: int) -> Tuple[int, torch.Tensor, int]:
-        
+                
         image, label = self.ds[index]
         return index, image, label
 

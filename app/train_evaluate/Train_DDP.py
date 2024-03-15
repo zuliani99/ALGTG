@@ -31,31 +31,31 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], epochs: int, c
     test_results = [torch.zeros(4, device=rank) for _ in range(world_size)]
     
     
-
+    #, image_size=params['image_size']
     model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=params['num_classes'], n_channels=params['n_channels']).to(rank)
     model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
     params['model'] = model
     
     num_workers = int(os.environ['SLURM_CPUS_PER_TASK'])
-    print(f'Number of workers: {num_workers}')
+    #print(f'Number of workers: {num_workers}')
     
     
     params['train_dl'] = DataLoader(
-                            params['train_ds'], batch_size=params['batch_size'],
+                            params['train_ds'], batch_size=params['batch_size'] // world_size,
                             sampler=DistributedSampler(params['train_ds'], num_replicas=world_size, rank=rank, shuffle=True, seed=100001),
                             shuffle=False, pin_memory=True, persistent_workers=True,
                             num_workers=num_workers
                         )
     
     params['val_dl'] = DataLoader(
-                            params['val_ds'], batch_size=params['batch_size'],
+                            params['val_ds'], batch_size=params['batch_size'] // world_size,
                             sampler=DistributedSampler(params['val_ds'], num_replicas=world_size, rank=rank, shuffle=False, seed=100001),
                             shuffle=False, pin_memory=True, persistent_workers=True,
                             num_workers=num_workers
                         )
     
     params['test_dl'] = DataLoader(
-                            params['test_ds'], batch_size=params['batch_size'],
+                            params['test_ds'], batch_size=params['batch_size'] // world_size,
                             sampler=DistributedSampler(params['test_ds'], num_replicas=world_size, rank=rank, shuffle=False, seed=100001),
                             shuffle=False, pin_memory=True, persistent_workers=True,
                             num_workers=num_workers
@@ -74,7 +74,7 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], epochs: int, c
               
     # tried to remove the barrier, let's see what happend and if the semaphore warning is raised again or not   
     # I've notice that the application run first the other gpu and then the gpu:0, like the dist.gather is blocking 
-    #dist.barrier()
+    dist.barrier()#(device_ids=dist.get_process_group_ranks())
     
     if rank == 0:
         train_results = (torch.sum(torch.stack(train_results), dim=0) / world_size).cpu().tolist()
@@ -89,6 +89,7 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], epochs: int, c
     
 def train(params: Dict[str, Any], epochs: int) -> Tuple[List[float], List[float]]:
     
+    #, image_size=params['image_size']
     params['model'] = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=params['num_classes'], n_channels=params['n_channels']).to(params['main_device'])
    
     params['val_dl'] = DataLoader(params['val_ds'], batch_size=params['batch_size'], shuffle=False, pin_memory=True)

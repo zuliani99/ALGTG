@@ -16,9 +16,10 @@ import random
 from typing import List, Dict, Any
     
 
-def accuracy_score(output: torch.Tensor, label: torch.Tensor) -> float:
-    output_class = torch.argmax(torch.softmax(output, dim=1), dim=1)
-    return (output_class == label).sum().item()/len(output)
+def accuracy_score(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+    outputs_class = torch.argmax(torch.softmax(outputs, dim=1), dim=1)
+    #print(outputs_class, labels)
+    return (outputs_class == labels).sum().item()/len(outputs)
 
 
 def entropy(tensor: torch.Tensor, dim=1) -> torch.Tensor:
@@ -329,19 +330,29 @@ class Entropy_Strategy(Enum):
     LAST = 3
 
 
-def set_seeds() -> None:
+def set_seeds(seed: int = 10001) -> None:
     # setting seed and deterministic behaviour of pytorch for reproducibility
     # https://discuss.pytorch.org/t/determinism-in-pytorch-across-multiple-files/156269
-    os.environ['PYTHONHASHSEED'] = str(100001)
-    torch.manual_seed(100001)
-    torch.cuda.manual_seed(100001)
-    torch.cuda.manual_seed_all(100001)
-    np.random.seed(100001)
-    random.seed(100001)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     
     
+
+
+def download_tinyimagenet() -> None:
+    if not os.path.exists('datasets/tiny-imagenet-200'):
+        print(' => Downloading Tiny-IMAGENET Dataset')
+        os.system('wget http://cs231n.stanford.edu/tiny-imagenet-200.zip')
+        os.system('unzip tiny-imagenet-200.zip')
+        print(' DONE\n')
+    else:
+        print('Tiny-IMAGENET Dataset already downloaded')
 
 
 

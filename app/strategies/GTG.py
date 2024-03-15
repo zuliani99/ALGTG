@@ -18,8 +18,11 @@ from typing import Dict, Any, List
 
 class GTG(Strategies):
     
-    def __init__(self, al_params: Dict[str, Any], our_methods_params: Dict[str, int], LL: bool, A_function: str, zero_diag: bool, ent_strategy: Entropy_Strategy) -> None:
-        super().__init__(al_params, LL)
+    def __init__(self, al_params: Dict[str, Any], our_methods_params: Dict[str, int], LL: bool,
+                 al_iters: int, n_top_k_obs: int, unlab_sample_dim: int,
+                 A_function: str, zero_diag: bool, ent_strategy: Entropy_Strategy) -> None:
+        
+        super().__init__(al_params, LL, al_iters, n_top_k_obs, unlab_sample_dim)
         
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,
