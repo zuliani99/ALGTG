@@ -19,6 +19,7 @@ becnhmark_datasets = {
         'method': datasets.CIFAR10,
         'n_classes': 10,
         'channels': 3,
+        'image_size': 32, 
         'transforms': {
             'train': v2.Compose([
                         v2.ToImage(),
@@ -42,6 +43,7 @@ becnhmark_datasets = {
         'method': datasets.CIFAR100,
         'n_classes': 100,
         'channels': 3,
+        'image_size': 32, 
         'transforms': {
             'train': v2.Compose([
                         v2.ToImage(),
@@ -65,6 +67,7 @@ becnhmark_datasets = {
         'n_classes': 10,
         'method': datasets.SVHN,
         'channels': 3,
+        'image_size': 32, 
         'transforms': {
             'train': v2.Compose([
                         v2.ToImage(),
@@ -87,23 +90,22 @@ becnhmark_datasets = {
         'id': 4,
         'n_classes': 200,
         'channels': 3,
+        'image_size': 64,
         'transforms': {
             'train': v2.Compose([
                         v2.ToImage(),
-                        v2.Resize((32,32)),
-                        v2.RandomCrop(32, padding=4),
+                        v2.RandomCrop(64, padding=4),
                         v2.RandomHorizontalFlip(),
                         v2.RandomRotation(15),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(np.array([0.48090275, 0.448667  , 0.39801573]),
-                                     np.array([0.25377703, 0.24550787, 0.26023096]))
+                        v2.Normalize(np.array([0.48042979, 0.44819701, 0.39755623]),
+                                     np.array([0.27643974, 0.26888656, 0.28166852]))
                     ]),
             'test': v2.Compose([
                         v2.ToImage(),
-                        v2.Resize((32,32)),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(np.array([0.48090275, 0.448667  , 0.39801573]),
-                                     np.array([0.25377703, 0.24550787, 0.26023096]))
+                        v2.Normalize(np.array([0.48042979, 0.44819701, 0.39755623]),
+                                     np.array([0.27643974, 0.26888656, 0.28166852]))
                     ])
         }
     }
@@ -123,7 +125,7 @@ class SubsetDataloaders():
         self.n_classes: int = becnhmark_datasets[dataset_name]['n_classes']
         self.n_channels: str = becnhmark_datasets[dataset_name]['channels']
         self.dataset_id: int = becnhmark_datasets[dataset_name]['id']
-        #self.image_size: int = becnhmark_datasets[dataset_name]['image_size']
+        self.image_size: int = becnhmark_datasets[dataset_name]['image_size']
     
         self.get_initial_subsets_dls(val_rateo, init_lab_obs)
     
@@ -169,9 +171,13 @@ class DatasetChoice(Dataset):
             if dataset_name == 'tinyimagenet':
                 download_tinyimagenet()
                 self.ds = ConcatDataset([
-                    datasets.ImageFolder('datasets/tiny-imagenet-200/train', transform=becnhmark_datasets[dataset_name]['transforms']['train']), 
-                    datasets.ImageFolder('datasets/tiny-imagenet-200/val', transform=becnhmark_datasets[dataset_name]['transforms']['train'])
+                    datasets.ImageFolder('/datasets/tiny-imagenet-200/train', transform=becnhmark_datasets[dataset_name]['transforms']['train']), 
+                    datasets.ImageFolder('/datasets/tiny-imagenet-200/val', transform=becnhmark_datasets[dataset_name]['transforms']['train'])
                 ])
+            elif dataset_name == 'svhn':
+                self.ds: Dataset = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', split='train' if bool_train else 'test', download=True,
+                    transform=becnhmark_datasets[dataset_name]['transforms']['train']
+                )
             else:
                 self.ds: Dataset = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True,
                     transform=becnhmark_datasets[dataset_name]['transforms']['train']
@@ -183,11 +189,15 @@ class DatasetChoice(Dataset):
                 download_tinyimagenet()
                 if bool_train:
                     self.ds = ConcatDataset([
-                        datasets.ImageFolder('datasets/tiny-imagenet-200/train', transform=becnhmark_datasets[dataset_name]['transforms']['test']), 
-                        datasets.ImageFolder('datasets/tiny-imagenet-200/val', transform=becnhmark_datasets[dataset_name]['transforms']['test'])
+                        datasets.ImageFolder('/datasets/tiny-imagenet-200/train', transform=becnhmark_datasets[dataset_name]['transforms']['test']), 
+                        datasets.ImageFolder('/datasets/tiny-imagenet-200/val', transform=becnhmark_datasets[dataset_name]['transforms']['test'])
                     ])
                 else:
-                    self.ds: Dataset = datasets.ImageFolder('datasets/tiny-imagenet-200/test', transform=becnhmark_datasets[dataset_name]['transforms']['test'])
+                    self.ds: Dataset = datasets.ImageFolder('/datasets/tiny-imagenet-200/test', transform=becnhmark_datasets[dataset_name]['transforms']['test'])
+            elif dataset_name == 'svhn':
+                self.ds: Dataset = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', split='train' if bool_train else 'test', download=True,
+                    transform=becnhmark_datasets[dataset_name]['transforms']['test']
+                )
             else:
                 self.ds: Dataset = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True,
                     transform=becnhmark_datasets[dataset_name]['transforms']['test']

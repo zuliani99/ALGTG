@@ -1,6 +1,6 @@
 
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
 from strategies.Strategies import Strategies
@@ -18,7 +18,7 @@ class Entropy(Strategies):
         
         
         
-    def query(self, sample_unlab_subset: List[int], n_top_k_obs: int) -> List[int]:
+    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> List[int]:
         
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset,

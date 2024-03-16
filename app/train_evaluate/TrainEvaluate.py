@@ -10,8 +10,7 @@ from Datasets import DatasetChoice, SubsetDataloaders
 from utils import save_train_val_curves, write_csv
 
 import copy
-#import random
-import gc
+#import gc
 from typing import List, Dict, Any
     
     
@@ -25,7 +24,7 @@ class TrainEvaluate(object):
         self.n_classes = sdl.n_classes
         self.n_channels = sdl.n_channels
         self.dataset_id = sdl.dataset_id
-        #self.image_size = sdl.image_size
+        self.image_size = sdl.image_size
         
         
         self.test_ds: DatasetChoice = sdl.test_ds
@@ -55,8 +54,7 @@ class TrainEvaluate(object):
             sampler=SubsetRandomSampler(self.labeled_indices), pin_memory=True
         )
         
-        #image_size=self.image_size,
-        self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], num_classes=self.n_classes, n_channels=self.n_channels).to(self.device)
+        self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], image_size=self.image_size, num_classes=self.n_classes, n_channels=self.n_channels).to(self.device)
     
 
         
@@ -87,12 +85,12 @@ class TrainEvaluate(object):
                 if 'embedds' in dict_to_modify:
                     dict_to_modify['embedds'] = torch.cat((dict_to_modify['embedds'], embed.squeeze()), dim=0)
                     #self.clear_cuda_variables([embed])
-                    del embed
+                    #del embed
                     
                 if 'probs' in dict_to_modify:
                     dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], outs.squeeze()), dim=0)
                     #self.clear_cuda_variables([outs])
-                    del outs
+                    #del outs
                     
                 if 'labels' in dict_to_modify:
                     dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels.to(self.device)), dim=0)
@@ -101,9 +99,9 @@ class TrainEvaluate(object):
 
                 
         #self.clear_cuda_variables([checkpoint])
-        del checkpoint
-        gc.collect()
-        torch.cuda.empty_cache()
+        #del checkpoint
+        #gc.collect()
+        #torch.cuda.empty_cache()
         
         
 
@@ -115,11 +113,11 @@ class TrainEvaluate(object):
         
         # remove new labeled observations
         for idx_to_remove in overall_topk: 
-            self.unlabeled_indices.remove(idx_to_remove)
-            self.sampled_list[idx_samp_unlab_obs].remove(idx_to_remove)
+            #self.unlabeled_indices.remove(idx_to_remove)
+            self.subset_sampled_list[idx_samp_unlab_obs].indices.remove(idx_to_remove)
         
         # sanity check
-        if len(list(set(self.unlabeled_indices) & set(self.labeled_indices))) == 0:
+        if len(list(set(self.subset_sampled_list[idx_samp_unlab_obs].indices) & set(self.labeled_indices))) == 0:
             print('Intersection between indices is EMPTY')
         else: raise Exception('NON EMPTY INDICES INTERSECTION')
 
@@ -133,43 +131,10 @@ class TrainEvaluate(object):
 
 
 
-
-    #def get_unlabebled_samples(self, unlab_sample_dim: int, iter: int) -> List[int]:
-    '''def get_unlabebled_samples(self, unlab_sample_dim: int) -> List[int]:
-        if(len(self.unlabeled_indices) > unlab_sample_dim):
-            
-            # custom seed for the sequence
-            #random.seed(iter * self.dataset_id + 100 * self.iter_sample)
-            #random.seed(self.dataset_id * self.iter_sample)
-            #print('random seed for sampling', self.dataset_id + 100 * self.iter_sample)
-            
-            seq = random.sample(self.unlabeled_indices, unlab_sample_dim)
-            #printing only the last 5 sampled unlabeled observations
-            #print(self.unlabeled_indices[-5:])
-            print(seq[-5:])
-            
-            # set back the seed to the initial one, the one set on the main file
-            #random.seed(100001)
-            
-            return seq
-        
-        else: return self.unlabeled_indices'''
-        
-        
-        
-        
-    # seems not woking properly
-    '''def clear_cuda_variables(self, variables) -> None:
-        for var in variables: del var
-        torch.cuda.empty_cache()'''
-
-
-
-
     def train_evaluate_save(self, epochs: int, lab_obs: List[int], iter: int, results: Dict[str, List[float]]) -> None:
                 
         params = {
-            'num_classes': self.n_classes, 'n_channels': self.n_channels, #'image_size': self.image_size,
+            'num_classes': self.n_classes, 'n_channels': self.n_channels, 'image_size': self.image_size,
             'LL': self.LL, 'patience': self.patience, 'dataset_name': self.dataset_name, 'method_name': self.method_name,
             'train_ds': Subset(self.transformed_trainset, self.labeled_indices), 'val_ds': self.val_ds, 'test_ds': self.test_ds,
             'batch_size': self.batch_size, 'score_fn': self.score_fn, 'main_device': self.device
@@ -183,6 +148,8 @@ class TrainEvaluate(object):
         
         # if we are using multiple gpus
         if world_size > 1:
+            print(' => RUNNING DISTRIBUTED TRAINING')
+            
             # spawn the process
             mp.spawn(train_ddp, args=(world_size, params, epochs, child_conn, ), nprocs=world_size, join=True)
             # obtain the results
@@ -190,12 +157,14 @@ class TrainEvaluate(object):
                 train_recv, test_recv = parent_conn.recv()
                 
         else:
+            print(' => RUNNING TRAINING')
+            
             # add the already created labeeld train dataloader
             params['train_dl'] = self.lab_train_dl
             train_recv, test_recv = train(params, epochs)
 
-
-            
+        
+        print(' DONE\n')
         
         train_results = {
             'model_name': self.method_name, 
@@ -208,6 +177,9 @@ class TrainEvaluate(object):
         }
              
         test_accuracy, test_loss, test_loss_ce, test_loss_weird = test_recv
+        
+        print('TESTING RESULTS -> test_accuracy: {:.6f}, test_loss: {:.6f}, test_loss_ce: {:.6f} , test_loss_weird: {:.6f}\n\n'.format(
+                test_accuracy, test_loss, test_loss_ce, test_loss_weird ))
              
         results['test_accuracy'].append(test_accuracy)
         results['test_loss'].append(test_loss)

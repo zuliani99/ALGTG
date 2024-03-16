@@ -3,7 +3,7 @@ from strategies.Strategies import Strategies
 from utils import entropy, plot_history, plot_derivatives, Entropy_Strategy
 
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
 from scipy.integrate import trapz, simpson
@@ -54,7 +54,7 @@ class GTG(Strategies):
     # see if I can turn it back to cuda and not doing [cuda -> cpu -> cuda]
     def get_A_rbfk(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         
-        concat_embedds_cpu = concat_embedds.cpu() 
+        '''concat_embedds_cpu = concat_embedds.cpu() 
         del concat_embedds
         torch.cuda.empty_cache()  
         
@@ -69,7 +69,21 @@ class GTG(Strategies):
         A = torch.exp(-e_d.pow(2) / (torch.mm(sigmas.T, sigmas))).to(self.device)
         
         if self.zero_diag: A.fill_diagonal_(0.)        
+        return A'''
+        
+        e_d = torch.cdist(concat_embedds, concat_embedds).to(self.device)
+        seventh_neigh = concat_embedds[torch.argsort(e_d, dim=1, descending=True)[:, 6]]
+        
+        sigmas = torch.unsqueeze(torch.tensor([
+            torch.cdist(torch.unsqueeze(concat_embedds[i], dim=0), torch.unsqueeze(seventh_neigh[i], dim=0))
+            for i in range(concat_embedds.shape[0])
+        ], device=self.device), dim=0)
+        
+        A = torch.exp(-e_d.pow(2) / (torch.mm(sigmas.T, sigmas))).to(self.device)
+        
+        if self.zero_diag: A.fill_diagonal_(0.)        
         return A
+
 
 
 
@@ -83,9 +97,9 @@ class GTG(Strategies):
         if self.zero_diag: A.fill_diagonal_(0.)
         else: A.fill_diagonal_(1.)
         
-        del concat_embedds
-        del normalized_embedding
-        torch.cuda.empty_cache()
+        #del concat_embedds
+        #del normalized_embedding
+        #torch.cuda.empty_cache()
         return A
         
         
@@ -96,8 +110,8 @@ class GTG(Strategies):
         
         if self.zero_diag: A.fill_diagonal_(0.)
         
-        del concat_embedds
-        torch.cuda.empty_cache()
+        #del concat_embedds
+        #torch.cuda.empty_cache()
         return A
 
         
@@ -149,15 +163,15 @@ class GTG(Strategies):
             err = torch.norm(self.X - X_old)
             i += 1
             
-            del X_old
-            del iter_entropy
-            torch.cuda.empty_cache()
+            #del X_old
+            #del iter_entropy
+            #torch.cuda.empty_cache()
             
 
 
-    def query(self, sample_unlab_subset: List[int], n_top_k_obs: int) -> List[int]:
-        gc.collect()
-        torch.cuda.empty_cache()
+    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> List[int]:
+        #gc.collect()
+        #torch.cuda.empty_cache()
             
         # set the entire batch size to the dimension of the sampled unlabeled set
         unlab_batch_size = len(sample_unlab_subset)

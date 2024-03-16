@@ -51,7 +51,7 @@ class TrainWorker():
 
     
     
-    def __save_checkpoint(self, filename: str, check_type: str) -> None:
+    def __save_checkpoint(self, filename: str) -> None:
         checkpoint = {
             'state_dict': self.model.module.state_dict() if self.world_size > 1 else self.model.state_dict(),
             'optimizer': self.optimizer.state_dict(),
@@ -61,7 +61,7 @@ class TrainWorker():
     
     
     
-    def __load_checkpoint(self, filename: str, check_type: str) -> None:
+    def __load_checkpoint(self, filename: str) -> None:
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.module.load_state_dict(checkpoint['state_dict']) if self.world_size > 1 else self.model.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
@@ -179,32 +179,19 @@ class TrainWorker():
             if(val_accuracy > best_val_accuracy):
                 best_val_accuracy = val_accuracy
                 
-                self.__save_checkpoint(check_best_path, 'best')
+                self.__save_checkpoint(check_best_path)
                 
         
         
         # load best checkpoint
-        #if self.device == 0: 
-        self.__load_checkpoint(check_best_path, 'best')
-        
-        print(f'GPU: {self.device} | Finished Training\n')
+        self.__load_checkpoint(check_best_path)
         
         return results
 
 
 
-    def test(self) -> torch.Tensor:
-        test_accuracy, test_loss, test_loss_ce, test_loss_weird = self.evaluate(self.test_dl, weight=1)
-        
-        if test_loss_ce != 0.0:
-            print('TESTING RESULTS GPU:{} -> test_accuracy: {:.6f}, test_loss: {:.6f}, test_loss_ce: {:.6f} , test_loss_weird: {:.6f}\n\n'.format(
-                self.device, test_accuracy, test_loss, test_loss_ce, test_loss_weird ))
-        else:
-            print('TESTING RESULTS GPU:{} -> test_accuracy: {:.6f}, test_loss: {:.6f}\n\n'.format(
-                self.device, test_accuracy, test_loss ))
-            
-            
-        return torch.tensor([test_accuracy, test_loss, test_loss_ce, test_loss_weird], device=self.device)
+    def test(self) -> torch.Tensor:           
+        return torch.tensor(self.evaluate(self.test_dl, weight=1), device=self.device)
 
         
         

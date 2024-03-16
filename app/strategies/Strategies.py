@@ -2,11 +2,10 @@
 from train_evaluate.TrainEvaluate import TrainEvaluate
 
 from torch.utils.data import Subset
-import torch
+#import torch
 
 from typing import List, Dict, Any
 import random
-import copy
 import math
 
 
@@ -24,10 +23,8 @@ class Strategies(TrainEvaluate):
                 
                 
     def get_sampled_sets(self):
-        self.sampled_list = []
-        
-        temp_unlabeled_indices = copy.deepcopy(self.unlabeled_indices)
-        
+        self.subset_sampled_list : List[Subset] = []
+                
         limit = int(math.ceil((self.al_iters * self.n_top_k_obs) / self.unlab_sample_dim))
             
         print('limit', limit)
@@ -35,18 +32,22 @@ class Strategies(TrainEvaluate):
         random.seed(self.dataset_id * self.samp_iter)
         
         for idx in range(limit):
-            if(len(temp_unlabeled_indices) > self.unlab_sample_dim):
-                seq = random.sample(temp_unlabeled_indices, self.unlab_sample_dim)
+            if(len(self.unlabeled_indices) > self.unlab_sample_dim):
+                seq = random.sample(self.unlabeled_indices, self.unlab_sample_dim)
             else: 
-                seq = temp_unlabeled_indices
+                seq = self.unlabeled_indices
             
             print(idx, seq[-5:])
-            self.sampled_list.append(seq)
-            for x in seq: temp_unlabeled_indices.remove(x)
+            self.subset_sampled_list.append(Subset(self.non_transformed_trainset, seq))
+            for x in seq: self.unlabeled_indices.remove(x)
         
-        print('self.sampled_list len', len(self.sampled_list))
+        print('self.subset_sampled_list len', len(self.subset_sampled_list))
         random.seed(10001)
-            
+        del self.unlabeled_indices
+        
+    
+    def check_iterated_subset_sampled_list(self) -> bool:
+        return all(not subset.indices for subset in self.subset_sampled_list)
         
         
     def run(self, epochs: int) -> Dict[str, List[float]]:
@@ -60,7 +61,7 @@ class Strategies(TrainEvaluate):
         self.train_evaluate_save(epochs, self.n_top_k_obs, self.iter, results)
         
         # start of the loop
-        while len(self.unlabeled_indices) > 0 and self.iter < self.al_iters:
+        while not self.check_iterated_subset_sampled_list() and self.iter < self.al_iters:
             idx_list = (self.iter * self.n_top_k_obs) // self.unlab_sample_dim
             
             self.iter += 1
@@ -68,12 +69,11 @@ class Strategies(TrainEvaluate):
             print(f'----------------------- ITERATION {self.iter} / {self.al_iters} -----------------------\n')
             
             print(f' => Working with the unlabeled sampled list {idx_list}')
-            sample_unlab_subset = Subset(self.non_transformed_trainset, self.sampled_list[idx_list])
+            #sample_unlab_subset = Subset(self.non_transformed_trainset, self.sampled_list[idx_list])
             print(' START QUERY PROCESS\n')
             
-            
             # run method query strategy
-            topk_idx_obs = self.query(sample_unlab_subset, self.n_top_k_obs)
+            topk_idx_obs = self.query(self.subset_sampled_list[idx_list], self.n_top_k_obs)
                     
             # modify the datasets and dataloader
             print(' => Modifing the Subsets and Dataloader')
@@ -86,7 +86,7 @@ class Strategies(TrainEvaluate):
                         
         #self.remove_model_opt()
         #self.clear_cuda_variables([self.model])
-        del self.model
-        torch.cuda.empty_cache()
+        #del self.model
+        #torch.cuda.empty_cache()
             
         return results

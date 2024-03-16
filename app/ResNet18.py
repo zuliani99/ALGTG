@@ -36,11 +36,11 @@ class BasicBlock(nn.Module):
 
 class ResNet_Weird(nn.Module):
     
-    #image_size: int
-    def __init__(self, block: BasicBlock, num_blocks: List[int], num_classes=10, n_channels=3) -> None:
+    def __init__(self, block: BasicBlock, num_blocks: List[int], image_size: int, num_classes=10, n_channels=3) -> None:
         super(ResNet_Weird, self).__init__()
         self.in_planes = 64
-        
+        self.image_size = image_size
+
 
         self.conv1 = nn.Conv2d(n_channels, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
@@ -56,10 +56,10 @@ class ResNet_Weird(nn.Module):
         self.fc_weird_4 = nn.Linear(512, 128)
         self.fc_concat = nn.Linear(128 * 4, 1)
         
-        self.global_average_pooling_1 = nn.AvgPool2d(32)#*2)
-        self.global_average_pooling_2 = nn.AvgPool2d(16)#*2)
-        self.global_average_pooling_3 = nn.AvgPool2d(8)#*2)
-        self.global_average_pooling_4 = nn.AvgPool2d(4)#*2)
+        self.global_average_pooling_1 = nn.AvgPool2d(image_size)
+        self.global_average_pooling_2 = nn.AvgPool2d(int(image_size / 2))
+        self.global_average_pooling_3 = nn.AvgPool2d(int(image_size / 4))
+        self.global_average_pooling_4 = nn.AvgPool2d(int(image_size / 8))
 
 
     def _make_layer(self, block: BasicBlock, planes: int, num_blocks: int, stride: int) -> nn.Sequential:
@@ -72,12 +72,6 @@ class ResNet_Weird(nn.Module):
 
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        '''print(x.shape)
-        if self.image_size != 32:
-            print(self.image_size)
-            print(torch.flatten(x).shape)
-            x_resized = self.resize_linear(torch.flatten(x))
-            x = torch.reshape(x_resized, (x.shape[0],self.n_channels,32,32))'''
         
         out = F.relu(self.bn1(self.conv1(x)))
         
@@ -101,7 +95,7 @@ class ResNet_Weird(nn.Module):
         fc4 = weird_pool_4.view(weird_pool_4.size(0), -1)
         fc4 = F.relu(self.fc_weird_4(fc4))
         
-        out = F.avg_pool2d(out, 4)#*2)
+        out = F.avg_pool2d(out, int(self.image_size / 8))
         embeds = out.view(out.size(0), -1)
         out = self.linear(embeds)
         concat = torch.cat((fc1, fc2, fc3, fc4), dim=1)

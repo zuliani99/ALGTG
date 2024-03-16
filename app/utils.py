@@ -349,11 +349,11 @@ def download_tinyimagenet() -> None:
     if not os.path.exists('datasets/tiny-imagenet-200'):
         print(' => Downloading Tiny-IMAGENET Dataset')
         os.system('wget http://cs231n.stanford.edu/tiny-imagenet-200.zip')
-        os.system('unzip tiny-imagenet-200.zip')
+        os.system('unzip tiny-imagenet-200.zip -d datasets')
+        os.remove('tiny-imagenet-200.zip')
         print(' DONE\n')
     else:
         print('Tiny-IMAGENET Dataset already downloaded')
-
 
 
 

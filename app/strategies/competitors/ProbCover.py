@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 from strategies.Strategies import Strategies
 
@@ -13,10 +13,10 @@ from typing import Dict, Any, List
 class ProbCover(Strategies):
     
     def __init__(self, al_params: Dict[str, Any], LL: bool, al_iters: int, n_top_k_obs: int, unlab_sample_dim: int) -> None:
-        super().__init__(al_params, LL)
+        super().__init__(al_params, LL, al_iters, n_top_k_obs, unlab_sample_dim)
         
         self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
-        self.delta = delta
+        self.delta = 0.5
 
 
     # SHOULD BE OK
@@ -52,7 +52,7 @@ class ProbCover(Strategies):
         return df
 
 
-    def query(self, sample_unlab_subset: List[int], n_top_k_obs: int) -> List[int]:
+    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> List[int]:
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset, batch_size=self.batch_size,
             shuffle=False, pin_memory=True

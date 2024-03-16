@@ -73,6 +73,10 @@ def train_evaluate(al_params: Dict[str, Any], epochs: int, len_lab_train_ds: int
         #BADGE(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
         
         # GTG
+        GTG(al_params=al_params, our_methods_params=our_method_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim, A_function='corr',
+            zero_diag=False, ent_strategy=Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES),
+        GTG(al_params=al_params, our_methods_params=our_method_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim, A_function='corr',
+            zero_diag=False, ent_strategy=Entropy_Strategy.HISTORY_INTEGRAL),
         GTG(al_params=al_params, our_methods_params=our_method_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim, A_function='rbfk',
             zero_diag=False, ent_strategy=Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES),
         GTG(al_params=al_params, our_methods_params=our_method_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim, A_function='rbfk',
@@ -180,6 +184,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    
     start = time.time()
     main()
     end = time.time()

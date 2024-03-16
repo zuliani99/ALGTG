@@ -2,6 +2,8 @@
 import numpy as np
 import torch
 
+from torch.utils.data import Subset
+
 from strategies.Strategies import Strategies
 from typing import Dict, Any, List
 
@@ -10,7 +12,7 @@ from typing import Dict, Any, List
 class AdversarialDeepFool(Strategies):
     
     def __init__(self, al_params: Dict[str, Any], LL: bool, al_iters: int, n_top_k_obs: int, unlab_sample_dim: int) -> None:
-        super().__init__(al_params, LL)
+        super().__init__(al_params, LL, al_iters, n_top_k_obs, unlab_sample_dim)
         
         self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
         self.args.max_iter = 50
@@ -57,7 +59,7 @@ class AdversarialDeepFool(Strategies):
         return (eta*eta).sum()
 
 
-    def query(self, sample_unlab_subset: List[int], n_top_k_obs: int) -> List[int]:
+    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> List[int]:
 
         checkpoint = torch.load(f'{self.best_check_filename}/best_{self.method_name}_cuda:0.pth.tar', map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])

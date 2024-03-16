@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
-from strategies.Strategies import Strategies
+from strategies.Strategies import Strategies, Subset
 from utils import entropy
 
 from typing import Dict, Any, List, Tuple
@@ -13,7 +13,7 @@ from typing import Dict, Any, List, Tuple
 class BALD(Strategies):
     
     def __init__(self, al_params: Dict[str, Any], LL: bool, al_iters: int, n_top_k_obs: int, unlab_sample_dim: int) -> None:
-        super().__init__(al_params, LL)
+        super().__init__(al_params, LL, al_iters, n_top_k_obs, unlab_sample_dim)
         
         self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
         
@@ -60,7 +60,7 @@ class BALD(Strategies):
         
     
     
-    def query(self, sample_unlab_subset: List[int], n_top_k_obs: int) -> List[int]:
+    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> List[int]:
                         
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset, batch_size=self.batch_size,
