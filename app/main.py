@@ -48,7 +48,7 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
     methods = [
         # Random
         #Random(al_params=al_params, training_params=training_params, LL=False),
-        #Random(al_params=al_params, training_params=training_params, LL=True),
+        Random(al_params=al_params, training_params=training_params, LL=True),
         
         # LeastConfidence
         #LeastConfidence(al_params=al_params, training_params=training_params, LL=False)
@@ -56,7 +56,7 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
         
         # Rntropy
         #Entropy(al_params=al_params, training_params=training_params, LL=False)
-        #Entropy(al_params=al_params, training_params=training_params, LL=True),
+        Entropy(al_params=al_params, training_params=training_params, LL=True),
         
         # KMeans
         #K_Means(al_params=al_params, training_params=training_params, LL=True),

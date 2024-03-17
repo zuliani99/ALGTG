@@ -24,7 +24,7 @@ class GTG(Strategies):
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,
             'corr': self.get_A_corr,
-            'e_d': self.get_A_e_d
+            'e_d': self.get_A_e_d,
         }
 
         self.A_function: str = gtg_params['A_function']

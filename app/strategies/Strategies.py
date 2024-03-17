@@ -24,13 +24,13 @@ class Strategies(TrainEvaluate):
                 
                 
                 
-    def get_sampled_sets(self):
-        self.subset_sampled_list : List[Subset] = []
+    def get_sampled_sets(self) -> None:
+        self.unlab_sampled_list : List[Subset] = []
                 
         limit = int(math.ceil((self.al_iters * self.n_top_k_obs) / self.unlab_sample_dim))
             
-        print('limit', limit)
-        print('random seed', self.dataset_id * self.samp_iter)
+        print(f'Number of subsets of dimension {self.unlab_sample_dim}: {limit}')
+        print(f'Ranndom seed for reproducibility: {self.dataset_id * self.samp_iter}')
         random.seed(self.dataset_id * self.samp_iter)
         
         for idx in range(limit):
@@ -39,17 +39,19 @@ class Strategies(TrainEvaluate):
             else: 
                 seq = self.unlabeled_indices
             
-            print(idx, seq[-5:])
-            self.subset_sampled_list.append(Subset(self.non_transformed_trainset, seq))
+            print(f'Index: {idx} \t Last 5 observations: {seq[-5:]}')
+            self.unlab_sampled_list.append(Subset(self.non_transformed_trainset, seq))
             for x in seq: self.unlabeled_indices.remove(x)
         
-        print('self.subset_sampled_list len', len(self.subset_sampled_list))
+        print(f'Lenght of the unlabeled sampled subset list: {len(self.unlab_sampled_list)}')
         random.seed(10001) # reset the random seed
         del self.unlabeled_indices
         
     
-    def check_iterated_subset_sampled_list(self) -> bool:
-        return all(not subset.indices for subset in self.subset_sampled_list)
+    
+    def check_iterated_unlab_sampled_list(self) -> bool:
+        return all(not subset.indices for subset in self.unlab_sampled_list)
+        
         
         
     def run(self, epochs: int) -> Dict[str, List[float]]:
@@ -64,7 +66,7 @@ class Strategies(TrainEvaluate):
         
         
         # start of the loop
-        while not self.check_iterated_subset_sampled_list() and self.iter < self.al_iters:
+        while not self.check_iterated_unlab_sampled_list() and self.iter < self.al_iters:
             
             idx_list = (self.iter * self.n_top_k_obs) // self.unlab_sample_dim
             
@@ -77,7 +79,7 @@ class Strategies(TrainEvaluate):
             print(' START QUERY PROCESS\n')
             
             # run method query strategy
-            topk_idx_obs = self.query(self.subset_sampled_list[idx_list], self.n_top_k_obs)
+            topk_idx_obs = self.query(self.unlab_sampled_list[idx_list], self.n_top_k_obs)
                     
             # modify the datasets and dataloader
             print(' => Modifing the Subsets and Dataloader')

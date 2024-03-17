@@ -20,7 +20,6 @@ from typing import List, Dict, Any
 
 def accuracy_score(outputs: torch.Tensor, labels: torch.Tensor) -> float:
     outputs_class = torch.argmax(torch.softmax(outputs, dim=1), dim=1)
-    #print(outputs_class, labels)
     return (outputs_class == labels).sum().item()/len(outputs)
 
 
@@ -312,8 +311,6 @@ def plot_accuracy_std_mean(timestamp: str, dataset_name: str) -> None:
         method_data = df_grouped[df_grouped['method'] == method]
         plt.plot(method_data['lab_obs'], method_data['mean'], label=method, linestyle = 'dashed' if method in ['Random_LL', 'Random'] else 'solid')
         plt.fill_between(method_data['lab_obs'], method_data['ci_lower'], method_data['ci_upper'], alpha=0.3)
-        #plt.plot(method_data['lab_obs'], method_data['ci_lower'], linewidth=0.8, linestyle='--', color=plt.gca().lines[-1].get_color())
-        #plt.plot(method_data['lab_obs'], method_data['ci_upper'], linewidth=0.8, linestyle='--', color=plt.gca().lines[-1].get_color())
         plt.scatter(method_data['lab_obs'], method_data['mean'], marker=shapes[idx], color=plt.gca().lines[-1].get_color(), zorder=5)
 
     plt.xlabel('Labeled Observations')
@@ -357,23 +354,3 @@ def download_tinyimagenet() -> None:
     else:
         print('Tiny-IMAGENET Dataset already downloaded')
 
-
-
-'''def get_train_mean_std(self, dataset_name):
-
-        # in case I selected the fmnist dataset I Pad each image of 2 px to compute the mean and std
-        train_data = becnhmark_datasets[dataset_name]['method'](
-            f'./datasets/{dataset_name}', 
-            train=True,
-            download=True
-        ) if dataset_name != 'fmnist' else becnhmark_datasets[dataset_name]['method'](
-            f'./datasets/{dataset_name}',
-            train=True,
-            download=True,
-            transform=transforms.Compose([transforms.Pad(2)])
-        )
-        
-        x = np.concatenate([np.asarray(train_data[i][0]) for i in range(len(train_data))])
-        
-        self.train_mean = np.mean(x, axis=(0, 1)) / 255
-        self.train_std = np.std(x, axis=(0, 1)) / 255'''

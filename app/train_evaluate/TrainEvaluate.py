@@ -125,10 +125,10 @@ class TrainEvaluate(object):
         # remove new labeled observations
         for idx_to_remove in overall_topk: 
             #self.unlabeled_indices.remove(idx_to_remove)
-            self.subset_sampled_list[idx_samp_unlab_obs].indices.remove(idx_to_remove)
+            self.unlab_sampled_list[idx_samp_unlab_obs].indices.remove(idx_to_remove)
         
         # sanity check
-        if len(list(set(self.subset_sampled_list[idx_samp_unlab_obs].indices) & set(self.labeled_indices))) == 0:
+        if len(list(set(self.unlab_sampled_list[idx_samp_unlab_obs].indices) & set(self.labeled_indices))) == 0:
             print('Intersection between indices is EMPTY')
         else: raise Exception('NON EMPTY INDICES INTERSECTION')
 
@@ -136,8 +136,7 @@ class TrainEvaluate(object):
         # generate the new labeled DataLoader
         self.lab_train_dl = DataLoader(
             self.transformed_trainset, batch_size=self.batch_size, 
-            sampler=SubsetRandomSampler(self.labeled_indices),
-            pin_memory=True
+            sampler=SubsetRandomSampler(self.labeled_indices), pin_memory=True
         )
 
 
@@ -147,6 +146,7 @@ class TrainEvaluate(object):
         params = {
             'num_classes': self.n_classes, 'n_channels': self.n_channels, 'image_size': self.image_size,
             'LL': self.LL, 'patience': self.patience, 'dataset_name': self.dataset_name, 'method_name': self.method_name,
+            # the training is done only on the labeled training set
             'train_ds': Subset(self.transformed_trainset, self.labeled_indices), 'val_ds': self.val_ds, 'test_ds': self.test_ds,
             'batch_size': self.batch_size, 'score_fn': self.score_fn, 'main_device': self.device
         }
