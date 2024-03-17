@@ -22,6 +22,7 @@ from typing import Dict, Any, List, Tuple
 
 
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'fmnist', 'tinyimagenet'],
                     required=True, help='Possible datasets to choose')
@@ -38,51 +39,77 @@ set_seeds()
 
 
 
-def train_evaluate(al_params: Dict[str, Any], epochs: int, len_lab_train_ds: int, al_iters: int, unlab_sample_dim: int, n_top_k_obs: int, our_method_params: Dict[str, int]) \
-    -> Tuple[Dict[str, List[float]], List[int]]:
+def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], al_params: Dict[str, Any], \
+    epochs: int, len_lab_train_ds: int) -> Tuple[Dict[str, List[float]], List[int]]:
 
     results = { }
-    n_lab_obs = [len_lab_train_ds + (iter * n_top_k_obs) for iter in range(al_iters)]
+    n_lab_obs = [len_lab_train_ds + (iter * al_params['n_top_k_obs']) for iter in range(al_params['al_iters'])]
     
     methods = [
         # Random
-        #Random(al_params, LL=False)
-        Random(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
+        #Random(al_params=al_params, training_params=training_params, LL=False),
+        #Random(al_params=al_params, training_params=training_params, LL=True),
         
         # LeastConfidence
-        #LeastConfidence(al_params, LL=False), LeastConfidence(al_params, LL=True),
+        #LeastConfidence(al_params=al_params, training_params=training_params, LL=False)
+        #LeastConfidence(al_params=al_params, training_params=training_params, LL=True)
         
         # Rntropy
-        #Entropy(al_params, LL=False),
-        Entropy(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
+        #Entropy(al_params=al_params, training_params=training_params, LL=False)
+        #Entropy(al_params=al_params, training_params=training_params, LL=True),
         
         # KMeans
-        #K_Means(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
-        #K_Means(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
+        #K_Means(al_params=al_params, training_params=training_params, LL=True),
+        #K_Means(al_params=al_params, training_params=training_params, LL=True),
         
         # CoreSet
-        #CoreSet(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
-        #CoreSet(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
+        #CoreSet(al_params=al_params, training_params=training_params, LL=True),
+        #CoreSet(al_params=al_params, training_params=training_params, LL=True),
         
         # BALD
-        #BALD(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
-        #BALD(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
+        #BALD(al_params=al_params, training_params=training_params, LL=True),
+        #BALD(al_params=al_params, training_params=training_params, LL=True),
         
         # BADGE
-        #BADGE(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim), 
-        #BADGE(al_params=al_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim),
+        #BADGE(al_params=al_params, training_params=training_params, LL=True), 
+        #BADGE(al_params=al_params, training_params=training_params, LL=True),
         
         # GTG
-        GTG(al_params=al_params, our_methods_params=our_method_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim, A_function='corr',
-            zero_diag=False, ent_strategy=Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES),
-        GTG(al_params=al_params, our_methods_params=our_method_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim, A_function='corr',
-            zero_diag=False, ent_strategy=Entropy_Strategy.HISTORY_INTEGRAL),
-        GTG(al_params=al_params, our_methods_params=our_method_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim, A_function='rbfk',
-            zero_diag=False, ent_strategy=Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES),
-        GTG(al_params=al_params, our_methods_params=our_method_params, LL=True, al_iters=al_iters, n_top_k_obs=n_top_k_obs, unlab_sample_dim=unlab_sample_dim, A_function='rbfk',
-            zero_diag=False, ent_strategy=Entropy_Strategy.HISTORY_INTEGRAL),
+        GTG(al_params=al_params, training_params=training_params, 
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES
+            }, LL=True),
+        GTG(al_params=al_params, training_params=training_params, 
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.HISTORY_INTEGRAL
+            }, LL=True),
+        
+        
+        GTG(al_params=al_params, training_params=training_params,
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES
+            }, LL=True),
+        GTG(al_params=al_params, training_params=training_params,
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.HISTORY_INTEGRAL
+            }, LL=True),
+        
+        
+        GTG(al_params=al_params, training_params=training_params,
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': True, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES
+            }, LL=True),
+        GTG(al_params=al_params, training_params=training_params,
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': True, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.HISTORY_INTEGRAL
+            }, LL=True)
     ]
-
 
     for method in methods:
             
@@ -92,12 +119,10 @@ def train_evaluate(al_params: Dict[str, Any], epochs: int, len_lab_train_ds: int
             
                     
     print('Resulting dictionary')
-    print(results)
-    print('\n')
+    print(f'{results}\n')
         
     print('Resulting number of observations')
-    print(n_lab_obs)
-    print('\n')
+    print(f'{n_lab_obs}\n')
         
     return results, n_lab_obs
 
@@ -120,16 +145,15 @@ def main() -> None:
     print(f'Application running on {device}\n')
 
 
-    
-
-
-    epochs = 200
+    # later added to argparser
     al_iters = 10
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
+    init_lab_obs = 1000
+    
+    epochs = 200
     batch_size = 128
     patience = 50
-    init_lab_obs = 1000
     
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     
@@ -143,12 +167,11 @@ def main() -> None:
             print(f'----------------------- SAMPLE ITERATION {samp_iter + 1} / {sample_iterations} -----------------------\n')
             
             create_ts_dir_res(timestamp, dataset_name, str(samp_iter))
-            
             DatasetChoice = SubsetDataloaders(dataset_name, batch_size, val_rateo=0.2, init_lab_obs=init_lab_obs)
             
             print('\n')
             
-            al_params = {
+            training_params = {
                 'DatasetChoice': DatasetChoice,
                 'batch_size': batch_size,
                 'score_fn': accuracy_score,
@@ -157,23 +180,27 @@ def main() -> None:
                 'timestamp': timestamp,
                 'dataset_name': dataset_name,
                 'samp_iter': samp_iter
-            }    
+            }
             
+            al_params = {
+                'al_iters': al_iters, 
+                'unlab_sample_dim': unlab_sample_dim, 
+                'n_top_k_obs': n_top_k_obs
+            }
             
-            our_method_params = {
+            gtg_params = {
                 'gtg_tol': 0.001,
-                'gtg_max_iter': 30 # remember that simpson's rule need an even number of observations to compute the integrals
+                'gtg_max_iter': 30
+                # remember that simpson's rule need an even number of observations to compute the integrals
             }
             
 
             results, n_lab_obs = train_evaluate(
-                al_params=al_params, 
+                training_params=training_params, 
+                al_params=al_params,
+                gtg_params=gtg_params,
                 epochs=epochs, 
                 len_lab_train_ds=init_lab_obs,
-                al_iters=al_iters, 
-                unlab_sample_dim=unlab_sample_dim,
-                n_top_k_obs=n_top_k_obs,
-                our_method_params=our_method_params
             )
             
             final_plot_name = f'{dataset_name}/{samp_iter}/results_{epochs}_{al_iters}_{n_top_k_obs}.png'

@@ -16,14 +16,23 @@ from typing import Tuple, Dict, Any, List
 from multiprocessing import connection 
 
 
-def train_ddp(rank: int, world_size: int, params: Dict[str, Any], epochs: int, conn: connection.Connection) -> None:
+def cleanup() -> None:
+    dist.destroy_process_group()
     
+    
+def initialize_preocess(rank: int, world_size: int) -> None:
     os.environ["MASTER_ADDR"] = "ppv-gpu1"
     os.environ["MASTER_PORT"] = "16217"
     
     init_process_group(backend='nccl', init_method=f'tcp://{os.environ["MASTER_ADDR"]}:{os.environ["MASTER_PORT"]}', rank=rank, world_size=world_size)
     
     torch.cuda.set_device(rank)
+    
+
+
+def train_ddp(rank: int, world_size: int, params: Dict[str, Any], epochs: int, conn: connection.Connection) -> None:
+    
+    initialize_preocess(rank, world_size)
     
     train_results = [torch.zeros((8, epochs), device=rank) for _ in range(world_size)]
     test_results = [torch.zeros(4, device=rank) for _ in range(world_size)]
@@ -37,21 +46,21 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], epochs: int, c
     
     
     params['train_dl'] = DataLoader(
-                            params['train_ds'], batch_size=params['batch_size'] // world_size,
+                            params['train_ds'], batch_size=params['batch_size'],# // world_size,
                             sampler=DistributedSampler(params['train_ds'], num_replicas=world_size, rank=rank, shuffle=True, seed=100001),
                             shuffle=False, pin_memory=True, persistent_workers=True,
                             num_workers=num_workers
                         )
     
     params['val_dl'] = DataLoader(
-                            params['val_ds'], batch_size=params['batch_size'] // world_size,
+                            params['val_ds'], batch_size=params['batch_size'],# // world_size,
                             sampler=DistributedSampler(params['val_ds'], num_replicas=world_size, rank=rank, shuffle=False, seed=100001),
                             shuffle=False, pin_memory=True, persistent_workers=True,
                             num_workers=num_workers
                         )
     
     params['test_dl'] = DataLoader(
-                            params['test_ds'], batch_size=params['batch_size'] // world_size,
+                            params['test_ds'], batch_size=params['batch_size'],# // world_size,
                             sampler=DistributedSampler(params['test_ds'], num_replicas=world_size, rank=rank, shuffle=False, seed=100001),
                             shuffle=False, pin_memory=True, persistent_workers=True,
                             num_workers=num_workers
@@ -76,8 +85,12 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], epochs: int, c
         
         conn.send((train_results, test_results))           
     
+    ##################
+    # see if this remove the warning of multiprocessing
+    dist.barrier()
+    ##################
     
-    destroy_process_group()
+    cleanup()
     
     
     

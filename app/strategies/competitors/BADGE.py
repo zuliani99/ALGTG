@@ -11,10 +11,12 @@ from typing import Dict, Any, List
 
 
 
+
+
 class BADGE(Strategies):
     
-    def __init__(self, al_params: Dict[str, Any], LL: bool, al_iters: int, n_top_k_obs: int, unlab_sample_dim: int) -> None:
-        super().__init__(al_params, LL, al_iters, n_top_k_obs, unlab_sample_dim)
+    def __init__(self, al_params: Dict[str, Any], training_params: Dict[str, Any], LL: bool) -> None:
+        super().__init__(al_params, training_params, LL)
         
         self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
         

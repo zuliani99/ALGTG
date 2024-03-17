@@ -10,16 +10,19 @@ from Datasets import DatasetChoice, SubsetDataloaders
 from utils import save_train_val_curves, write_csv
 
 import copy
+#from time import sleep
 #import gc
 from typing import List, Dict, Any
+
+
     
     
 class TrainEvaluate(object):
 
-    def __init__(self, params: Dict[str, Any], LL: bool) -> None:
+    def __init__(self, training_params: Dict[str, Any], LL: bool) -> None:
 
         self.LL = LL        
-        sdl: SubsetDataloaders = params['DatasetChoice']
+        sdl: SubsetDataloaders = training_params['DatasetChoice']
         
         self.n_classes = sdl.n_classes
         self.n_channels = sdl.n_channels
@@ -33,14 +36,14 @@ class TrainEvaluate(object):
         self.transformed_trainset: DatasetChoice = sdl.transformed_trainset 
         self.non_transformed_trainset: DatasetChoice = sdl.non_transformed_trainset 
         
-        self.device: torch.device = params['device']
-        self.batch_size: int = params['batch_size']
+        self.device: torch.device = training_params['device']
+        self.batch_size: int = training_params['batch_size']
        
-        self.patience: int = params['patience']
-        self.score_fn: function = params['score_fn']
-        self.timestamp: str = params['timestamp']
-        self.dataset_name: str = params['dataset_name']
-        self.iter_sample: int = params['samp_iter']
+        self.patience: int = training_params['patience']
+        self.score_fn: function = training_params['score_fn']
+        self.timestamp: str = training_params['timestamp']
+        self.dataset_name: str = training_params['dataset_name']
+        self.iter_sample: int = training_params['samp_iter']
 
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
                 
@@ -106,7 +109,15 @@ class TrainEvaluate(object):
         
 
 
-    def get_new_dataloaders(self, overall_topk: int, idx_samp_unlab_obs: int) -> None:
+    def update_sets(self, overall_topk: int, idx_samp_unlab_obs: int) -> None:
+        
+        '''unique_label = []
+        
+        for top in overall_topk:
+            unique_label.append(self.transformed_trainset[top][2])
+        
+        print('Add sobservations from these labels', torch.unique(torch.tensor(unique_label)))'''
+        
         
         # extend with the overall_topk
         self.labeled_indices.extend(overall_topk)
@@ -154,6 +165,9 @@ class TrainEvaluate(object):
             mp.spawn(train_ddp, args=(world_size, params, epochs, child_conn, ), nprocs=world_size, join=True)
             # obtain the results
             while parent_conn.poll():
+                ##################################
+                #parent_conn.map(sleep, [0.01] * 10) # to test after
+                ##################################
                 train_recv, test_recv = parent_conn.recv()
                 
         else:
