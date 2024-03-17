@@ -11,9 +11,8 @@ conda activate <env>
 
 ## Applciation Start Up
 ```
-ssh rzuliani@157.138.20.71
-cd app
-python main.py 
+sbatch run_AL_multi.slurm    # for multi-GPUs training
+sbatch run_AL_single.slurm    # for single-GPU training
 ```
 
 ## Notes
@@ -25,14 +24,4 @@ git clone https://github.com/zuliani99/Active_Learning_GTG.git
 GitHub Token
 ```
 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
-```
-
-Connect to VPN UNIVE from Ubuntu
-```
-nmcli con up id VPN-Ca-Foscari
-```
-
-How to check the usage of GPU memory
-```
-nvidia-smi --query-gpu=gpu_name,memory.used,memory.free,memory.total --format=csv
 ```
