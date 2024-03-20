@@ -7,9 +7,10 @@ import torch.nn.init as init
 
 
 import matplotlib.pyplot as plt
+from sklearn.manifold import TSNE
+import seaborn as sns
 import pandas as pd
 import numpy as np
-
 import csv
 import os
 import random
@@ -354,3 +355,71 @@ def download_tinyimagenet() -> None:
     else:
         print('Tiny-IMAGENET Dataset already downloaded')
 
+
+
+def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor], iter: int, \
+        ds_name: str, method: str, incides_unlab: List[int], classes: List[str]):
+    
+    tsne_lab = TSNE().fit_transform(lab['embedds'].cpu().numpy())
+    tsne_unlab = TSNE().fit_transform(unlab['embedds'].cpu().numpy())
+    
+    label_lab = lab['labels'].cpu().numpy()
+    unlabel_lab = unlab['labels'].cpu().numpy()
+    
+    x_lab = tsne_lab[:,0]
+    y_lab = tsne_lab[:,1]
+    
+    x_unlab = tsne_unlab[:,0]
+    y_unlab = tsne_unlab[:,1]
+    
+    plt.figure(figsize=(18, 15))
+    
+    # unlabeled -> alpha = 0.5, label = ...
+    for idx, lab in enumerate(unlabel_lab):
+        #print(x_unlab[idx], y_unlab[idx])
+        sns.scatterplot(x=[x_unlab[idx]], y=[y_unlab[idx]], label=classes[lab], alpha=0.5)
+        
+    # labeled -> alpha = 1, label = ...
+    for idx, lab in enumerate(label_lab):
+        #print(x_lab[idx], y_lab[idx])
+        sns.scatterplot(x=[x_lab[idx]], y=[y_lab[idx]], label=classes[lab])
+        
+    # new_labeled -> alpha = 1, label = ..., red circle
+    sns.scatterplot(x=x_unlab[incides_unlab], y=y_unlab[incides_unlab], label=unlabel_lab[incides_unlab], markers='*')
+    
+    
+    plt.title(f'{ds_name} - method {method} - iter {iter} - ')
+    plt.legend()
+    plt.savefig(f'app/tsne_plot/tsne_{ds_name}_{method}_{str(iter)}.png')
+    
+    
+    
+def download_coco_dataset() -> None:
+    if not os.path.exists('datasets/coco'):
+        print(' => Downloading COCO-2017 Dataset')
+                
+        os.system('wget -c http://images.cocodataset.org/zips/train2017.zip')
+        os.system('wget -c http://images.cocodataset.org/zips/val2017.zip')
+        os.system('wget -c http://images.cocodataset.org/zips/test2017.zip')
+
+        os.system('unzip train2017.zip -d datasets/images')
+        os.system('unzip val2017.zip -d datasets/images')
+        os.system('unzip test2017.zip -d datasets/images')
+        
+        os.remove('train2017.zip')
+        os.remove('test2017.zip')
+        os.remove('val2017.zip')
+        
+        os.system('wget -c http://images.cocodataset.org/annotations/annotations_trainval2017.zip')
+        os.system('wget -c http://images.cocodataset.org/annotations/stuff_annotations_trainval2017.zip')
+        os.system('wget -c http://images.cocodataset.org/annotations/image_info_test2017.zip')
+        
+        os.system('unzip annotations_trainval2017.zip')
+        os.system('unzip stuff_annotations_trainval2017.zip')
+        os.system('unzip image_info_test2017.zip')
+        
+        os.remove('annotations_trainval2017.zip')
+        os.remove('stuff_annotations_trainval2017.zip')
+        os.remove('image_info_test2017.zip')
+    else:
+        print('COCO-2017 Dataset already downloaded')

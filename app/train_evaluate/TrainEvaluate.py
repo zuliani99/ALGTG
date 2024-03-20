@@ -2,16 +2,13 @@
 import torch
 from torch.utils.data import DataLoader, Subset
 import torch.multiprocessing as mp
-from torch.utils.data.sampler import SubsetRandomSampler
 from train_evaluate.Train_DDP import train, train_ddp
 
 from ResNet18 import BasicBlock, ResNet_Weird
 from Datasets import DatasetChoice, SubsetDataloaders
-from utils import save_train_val_curves, write_csv
+from utils import save_train_val_curves, write_csv, plot_new_labeled_tsne
 
 import copy
-#from time import sleep
-#import gc
 from typing import List, Dict, Any
 
 
@@ -28,7 +25,7 @@ class TrainEvaluate(object):
         self.n_channels = sdl.n_channels
         self.dataset_id = sdl.dataset_id
         self.image_size = sdl.image_size
-        
+        self.classes = sdl.classes
         
         self.test_ds: DatasetChoice = sdl.test_ds
         self.val_ds: DatasetChoice = sdl.val_ds
@@ -43,7 +40,7 @@ class TrainEvaluate(object):
         self.score_fn: function = training_params['score_fn']
         self.timestamp: str = training_params['timestamp']
         self.dataset_name: str = training_params['dataset_name']
-        self.iter_sample: int = training_params['samp_iter']
+        self.samp_iter: int = training_params['samp_iter']
 
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
                 
@@ -53,8 +50,8 @@ class TrainEvaluate(object):
         
         
         self.lab_train_dl = DataLoader(
-            self.transformed_trainset, batch_size=self.batch_size, 
-            sampler=SubsetRandomSampler(self.labeled_indices), pin_memory=True
+            Subset(self.transformed_trainset, self.labeled_indices),
+            batch_size=self.batch_size, shuffle=False, pin_memory=True
         )
         
         self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], image_size=self.image_size, num_classes=self.n_classes, n_channels=self.n_channels).to(self.device)
@@ -107,24 +104,50 @@ class TrainEvaluate(object):
         #torch.cuda.empty_cache()
         
         
+        
+    def save_tsne(self, idx_samp_unlab_obs: int, incides_unlab: List[int], al_iter: int) -> None:
+        # plot the tsne graph for each iteration
+                
+        unlab_train_dl = DataLoader(
+            self.unlab_sampled_list[idx_samp_unlab_obs],
+            batch_size=self.batch_size, shuffle=False, pin_memory=True
+        )
+        
+        print(' => Saving the TSNE embeddings plot with labeled, unlabeled and new labeled observations')
+        
+        # plot tsne, to recdaompute the embedding
+        lab_embedds_dict = {'embedds': None, 'labels': None}
+        unlab_embedds_dict = {'embedds': None, 'labels': None}
+            
+        print(' Getting the embeddings...')
+        self.get_embeddings(self.lab_train_dl, lab_embedds_dict)
+        self.get_embeddings(unlab_train_dl, unlab_embedds_dict)
+        
+        print(' Plotting...')
+        plot_new_labeled_tsne(
+            lab_embedds_dict, unlab_embedds_dict,
+            al_iter, self.method_name,
+            self.dataset_name, incides_unlab, self.classes
+        )
+        print(' DONE\n')
+        
+        del lab_embedds_dict
+        del unlab_embedds_dict
+                
 
 
-    def update_sets(self, overall_topk: int, idx_samp_unlab_obs: int) -> None:
+    def update_sets(self, overall_topk: int, idx_samp_unlab_obs: int, indices_unlab: List[int], al_iter: int) -> None:        
         
-        '''unique_label = []
-        
-        for top in overall_topk:
-            unique_label.append(self.transformed_trainset[top][2])
-        
-        print('Add sobservations from these labels', torch.unique(torch.tensor(unique_label)))'''
-        
-        
+        # Saving the tsne embeddings plot
+        self.save_tsne(idx_samp_unlab_obs, indices_unlab, al_iter)
+
+        # Update the labeeld and unlabeled training set
+        print(' => Modifing the Subsets and Dataloader')
         # extend with the overall_topk
         self.labeled_indices.extend(overall_topk)
         
         # remove new labeled observations
         for idx_to_remove in overall_topk: 
-            #self.unlabeled_indices.remove(idx_to_remove)
             self.unlab_sampled_list[idx_samp_unlab_obs].indices.remove(idx_to_remove)
         
         # sanity check
@@ -132,13 +155,15 @@ class TrainEvaluate(object):
             print('Intersection between indices is EMPTY')
         else: raise Exception('NON EMPTY INDICES INTERSECTION')
 
-
         # generate the new labeled DataLoader
         self.lab_train_dl = DataLoader(
-            self.transformed_trainset, batch_size=self.batch_size, 
-            sampler=SubsetRandomSampler(self.labeled_indices), pin_memory=True
+            Subset(self.transformed_trainset, self.labeled_indices),
+            batch_size=self.batch_size, shuffle=False, pin_memory=True
         )
-
+        print(' DONE\n')
+        
+                
+        
 
 
     def train_evaluate_save(self, epochs: int, lab_obs: List[int], iter: int, results: Dict[str, List[float]]) -> None:
@@ -164,17 +189,15 @@ class TrainEvaluate(object):
             # spawn the process
             mp.spawn(train_ddp, args=(world_size, params, epochs, child_conn, ), nprocs=world_size, join=True)
             # obtain the results
+            print('after mp.spawn')
             while parent_conn.poll():
-                ##################################
-                #parent_conn.map(sleep, [0.01] * 10) # to test after
-                ##################################
+                print('receiving')
                 train_recv, test_recv = parent_conn.recv()
                 
         else:
             print(' => RUNNING TRAINING')
             
             # add the already created labeeld train dataloader
-            params['train_dl'] = self.lab_train_dl
             train_recv, test_recv = train(params, epochs)
 
         
@@ -204,10 +227,10 @@ class TrainEvaluate(object):
             ts_dir = self.timestamp,
             dataset_name = self.dataset_name,
             head = ['method', 'iter', 'lab_obs', 'test_accuracy', 'test_loss', 'test_loss_ce', 'test_loss_weird'],
-            values = [self.method_name, self.iter_sample, lab_obs, test_accuracy, test_loss, test_loss_ce, test_loss_weird]
+            values = [self.method_name, self.samp_iter, lab_obs, test_accuracy, test_loss, test_loss_ce, test_loss_weird]
         )
         
-        save_train_val_curves(train_results, self.timestamp, self.dataset_name, iter, self.iter_sample, self.LL)
+        save_train_val_curves(train_results, self.timestamp, self.dataset_name, iter, self.samp_iter, self.LL)
 
         
         

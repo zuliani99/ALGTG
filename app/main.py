@@ -27,11 +27,15 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'fmnist', 'tinyimagenet'],
                     required=True, help='Possible datasets to choose')
 parser.add_argument('-i', '--iterations', type=int, nargs=1, required=True, help='Number or iterations of AL benchmark for each dataset')
+parser.add_argument('-s', '--strategy', type=str, nargs=1, choices=['uncertanity', 'diversity', 'mixed'], 
+                    required=True, help='Possible query strategy types to choose')
+
 
 args = parser.parse_args()
 
 choosen_datasets = args.datasets
 sample_iterations = args.iterations[0]
+strategy_type = args.strategy[0]
 
 
 # setting seed and deterministic behaviour of pytorch for reproducibility
@@ -87,17 +91,6 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
             }, LL=True),
         
         
-        GTG(al_params=al_params, training_params=training_params,
-            gtg_params={
-                **gtg_params,
-                'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES
-            }, LL=True),
-        GTG(al_params=al_params, training_params=training_params,
-            gtg_params={
-                **gtg_params,
-                'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.HISTORY_INTEGRAL
-            }, LL=True),
-        
         
         GTG(al_params=al_params, training_params=training_params,
             gtg_params={
@@ -146,12 +139,12 @@ def main() -> None:
 
 
     # later added to argparser
-    al_iters = 10
+    al_iters = 5#10
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
     init_lab_obs = 1000
     
-    epochs = 200
+    epochs = 1#200
     batch_size = 128
     patience = 50
     
@@ -185,12 +178,13 @@ def main() -> None:
             al_params = {
                 'al_iters': al_iters, 
                 'unlab_sample_dim': unlab_sample_dim, 
-                'n_top_k_obs': n_top_k_obs
+                'n_top_k_obs': n_top_k_obs,
             }
             
             gtg_params = {
                 'gtg_tol': 0.001,
-                'gtg_max_iter': 30
+                'gtg_max_iter': 30,
+                'strategy_type': strategy_type
                 # remember that simpson's rule need an even number of observations to compute the integrals
             }
             

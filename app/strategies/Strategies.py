@@ -18,8 +18,6 @@ class Strategies(TrainEvaluate):
         self.n_top_k_obs: int = al_params['n_top_k_obs']
         self.unlab_sample_dim: int = al_params['unlab_sample_dim']
         
-        self.samp_iter: int = training_params['samp_iter']
-        self.dataset_id: int = training_params['DatasetChoice'].dataset_id
         self.get_sampled_sets()
                 
                 
@@ -47,8 +45,9 @@ class Strategies(TrainEvaluate):
         random.seed(10001) # reset the random seed
         del self.unlabeled_indices
         
+        
     
-    
+    # check if all the subsets have been viewed
     def check_iterated_unlab_sampled_list(self) -> bool:
         return all(not subset.indices for subset in self.unlab_sampled_list)
         
@@ -68,6 +67,7 @@ class Strategies(TrainEvaluate):
         # start of the loop
         while not self.check_iterated_unlab_sampled_list() and self.iter < self.al_iters:
             
+            # seting the indices of the subset list
             idx_list = (self.iter * self.n_top_k_obs) // self.unlab_sample_dim
             
             self.iter += 1
@@ -75,16 +75,16 @@ class Strategies(TrainEvaluate):
             print(f'----------------------- ITERATION {self.iter} / {self.al_iters} -----------------------\n')
             
             print(f' => Working with the unlabeled sampled list {idx_list}')
-            #sample_unlab_subset = Subset(self.non_transformed_trainset, self.sampled_list[idx_list])
             print(' START QUERY PROCESS\n')
             
             # run method query strategy
             topk_idx_obs = self.query(self.unlab_sampled_list[idx_list], self.n_top_k_obs)
-                    
-            # modify the datasets and dataloader
-            print(' => Modifing the Subsets and Dataloader')
-            self.update_sets(topk_idx_obs, idx_list)
-            print(' DONE\n')
+            
+            # get the new labeled indices from the subset to plot the tsne embeddings
+            indices_unlab = [self.unlab_sampled_list[idx_list].indices.index(item) for item in topk_idx_obs]
+                                
+            # modify the datasets and dataloader and plot the tsne
+            self.update_sets(topk_idx_obs, idx_list, indices_unlab, self.iter)
 
             # iter + 1
             self.train_evaluate_save(epochs, self.iter * self.n_top_k_obs, self.iter, results)

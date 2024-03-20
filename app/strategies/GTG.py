@@ -6,10 +6,9 @@ import torch
 from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
-from scipy.integrate import trapz, simpson
+from scipy.integrate import simpson #,trapz
 import numpy as np
 
-import copy
 import gc
 from typing import Dict, Any, List
     
@@ -33,6 +32,7 @@ class GTG(Strategies):
         self.rbf_aff: bool = gtg_params['rbf_aff']
         self.gtg_tol: float = gtg_params['gtg_tol']
         self.gtg_max_iter: int = gtg_params['gtg_max_iter']
+        self.strategy_type: str = gtg_params['strategy_type']
                 
         str_diag = '0diag' if self.zero_diag else '1diag'
         rbf_str = 'rbf_' if self.rbf_aff else ''
@@ -42,13 +42,23 @@ class GTG(Strategies):
                             
     
         
-    # select the relative choosen affinity matrix method and perform rbfk
+    # select the relative choosen affinity matrix method
     def get_A(self, samp_unlab_embeddings: torch.Tensor) -> None:
         concat_embedds = torch.cat((self.lab_embedds_dict['embedds'], samp_unlab_embeddings)).to(self.device)
         
-        self.A = self.get_A_fn[self.A_function](concat_embedds) \
+        # compute the affinity matrix
+        A = self.get_A_fn[self.A_function](concat_embedds) \
         if self.A_function != 'rbfk' else self.get_A_rbfk(concat_embedds)
-
+        
+        if self.strategy_type == 'diversity':
+            # set the whole matrix as a distance matrix and not similarity matrix
+            A = 1 - A
+        elif self.strategy_type == 'mixed':
+            # set the unlabeled submatrix as distance matrix and not similarity matrix
+            n_lab_obs = len(self.lab_embedds_dict['embedds'])
+            A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] 
+            
+        self.A = A
 
 
     # should be correct
@@ -57,8 +67,12 @@ class GTG(Strategies):
         #e_d = torch.cdist(concat_embedds, concat_embedds).to(self.device)
         aff_matrix = self.get_A_fn[self.A_function](concat_embedds)
         
-        # ordering in ascending order so first the closest one
-        seventh_neigh = concat_embedds[torch.argsort(aff_matrix, dim=1)[:, 6]]
+        if self.A_function == 'e_d':
+            # if euclidean distance is choosen we take the 7th smallest observation which is the 7th closest one (ascending order)
+            seventh_neigh = concat_embedds[torch.argsort(aff_matrix, dim=1)[:, 6]]            
+        else:
+            # if correlation or cosine_similairty are choosen we take the 7th highest observation which is the 7th most similar one (descending order)
+            seventh_neigh = concat_embedds[torch.argsort(aff_matrix, dim=1, descending=True)[:, 6]]
         
         sigmas = torch.unsqueeze(torch.tensor([
             self.get_A_fn[self.A_function](
@@ -74,12 +88,17 @@ class GTG(Strategies):
               
         return A
     
+    
+    
     # correct
     def get_A_e_d(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         
         A = torch.cdist(concat_embedds, concat_embedds).to(self.device)
         
+        if self.zero_diag: A.fill_diagonal_(0.)
+        else: A.fill_diagonal_(1.)
         return A
+
 
 
     # correct
@@ -131,13 +150,13 @@ class GTG(Strategies):
         old_rowsum_X = 0
         
         while err > self.gtg_tol and i < self.gtg_max_iter:
-            X_old = copy.deepcopy(self.X)
+            X_old = torch.clone(self.X)
             
             self.X *= torch.mm(self.A, self.X)
             
             rowsum_X = torch.sum(self.X).item()
             if rowsum_X < old_rowsum_X: # it has to be increasing or at least equal
-                raise Exception('Sum of the denominator vectro lower than the previous step')
+                raise Exception('Sum of the vector on the denominator is lower than the previous step')
             old_rowsum_X = rowsum_X
             
             self.X /= torch.sum(self.X, dim=1, keepdim=True)            

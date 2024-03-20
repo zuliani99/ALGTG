@@ -20,6 +20,7 @@ becnhmark_datasets = {
         'method': datasets.CIFAR10,
         'n_classes': 10,
         'channels': 3,
+        'classes': ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck'],
         'image_size': 32, 
         'transforms': {
             'train': v2.Compose([
@@ -127,6 +128,7 @@ class SubsetDataloaders():
         self.n_channels: str = becnhmark_datasets[dataset_name]['channels']
         self.dataset_id: int = becnhmark_datasets[dataset_name]['id']
         self.image_size: int = becnhmark_datasets[dataset_name]['image_size']
+        self.classes: List[str] = becnhmark_datasets[dataset_name]['classes']
     
         self.get_initial_subsets_dls(val_rateo, init_lab_obs)
     
