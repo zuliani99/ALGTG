@@ -56,7 +56,13 @@ class GTG(Strategies):
         elif self.strategy_type == 'mixed':
             # set the unlabeled submatrix as distance matrix and not similarity matrix
             n_lab_obs = len(self.lab_embedds_dict['embedds'])
-            A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] 
+            A[:n_lab_obs, n_lab_obs:] = 1 - A[:n_lab_obs, n_lab_obs:]
+            A[n_lab_obs:, :n_lab_obs] = 1 - A[n_lab_obs:, :n_lab_obs]
+            
+            # Unlabeled VS Unlabeled -> similarity = A
+            # Labeled VS Labeled -> similarity = A
+            # Unlabeled VS Labeled -> distance = 1 - A
+            # Labeled VS Unlabeled -> distance = 1 - A
             
         self.A = A
 
@@ -245,6 +251,7 @@ class GTG(Strategies):
 
 
             # plot entropy history
+            #f'results/{self.time_stamp}/{self.ds_name}/{self.samp_iter}/gtg_entropy/{self.method_name}/history/{self.iter}.png'
             plot_history(self.entropy_history, f'./app/gtg_entropy/history/{self.method_name}_{self.iter}.png', self.iter, self.gtg_max_iter)
 
             if self.ent_strategy is Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES:
@@ -278,6 +285,8 @@ class GTG(Strategies):
                 f'./app/gtg_entropy/weighted_derivatives/{self.method_name}_{self.iter}.png',
                 self.iter, self.gtg_max_iter - 1
             )
+            #f'results/{self.time_stamp}/{self.ds_name}/{self.samp_iter}/gtg_entropy/{self.method_name}/weighted_derivatives/{self.iter}.png'
+            
             
             
             # plot in the top k entropy derivatives and weighted entropy derivatives
@@ -287,6 +296,8 @@ class GTG(Strategies):
                 f'./app/gtg_entropy/topk_weighted_derivatives/{self.method_name}_{self.iter}.png',
                 self.iter, self.gtg_max_iter - 1
             )
+            #f'results/{self.time_stamp}/{self.ds_name}/{self.samp_iter}/gtg_entropy/{self.method_name}/topk_weighted_derivatives/{self.iter}.png'
+            
         
             del self.entropy_pairwise_der
             torch.cuda.empty_cache()  

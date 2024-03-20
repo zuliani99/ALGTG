@@ -136,7 +136,8 @@ class TrainEvaluate(object):
         plot_new_labeled_tsne(
             lab_embedds_dict, unlab_embedds_dict,
             al_iter, self.method_name,
-            self.dataset_name, incides_unlab, self.classes
+            self.dataset_name, incides_unlab, self.classes, 
+            self.timestamp, self.samp_iter
         )
         
         print(' DONE\n')
@@ -184,7 +185,7 @@ class TrainEvaluate(object):
         
         
         
-        
+        # Pipe for the itra-process communication of the results
         parent_conn, child_conn = mp.Pipe()
         
         # if we are using multiple gpus
@@ -194,10 +195,7 @@ class TrainEvaluate(object):
             # spawn the process
             mp.spawn(train_ddp, args=(self.world_size, params, epochs, child_conn, ), nprocs=self.world_size, join=True)
             # obtain the results
-            print('after mp.spawn')
-            while parent_conn.poll():
-                print('receiving')
-                train_recv, test_recv = parent_conn.recv()
+            while parent_conn.poll(): train_recv, test_recv = parent_conn.recv()
                 
         else:
             print(' => RUNNING TRAINING')
