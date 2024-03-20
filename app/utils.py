@@ -360,8 +360,10 @@ def download_tinyimagenet() -> None:
 def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor], iter: int, \
         ds_name: str, method: str, incides_unlab: List[int], classes: List[str]):
     
-    tsne_lab = TSNE().fit_transform(lab['embedds'].cpu().numpy())
-    tsne_unlab = TSNE().fit_transform(unlab['embedds'].cpu().numpy())
+    tsne = TSNE().fit_transform(np.vstack((lab['embedds'].cpu().numpy(), unlab['embedds'].cpu().numpy())))
+    
+    tsne_lab = tsne[:len(lab['embedds']),:]
+    tsne_unlab = tsne[len(lab['embedds']):,:]
     
     label_lab = lab['labels'].cpu().numpy()
     unlabel_lab = unlab['labels'].cpu().numpy()
@@ -371,9 +373,7 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
     
     x_unlab = tsne_unlab[:,0]
     y_unlab = tsne_unlab[:,1]
-    
-    #plt.figure(figsize=(18, 15))
-    
+        
     x = np.hstack((x_lab, x_unlab))
     y = np.hstack((y_lab, y_unlab))
     
@@ -384,7 +384,7 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
     
     sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', ax=axes[0])
     sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', ax=axes[0])
-    sns.scatterplot(x=x_unlab[incides_unlab], y=y_unlab[incides_unlab], label='new_labeled', color='green', ax=axes[0])
+    sns.scatterplot(x=x_unlab[incides_unlab], y=y_unlab[incides_unlab], label='new_labeled', color='red', ax=axes[0])
     axes[0].set_title('TSNE -- labeled - unlabeled - new_labeled')
     axes[0].legend()
         

@@ -37,8 +37,8 @@ class GTG(Strategies):
         str_diag = '0diag' if self.zero_diag else '1diag'
         rbf_str = 'rbf_' if self.rbf_aff else ''
                 
-        self.method_name = f'{self.__class__.__name__}_{rbf_str}{self.A_function}_{self.ent_strategy.name}_{str_diag}_LL' if LL \
-            else f'{self.__class__.__name__}_{self.A_function}_{self.ent_strategy.name}_{str_diag}'
+        self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{rbf_str}{self.A_function}_{self.ent_strategy.name}_{str_diag}_LL' if LL \
+            else f'{self.__class__.__name__}_{self.strategy_type}_{rbf_str}{self.A_function}_{self.ent_strategy.name}_{str_diag}'
                             
     
         
