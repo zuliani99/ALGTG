@@ -18,7 +18,7 @@ from typing import Tuple, Dict, Any
 
 
 class TrainWorker():
-    def __init__(self, gpu_id: int, params: Dict[str, Any], world_size: int = 1) -> None:
+    def __init__(self, gpu_id: str, params: Dict[str, Any], world_size: int = 1) -> None:
         
         self.device = torch.device(gpu_id)
         

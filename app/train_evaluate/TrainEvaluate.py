@@ -56,12 +56,21 @@ class TrainEvaluate(object):
         
         self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], image_size=self.image_size, num_classes=self.n_classes, n_channels=self.n_channels).to(self.device)
     
+        self.world_size = torch.cuda.device_count()
+
 
         
         
     def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, torch.Tensor]) -> None:
         
-        checkpoint: Dict = torch.load(f'{self.best_check_filename}/best_{self.method_name}_cuda:0.pth.tar', map_location=self.device)
+        
+        if torch.distributed.is_available():
+            if self.world_size > 0: device = 'cuda:0'
+            else: device = 'cuda' 
+        else: device = 'cpu'
+
+        
+        checkpoint: Dict = torch.load(f'{self.best_check_filename}/best_{self.method_name}_{device}.pth.tar', map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
         
         if 'embedds' in dict_to_modify:
@@ -107,13 +116,13 @@ class TrainEvaluate(object):
         
     def save_tsne(self, idx_samp_unlab_obs: int, incides_unlab: List[int], al_iter: int) -> None:
         # plot the tsne graph for each iteration
-                
+        
+        print(' => Saving the TSNE embeddings plot with labeled, unlabeled and new labeled observations')
+        
         unlab_train_dl = DataLoader(
             self.unlab_sampled_list[idx_samp_unlab_obs],
             batch_size=self.batch_size, shuffle=False, pin_memory=True
         )
-        
-        print(' => Saving the TSNE embeddings plot with labeled, unlabeled and new labeled observations')
         
         # plot tsne, to recdaompute the embedding
         lab_embedds_dict = {'embedds': None, 'labels': None}
@@ -129,18 +138,14 @@ class TrainEvaluate(object):
             al_iter, self.method_name,
             self.dataset_name, incides_unlab, self.classes
         )
+        
         print(' DONE\n')
         
-        del lab_embedds_dict
-        del unlab_embedds_dict
                 
 
 
-    def update_sets(self, overall_topk: int, idx_samp_unlab_obs: int, indices_unlab: List[int], al_iter: int) -> None:        
+    def update_sets(self, overall_topk: List[int], idx_samp_unlab_obs: int) -> None:        
         
-        # Saving the tsne embeddings plot
-        self.save_tsne(idx_samp_unlab_obs, indices_unlab, al_iter)
-
         # Update the labeeld and unlabeled training set
         print(' => Modifing the Subsets and Dataloader')
         # extend with the overall_topk
@@ -160,6 +165,7 @@ class TrainEvaluate(object):
             Subset(self.transformed_trainset, self.labeled_indices),
             batch_size=self.batch_size, shuffle=False, pin_memory=True
         )
+        
         print(' DONE\n')
         
                 
@@ -180,14 +186,13 @@ class TrainEvaluate(object):
         
         
         parent_conn, child_conn = mp.Pipe()
-        world_size = torch.cuda.device_count()
         
         # if we are using multiple gpus
-        if world_size > 1:
+        if self.world_size > 1:
             print(' => RUNNING DISTRIBUTED TRAINING')
             
             # spawn the process
-            mp.spawn(train_ddp, args=(world_size, params, epochs, child_conn, ), nprocs=world_size, join=True)
+            mp.spawn(train_ddp, args=(self.world_size, params, epochs, child_conn, ), nprocs=self.world_size, join=True)
             # obtain the results
             print('after mp.spawn')
             while parent_conn.poll():

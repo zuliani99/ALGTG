@@ -79,7 +79,13 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
         #BADGE(al_params=al_params, training_params=training_params, LL=True),
         
         # GTG
-        GTG(al_params=al_params, training_params=training_params, 
+        GTG(al_params=al_params, training_params=training_params,
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': True, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.HISTORY_INTEGRAL
+            }, LL=True)
+    ]
+    '''GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
                 'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES
@@ -90,8 +96,6 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
                 'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.HISTORY_INTEGRAL
             }, LL=True),
         
-        
-        
         GTG(al_params=al_params, training_params=training_params,
             gtg_params={
                 **gtg_params,
@@ -101,8 +105,7 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
             gtg_params={
                 **gtg_params,
                 'rbf_aff': True, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.HISTORY_INTEGRAL
-            }, LL=True)
-    ]
+            }, LL=True)'''
 
     for method in methods:
             
@@ -144,7 +147,7 @@ def main() -> None:
     unlab_sample_dim = 10000
     init_lab_obs = 1000
     
-    epochs = 1#200
+    epochs = 200
     batch_size = 128
     patience = 50
     

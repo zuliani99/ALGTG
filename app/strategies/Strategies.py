@@ -78,13 +78,16 @@ class Strategies(TrainEvaluate):
             print(' START QUERY PROCESS\n')
             
             # run method query strategy
-            topk_idx_obs = self.query(self.unlab_sampled_list[idx_list], self.n_top_k_obs)
+            topk_idx_obs: List[int] = self.query(self.unlab_sampled_list[idx_list], self.n_top_k_obs)
             
             # get the new labeled indices from the subset to plot the tsne embeddings
             indices_unlab = [self.unlab_sampled_list[idx_list].indices.index(item) for item in topk_idx_obs]
-                                
+            
+            # Saving the tsne embeddings plot
+            self.save_tsne(idx_list, indices_unlab, self.iter)
+
             # modify the datasets and dataloader and plot the tsne
-            self.update_sets(topk_idx_obs, idx_list, indices_unlab, self.iter)
+            self.update_sets(topk_idx_obs, idx_list)
 
             # iter + 1
             self.train_evaluate_save(epochs, self.iter * self.n_top_k_obs, self.iter, results)

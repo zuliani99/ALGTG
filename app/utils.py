@@ -372,24 +372,28 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
     x_unlab = tsne_unlab[:,0]
     y_unlab = tsne_unlab[:,1]
     
-    plt.figure(figsize=(18, 15))
+    #plt.figure(figsize=(18, 15))
     
-    # unlabeled -> alpha = 0.5, label = ...
-    for idx, lab in enumerate(unlabel_lab):
-        #print(x_unlab[idx], y_unlab[idx])
-        sns.scatterplot(x=[x_unlab[idx]], y=[y_unlab[idx]], label=classes[lab], alpha=0.5)
+    x = np.hstack((x_lab, x_unlab))
+    y = np.hstack((y_lab, y_unlab))
+    
+    label = np.hstack((label_lab, unlabel_lab))
+    
+    
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(23, 12))
+    
+    sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', ax=axes[0])
+    sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', ax=axes[0])
+    sns.scatterplot(x=x_unlab[incides_unlab], y=y_unlab[incides_unlab], label='new_labeled', color='green', ax=axes[0])
+    axes[0].set_title('TSNE -- labeled - unlabeled - new_labeled')
+    axes[0].legend()
         
-    # labeled -> alpha = 1, label = ...
-    for idx, lab in enumerate(label_lab):
-        #print(x_lab[idx], y_lab[idx])
-        sns.scatterplot(x=[x_lab[idx]], y=[y_lab[idx]], label=classes[lab])
-        
-    # new_labeled -> alpha = 1, label = ..., red circle
-    sns.scatterplot(x=x_unlab[incides_unlab], y=y_unlab[incides_unlab], label=unlabel_lab[incides_unlab], markers='*')
     
+    sns.scatterplot(x=x, y=y, hue=[classes[l] for l in label], ax=axes[1])
+    axes[1].set_title('TSNE - classes')
+    axes[1].legend()
     
-    plt.title(f'{ds_name} - method {method} - iter {iter} - ')
-    plt.legend()
+    plt.suptitle(f'{ds_name} - {method} - {str(iter)}')
     plt.savefig(f'app/tsne_plot/tsne_{ds_name}_{method}_{str(iter)}.png')
     
     

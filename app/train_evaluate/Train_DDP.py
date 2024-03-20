@@ -23,15 +23,14 @@ def initialize_preocess(rank: int, world_size: int) -> None:
     os.environ["MASTER_ADDR"] = "ppv-gpu1"
     os.environ["MASTER_PORT"] = "16217"
     
-    #init_method=f'tcp://{os.environ["MASTER_ADDR"]}:{os.environ["MASTER_PORT"]}',
-    init_process_group(backend='nccl', rank=rank, world_size=world_size)
+    init_process_group(backend='nccl', init_method=f'tcp://{os.environ["MASTER_ADDR"]}:{os.environ["MASTER_PORT"]}', rank=rank, world_size=world_size)
     
     torch.cuda.set_device(rank)
     
     
-#def clear_process() -> None: 
-    #print('cleaning')
-    #print('cleanded ')
+    
+def clear_process() -> None: destroy_process_group()
+
 
 
 def train_ddp(rank: int, world_size: int, params: Dict[str, Any], epochs: int, conn: connection.Connection) -> None:
@@ -73,21 +72,30 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], epochs: int, c
     
     train_test = TrainWorker(rank, params, world_size)
     
-    #print('ok')
-    
     if rank == 0:
         dist.gather(train_test.train_evaluate(epochs), train_results)
         dist.gather(train_test.test(), test_results)
     else:
         dist.gather(train_test.train_evaluate(epochs))
-        dist.gather(train_test.test())
-              
-    #print('before barrier 1')
-              
+        dist.gather(train_test.test())     
     
     dist.barrier()    
     
-    #print('after barrier 1')
+    
+    #####################
+    # shutdown the worker
+    #####################
+    
+    #params['train_dl']._iterator._shutdown_workers()
+    #params['val_dl']._iterator._shutdown_workers()
+    #params['test_dl']._iterator._shutdown_workers()
+    
+    del params['train_dl']._iterator
+    del params['val_dl']._iterator
+    del params['test_dl']._iterator
+    
+    gc.collect()
+    
     
     if rank == 0:
         train_results = (torch.sum(torch.stack(train_results), dim=0) / world_size).cpu().tolist()
@@ -95,28 +103,9 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], epochs: int, c
         
         conn.send((train_results, test_results))       
 
-    #print('before barrier 2')
-
     dist.barrier()
-    
-    #print('after barrier 1')
-    
-    #####################
-    # shutdown the worker
-    #####################
-    params['train_dl']._iterator._shutdown_workers()
-    params['val_dl']._iterator._shutdown_workers()
-    params['test_dl']._iterator._shutdown_workers()
-    
-    ''' del params['train_dl']._iterator
-    del params['val_dl']._iterator
-    del params['test_dl']._iterator
-    
-    gc.collect()'''
-        
-    #clear_process()
-    destroy_process_group()
-    #print('exiting ddp training')
+
+    clear_process()
 
     
     
