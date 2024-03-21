@@ -221,7 +221,7 @@ def create_ts_dir_res(timestamp: str, dataset_name: str, iter: str) -> None:
     create_directory(os.path.join(mydir, dataset_name))
     create_directory(os.path.join(mydir, dataset_name, iter))
     create_directory(os.path.join(mydir, dataset_name, iter, 'train_val_plots'))
-    create_directory(os.path.join(mydir, dataset_name, iter, 'tsne_plot'))
+    create_directory(os.path.join(mydir, dataset_name, iter, 'tsne_plots'))
     
     
 
@@ -361,7 +361,7 @@ def download_tinyimagenet() -> None:
 
 
 def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor], iter: int, \
-        ds_name: str, method: str, incides_unlab: List[int], classes: List[str], time_stamp: str, samp_iter: int):
+        method: str, ds_name: str, incides_unlab: List[int], classes: List[str], time_stamp: str, samp_iter: int):
     
     tsne = TSNE().fit_transform(np.vstack((lab['embedds'].cpu().numpy(), unlab['embedds'].cpu().numpy())))
     
@@ -396,8 +396,10 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
     axes[1].set_title('TSNE - classes')
     axes[1].legend()
     
-    plt.suptitle(f'{ds_name} - {method} - {str(iter)}')
-    plt.savefig(f'results/{time_stamp}/{ds_name}/{str(samp_iter)}/tsne_plots/{method}/{str(iter)}.png')
+    plt.suptitle(f'{ds_name} - {method} - {iter - 1}')
+    
+    create_directory(f'results/{time_stamp}/{ds_name}/{str(samp_iter)}/tsne_plots/{method}')
+    plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/tsne_plots/{method}/{iter - 1}.png')
     
     
     

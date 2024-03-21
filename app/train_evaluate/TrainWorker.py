@@ -145,7 +145,7 @@ class TrainWorker():
                 self.optimizer.zero_grad()
                 outputs, _, out_weird, _ = self.model(images)
                 
-                loss, tot_loss_ce, tot_loss_weird  = self.compute_losses(
+                loss, train_loss_ce, train_loss_weird  = self.compute_losses(
                         weight, out_weird, outputs, labels, train_loss_ce, train_loss_weird
                     )
                                 
@@ -155,10 +155,7 @@ class TrainWorker():
                 
                 train_loss += loss.item()
                 train_accuracy += self.score_fn(outputs, labels)
-                train_loss_ce += tot_loss_ce
-                train_loss_weird += tot_loss_weird
 
-    
 
             train_accuracy /= len(self.train_dl)
             train_loss /= len(self.train_dl)

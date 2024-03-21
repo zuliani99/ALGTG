@@ -1,6 +1,6 @@
 
 from strategies.Strategies import Strategies
-from utils import entropy, plot_history, plot_derivatives, Entropy_Strategy
+from utils import create_directory, entropy, plot_history, plot_derivatives, Entropy_Strategy
 
 import torch
 from torch.utils.data import DataLoader, Subset
@@ -227,6 +227,10 @@ class GTG(Strategies):
         del self.lab_embedds_dict
         del self.unlab_embedds_dict
         torch.cuda.empty_cache()         
+        
+        path = f'results/{self.timestamp}/{self.dataset_name}/{self.samp_iter}/gtg_entropies_plots'
+        create_directory(path)
+        
             
         if self.ent_strategy is Entropy_Strategy.LAST:
             # returning the last entropies values
@@ -250,9 +254,12 @@ class GTG(Strategies):
             self.entropy_pairwise_der = torch.abs(-torch.diff(self.entropy_history, dim=1))
 
 
+            create_directory(f'{path}/{self.method_name}')
+            create_directory(f'{path}/{self.method_name}/history')
+
+            
             # plot entropy history
-            #f'results/{self.time_stamp}/{self.ds_name}/{self.samp_iter}/gtg_entropy/{self.method_name}/history/{self.iter}.png'
-            plot_history(self.entropy_history, f'./app/gtg_entropy/history/{self.method_name}_{self.iter}.png', self.iter, self.gtg_max_iter)
+            plot_history(self.entropy_history, f'{path}/{self.method_name}/history/{self.iter - 1}.png', self.iter - 1, self.gtg_max_iter)
 
             if self.ent_strategy is Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES:
                 # getting the last column that have at least one element with entropy greater than 1e-15
@@ -277,26 +284,28 @@ class GTG(Strategies):
             else:
                 raise Exception('Unrecognized derivates computation strategy')
 
+
+            create_directory(f'{path}/{self.method_name}')
+            create_directory(f'{path}/{self.method_name}/weighted_derivatives')
             
             # plot in the entropy derivatives and weighted entropy derivatives
             plot_derivatives(
                 self.entropy_pairwise_der,
                 self.entropy_pairwise_der * weights if self.ent_strategy is Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES else self.entropy_pairwise_der,
-                f'./app/gtg_entropy/weighted_derivatives/{self.method_name}_{self.iter}.png',
-                self.iter, self.gtg_max_iter - 1
+                f'{path}/{self.method_name}/weighted_derivatives/{self.iter - 1}.png',
+                self.iter - 1, self.gtg_max_iter - 1
             )
-            #f'results/{self.time_stamp}/{self.ds_name}/{self.samp_iter}/gtg_entropy/{self.method_name}/weighted_derivatives/{self.iter}.png'
             
             
+            create_directory(f'{path}/{self.method_name}/topk_weighted_derivatives')
             
             # plot in the top k entropy derivatives and weighted entropy derivatives
             plot_derivatives(
                 self.entropy_pairwise_der[overall_topk.indices.tolist()],
                 (self.entropy_pairwise_der * weights if self.ent_strategy is Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES else self.entropy_pairwise_der)[overall_topk.indices.tolist()],
-                f'./app/gtg_entropy/topk_weighted_derivatives/{self.method_name}_{self.iter}.png',
-                self.iter, self.gtg_max_iter - 1
+                f'{path}/{self.method_name}/topk_weighted_derivatives/{self.iter - 1}.png',
+                self.iter - 1, self.gtg_max_iter - 1
             )
-            #f'results/{self.time_stamp}/{self.ds_name}/{self.samp_iter}/gtg_entropy/{self.method_name}/topk_weighted_derivatives/{self.iter}.png'
             
         
             del self.entropy_pairwise_der

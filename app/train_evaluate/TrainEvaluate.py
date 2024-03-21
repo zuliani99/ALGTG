@@ -65,7 +65,7 @@ class TrainEvaluate(object):
         
         
         if torch.distributed.is_available():
-            if self.world_size > 0: device = 'cuda:0'
+            if self.world_size > 1: device = 'cuda:0'
             else: device = 'cuda' 
         else: device = 'cpu'
 
