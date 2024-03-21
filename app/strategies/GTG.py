@@ -64,7 +64,11 @@ class GTG(Strategies):
             # Unlabeled VS Labeled -> distance = 1 - A
             # Labeled VS Unlabeled -> distance = 1 - A
             
+        # remove weak connections 
+        A = torch.where(A < 0.5, 0, A)
+            
         self.A = A
+
 
 
     # should be correct

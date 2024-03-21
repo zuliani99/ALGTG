@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=AL_DDP    # Job name
+#SBATCH --job-name=AL_SING    # Job name
 #SBATCH --mail-type=END          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=875532@stud.unive.it     # Where to send mail	
 #SBATCH --nodes=1
