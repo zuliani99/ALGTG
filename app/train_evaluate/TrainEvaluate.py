@@ -158,7 +158,7 @@ class TrainEvaluate(object):
         
         # sanity check
         if len(list(set(self.unlab_sampled_list[idx_samp_unlab_obs].indices) & set(self.labeled_indices))) == 0:
-            print('Intersection between indices is EMPTY')
+            print(' Intersection between indices is EMPTY')
         else: raise Exception('NON EMPTY INDICES INTERSECTION')
 
         # generate the new labeled DataLoader

@@ -82,47 +82,43 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
         GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
-                'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES
+                'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.W_A_DER
             }, LL=True),   
-    ]
-    '''
-    
-    GTG(al_params=al_params, training_params=training_params,
+        GTG(al_params=al_params, training_params=training_params,
             gtg_params={
                 **gtg_params,
-                'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.HISTORY_INTEGRAL
+                'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT
             }, LL=True),
         
         GTG(al_params=al_params, training_params=training_params,
             gtg_params={
                 **gtg_params,
-                'rbf_aff': True, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.HISTORY_INTEGRAL
+                'rbf_aff': True, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT
             }, LL=True)
-    
-    
-    
-    
+    ]
+    '''
     GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
-                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES
+                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.W_A_DER
             }, LL=True),
         GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
-                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.HISTORY_INTEGRAL
+                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT
             }, LL=True),
         
         GTG(al_params=al_params, training_params=training_params,
             gtg_params={
                 **gtg_params,
-                'rbf_aff': True, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES
+                'rbf_aff': True, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.W_A_DER
             }, LL=True),
         GTG(al_params=al_params, training_params=training_params,
             gtg_params={
                 **gtg_params,
-                'rbf_aff': True, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.HISTORY_INTEGRAL
-            }, LL=True)'''
+                'rbf_aff': True, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT
+            }, LL=True)
+    '''
 
     for method in methods:
             

@@ -242,7 +242,10 @@ def init_weights_apply(m: torch.nn.Module) -> None:
         
         
         
-def plot_history(story_tensor: torch.Tensor, path: str, iter: int, max_x: int) -> None:
+def plot_history(path: str, method_name: str, story_tensor: torch.Tensor, iter: int, max_x: int) -> None:
+    
+    create_directory(f'{path}/{method_name}')
+    create_directory(f'{path}/{method_name}/history')
     
     fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (10,8))
     
@@ -257,13 +260,17 @@ def plot_history(story_tensor: torch.Tensor, path: str, iter: int, max_x: int) -
     for i in range(len(non_zero_rows)):
         ax.plot(x, non_zero_rows[i].cpu().numpy(), linestyle="-")
         
-    plt.suptitle(f'entropy {path.split("/")[3]} - iteration {iter}', fontsize = 15)
+    plt.suptitle(f'Entropy History - Iteration {iter}', fontsize = 15)
     plt.legend()
-    plt.savefig(path)
+    plt.savefig(f'{path}/{iter}.png')
     
     
     
-def plot_derivatives(der_tensor: torch.Tensor, der_weighted_tensor: torch.Tensor, path: str, iter: int, max_x: int) -> None:
+    
+def plot_derivatives(method_name: str, der_tensor: torch.Tensor, der_weighted_tensor: torch.Tensor, path: str, iter: int, max_x: int, title: str) -> None:   
+    
+    create_directory(f'{path}/{method_name}')
+    create_directory(f'{path}/{method_name}/{title}')
     
     fig, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (20,8))
     
@@ -277,7 +284,8 @@ def plot_derivatives(der_tensor: torch.Tensor, der_weighted_tensor: torch.Tensor
 
     for i in range(len(non_zero_rows_der)):
         ax[0].plot(x, non_zero_rows_der[i].cpu().numpy(), linestyle="-")
-        
+    ax[0].set_title('Derivatives')
+    
     row_sum = torch.sum(der_weighted_tensor, dim=1)
     non_zero_mask = row_sum != 0
     non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=False).squeeze()
@@ -286,10 +294,11 @@ def plot_derivatives(der_tensor: torch.Tensor, der_weighted_tensor: torch.Tensor
 
     for i in range(len(non_zero_rows_der_wei)):
         ax[1].plot(x, non_zero_rows_der_wei[i].cpu().numpy(), linestyle="-")
+    ax[1].set_title('Weighted Average Derivatives')
         
-    plt.suptitle(f'entropy {path.split("/")[3]} - iteration {iter}', fontsize = 15)
+    plt.suptitle(f'{title} - Iteration {iter}', fontsize = 15)
     plt.legend()
-    plt.savefig(path)
+    plt.savefig(f'{path}/{iter}.png')
     
     
 
@@ -327,9 +336,9 @@ def plot_accuracy_std_mean(timestamp: str, dataset_name: str) -> None:
     
 
 class Entropy_Strategy(Enum):
-    MEAN_DERIVATIVES = 0
-    WEIGHTED_AVERAGE_DERIVATIVES = 1
-    HISTORY_INTEGRAL = 2
+    MEAN_DER = 0
+    W_A_DER = 1
+    H_INT = 2
     LAST = 3
 
 
@@ -360,7 +369,7 @@ def download_tinyimagenet() -> None:
 
 
 
-def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: List[str], time_stamp: str, ds_name: str, samp_iter: int, method: str, affinity: str):
+def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: List[str], time_stamp: str, ds_name: str, samp_iter: int, method: str, affinity: str, strategy: str):
     
     A_1, A_2 = A
     
@@ -373,7 +382,7 @@ def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: Li
     
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(23, 18))
         
-    for idx, (tsne, name) in enumerate(zip([tsne_A1, tsne_A2], ['Original', 'Sparsification'])):
+    for idx, (tsne, name) in enumerate(zip([tsne_A1, tsne_A2], ['Uncertanity', f'{strategy} Sparsification'])):
         
         tsne_lab = tsne[:len_lab,:]
         tsne_unlab = tsne[len_lab:,:]
@@ -396,12 +405,14 @@ def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: Li
         
         
         sns.scatterplot(x=x, y=y, hue=[classes[l] for l in label], ax=axes[idx][1])
-        axes[idx][1].set_title(f'{name} Affnity Matrix Classes')
+        axes[idx][1].set_title(f'{name} Affnity Matrix - Classes')
         axes[idx][1].legend()
     
 
     plt.suptitle('Affinity TSNE plots')
-    plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/tsne_plots/{method}_{affinity}.png')
+    
+    create_directory(f'results/{time_stamp}/{ds_name}/{samp_iter}/tsne_plots/{method}')
+    plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/tsne_plots/{method}/{affinity}.png')
     
 
 
@@ -442,8 +453,7 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
     axes[1].legend()
     
     plt.suptitle(f'{ds_name} - {method} - {iter - 1}')
-    
-    create_directory(f'results/{time_stamp}/{ds_name}/{str(samp_iter)}/tsne_plots/{method}')
+    create_directory(f'results/{time_stamp}/{ds_name}/{samp_iter}/tsne_plots/{method}')
     plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/tsne_plots/{method}/{iter - 1}.png')
     
     

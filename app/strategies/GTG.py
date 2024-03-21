@@ -11,7 +11,7 @@ from scipy.integrate import simpson #,trapz
 import numpy as np
 
 import gc
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
     
 
 
@@ -44,17 +44,24 @@ class GTG(Strategies):
     
         
     # select the relative choosen affinity matrix method
-    def get_A(self, samp_unlab_embeddings: torch.Tensor) -> None:
+    #def get_A(self, samp_unlab_embeddings: torch.Tensor) -> None:
+    def get_A(self, samp_unlab_dict: Dict[str, torch.Tensor], int_range: Tuple[int, int]) -> None:
+        
+        samp_unlab_embeddings = samp_unlab_dict['embedds'][int_range[0] : int_range[1]]
+        samp_unlab_labels = samp_unlab_dict['labels'][int_range[0] : int_range[1]]
+        
         concat_embedds = torch.cat((self.lab_embedds_dict['embedds'], samp_unlab_embeddings)).to(self.device)
         
         # compute the affinity matrix
         A = self.get_A_fn[self.A_function](concat_embedds) \
         if self.A_function != 'rbfk' else self.get_A_rbfk(concat_embedds)
+
+        A_1 = torch.clone(A)
         
         if self.strategy_type == 'diversity':
             # set the whole matrix as a distance matrix and not similarity matrix
             A = 1 - A
-        elif self.strategy_type == 'mixed':
+        elif self.strategy_type == 'mixed':    
             # set the unlabeled submatrix as distance matrix and not similarity matrix
             n_lab_obs = len(self.lab_embedds_dict['embedds'])
             A[:n_lab_obs, n_lab_obs:] = 1 - A[:n_lab_obs, n_lab_obs:]
@@ -65,7 +72,6 @@ class GTG(Strategies):
             # Unlabeled VS Labeled -> distance = 1 - A
             # Labeled VS Unlabeled -> distance = 1 - A
         
-        A_1 = torch.clone(A)
         
         # remove weak connections 
         A_2 = torch.where(A < 0.5, 0, A)
@@ -75,8 +81,8 @@ class GTG(Strategies):
         # plot the TSNE fo the original and modified affinity matrix
         plot_tsne_A(
             (A_1, A_2),
-            (self.lab_embedds_dict['labels'], self.unlab_embedds_dict['labels']), self.classes,
-            self.timestamp, self.dataset_name, self.samp_iter, self.method_name, self.A_function
+            (self.lab_embedds_dict['labels'], samp_unlab_labels), self.classes,
+            self.timestamp, self.dataset_name, self.samp_iter, self.method_name, self.A_function, self.strategy_type
         )
 
 
@@ -84,15 +90,14 @@ class GTG(Strategies):
     # should be correct
     def get_A_rbfk(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         
-        #e_d = torch.cdist(concat_embedds, concat_embedds).to(self.device)
-        aff_matrix = self.get_A_fn[self.A_function](concat_embedds)
+        A_matrix = self.get_A_fn[self.A_function](concat_embedds)
         
         if self.A_function == 'e_d':
             # if euclidean distance is choosen we take the 7th smallest observation which is the 7th closest one (ascending order)
-            seventh_neigh = concat_embedds[torch.argsort(aff_matrix, dim=1)[:, 6]]            
+            seventh_neigh = concat_embedds[torch.argsort(A_matrix, dim=1)[:, 6]]            
         else:
             # if correlation or cosine_similairty are choosen we take the 7th highest observation which is the 7th most similar one (descending order)
-            seventh_neigh = concat_embedds[torch.argsort(aff_matrix, dim=1, descending=True)[:, 6]]
+            seventh_neigh = concat_embedds[torch.argsort(A_matrix, dim=1, descending=True)[:, 6]]
         
         sigmas = torch.unsqueeze(torch.tensor([
             self.get_A_fn[self.A_function](
@@ -102,7 +107,7 @@ class GTG(Strategies):
             for i in range(concat_embedds.shape[0])
         ], device=self.device), dim=0)
         
-        A = torch.exp(-aff_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(self.device)
+        A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(self.device)
         
         if self.zero_diag: A.fill_diagonal_(0.)  
               
@@ -221,9 +226,7 @@ class GTG(Strategies):
             
             
         # I save the entropy history in order to be able to plot it
-        self.entropy_history = torch.zeros(
-            (len(self.transformed_trainset), self.gtg_max_iter), device=self.device
-        )
+        self.entropy_history = torch.zeros((len(self.transformed_trainset), self.gtg_max_iter), device=self.device)
         
 
         # for each split
@@ -231,7 +234,8 @@ class GTG(Strategies):
         # indices -> are the list of indices for the given batch which ARE CONSISTENT SINCE ARE REFERRED TO THE INDEX OF THE ORIGINAL DATASET
         for split_idx, (indices, _, _) in enumerate(self.unlab_train_dl):
             print(f' => Running GTG for split {split_idx}')
-            self.get_A(self.unlab_embedds_dict['embedds'][split_idx * unlab_batch_size : (split_idx + 1) * unlab_batch_size])
+            #self.get_A(self.unlab_embedds_dict['embedds'][split_idx * unlab_batch_size : (split_idx + 1) * unlab_batch_size])
+            self.get_A(self.unlab_embedds_dict, (split_idx * unlab_batch_size, (split_idx + 1) * unlab_batch_size))
             self.get_X(indices.shape[0])
             self.gtg(indices)
             
@@ -253,7 +257,7 @@ class GTG(Strategies):
             # returning the last entropies values
             overall_topk = torch.topk(self.entropy_history[-1], n_top_k_obs)
         
-        if self.ent_strategy is Entropy_Strategy.HISTORY_INTEGRAL:
+        if self.ent_strategy is Entropy_Strategy.H_INT:
             # computing the area of each entropies derivates fucntion via the trapezius formula 
             #area: np.ndarray = trapz(-np.diff(self.entropy_history.cpu().numpy(), axis=1))
             #area: np.ndarray = simpson(-np.diff(self.entropy_history.cpu().numpy(), axis=1))
@@ -269,16 +273,11 @@ class GTG(Strategies):
         else:
             # absolute value of the derivate to remove the oscilaltions -> observaion that have oscillations means that are difficult too
             self.entropy_pairwise_der = torch.abs(-torch.diff(self.entropy_history, dim=1))
-
-
-            create_directory(f'{path}/{self.method_name}')
-            create_directory(f'{path}/{self.method_name}/history')
-
             
             # plot entropy history
-            plot_history(self.entropy_history, f'{path}/{self.method_name}/history/{self.iter - 1}.png', self.iter - 1, self.gtg_max_iter)
+            plot_history(path, self.method_name, self.entropy_history, self.iter - 1, self.gtg_max_iter)
 
-            if self.ent_strategy is Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES:
+            if self.ent_strategy is Entropy_Strategy.W_A_DER:
                 # getting the last column that have at least one element with entropy greater than 1e-15
                 for col_index in range(self.entropy_pairwise_der.size(1) - 1, -1, -1):
                     if torch.any(self.entropy_pairwise_der[:, col_index] > 1e-15): break
@@ -295,33 +294,24 @@ class GTG(Strategies):
                     n_top_k_obs
                 )    
             
-            elif self.ent_strategy is Entropy_Strategy.MEAN_DERIVATIVES:
+            elif self.ent_strategy is Entropy_Strategy.MEAN_DER:
                 # classic average among the derivates
                 overall_topk = torch.topk(torch.mean(self.entropy_pairwise_der, dim=1), n_top_k_obs)
             else:
                 raise Exception('Unrecognized derivates computation strategy')
-
-
-            create_directory(f'{path}/{self.method_name}')
-            create_directory(f'{path}/{self.method_name}/weighted_derivatives')
             
             # plot in the entropy derivatives and weighted entropy derivatives
             plot_derivatives(
-                self.entropy_pairwise_der,
-                self.entropy_pairwise_der * weights if self.ent_strategy is Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES else self.entropy_pairwise_der,
-                f'{path}/{self.method_name}/weighted_derivatives/{self.iter - 1}.png',
-                self.iter - 1, self.gtg_max_iter - 1
+                self.method_name, self.entropy_pairwise_der,
+                self.entropy_pairwise_der * weights if self.ent_strategy is Entropy_Strategy.W_A_DER else self.entropy_pairwise_der,
+                path, self.iter - 1, self.gtg_max_iter - 1, 'weighted_derivatives'
             )
-            
-            
-            create_directory(f'{path}/{self.method_name}/topk_weighted_derivatives')
             
             # plot in the top k entropy derivatives and weighted entropy derivatives
             plot_derivatives(
-                self.entropy_pairwise_der[overall_topk.indices.tolist()],
-                (self.entropy_pairwise_der * weights if self.ent_strategy is Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES else self.entropy_pairwise_der)[overall_topk.indices.tolist()],
-                f'{path}/{self.method_name}/topk_weighted_derivatives/{self.iter - 1}.png',
-                self.iter - 1, self.gtg_max_iter - 1
+                self.method_name, self.entropy_pairwise_der[overall_topk.indices.tolist()],
+                (self.entropy_pairwise_der * weights if self.ent_strategy is Entropy_Strategy.W_A_DER else self.entropy_pairwise_der)[overall_topk.indices.tolist()],
+                path, self.iter - 1, self.gtg_max_iter - 1, 'topk_weighted_derivatives'
             )
             
         

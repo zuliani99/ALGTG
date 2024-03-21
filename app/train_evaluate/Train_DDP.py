@@ -21,7 +21,7 @@ from multiprocessing import connection
     
 def initialize_preocess(rank: int, world_size: int) -> None:
     os.environ["MASTER_ADDR"] = "ppv-gpu1"
-    os.environ["MASTER_PORT"] = "16217"
+    os.environ["MASTER_PORT"] = "16217"#"16218"
     
     init_process_group(backend='nccl', init_method=f'tcp://{os.environ["MASTER_ADDR"]}:{os.environ["MASTER_PORT"]}', rank=rank, world_size=world_size)
     
