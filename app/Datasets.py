@@ -27,7 +27,7 @@ becnhmark_datasets = {
                         v2.ToImage(),
                         v2.RandomCrop(32, padding=4),
                         v2.RandomHorizontalFlip(),
-                        v2.RandomRotation(15),
+                        #v2.RandomRotation(15),
                         v2.ToDtype(torch.float32, scale=True),
                         v2.Normalize(np.array([0.49139968, 0.48215841, 0.44653091]),
                                      np.array([0.24703223, 0.24348513, 0.26158784]))
@@ -51,7 +51,7 @@ becnhmark_datasets = {
                         v2.ToImage(),
                         v2.RandomCrop(32, padding=4),
                         v2.RandomHorizontalFlip(),
-                        v2.RandomRotation(15),
+                        #v2.RandomRotation(15),
                         v2.ToDtype(torch.float32, scale=True),
                         v2.Normalize(np.array([0.50707516, 0.48654887, 0.44091784]),
                                      np.array([0.26733429, 0.25643846, 0.27615047]))
@@ -75,7 +75,7 @@ becnhmark_datasets = {
                         v2.ToImage(),
                         v2.RandomCrop(32, padding=4),
                         v2.RandomHorizontalFlip(),
-                        v2.RandomRotation(15),
+                        #v2.RandomRotation(15),
                         v2.ToDtype(torch.float32, scale=True),
                         v2.Normalize(np.array([0.4376821 , 0.4437697 , 0.47280442]),
                                      np.array([0.19803012, 0.20101562, 0.19703614]))
@@ -98,7 +98,7 @@ becnhmark_datasets = {
                         v2.ToImage(),
                         v2.RandomCrop(64, padding=4),
                         v2.RandomHorizontalFlip(),
-                        v2.RandomRotation(15),
+                        #v2.RandomRotation(15),
                         v2.ToDtype(torch.float32, scale=True),
                         v2.Normalize(np.array([0.48042979, 0.44819701, 0.39755623]),
                                      np.array([0.27643974, 0.26888656, 0.28166852]))

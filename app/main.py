@@ -60,7 +60,7 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
         
         # Rntropy
         #Entropy(al_params=al_params, training_params=training_params, LL=False)
-        #Entropy(al_params=al_params, training_params=training_params, LL=True),
+        Entropy(al_params=al_params, training_params=training_params, LL=True),
         
         # KMeans
         #K_Means(al_params=al_params, training_params=training_params, LL=True),
@@ -83,9 +83,11 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
             gtg_params={
                 **gtg_params,
                 'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES
-            }, LL=True),
-        
-        GTG(al_params=al_params, training_params=training_params,
+            }, LL=True),   
+    ]
+    '''
+    
+    GTG(al_params=al_params, training_params=training_params,
             gtg_params={
                 **gtg_params,
                 'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.HISTORY_INTEGRAL
@@ -96,8 +98,11 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
                 **gtg_params,
                 'rbf_aff': True, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.HISTORY_INTEGRAL
             }, LL=True)
-    ]
-    '''GTG(al_params=al_params, training_params=training_params, 
+    
+    
+    
+    
+    GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
                 'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.WEIGHTED_AVERAGE_DERIVATIVES
@@ -154,12 +159,12 @@ def main() -> None:
 
 
     # later added to argparser
-    al_iters = 2#10
+    al_iters = 10
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
     init_lab_obs = 1000
     
-    epochs = 10#200
+    epochs = 200
     batch_size = 128
     patience = 50
     

@@ -1,12 +1,13 @@
 
 from strategies.Strategies import Strategies
-from utils import create_directory, entropy, plot_history, plot_derivatives, Entropy_Strategy
+from utils import plot_tsne_A, create_directory, entropy, plot_history, plot_derivatives, Entropy_Strategy
 
 import torch
 from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
 from scipy.integrate import simpson #,trapz
+#from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
 import gc
@@ -63,11 +64,20 @@ class GTG(Strategies):
             # Labeled VS Labeled -> similarity = A
             # Unlabeled VS Labeled -> distance = 1 - A
             # Labeled VS Unlabeled -> distance = 1 - A
-            
+        
+        A_1 = torch.clone(A)
+        
         # remove weak connections 
-        A = torch.where(A < 0.5, 0, A)
+        A_2 = torch.where(A < 0.5, 0, A)
             
-        self.A = A
+        self.A = A_2
+        
+        # plot the TSNE fo the original and modified affinity matrix
+        plot_tsne_A(
+            (A_1, A_2),
+            (self.lab_embedds_dict['labels'], self.unlab_embedds_dict['labels']), self.classes,
+            self.timestamp, self.dataset_name, self.samp_iter, self.method_name, self.A_function
+        )
 
 
 
@@ -120,6 +130,9 @@ class GTG(Strategies):
         
         if self.zero_diag: A.fill_diagonal_(0.)
         else: A.fill_diagonal_(1.)
+        
+        #A = cosine_similarity(concat_embedds.cpu().numpy())
+        #return torch.from_numpy(A).to(self.device)
         
         return A
         
@@ -200,7 +213,7 @@ class GTG(Strategies):
                 
         print(' => Getting the labeled and unlabeled embeddings')
         self.lab_embedds_dict = {'embedds': None, 'labels': None}
-        self.unlab_embedds_dict = {'embedds': None}
+        self.unlab_embedds_dict = {'embedds': None, 'labels': None}
             
         self.get_embeddings(self.lab_train_dl, self.lab_embedds_dict)
         self.get_embeddings(self.unlab_train_dl, self.unlab_embedds_dict)

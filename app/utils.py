@@ -14,7 +14,7 @@ import numpy as np
 import csv
 import os
 import random
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 
 
@@ -358,6 +358,51 @@ def download_tinyimagenet() -> None:
     else:
         print('Tiny-IMAGENET Dataset already downloaded')
 
+
+
+def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: List[str], time_stamp: str, ds_name: str, samp_iter: int, method: str, affinity: str):
+    
+    A_1, A_2 = A
+    
+    label_lab = labels[0].cpu().numpy()
+    len_lab = len(label_lab)
+    unlabel_lab = labels[1].cpu().numpy()
+    
+    tsne_A1 = TSNE().fit_transform(A_1.cpu().numpy())
+    tsne_A2 = TSNE().fit_transform(A_2.cpu().numpy())
+    
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(23, 18))
+        
+    for idx, (tsne, name) in enumerate(zip([tsne_A1, tsne_A2], ['Original', 'Sparsification'])):
+        
+        tsne_lab = tsne[:len_lab,:]
+        tsne_unlab = tsne[len_lab:,:]
+        
+        x_lab = tsne_lab[:,0]
+        y_lab = tsne_lab[:,1]
+        
+        x_unlab = tsne_unlab[:,0]
+        y_unlab = tsne_unlab[:,1]
+        
+        x = np.hstack((x_lab, x_unlab))
+        y = np.hstack((y_lab, y_unlab))
+        label = np.hstack((label_lab, unlabel_lab))
+        
+    
+        sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', ax=axes[idx][0])
+        sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', ax=axes[idx][0])
+        axes[idx][0].set_title(f'{name} Affnity Matrix')
+        axes[idx][0].legend()
+        
+        
+        sns.scatterplot(x=x, y=y, hue=[classes[l] for l in label], ax=axes[idx][1])
+        axes[idx][1].set_title(f'{name} Affnity Matrix Classes')
+        axes[idx][1].legend()
+    
+
+    plt.suptitle('Affinity TSNE plots')
+    plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/tsne_plots/{method}_{affinity}.png')
+    
 
 
 def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor], iter: int, \
