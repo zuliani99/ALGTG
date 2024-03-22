@@ -130,11 +130,11 @@ class SubsetDataloaders():
         self.image_size: int = becnhmark_datasets[dataset_name]['image_size']
         self.classes: List[str] = becnhmark_datasets[dataset_name]['classes']
     
-        self.get_initial_subsets_dls(val_rateo, init_lab_obs)
+        self.get_initial_subsets(val_rateo, init_lab_obs)
     
     
     
-    def get_initial_subsets_dls(self, val_rateo: int, init_lab_obs: int) -> None:
+    def get_initial_subsets(self, val_rateo: int, init_lab_obs: int) -> None:
 
         train_size = len(self.transformed_trainset)
 
@@ -167,9 +167,7 @@ class SubsetDataloaders():
 class DatasetChoice(Dataset):
     def __init__(self, dataset_name: str, bool_train: bool, bool_transform = True) -> None:
         
-        self.bool_transform = bool_transform
-
-        if bool_transform:
+        if bool_train and bool_transform:
             # train
             if dataset_name == 'tinyimagenet':
                 download_tinyimagenet()
@@ -178,7 +176,7 @@ class DatasetChoice(Dataset):
                     datasets.ImageFolder('/datasets/tiny-imagenet-200/val', transform=becnhmark_datasets[dataset_name]['transforms']['train'])
                 ])
             elif dataset_name == 'svhn':
-                self.ds: Dataset = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', split='train' if bool_train else 'test', download=True,
+                self.ds: Dataset = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', split='train', download=True,
                     transform=becnhmark_datasets[dataset_name]['transforms']['train']
                 )
             else:

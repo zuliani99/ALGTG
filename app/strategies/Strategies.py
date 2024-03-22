@@ -6,6 +6,7 @@ from torch.utils.data import Subset
 from typing import List, Dict, Any
 import random
 import math
+import copy
 
 
 
@@ -18,6 +19,8 @@ class Strategies(TrainEvaluate):
         self.n_top_k_obs: int = al_params['n_top_k_obs']
         self.unlab_sample_dim: int = al_params['unlab_sample_dim']
         
+        self.unlabeled_indices: List[int] = copy.deepcopy(training_params['DatasetChoice'].unlabeled_indices)
+        
         self.get_sampled_sets()
                 
                 
@@ -28,7 +31,7 @@ class Strategies(TrainEvaluate):
         limit = int(math.ceil((self.al_iters * self.n_top_k_obs) / self.unlab_sample_dim))
             
         print(f'Number of subsets of dimension {self.unlab_sample_dim}: {limit}')
-        print(f'Ranndom seed for reproducibility: {self.dataset_id * self.samp_iter}')
+        print(f'Random seed for reproducibility: {self.dataset_id * self.samp_iter}')
         random.seed(self.dataset_id * self.samp_iter)
         
         for idx in range(limit):
@@ -39,12 +42,12 @@ class Strategies(TrainEvaluate):
             
             print(f'Index: {idx} \t Last 5 observations: {seq[-5:]}')
             
-            subset = Subset(self.non_transformed_trainset, seq)
+            unlabeled_subset = Subset(self.non_transformed_trainset, seq)
             d_labels = {'0': 0, '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0, '9': 0}
             
-            for _, _, lab in subset: d_labels[str(lab)] += 1
+            for _, _, lab in unlabeled_subset: d_labels[str(lab)] += 1
             
-            self.unlab_sampled_list.append(subset)
+            self.unlab_sampled_list.append(unlabeled_subset)
             for x in seq: self.unlabeled_indices.remove(x)
             print(d_labels)
         
@@ -86,6 +89,15 @@ class Strategies(TrainEvaluate):
             
             # run method query strategy
             topk_idx_obs: List[int] = self.query(self.unlab_sampled_list[idx_list], self.n_top_k_obs)
+            
+            label_topk = [self.transformed_trainset[k][2] for k in topk_idx_obs]
+            d_labels = {}
+            for cls in self.classes: d_labels[cls] = 0
+            keys_d_labels = list(d_labels.keys())
+            for l in label_topk: d_labels[keys_d_labels[l]] += 1
+            print('Number of observations per class added to the labeled set:')
+            print(d_labels)
+            
             
             # get the new labeled indices from the subset to plot the tsne embeddings
             indices_unlab = [self.unlab_sampled_list[idx_list].indices.index(item) for item in topk_idx_obs]

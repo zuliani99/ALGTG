@@ -52,7 +52,7 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
     methods = [
         # Random
         #Random(al_params=al_params, training_params=training_params, LL=False),
-        Random(al_params=al_params, training_params=training_params, LL=True),
+        #Random(al_params=al_params, training_params=training_params, LL=True),
         
         # LeastConfidence
         #LeastConfidence(al_params=al_params, training_params=training_params, LL=False)
@@ -60,7 +60,7 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
         
         # Rntropy
         #Entropy(al_params=al_params, training_params=training_params, LL=False)
-        Entropy(al_params=al_params, training_params=training_params, LL=True),
+        #Entropy(al_params=al_params, training_params=training_params, LL=True),
         
         # KMeans
         #K_Means(al_params=al_params, training_params=training_params, LL=True),
@@ -93,6 +93,41 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
         GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
+                'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.W_A_DER
+            }, LL=True),
+        GTG(al_params=al_params, training_params=training_params,
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT
+            }, LL=True),
+        
+        GTG(al_params=al_params, training_params=training_params, 
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': True, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.W_A_DER
+            }, LL=True),
+        GTG(al_params=al_params, training_params=training_params,
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': True, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT
+            }, LL=True),
+        
+    ]
+    '''
+    
+    
+    
+    
+    
+    GTG(al_params=al_params, training_params=training_params,
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT
+            }, LL=True),
+        
+        GTG(al_params=al_params, training_params=training_params, 
+            gtg_params={
+                **gtg_params,
                 'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.W_A_DER
             }, LL=True), 
         GTG(al_params=al_params, training_params=training_params,
@@ -100,10 +135,6 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
                 **gtg_params,
                 'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT
             }, LL=True)
-        
-    ]
-    '''
-    
     
     
     GTG(al_params=al_params, training_params=training_params, 

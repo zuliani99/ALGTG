@@ -44,9 +44,9 @@ class TrainEvaluate(object):
 
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
                 
-        # I need the deep copy only of the list of labeled and unlabeled indices
+        # I need the deep copy only of the list of labeled
+        # the ulabeled indices are modified in te Strategies.py file since I have to make a random sample
         self.labeled_indices = copy.deepcopy(sdl.labeled_indices)
-        self.unlabeled_indices = copy.deepcopy(sdl.unlabeled_indices)
         
         
         self.lab_train_dl = DataLoader(
@@ -74,13 +74,13 @@ class TrainEvaluate(object):
         self.model.load_state_dict(checkpoint['state_dict'])
         
         if 'embedds' in dict_to_modify:
-            dict_to_modify['embedds'] = torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device)
+            dict_to_modify['embedds'] = torch.empty((0, self.model.linear.in_features), dtype=torch.float32)#, device=self.device)
         if 'probs' in dict_to_modify:
-            dict_to_modify['probs'] = torch.empty((0, self.n_classes), dtype=torch.float32, device=self.device)
+            dict_to_modify['probs'] = torch.empty((0, self.n_classes), dtype=torch.float32)#, device=self.device)
         if 'labels' in dict_to_modify:
-            dict_to_modify['labels'] = torch.empty(0, dtype=torch.int8, device=self.device)
+            dict_to_modify['labels'] = torch.empty(0, dtype=torch.int8)#, device=self.device)
         if 'idxs' in dict_to_modify:
-            dict_to_modify['idxs'] = torch.empty(0, dtype=torch.int8, device=self.device)
+            dict_to_modify['idxs'] = torch.empty(0, dtype=torch.int8)#, device=self.device)
         
         self.model.eval()
 
@@ -88,23 +88,25 @@ class TrainEvaluate(object):
         with torch.inference_mode():
             for idxs, images, labels in dataloader:
                 
-                if('embedds' in dict_to_modify or 'probs' in dict_to_modify):
-                    outs, embed, _, _ = self.model(images.to(self.device))
+                #f('embedds' in dict_to_modify or 'probs' in dict_to_modify):
+                #    outs, embed, _, _ = self.model(images.to(self.device))
                 
                 if 'embedds' in dict_to_modify:
-                    dict_to_modify['embedds'] = torch.cat((dict_to_modify['embedds'], embed.squeeze()), dim=0)
+                    _, embed, _, _ = self.model(images.to(self.device))
+                    dict_to_modify['embedds'] = torch.cat((dict_to_modify['embedds'], embed.squeeze().cpu()), dim=0)
                     #self.clear_cuda_variables([embed])
                     #del embed
                     
                 if 'probs' in dict_to_modify:
-                    dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], outs.squeeze()), dim=0)
+                    outs, _, _, _ = self.model(images.to(self.device))
+                    dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], outs.squeeze().cpu()), dim=0)
                     #self.clear_cuda_variables([outs])
                     #del outs
                     
                 if 'labels' in dict_to_modify:
-                    dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels.to(self.device)), dim=0)
+                    dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)#.to(self.device)
                 if 'idxs' in dict_to_modify:
-                    dict_to_modify['idxs'] = torch.cat((dict_to_modify['idxs'], idxs.to(self.device)), dim=0)    
+                    dict_to_modify['idxs'] = torch.cat((dict_to_modify['idxs'], idxs), dim=0)#.to(self.device)
 
                 
         #self.clear_cuda_variables([checkpoint])
@@ -124,7 +126,7 @@ class TrainEvaluate(object):
             batch_size=self.batch_size, shuffle=False, pin_memory=True
         )
         
-        # plot tsne, to recdaompute the embedding
+        # recompute the embedding to plot the tsne
         lab_embedds_dict = {'embedds': None, 'labels': None}
         unlab_embedds_dict = {'embedds': None, 'labels': None}
             

@@ -250,22 +250,17 @@ def plot_history(path: str, labels: List[int], classes: List[str], method_name: 
     
     x = np.arange(max_x)
 
-    row_sum = torch.sum(story_tensor, dim=1)
-    non_zero_mask = row_sum != 0
-    non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=False).squeeze()
-    non_zero_row_indices = torch.unique(non_zero_indices)
-    non_zero_rows = story_tensor[non_zero_row_indices].cpu().numpy()
-    labs = [labels[idx] for idx in non_zero_row_indices]
+    story_tensor = story_tensor.cpu().numpy()
 
     palette = list(mcolors.TABLEAU_COLORS.values())
     plotted_classes = set()
 
-    for i, lab in zip(range(len(non_zero_rows)), labs):
+    for i, lab in zip(range(len(story_tensor)), labels):
         if lab not in plotted_classes:
-            plt.plot(x, non_zero_rows[i], linestyle="-", label=classes[lab], color=palette[lab])
+            plt.plot(x, story_tensor[i], linestyle="-", label=classes[lab], color=palette[lab])
             plotted_classes.add(lab)
         else:
-            plt.plot(x, non_zero_rows[i], linestyle="-", color=palette[lab])
+            plt.plot(x, story_tensor[i], linestyle="-", color=palette[lab])
     
     plt.ylabel('GTG Iterations')
     plt.xlabel('Entropy')
@@ -288,21 +283,17 @@ def plot_derivatives(method_name: str, der_tensor: torch.Tensor, der_weighted_te
     palette = list(mcolors.TABLEAU_COLORS.values())
     
     for idx, (tensor, title) in enumerate(zip([der_tensor, der_weighted_tensor], ['Derivatives', 'Weighted Average Derivatives'])):
-        row_sum = torch.sum(tensor, dim=1)
-        non_zero_mask = row_sum != 0
-        non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=False).squeeze()
-        non_zero_row_indices = torch.unique(non_zero_indices)
-        non_zero_rows_der = der_tensor[non_zero_row_indices].cpu().numpy()
-        labs = [labels[idx] for idx in non_zero_row_indices]
+        
+        tensor = tensor.cpu().numpy()
         
         plotted_classes = set()
 
-        for i, lab in zip(range(len(non_zero_rows_der)), labs):
+        for i, lab in zip(range(len(tensor)), labels):
             if lab not in plotted_classes:
-                ax[idx].plot(x, non_zero_rows_der[i], linestyle="-", label=classes[lab], color=palette[lab])
+                ax[idx].plot(x, tensor[i], linestyle="-", label=classes[lab], color=palette[lab])
                 plotted_classes.add(lab)
             else:
-                ax[idx].plot(x, non_zero_rows_der[i], linestyle="-", color=palette[lab])
+                ax[idx].plot(x, tensor[i], linestyle="-", color=palette[lab])
                 
         ax[idx].set_xlabel('GTG Iterations')
         ax[idx].set_ylabel('Entropy')
