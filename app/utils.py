@@ -7,6 +7,7 @@ import torch.nn.init as init
 
 
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 from sklearn.manifold import TSNE
 import seaborn as sns
 import pandas as pd
@@ -224,8 +225,6 @@ def create_ts_dir_res(timestamp: str, dataset_name: str, iter: str) -> None:
     create_directory(os.path.join(mydir, dataset_name, iter, 'tsne_plots'))
     
     
-
-        
         
 # weights initiaization
 def init_weights_apply(m: torch.nn.Module) -> None:
@@ -242,12 +241,12 @@ def init_weights_apply(m: torch.nn.Module) -> None:
         
         
         
-def plot_history(path: str, method_name: str, story_tensor: torch.Tensor, iter: int, max_x: int) -> None:
+def plot_history(path: str, labels: List[int], classes: List[str], method_name: str, story_tensor: torch.Tensor, iter: int, max_x: int) -> None:
     
     create_directory(f'{path}/{method_name}')
     create_directory(f'{path}/{method_name}/history')
     
-    fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (10,8))
+    plt.figure(figsize = (10,8))
     
     x = np.arange(max_x)
 
@@ -255,50 +254,65 @@ def plot_history(path: str, method_name: str, story_tensor: torch.Tensor, iter: 
     non_zero_mask = row_sum != 0
     non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=False).squeeze()
     non_zero_row_indices = torch.unique(non_zero_indices)
-    non_zero_rows = story_tensor[non_zero_row_indices]
+    non_zero_rows = story_tensor[non_zero_row_indices].cpu().numpy()
+    labs = [labels[idx] for idx in non_zero_row_indices]
 
-    for i in range(len(non_zero_rows)):
-        ax.plot(x, non_zero_rows[i].cpu().numpy(), linestyle="-")
-        
-    plt.suptitle(f'Entropy History - Iteration {iter}', fontsize = 15)
+    palette = list(mcolors.TABLEAU_COLORS.values())
+    plotted_classes = set()
+
+    for i, lab in zip(range(len(non_zero_rows)), labs):
+        if lab not in plotted_classes:
+            plt.plot(x, non_zero_rows[i], linestyle="-", label=classes[lab], color=palette[lab])
+            plotted_classes.add(lab)
+        else:
+            plt.plot(x, non_zero_rows[i], linestyle="-", color=palette[lab])
+    
+    plt.ylabel('GTG Iterations')
+    plt.xlabel('Entropy')
+    plt.grid()
+    plt.title(f'Entropy History - Iteration {iter}', fontsize = 15)
     plt.legend()
-    plt.savefig(f'{path}/{iter}.png')
+    plt.savefig(f'{path}/{method_name}/history/{iter}.png')
     
     
     
     
-def plot_derivatives(method_name: str, der_tensor: torch.Tensor, der_weighted_tensor: torch.Tensor, path: str, iter: int, max_x: int, title: str) -> None:   
+def plot_derivatives(method_name: str, der_tensor: torch.Tensor, der_weighted_tensor: torch.Tensor, path: str, labels: List[int], classes: List[str], iter: int, max_x: int, dir: str) -> None:   
     
     create_directory(f'{path}/{method_name}')
-    create_directory(f'{path}/{method_name}/{title}')
+    create_directory(f'{path}/{method_name}/{dir}')
     
     fig, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (20,8))
     
     x = np.arange(max_x)
-
-    row_sum = torch.sum(der_tensor, dim=1)
-    non_zero_mask = row_sum != 0
-    non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=False).squeeze()
-    non_zero_row_indices = torch.unique(non_zero_indices)
-    non_zero_rows_der = der_tensor[non_zero_row_indices]
-
-    for i in range(len(non_zero_rows_der)):
-        ax[0].plot(x, non_zero_rows_der[i].cpu().numpy(), linestyle="-")
-    ax[0].set_title('Derivatives')
+    palette = list(mcolors.TABLEAU_COLORS.values())
     
-    row_sum = torch.sum(der_weighted_tensor, dim=1)
-    non_zero_mask = row_sum != 0
-    non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=False).squeeze()
-    non_zero_row_indices = torch.unique(non_zero_indices)
-    non_zero_rows_der_wei = der_weighted_tensor[non_zero_row_indices]
+    for idx, (tensor, title) in enumerate(zip([der_tensor, der_weighted_tensor], ['Derivatives', 'Weighted Average Derivatives'])):
+        row_sum = torch.sum(tensor, dim=1)
+        non_zero_mask = row_sum != 0
+        non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=False).squeeze()
+        non_zero_row_indices = torch.unique(non_zero_indices)
+        non_zero_rows_der = der_tensor[non_zero_row_indices].cpu().numpy()
+        labs = [labels[idx] for idx in non_zero_row_indices]
+        
+        plotted_classes = set()
 
-    for i in range(len(non_zero_rows_der_wei)):
-        ax[1].plot(x, non_zero_rows_der_wei[i].cpu().numpy(), linestyle="-")
-    ax[1].set_title('Weighted Average Derivatives')
+        for i, lab in zip(range(len(non_zero_rows_der)), labs):
+            if lab not in plotted_classes:
+                ax[idx].plot(x, non_zero_rows_der[i], linestyle="-", label=classes[lab], color=palette[lab])
+                plotted_classes.add(lab)
+            else:
+                ax[idx].plot(x, non_zero_rows_der[i], linestyle="-", color=palette[lab])
+                
+        ax[idx].set_xlabel('GTG Iterations')
+        ax[idx].set_ylabel('Entropy')
+        ax[idx].grid()
+        ax[idx].legend()
+        ax[idx].set_title(title)
         
     plt.suptitle(f'{title} - Iteration {iter}', fontsize = 15)
     plt.legend()
-    plt.savefig(f'{path}/{iter}.png')
+    plt.savefig(f'{path}/{method_name}/{dir}/{iter}.png')
     
     
 

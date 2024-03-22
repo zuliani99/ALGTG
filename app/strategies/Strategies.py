@@ -11,7 +11,7 @@ import math
 
 
 class Strategies(TrainEvaluate):
-    def __init__(self, al_params: Dict[str, Any], training_params: Dict[str, Any], LL: bool) -> None:
+    def __init__(self, al_params:  Dict[str, Any], training_params: Dict[str, Any], LL: bool) -> None:
         
         super().__init__(training_params, LL)
         self.al_iters: int = al_params['al_iters']
@@ -38,8 +38,15 @@ class Strategies(TrainEvaluate):
                 seq = self.unlabeled_indices
             
             print(f'Index: {idx} \t Last 5 observations: {seq[-5:]}')
-            self.unlab_sampled_list.append(Subset(self.non_transformed_trainset, seq))
+            
+            subset = Subset(self.non_transformed_trainset, seq)
+            d_labels = {'0': 0, '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0, '9': 0}
+            
+            for _, _, lab in subset: d_labels[str(lab)] += 1
+            
+            self.unlab_sampled_list.append(subset)
             for x in seq: self.unlabeled_indices.remove(x)
+            print(d_labels)
         
         print(f'Lenght of the unlabeled sampled subset list: {len(self.unlab_sampled_list)}')
         random.seed(10001) # reset the random seed

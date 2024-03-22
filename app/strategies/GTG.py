@@ -228,6 +228,7 @@ class GTG(Strategies):
         # I save the entropy history in order to be able to plot it
         self.entropy_history = torch.zeros((len(self.transformed_trainset), self.gtg_max_iter), device=self.device)
         
+        labels = [lab for _, _, lab in self.transformed_trainset]
 
         # for each split
         # split_idx -> indices of the split
@@ -275,7 +276,7 @@ class GTG(Strategies):
             self.entropy_pairwise_der = torch.abs(-torch.diff(self.entropy_history, dim=1))
             
             # plot entropy history
-            plot_history(path, self.method_name, self.entropy_history, self.iter - 1, self.gtg_max_iter)
+            plot_history(path, labels, self.classes, self.method_name, self.entropy_history, self.iter - 1, self.gtg_max_iter)
 
             if self.ent_strategy is Entropy_Strategy.W_A_DER:
                 # getting the last column that have at least one element with entropy greater than 1e-15
@@ -304,14 +305,14 @@ class GTG(Strategies):
             plot_derivatives(
                 self.method_name, self.entropy_pairwise_der,
                 self.entropy_pairwise_der * weights if self.ent_strategy is Entropy_Strategy.W_A_DER else self.entropy_pairwise_der,
-                path, self.iter - 1, self.gtg_max_iter - 1, 'weighted_derivatives'
+                path, labels, self.classes, self.iter - 1, self.gtg_max_iter - 1, 'weighted_derivatives'
             )
             
             # plot in the top k entropy derivatives and weighted entropy derivatives
             plot_derivatives(
                 self.method_name, self.entropy_pairwise_der[overall_topk.indices.tolist()],
                 (self.entropy_pairwise_der * weights if self.ent_strategy is Entropy_Strategy.W_A_DER else self.entropy_pairwise_der)[overall_topk.indices.tolist()],
-                path, self.iter - 1, self.gtg_max_iter - 1, 'topk_weighted_derivatives'
+                path, labels, self.classes, self.iter - 1, self.gtg_max_iter - 1, 'topk_weighted_derivatives'
             )
             
         
