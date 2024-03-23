@@ -1,4 +1,5 @@
 
+from utils import count_class_observation
 from train_evaluate.TrainEvaluate import TrainEvaluate
 
 from torch.utils.data import Subset
@@ -43,15 +44,15 @@ class Strategies(TrainEvaluate):
             print(f'Index: {idx} \t Last 5 observations: {seq[-5:]}')
             
             unlabeled_subset = Subset(self.non_transformed_trainset, seq)
-            d_labels = {'0': 0, '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0, '9': 0}
             
-            for _, _, lab in unlabeled_subset: d_labels[str(lab)] += 1
+            d_labels = count_class_observation(self.classes, unlabeled_subset)
             
             self.unlab_sampled_list.append(unlabeled_subset)
             for x in seq: self.unlabeled_indices.remove(x)
-            print(d_labels)
+            print('Observations per class', d_labels)
+            print('\n')
         
-        print(f'Lenght of the unlabeled sampled subset list: {len(self.unlab_sampled_list)}')
+        print(f'Lenght of the unlabeled sampled subset list: {len(self.unlab_sampled_list)}\n')
         random.seed(10001) # reset the random seed
         del self.unlabeled_indices
         
@@ -90,14 +91,8 @@ class Strategies(TrainEvaluate):
             # run method query strategy
             topk_idx_obs: List[int] = self.query(self.unlab_sampled_list[idx_list], self.n_top_k_obs)
             
-            label_topk = [self.transformed_trainset[k][2] for k in topk_idx_obs]
-            d_labels = {}
-            for cls in self.classes: d_labels[cls] = 0
-            keys_d_labels = list(d_labels.keys())
-            for l in label_topk: d_labels[keys_d_labels[l]] += 1
-            print('Number of observations per class added to the labeled set:')
-            print(d_labels)
-            
+            d_labels = count_class_observation(self.classes, self.transformed_trainset, topk_idx_obs)
+            print(f' Number of observations per class added to the labeled set:\n {d_labels}\n')
             
             # get the new labeled indices from the subset to plot the tsne embeddings
             indices_unlab = [self.unlab_sampled_list[idx_list].indices.index(item) for item in topk_idx_obs]

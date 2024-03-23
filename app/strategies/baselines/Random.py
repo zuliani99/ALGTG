@@ -17,7 +17,10 @@ class Random(Strategies):
         
         
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> List[int]:
+        print(f' => Sampling K unlabeled observations')
         if(len(sample_unlab_subset.indices) > n_top_k_obs):           
-            return random.sample(sample_unlab_subset.indices, n_top_k_obs)
+            sample = random.sample(sample_unlab_subset.indices, n_top_k_obs)
         else:
-            return sample_unlab_subset.indices
+            sample = sample_unlab_subset.indices
+        print(' DONE\n')
+        return sample

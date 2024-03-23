@@ -63,24 +63,22 @@ class TrainEvaluate(object):
         
     def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, torch.Tensor]) -> None:
         
-        
         if torch.distributed.is_available():
             if self.world_size > 1: device = 'cuda:0'
             else: device = 'cuda' 
         else: device = 'cpu'
 
-        
         checkpoint: Dict = torch.load(f'{self.best_check_filename}/best_{self.method_name}_{device}.pth.tar', map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
         
         if 'embedds' in dict_to_modify:
-            dict_to_modify['embedds'] = torch.empty((0, self.model.linear.in_features), dtype=torch.float32)#, device=self.device)
+            dict_to_modify['embedds'] = torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device)
         if 'probs' in dict_to_modify:
-            dict_to_modify['probs'] = torch.empty((0, self.n_classes), dtype=torch.float32)#, device=self.device)
+            dict_to_modify['probs'] = torch.empty((0, self.n_classes), dtype=torch.float32)
         if 'labels' in dict_to_modify:
-            dict_to_modify['labels'] = torch.empty(0, dtype=torch.int8)#, device=self.device)
+            dict_to_modify['labels'] = torch.empty(0, dtype=torch.int8)
         if 'idxs' in dict_to_modify:
-            dict_to_modify['idxs'] = torch.empty(0, dtype=torch.int8)#, device=self.device)
+            dict_to_modify['idxs'] = torch.empty(0, dtype=torch.int8)
         
         self.model.eval()
 
@@ -88,31 +86,19 @@ class TrainEvaluate(object):
         with torch.inference_mode():
             for idxs, images, labels in dataloader:
                 
-                #f('embedds' in dict_to_modify or 'probs' in dict_to_modify):
-                #    outs, embed, _, _ = self.model(images.to(self.device))
-                
                 if 'embedds' in dict_to_modify:
                     _, embed, _, _ = self.model(images.to(self.device))
-                    dict_to_modify['embedds'] = torch.cat((dict_to_modify['embedds'], embed.squeeze().cpu()), dim=0)
-                    #self.clear_cuda_variables([embed])
-                    #del embed
+                    dict_to_modify['embedds'] = torch.cat((dict_to_modify['embedds'], embed.squeeze()), dim=0)
                     
                 if 'probs' in dict_to_modify:
                     outs, _, _, _ = self.model(images.to(self.device))
                     dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], outs.squeeze().cpu()), dim=0)
-                    #self.clear_cuda_variables([outs])
-                    #del outs
                     
                 if 'labels' in dict_to_modify:
-                    dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)#.to(self.device)
+                    dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)
                 if 'idxs' in dict_to_modify:
-                    dict_to_modify['idxs'] = torch.cat((dict_to_modify['idxs'], idxs), dim=0)#.to(self.device)
+                    dict_to_modify['idxs'] = torch.cat((dict_to_modify['idxs'], idxs), dim=0)
 
-                
-        #self.clear_cuda_variables([checkpoint])
-        #del checkpoint
-        #gc.collect()
-        #torch.cuda.empty_cache()
         
         
         

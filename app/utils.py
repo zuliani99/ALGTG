@@ -185,7 +185,6 @@ def save_train_val_curves(results_info: Dict[str, Any], ts_dir: str, dataset_nam
 
     plt.suptitle(f'AL iter {cicle_iter}.{al_iter} - {results_info["model_name"]}', fontsize = 30)
     
-    #dataset_name
     path_plots = f'results/{ts_dir}/{dataset_name}/{cicle_iter}/train_val_plots/{results_info["model_name"]}'
 
     if(not os.path.exists(path_plots)):
@@ -215,6 +214,7 @@ def create_directory(dir: str) -> None:
     if not os.path.exists(dir):
         os.makedirs(dir)
 
+
             
 def create_ts_dir_res(timestamp: str, dataset_name: str, iter: str) -> None:
     mydir = os.path.join('results', timestamp)
@@ -223,6 +223,7 @@ def create_ts_dir_res(timestamp: str, dataset_name: str, iter: str) -> None:
     create_directory(os.path.join(mydir, dataset_name, iter))
     create_directory(os.path.join(mydir, dataset_name, iter, 'train_val_plots'))
     create_directory(os.path.join(mydir, dataset_name, iter, 'tsne_plots'))
+    
     
     
         
@@ -272,40 +273,36 @@ def plot_history(path: str, labels: List[int], classes: List[str], method_name: 
     
     
     
-def plot_derivatives(method_name: str, der_tensor: torch.Tensor, der_weighted_tensor: torch.Tensor, path: str, labels: List[int], classes: List[str], iter: int, max_x: int, dir: str) -> None:   
+def plot_derivatives(method_name: str, der_tensor: torch.Tensor, path: str, labels: List[int], classes: List[str], iter: int, max_x: int, dir: str) -> None:   
     
     create_directory(f'{path}/{method_name}')
     create_directory(f'{path}/{method_name}/{dir}')
     
-    fig, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (20,8))
+    plt.figure(figsize=(10,8))
     
     x = np.arange(max_x)
     palette = list(mcolors.TABLEAU_COLORS.values())
-    
-    for idx, (tensor, title) in enumerate(zip([der_tensor, der_weighted_tensor], ['Derivatives', 'Weighted Average Derivatives'])):
+            
+    der_tensor = der_tensor.cpu().numpy()
         
-        tensor = tensor.cpu().numpy()
-        
-        plotted_classes = set()
+    plotted_classes = set()
 
-        for i, lab in zip(range(len(tensor)), labels):
-            if lab not in plotted_classes:
-                ax[idx].plot(x, tensor[i], linestyle="-", label=classes[lab], color=palette[lab])
-                plotted_classes.add(lab)
-            else:
-                ax[idx].plot(x, tensor[i], linestyle="-", color=palette[lab])
+    for i, lab in zip(range(len(der_tensor)), labels):
+        if lab not in plotted_classes:
+            plt.plot(x, der_tensor[i], linestyle="-", label=classes[lab], color=palette[lab])
+            plotted_classes.add(lab)
+        else:
+            plt.plot(x, der_tensor[i], linestyle="-", color=palette[lab])
                 
-        ax[idx].set_xlabel('GTG Iterations')
-        ax[idx].set_ylabel('Entropy')
-        ax[idx].grid()
-        ax[idx].legend()
-        ax[idx].set_title(title)
-        
-    plt.suptitle(f'{title} - Iteration {iter}', fontsize = 15)
+    plt.xlabel('GTG Iterations')
+    plt.ylabel('Entropy')
+    plt.grid()
     plt.legend()
+    plt.title(f'Derivatives - Iteration {iter}')
+
     plt.savefig(f'{path}/{method_name}/{dir}/{iter}.png')
-    
-    
+
+
 
 
 def plot_accuracy_std_mean(timestamp: str, dataset_name: str) -> None:
@@ -339,12 +336,12 @@ def plot_accuracy_std_mean(timestamp: str, dataset_name: str) -> None:
     
     plt.savefig(f'results/{timestamp}/{dataset_name}/mean_std_accuracy_plot.png') 
     
+    
 
 class Entropy_Strategy(Enum):
-    MEAN_DER = 0
-    W_A_DER = 1
-    H_INT = 2
-    LAST = 3
+    DER = 0
+    H_INT = 1
+
 
 
 def set_seeds(seed: int = 10001) -> None:
@@ -378,9 +375,8 @@ def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: Li
     
     A_1, A_2 = A
     
-    label_lab = labels[0].cpu().numpy()
+    label_lab, unlabel_lab = labels
     len_lab = len(label_lab)
-    unlabel_lab = labels[1].cpu().numpy()
     
     tsne_A1 = TSNE().fit_transform(A_1.cpu().numpy())
     tsne_A2 = TSNE().fit_transform(A_2.cpu().numpy())
@@ -389,30 +385,20 @@ def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: Li
         
     for idx, (tsne, name) in enumerate(zip([tsne_A1, tsne_A2], ['Uncertanity', f'{strategy} Sparsification'])):
         
-        tsne_lab = tsne[:len_lab,:]
-        tsne_unlab = tsne[len_lab:,:]
-        
-        x_lab = tsne_lab[:,0]
-        y_lab = tsne_lab[:,1]
-        
-        x_unlab = tsne_unlab[:,0]
-        y_unlab = tsne_unlab[:,1]
-        
-        x = np.hstack((x_lab, x_unlab))
-        y = np.hstack((y_lab, y_unlab))
+        tsne_lab, tsne_unlab = tsne[:len_lab,:], tsne[len_lab:,:]
+        x_lab, y_lab = tsne_lab[:,0], tsne_lab[:,1]
+        x_unlab, y_unlab = tsne_unlab[:,0], tsne_unlab[:,1]
+        x, y = np.hstack((x_lab, x_unlab)), np.hstack((y_lab, y_unlab))
         label = np.hstack((label_lab, unlabel_lab))
         
-    
         sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', ax=axes[idx][0])
         sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', ax=axes[idx][0])
         axes[idx][0].set_title(f'{name} Affnity Matrix')
         axes[idx][0].legend()
         
-        
         sns.scatterplot(x=x, y=y, hue=[classes[l] for l in label], ax=axes[idx][1])
         axes[idx][1].set_title(f'{name} Affnity Matrix - Classes')
         axes[idx][1].legend()
-    
 
     plt.suptitle('Affinity TSNE plots')
     
@@ -426,23 +412,12 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
     
     tsne = TSNE().fit_transform(np.vstack((lab['embedds'].cpu().numpy(), unlab['embedds'].cpu().numpy())))
     
-    tsne_lab = tsne[:len(lab['embedds']),:]
-    tsne_unlab = tsne[len(lab['embedds']):,:]
-    
-    label_lab = lab['labels'].cpu().numpy()
-    unlabel_lab = unlab['labels'].cpu().numpy()
-    
-    x_lab = tsne_lab[:,0]
-    y_lab = tsne_lab[:,1]
-    
-    x_unlab = tsne_unlab[:,0]
-    y_unlab = tsne_unlab[:,1]
-        
-    x = np.hstack((x_lab, x_unlab))
-    y = np.hstack((y_lab, y_unlab))
-    
+    tsne_lab, tsne_unlab = tsne[:len(lab['embedds']),:], tsne[len(lab['embedds']):,:]
+    label_lab, unlabel_lab = lab['labels'], unlab['labels']
+    x_lab, y_lab = tsne_lab[:,0],tsne_lab[:,1]
+    x_unlab, y_unlab = tsne_unlab[:,0], tsne_unlab[:,1]
+    x, y = np.hstack((x_lab, x_unlab)), np.hstack((y_lab, y_unlab))
     label = np.hstack((label_lab, unlabel_lab))
-    
     
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(23, 12))
     
@@ -460,6 +435,18 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
     plt.suptitle(f'{ds_name} - {method} - {iter - 1}')
     create_directory(f'results/{time_stamp}/{ds_name}/{samp_iter}/tsne_plots/{method}')
     plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/tsne_plots/{method}/{iter - 1}.png')
+    
+    
+    
+def count_class_observation(classes, dataset, topk_idx_obs=None):
+    if topk_idx_obs == None: labels = [lab for _,_,lab in dataset]
+    else: labels = [dataset[k][2] for k in topk_idx_obs]
+    
+    d_labels = {}
+    for cls in classes: d_labels[cls] = 0
+    keys_d_labels = list(d_labels.keys())
+    for l in labels: d_labels[keys_d_labels[l]] += 1
+    return d_labels
     
     
     

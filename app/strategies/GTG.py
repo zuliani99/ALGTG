@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
 from scipy.integrate import simpson #,trapz
-from sklearn.metrics.pairwise import cosine_similarity
+#from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
 import gc
@@ -61,8 +61,12 @@ class GTG(Strategies):
         elif self.strategy_type == 'mixed':    
             # set the unlabeled submatrix as distance matrix and not similarity matrix
             n_lab_obs = len(self.lab_embedds_dict['embedds'])
-            A[:n_lab_obs, n_lab_obs:] = 1 - A[:n_lab_obs, n_lab_obs:]
-            A[n_lab_obs:, :n_lab_obs] = 1 - A[n_lab_obs:, :n_lab_obs]
+            if self.A_function == 'e_d':
+                A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs]
+                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:]
+            else:   
+                A[:n_lab_obs, n_lab_obs:] = 1 - A[:n_lab_obs, n_lab_obs:]
+                A[n_lab_obs:, :n_lab_obs] = 1 - A[n_lab_obs:, :n_lab_obs]
             
             # Unlabeled VS Unlabeled -> similarity = A
             # Labeled VS Labeled -> similarity = A
@@ -70,6 +74,7 @@ class GTG(Strategies):
             # Labeled VS Unlabeled -> distance = 1 - A
         
         # remove weak connections 
+        # see how much it is infuent on the results
         A_2 = torch.where(A < 0.5, 0, A)
             
         self.A = A_2
@@ -115,24 +120,24 @@ class GTG(Strategies):
         
         A = torch.cdist(concat_embedds, concat_embedds).to(self.device)
         
-        if self.zero_diag: A.fill_diagonal_(0.)
-        else: A.fill_diagonal_(1.)
+        #if self.zero_diag: A.fill_diagonal_(0.)
+        #else: A.fill_diagonal_(1.)
         return A
 
 
 
     # correct
     def get_A_cos_sim(self, concat_embedds: torch.Tensor) -> torch.Tensor:
-                                
-        #normalized_embedding = F.normalize(concat_embedds, dim=-1).to(self.device)
+                               
+        normalized_embedding = F.normalize(concat_embedds, dim=-1).to(self.device)
         
-        #A = F.relu(torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device))
+        A = F.relu(torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device))
         
-        #if self.zero_diag: A.fill_diagonal_(0.)
-        #else: A.fill_diagonal_(1.)
-        A = cosine_similarity(concat_embedds.cpu().numpy())
-        return torch.from_numpy(A).to(self.device)
-        #return A
+        if self.zero_diag: A.fill_diagonal_(0.)
+        else: A.fill_diagonal_(1.)
+        #A = cosine_similarity(concat_embedds.cpu().numpy())
+        #return torch.from_numpy(A).to(self.device)
+        return A
         
         
         
@@ -148,18 +153,16 @@ class GTG(Strategies):
 
     # correct
     def get_X(self) -> None:
-        
-        len_samp_unlab_embeds = len(self.idx_unlabeled)
-        
+                
         self.X: torch.Tensor = torch.zeros(
-            (len(self.labeled_indices) + len_samp_unlab_embeds, self.n_classes),
+            (len(self.labeled_indices) + self.len_unlab_sample, self.n_classes),
             dtype=torch.float32,
             device=self.device
         )
 
         for idx, label in enumerate(self.lab_embedds_dict['labels']): self.X[idx][label.item()] = 1.
         
-        for idx in range(len(self.labeled_indices), len(self.labeled_indices) + len_samp_unlab_embeds):
+        for idx in range(len(self.labeled_indices), len(self.labeled_indices) + self.len_unlab_sample):
             for label in range(self.n_classes): self.X[idx][label] = 1. / self.n_classes
         
         
@@ -195,8 +198,8 @@ class GTG(Strategies):
             # I have to map only the sample_unlabeled to the correct position
             
             # Update only the unlabeled observations
-            assert len(self.entropy_history_unlabeled[:,i]) == len(iter_entropy[len(self.labeled_indices):]), 'should have the same dimension'
-            self.entropy_history_unlabeled[:,i] = iter_entropy[len(self.labeled_indices):]
+            assert len(self.unlab_entropy_hist[:,i]) == len(iter_entropy[len(self.labeled_indices):]), 'Should have the same dimension'
+            self.unlab_entropy_hist[:,i] = iter_entropy[len(self.labeled_indices):]
             # they have the same dimension
                         
             err = torch.norm(self.X - X_old)
@@ -205,37 +208,33 @@ class GTG(Strategies):
 
 
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> List[int]:
-        #gc.collect()
-        #torch.cuda.empty_cache()
             
         # set the entire batch size to the dimension of the sampled unlabeled set
-        unlab_batch_size = len(sample_unlab_subset)
+        self.len_unlab_sample = len(sample_unlab_subset)
 
         # we have the batch size which is equal to the number of sampled observation from the unlabeled set                    
-        self.unlab_train_dl = DataLoader(                                       # set shuffle to false since I do not have interest on shufflind the dataloader, since I have only to get the embeddings
-            sample_unlab_subset, batch_size=unlab_batch_size,                   # thus there is no needs on shuffling the unlabeled dataloader
+        self.unlab_train_dl = DataLoader(                           # set shuffle to false since I do not have interest on shufflind the dataloader, since I have only to get the embeddings
+            sample_unlab_subset, batch_size=self.len_unlab_sample,  # thus there is no needs on shuffling the unlabeled dataloader
             shuffle=False, pin_memory=True
-            
         )
                 
         print(' => Getting the labeled and unlabeled embeddings')
         self.lab_embedds_dict = {'embedds': None, 'labels': None}
-        self.unlab_embedds_dict = {'embedds': None}#, 'labels': None, 'idxs': None}
+        self.unlab_embedds_dict = {'embedds': None}
             
         self.get_embeddings(self.lab_train_dl, self.lab_embedds_dict)
         self.get_embeddings(self.unlab_train_dl, self.unlab_embedds_dict)
         print(' DONE\n')
             
-        # without using cuda memory
+        # i can take the indices and labels fromt he dataloader, without using the get_embeddings function so no cuda memory is used in this case
+        # I have a single batch
         self.idx_unlabeled = next(iter(self.unlab_train_dl))[0]
         self.labels_unlabeled = next(iter(self.unlab_train_dl))[2]
             
             
         # I save the entropy history in order to be able to plot it
-        self.entropy_history_unlabeled = torch.zeros((unlab_batch_size, self.gtg_max_iter), device=self.device)
+        self.unlab_entropy_hist = torch.zeros((self.len_unlab_sample, self.gtg_max_iter), device=self.device)
         
-        #labels: List[int] = self.lab_embedds_dict['labels'].cpu().tolist()
-        #labels.extend(self.labels_unlabeled.tolist())
             
         print(' => Execution of the Graph Trasduction Game')
         self.graph_trasduction_game()
@@ -248,81 +247,58 @@ class GTG(Strategies):
         del self.unlab_embedds_dict
         torch.cuda.empty_cache()         
         
+        
         path = f'results/{self.timestamp}/{self.dataset_name}/{self.samp_iter}/gtg_entropies_plots'
         create_directory(path)
         
-        print(f' => Extracting the Top-k unlabeled observation using {self.ent_strategy}')
+        # plot entropy history
+        plot_history(path, self.labels_unlabeled.tolist(), self.classes, self.method_name, self.unlab_entropy_hist, self.iter - 1, self.gtg_max_iter)
+        
+        print(f' => Extracting the Top-k unlabeled observations using {self.ent_strategy}')
             
-        if self.ent_strategy is Entropy_Strategy.LAST:
-            # returning the last entropies values
-            overall_topk = torch.topk(self.entropy_history_unlabeled[-1], n_top_k_obs)
         
         if self.ent_strategy is Entropy_Strategy.H_INT:
-            # computing the area of each entropies derivates fucntion via the trapezius formula 
-            #area: np.ndarray = trapz(-np.diff(self.entropy_history.cpu().numpy(), axis=1))
-            #area: np.ndarray = simpson(-np.diff(self.entropy_history.cpu().numpy(), axis=1))
-            
-            #-----------------------------------------------------------------------------------------------
-            # WRONG COMPUTING THE AREA OVER THE DERIVATIVES OF THE ENTROPY
-            # I WANT THE ARE OF THE ORIGINAL FUNCTION ENTROPIES THUS THE THEIR HISOTRY OVER GTG ITERATIONS
-            area: np.ndarray = simpson(self.entropy_history_unlabeled.cpu().numpy())
-            #-----------------------------------------------------------------------------------------------
+            # computing the area of each entropies derivates fucntion via the simpson formula 
+            area: np.ndarray = simpson(self.unlab_entropy_hist.cpu().numpy())
                         
-            overall_topk = torch.topk(torch.from_numpy(area), n_top_k_obs)
+            overall_topk = torch.topk(torch.from_numpy(area), k=n_top_k_obs, largest=True)
+        
+        elif self.ent_strategy is Entropy_Strategy.DER:
+            # compute the pairwise differences to obtaion the entropy derivatives
+            self.unlab_entropy_der = -torch.diff(self.unlab_entropy_hist, dim=1)
+            
+            negative_indices = (self.unlab_entropy_der < 0).nonzero()
+            rows, cols = negative_indices.unbind(1)
+            
+            first_negative = torch.full((1, self.len_unlab_sample), -1).squeeze()
+            last_negative = torch.full((1, self.len_unlab_sample), -1).squeeze()
+            
+            for row, col in zip(rows, cols):
+                if first_negative[row] == -1: first_negative[row] = col
+                last_negative[row] = col
+                
+            for row, (first_0, last_0) in enumerate(zip(first_negative, last_negative)):
+                for idx in range(first_0+1, last_0):
+                    self.unlab_entropy_der[row, idx] = -torch.abs(self.unlab_entropy_der[row, idx])
+                                
+            overall_topk = torch.topk(torch.sum(self.unlab_entropy_der, dim=1), k=n_top_k_obs, largest=False)
+        
+            plot_derivatives(
+                self.method_name, self.unlab_entropy_der,
+                path, self.labels_unlabeled.tolist(), self.classes, self.iter - 1, self.gtg_max_iter - 1, 'derivatives'
+            )
+        
+            del self.unlab_entropy_der
+            torch.cuda.empty_cache()
         
         else:
-            # absolute value of the derivate to remove the oscilaltions -> observaion that have oscillations means that are difficult too
-            self.entropy_pairwise_unlabeled_der = torch.abs(-torch.diff(self.entropy_history_unlabeled, dim=1))
+            raise Exception('Unrecognized derivates computation strategy')
             
-            # plot entropy history
-            plot_history(path, self.labels_unlabeled.tolist(), self.classes, self.method_name, self.entropy_history_unlabeled, self.iter - 1, self.gtg_max_iter)
-
-            if self.ent_strategy is Entropy_Strategy.W_A_DER:
-                # getting the last column that have at least one element with entropy greater than 1e-15
-                for col_index in range(self.entropy_pairwise_unlabeled_der.size(1) - 1, -1, -1):
-                    if torch.any(self.entropy_pairwise_unlabeled_der[:, col_index] > 1e-15): break
-                    
-                    
-                # set the weights to increasing value until col_index
-                weights = torch.zeros(self.gtg_max_iter - 1, dtype=torch.float32, device=self.device) 
-                weights[:col_index] = torch.flip(torch.linspace(1, 0.1, col_index), [0]).to(self.device)
-                
-                
-                # weighted average excluding the derivates that are bellow the threshold
-                overall_topk = torch.topk(
-                    torch.sum(self.entropy_pairwise_unlabeled_der * weights, dim = 1) / col_index,
-                    n_top_k_obs
-                )    
-            
-            elif self.ent_strategy is Entropy_Strategy.MEAN_DER:
-                # classic average among the derivates
-                overall_topk = torch.topk(torch.mean(self.entropy_pairwise_unlabeled_der, dim=1), n_top_k_obs)
-            else:
-                raise Exception('Unrecognized derivates computation strategy')
-            
-            # plot in the entropy derivatives and weighted entropy derivatives
-            plot_derivatives(
-                self.method_name, self.entropy_pairwise_unlabeled_der,
-                self.entropy_pairwise_unlabeled_der * weights if self.ent_strategy is Entropy_Strategy.W_A_DER else self.entropy_pairwise_unlabeled_der,
-                path, self.labels_unlabeled.tolist(), self.classes, self.iter - 1, self.gtg_max_iter - 1, 'weighted_derivatives'
-            )
-            
-            # plot in the top k entropy derivatives and weighted entropy derivatives
-            plot_derivatives(
-                self.method_name, self.entropy_pairwise_unlabeled_der[overall_topk.indices.tolist()],
-                (self.entropy_pairwise_unlabeled_der * weights if self.ent_strategy is Entropy_Strategy.W_A_DER else self.entropy_pairwise_unlabeled_der)[overall_topk.indices.tolist()],
-                path, self.labels_unlabeled.tolist(), self.classes, self.iter - 1, self.gtg_max_iter - 1, 'topk_weighted_derivatives'
-            )
-            
-        
-            del self.entropy_pairwise_unlabeled_der
-            torch.cuda.empty_cache()  
-            
-        del self.entropy_history_unlabeled
+        del self.unlab_entropy_hist
         gc.collect()
         torch.cuda.empty_cache() 
         
         print(' DONE\n')
         
-        #return overall_topk.indices.tolist()
         return [self.idx_unlabeled[id].item() for id in overall_topk.indices.tolist()]
+    

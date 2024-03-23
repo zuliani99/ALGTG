@@ -25,14 +25,15 @@ class Entropy(Strategies):
             batch_size=self.batch_size, shuffle=False, pin_memory=True
         )
                 
-        print(' => Evalueting unlabeled observations')
+        print(' => Evaluating unlabeled observations')
         embeds_dict = {'probs': None, 'idxs': None}
         self.get_embeddings(self.unlab_train_dl, embeds_dict)
         prob_dist = F.softmax(embeds_dict['probs'], dim=1)
         print(' DONE\n')
-                
+
+        print(f' => Extracting the Top-k unlabeled observations')
         tot_entr = entropy(prob_dist).to(self.device)
         overall_topk = torch.topk(tot_entr, n_top_k_obs)
-        
+        print(' DONE\n')
         
         return [embeds_dict['idxs'][id].item() for id in overall_topk.indices.tolist()]
