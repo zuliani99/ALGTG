@@ -215,7 +215,7 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
     axes[0].legend()
     
     
-    for array, color, width, style, label in [(unlabeled, 'lightblue', 0.5, '--', 'unlabeled'), (new_labeled, None, 1, '-', new_labeled_lab)]:
+    for array, color, style, label in [(unlabeled, 'lightblue', '--', 'unlabeled'), (new_labeled, None, '-', new_labeled_lab)]:
         if style == '-':
             labels_array = label
         
@@ -226,9 +226,9 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
                 label = classes[labels_array[i]]
                         
             if label not in pl2_cls_2:
-                axes[1].plot(x, array[i], linewidth=width, linestyle=style, label=label, color=color)
+                axes[1].plot(x, array[i], linestyle=style, label=label, color=color)
                 pl2_cls_2.add(label)
-            else: axes[1].plot(x, array[i], linewidth=width, linestyle=style, color=color)
+            else: axes[1].plot(x, array[i], linestyle=style, color=color)
         
     axes[1].set_ylabel('GTG Iterations')
     axes[1].set_xlabel('Entropy')
@@ -278,7 +278,6 @@ def plot_accuracy_std_mean(timestamp: str, dataset_name: str) -> None:
 class Entropy_Strategy(Enum):
     DER = 0
     H_INT = 1
-    SUM = 2
     
 
 class Affinity_Threshold(Enum):

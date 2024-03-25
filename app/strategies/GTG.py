@@ -85,7 +85,6 @@ class GTG(Strategies):
             # Labeled VS Unlabeled -> distance = 1 - A
         
         # remove weak connections 
-        # see how much it is infuent on the results
         A_2 = torch.where(A < self.get_A_treshold(A), 0, A)
 
         self.A = A_2
@@ -255,10 +254,7 @@ class GTG(Strategies):
                             
         print(f' => Extracting the Top-k unlabeled observations using {self.ent_strategy}')
             
-        if self.ent_strategy is Entropy_Strategy.SUM:
-            overall_topk = torch.topk(torch.sum(self.unlab_entropy_hist, dim=1), k=n_top_k_obs, largest=True)
-        
-        elif self.ent_strategy is Entropy_Strategy.H_INT:
+        if self.ent_strategy is Entropy_Strategy.H_INT:
             # computing the area of each entropies derivates fucntion via the simpson formula 
             area: np.ndarray = simpson(self.unlab_entropy_hist.cpu().numpy())
                         
@@ -277,12 +273,28 @@ class GTG(Strategies):
             for row, col in zip(rows, cols):
                 if first_negative[row] == -1: first_negative[row] = col
                 last_negative[row] = col
-                
+            
+            # setting the range between the first and the last negative cell to negative
             for row, (first_0, last_0) in enumerate(zip(first_negative, last_negative)):
-                for idx in range(first_0+1, last_0):
+                for idx in range(first_0 + 1, last_0):
                     self.unlab_entropy_der[row, idx] = -torch.abs(self.unlab_entropy_der[row, idx])
                                 
-            overall_topk = torch.topk(torch.sum(self.unlab_entropy_der, dim=1), k=n_top_k_obs, largest=False)
+            mean_denominator = torch.full((1, self.unlab_entropy_der.shape[0]), self.unlab_entropy_der.shape[1], device=self.device).squeeze()
+            
+            # update the derivatives tensor setting all the cell that are less than 1e-5 to zero, from the last negative number going on
+            for idx, col in enumerate(last_negative):
+                check_less = self.unlab_entropy_der[idx, col+1:]
+                check = check_less <= 1e-5
+                non_zero = check.nonzero().squeeze()
+                if len((non_zero + col+1).size()) == 0:
+                    mean_denominator[idx] = (non_zero + col+1).item()
+                    self.unlab_entropy_der[non_zero, non_zero + col+1:] = 0.
+            
+            # computing the actual mean
+            overall_topk = torch.topk(
+                torch.sum(self.unlab_entropy_der, dim=1) / mean_denominator,
+                k=n_top_k_obs, largest=False
+            )            
 
             # plot entropy derivatives tensor
             plot_gtg_entropy_tensor(
