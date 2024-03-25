@@ -1,5 +1,5 @@
 from strategies.Strategies import Strategies
-from utils import plot_tsne_A, create_directory, entropy, plot_history, plot_derivatives, Entropy_Strategy
+from utils import plot_tsne_A, create_directory, entropy, plot_gtg_entropy_tensor, Entropy_Strategy
 
 import torch
 from torch.utils.data import DataLoader, Subset
@@ -18,8 +18,6 @@ class GTG(Strategies):
     
     def __init__(self, al_params: Dict[str, Any], training_params: Dict[str, Any], gtg_params: Dict[str, int], LL: bool) -> None:
         
-        super().__init__(al_params, training_params, LL)
-        
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,
             'corr': self.get_A_corr,
@@ -33,13 +31,26 @@ class GTG(Strategies):
         self.gtg_tol: float = gtg_params['gtg_tol']
         self.gtg_max_iter: int = gtg_params['gtg_max_iter']
         self.strategy_type: str = gtg_params['strategy_type']
+        self.threshold_strategy: str = gtg_params['threshold_strategy']
+        self.threshold: str = gtg_params['threshold']
                 
         str_diag = '0diag' if self.zero_diag else '1diag'
-        rbf_str = 'rbf_' if self.rbf_aff else ''
+        str_rbf = 'rbf_' if self.rbf_aff else ''
+        str_treshold = f'{self.threshold_strategy}_{self.threshold}' if self.threshold_strategy != 'mean' else 'mean'
+        
                 
-        self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{rbf_str}{self.A_function}_{self.ent_strategy.name}_{str_diag}_LL' if LL \
-            else f'{self.__class__.__name__}_{self.strategy_type}_{rbf_str}{self.A_function}_{self.ent_strategy.name}_{str_diag}'
-                            
+        self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}_LL' if LL \
+            else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}'
+
+        super().__init__(al_params, training_params, LL)
+        
+        create_directory(self.path + '/gtg_entropies_plots')
+        
+    
+    def get_A_treshold(self, A: torch.Tensor) -> float:
+        if self.threshold_strategy == 'mean': return torch.mean(A)
+        elif self.threshold_strategy == 'threshold': return self.threshold
+        else: return np.quantile(A.cpu().numpy(), self.threshold)
     
         
     # select the relative choosen affinity matrix method
@@ -75,8 +86,8 @@ class GTG(Strategies):
         
         # remove weak connections 
         # see how much it is infuent on the results
-        A_2 = torch.where(A < 0.5, 0, A)
-            
+        A_2 = torch.where(A < self.get_A_treshold(A), 0, A)
+
         self.A = A_2
         
         # plot the TSNE fo the original and modified affinity matrix
@@ -88,7 +99,6 @@ class GTG(Strategies):
 
 
 
-    # should be correct
     def get_A_rbfk(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         
         A_matrix = self.get_A_fn[self.A_function](concat_embedds)
@@ -115,7 +125,6 @@ class GTG(Strategies):
     
     
     
-    # correct
     def get_A_e_d(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         
         A = torch.cdist(concat_embedds, concat_embedds).to(self.device)
@@ -126,7 +135,6 @@ class GTG(Strategies):
 
 
 
-    # correct
     def get_A_cos_sim(self, concat_embedds: torch.Tensor) -> torch.Tensor:
                                
         normalized_embedding = F.normalize(concat_embedds, dim=-1).to(self.device)
@@ -141,7 +149,6 @@ class GTG(Strategies):
         
         
         
-    # correct
     def get_A_corr(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         
         A = F.relu(torch.corrcoef(concat_embedds).to(self.device))
@@ -151,7 +158,6 @@ class GTG(Strategies):
 
         
 
-    # correct
     def get_X(self) -> None:
                 
         self.X: torch.Tensor = torch.zeros(
@@ -175,7 +181,6 @@ class GTG(Strategies):
         
         
         
-    # correct
     def graph_trasduction_game(self) -> None:
         
         self.get_A()
@@ -247,17 +252,13 @@ class GTG(Strategies):
         del self.unlab_embedds_dict
         torch.cuda.empty_cache()         
         
-        
-        path = f'results/{self.timestamp}/{self.dataset_name}/{self.samp_iter}/gtg_entropies_plots'
-        create_directory(path)
-        
-        # plot entropy history
-        plot_history(path, self.labels_unlabeled.tolist(), self.classes, self.method_name, self.unlab_entropy_hist, self.iter - 1, self.gtg_max_iter)
-        
+                            
         print(f' => Extracting the Top-k unlabeled observations using {self.ent_strategy}')
             
+        if self.ent_strategy is Entropy_Strategy.SUM:
+            overall_topk = torch.topk(torch.sum(self.unlab_entropy_hist, dim=1), k=n_top_k_obs, largest=True)
         
-        if self.ent_strategy is Entropy_Strategy.H_INT:
+        elif self.ent_strategy is Entropy_Strategy.H_INT:
             # computing the area of each entropies derivates fucntion via the simpson formula 
             area: np.ndarray = simpson(self.unlab_entropy_hist.cpu().numpy())
                         
@@ -282,17 +283,24 @@ class GTG(Strategies):
                     self.unlab_entropy_der[row, idx] = -torch.abs(self.unlab_entropy_der[row, idx])
                                 
             overall_topk = torch.topk(torch.sum(self.unlab_entropy_der, dim=1), k=n_top_k_obs, largest=False)
-        
-            plot_derivatives(
-                self.method_name, self.unlab_entropy_der,
-                path, self.labels_unlabeled.tolist(), self.classes, self.iter - 1, self.gtg_max_iter - 1, 'derivatives'
+
+            # plot entropy derivatives tensor
+            plot_gtg_entropy_tensor(
+                tensor=self.unlab_entropy_der, topk=overall_topk.indices.tolist(), lab_unlabels=self.labels_unlabeled.tolist(), classes=self.classes, 
+                path=self.path, iter=self.iter - 1, max_x=self.gtg_max_iter - 1, dir='derivatives'
             )
         
             del self.unlab_entropy_der
             torch.cuda.empty_cache()
         
-        else:
-            raise Exception('Unrecognized derivates computation strategy')
+        else: raise Exception('Unrecognized derivates computation strategy')
+        
+        # plot entropy hisstory tensor
+        plot_gtg_entropy_tensor(
+            tensor=self.unlab_entropy_hist, topk=overall_topk.indices.tolist(), lab_unlabels=self.labels_unlabeled.tolist(), classes=self.classes, 
+            path=self.path, iter=self.iter - 1, max_x=self.gtg_max_iter, dir='history'
+        )
+        
             
         del self.unlab_entropy_hist
         gc.collect()

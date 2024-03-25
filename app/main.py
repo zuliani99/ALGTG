@@ -13,7 +13,7 @@ from strategies.competitors.BADGE import BADGE
 from strategies.competitors.LeastConfidence import LeastConfidence
 from strategies.competitors.K_Means import K_Means
 
-from utils import create_ts_dir_res, accuracy_score, plot_loss_curves, plot_accuracy_std_mean, set_seeds, Entropy_Strategy
+from utils import create_ts_dir, accuracy_score, plot_loss_curves, plot_accuracy_std_mean, set_seeds, Entropy_Strategy
 
 from datetime import datetime
 import argparse
@@ -29,6 +29,10 @@ parser.add_argument('-d', '--datasets', type=str, nargs='+', choices=['cifar10',
 parser.add_argument('-i', '--iterations', type=int, nargs=1, required=True, help='Number or iterations of AL benchmark for each dataset')
 parser.add_argument('-s', '--strategy', type=str, nargs=1, choices=['uncertanity', 'diversity', 'mixed'], 
                     required=True, help='Possible query strategy types to choose')
+'''parser.add_argument('-ts', '--threshold_strategy', type=str, nargs=1, choices=['threshold', 'mean', 'quantile'], 
+                    required=True, help='Possible query strategy types to choose')
+parser.add_argument('-t', '--threshold', type=float, nargs=1, required=False, 
+                    help='Affinity Matrix Threshold, when threshold_strategy = mean, this is ingnored')'''
 
 
 args = parser.parse_args()
@@ -36,6 +40,8 @@ args = parser.parse_args()
 choosen_datasets = args.datasets
 sample_iterations = args.iterations[0]
 strategy_type = args.strategy[0]
+#treshold_strategy = args.threshold_strategy[0]
+#treshold = args.threshold[0]
 
 
 # setting seed and deterministic behaviour of pytorch for reproducibility
@@ -82,6 +88,34 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
         GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
+                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.DER,
+                'threshold_strategy': 'quantile', 'threshold': 0.6
+            }, LL=True),
+        GTG(al_params=al_params, training_params=training_params, 
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
+                'threshold_strategy': 'quantile', 'threshold': 0.6
+            }, LL=True),
+        GTG(al_params=al_params, training_params=training_params, 
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.SUM,
+                'threshold_strategy': 'quantile', 'threshold': 0.6
+            }, LL=True),
+        
+        
+    ]
+    '''
+    
+    
+    
+    
+    
+    
+    GTG(al_params=al_params, training_params=training_params, 
+            gtg_params={
+                **gtg_params,
                 'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.DER
             }, LL=True),
         GTG(al_params=al_params, training_params=training_params,
@@ -89,19 +123,13 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
                 **gtg_params,
                 'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT
             }, LL=True),
-
-        GTG(al_params=al_params, training_params=training_params, 
+        GTG(al_params=al_params, training_params=training_params,
             gtg_params={
                 **gtg_params,
-                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.DER
+                'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.SUM
             }, LL=True),
-        GTG(al_params=al_params, training_params=training_params, 
-            gtg_params={
-                **gtg_params,
-                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT
-            }, LL=True),
-        
-        GTG(al_params=al_params, training_params=training_params, 
+            
+    GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
                 'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.DER
@@ -111,10 +139,11 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
                 **gtg_params,
                 'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT
             }, LL=True),
-        
-    ]
-    '''
-    
+        GTG(al_params=al_params, training_params=training_params,
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.SUM
+            }, LL=True),
     
     '''
 
@@ -173,7 +202,7 @@ def main() -> None:
             
             print(f'----------------------- SAMPLE ITERATION {samp_iter + 1} / {sample_iterations} -----------------------\n')
             
-            create_ts_dir_res(timestamp, dataset_name, str(samp_iter))
+            create_ts_dir(timestamp, dataset_name, str(samp_iter))
             DatasetChoice = SubsetDataloaders(dataset_name, batch_size, val_rateo=0.2, init_lab_obs=init_lab_obs)
             
             print('\n')
@@ -197,9 +226,10 @@ def main() -> None:
             
             gtg_params = {
                 'gtg_tol': 0.001,
-                'gtg_max_iter': 30,
-                'strategy_type': strategy_type
-                # remember that simpson's rule need an even number of observations to compute the integrals
+                'gtg_max_iter': 30, # remember that simpson's rule need an even number of observations to compute the integrals
+                'strategy_type': strategy_type,
+                #'threshold_strategy': treshold_strategy,
+                #'threshold': treshold
             }
             
 

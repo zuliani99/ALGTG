@@ -15,15 +15,16 @@ from typing import Dict, Any, List
 class K_Means(Strategies):
     
     def __init__(self, al_params: Dict[str, Any], training_params: Dict[str, Any], LL: bool) -> None:
+        self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
+
         super().__init__(al_params, training_params, LL)
         
-        self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
                            
         
     def apply_kmeans(self, n_clusters: int) -> np.ndarray:
         unlab_embeddings = self.embedds_dict['embedds'].cpu().numpy()
         
-        cluster_learner = KMeans(n_clusters=n_clusters)
+        cluster_learner = KMeans(n_clusters=n_clusters, n_init='auto')
         cluster_learner.fit(unlab_embeddings)
         
         cluster_idxs = cluster_learner.predict(unlab_embeddings)

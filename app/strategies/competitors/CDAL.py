@@ -14,9 +14,10 @@ from typing import Dict, Any, List
 class CDAL(Strategies):
     
     def __init__(self, al_params: Dict[str, Any], training_params: Dict[str, Any], LL: bool) -> None:
+        self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
+
         super().__init__(al_params, training_params, LL)
         
-        self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
 
 
     def furthest_first(self, X: torch.Tensor, X_set: torch.Tensor, n_top_k_obs: int) -> List[int]:
@@ -58,5 +59,5 @@ class CDAL(Strategies):
         topk_idx_obs = self.furthest_first(unlab_probs, lab_probs, n_top_k_obs)
                     
         
-        return [self.embedds_dict['idxs'][id].item() for id in topk_idx_obs.indices.tolist()]
+        return [self.embedds_dict['idxs'][id].item() for id in topk_idx_obs]
     

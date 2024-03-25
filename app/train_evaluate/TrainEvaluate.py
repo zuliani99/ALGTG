@@ -6,7 +6,7 @@ from train_evaluate.Train_DDP import train, train_ddp
 
 from ResNet18 import BasicBlock, ResNet_Weird
 from Datasets import DatasetChoice, SubsetDataloaders
-from utils import save_train_val_curves, write_csv, plot_new_labeled_tsne
+from utils import create_directory, save_train_val_curves, write_csv, plot_new_labeled_tsne
 
 import copy
 from typing import List, Dict, Any
@@ -57,7 +57,12 @@ class TrainEvaluate(object):
         self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], image_size=self.image_size, num_classes=self.n_classes, n_channels=self.n_channels).to(self.device)
     
         self.world_size = torch.cuda.device_count()
-
+        
+        
+        self.path = f'results/{self.timestamp}/{self.dataset_name}/{self.samp_iter}/{self.method_name}'
+        create_directory(self.path)
+        create_directory(self.path + '/train_val_plots')
+        create_directory(self.path + '/tsne_plots')
 
         
         

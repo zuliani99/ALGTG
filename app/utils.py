@@ -5,7 +5,6 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 
-
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from sklearn.manifold import TSNE
@@ -31,52 +30,26 @@ def entropy(tensor: torch.Tensor, dim=1) -> torch.Tensor:
 
     
 
-def plot_loss_curves(methods_results: Dict[str, List[float]], n_lab_obs: List[int], ts_dir: str, save_plot=True, plot_png_name=None) -> None:
+def plot_loss_curves(methods_results: Dict[str, List[float]], n_lab_obs: List[int], ts_dir: str, \
+    save_plot=True, plot_png_name=None) -> None:
     
     _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
     
-    # test_loss
+    data = [
+        [(0,0), 'test_loss', 'Total Loss'], [(0,1), 'test_accuracy', 'Accuracy Score'],
+        [(1,0), 'test_loss_ce', 'CE Loss'], [(1,1), 'test_loss_weird', 'Loss Weird']
+    ]
+    
     for method_str, values in methods_results.items():
-        ax[0][0].plot(n_lab_obs, values['test_loss'], label = f'{method_str}')
-
-    ax[0][0].set_title('Total Loss - # Labeled Obs')
-    ax[0][0].set_xlabel('# Labeled Obs')
-    ax[0][0].set_ylabel('Total Loss')
-    ax[0][0].grid()
-    ax[0][0].legend()
-
-        
-    # test_accuracy
-    for method_str, values in methods_results.items():
-        ax[0][1].plot(n_lab_obs, values['test_accuracy'], label = f'{method_str}')
-                
-    ax[0][1].set_title('Accuracy Score - # Labeled Obs')
-    ax[0][1].set_ylabel('Accuracy Score')
-    ax[0][1].set_xlabel('# Labeled Obs')
-    ax[0][1].grid()
-    ax[0][1].legend()
-        
-        
-    # test_loss_ce
-    for method_str, values in methods_results.items():
-        ax[1][0].plot(n_lab_obs, values['test_loss_ce'], label = f'{method_str}')
-                
-    ax[1][0].set_title('CE Loss - # Labeled Obs')
-    ax[1][0].set_ylabel('CE Loss')
-    ax[1][0].set_xlabel('# Labeled Obs')
-    ax[1][0].grid()
-    ax[1][0].legend()
-        
-        
-    # test_loss_weird
-    for method_str, values in methods_results.items():
-        ax[1][1].plot(n_lab_obs, values['test_loss_weird'], label = f'{method_str}')
-                
-    ax[1][1].set_title('Loss Weird - # Labeled Obs')
-    ax[1][1].set_ylabel('Loss Weird')
-    ax[1][1].set_xlabel('# Labeled Obs')
-    ax[1][1].grid()
-    ax[1][1].legend()
+        for (pos1, pos2), key, _ in data:
+            ax[pos1][pos2].plot(n_lab_obs, values[key], label = f'{method_str}')
+            
+    for (pos1, pos2), _, title in data:
+        ax[pos1][pos2].set_title(f'{title} - # Labeled Obs')
+        ax[pos1][pos2].set_xlabel('# Labeled Obs')
+        ax[pos1][pos2].set_ylabel(title)
+        ax[pos1][pos2].grid()
+        ax[pos1][pos2].legend()
     
 
     plt.suptitle('Results', fontsize = 30)
@@ -86,7 +59,8 @@ def plot_loss_curves(methods_results: Dict[str, List[float]], n_lab_obs: List[in
     
     
     
-def save_train_val_curves(results_info: Dict[str, Any], ts_dir: str, dataset_name: str, al_iter: str, cicle_iter: str, flag_LL: bool) -> None:
+def save_train_val_curves(results_info: Dict[str, Any], ts_dir: str, dataset_name: str, al_iter: str, \
+    cicle_iter: str, flag_LL: bool) -> None:
 
     res = results_info['results']
     epochs = range(1, len(res['train_loss']) + 1)
@@ -104,88 +78,53 @@ def save_train_val_curves(results_info: Dict[str, Any], ts_dir: str, dataset_nam
     
     if flag_LL:
         
-        # train_loss, val_loss
-        ax[0][0].plot(epochs, res['train_loss'], label = 'train_loss')
-        ax[0][0].plot(epochs, res['val_loss'], label = 'val_loss')
-        ax[0][0].set_ylim([0, 5])
-        ax[0][0].axvline(minloss_ep, linestyle='--', color='r', label='Min Loss')
-
-        ax[0][0].axhline(minloss_val, linestyle='--', color='r')
-        ax[0][0].set_title('Total Loss - Epochs')
-        ax[0][0].set_xlabel('Epochs')
-        ax[0][0].set_ylabel('Total Loss')
-        ax[0][0].grid()
-        ax[0][0].legend()
-
-
-        # train_accuracy, val_accuracy
-        ax[0][1].plot(epochs, res['train_accuracy'], label = 'train_accuracy_score')
-        ax[0][1].plot(epochs, res['val_accuracy'], label = 'val_accuracy_score')
-        ax[0][1].axvline(maxacc_ep, linestyle='--', color='r', label='Max Accuracy')
-
-        ax[0][1].axhline(maxacc_val, linestyle='--', color='r')
-        ax[0][1].set_title('Accuracy Score - Epochs')
-        ax[0][1].set_ylabel('Accuracy Score')
-        ax[0][1].set_xlabel('Epochs')
-        ax[0][1].grid()
-        ax[0][1].legend()
+        data = [
+            [(0,0), 'train_loss', 'val_loss', minloss_ep, minloss_val, 'Total Loss', 'Min Loss'],
+            [(0,1), 'train_accuracy', 'val_accuracy', maxacc_ep, maxacc_val, 'Accuracy Score', 'Max Accuracy'],
+            [(1,0), 'train_loss_ce', 'val_loss_ce', None, None, 'CE Loss', None],
+            [(1,1), 'train_loss_weird', 'val_loss_weird',  None, None, 'Loss Weird', None]
+        ]
         
-        
-        # train_loss_ce, val_loss_ce
-        ax[1][0].plot(epochs, res['train_loss_ce'], label = 'train_loss_ce')
-        ax[1][0].plot(epochs, res['val_loss_ce'], label = 'val_loss_ce')
-        ax[1][0].set_ylim([0, 5])
-
-        ax[1][0].set_title('CE Loss - Epochs')
-        ax[1][0].set_ylabel('CE Loss')
-        ax[1][0].set_xlabel('Epochs')
-        ax[1][0].grid()
-        ax[1][0].legend()
-
-        
-        # train_loss_weird, val_loss_weird
-        ax[1][1].plot(epochs, res['train_loss_weird'], label = 'train_loss_weird')
-        ax[1][1].plot(epochs, res['val_loss_weird'], label = 'val_loss_weird')
-        ax[1][1].set_ylim([0, 5])
-
-        ax[1][1].set_title('Loss Weird - Epochs')
-        ax[1][1].set_ylabel('Loss Weird')
-        ax[1][1].set_xlabel('Epochs')
-        ax[1][1].grid()
-        ax[1][1].legend()
+        for (pos1, pos2), train_mes, val_mes, pos_mes_ep, pos_mes_val, title, label_line in data:
+            ax[pos1][pos2].plot(epochs, res[train_mes], label = train_mes)
+            ax[pos1][pos2].plot(epochs, res[val_mes], label = val_mes)
+            if not (pos1 == 0 and pos2 ==1): ax[pos1][pos2].set_ylim([0, 5])
+            
+            if pos1 == 0:
+                ax[pos1][pos2].axvline(pos_mes_ep, linestyle='--', color='r', label=label_line)
+                ax[pos1][pos2].axhline(pos_mes_val, linestyle='--', color='r')
+            
+            ax[pos1][pos2].set_title(f'{title} - Epochs')
+            ax[pos1][pos2].set_xlabel('Epochs')
+            ax[pos1][pos2].set_ylabel(title)
+            ax[pos1][pos2].grid()
+            ax[pos1][pos2].legend()
         
         
     
-    else:
-        # train_loss, val_loss
-        ax[0].plot(epochs, res['train_loss'], label = 'train_loss')
-        ax[0].plot(epochs, res['val_loss'], label = 'val_loss')
-        ax[0].set_ylim([0, 5])
-        ax[0].axvline(minloss_ep, linestyle='--', color='r', label='Min Loss')
+    else:        
+        data = [
+            ['train_loss', 'val_loss', minloss_ep, minloss_val, 'Total Loss', 'Min Loss'],
+            ['train_accuracy', 'val_accuracy', maxacc_ep, maxacc_val, 'Accuracy Score', 'Max Accuracy'],
+        ]
+        
+        for pos, (train_mes, val_mes, pos_mes_ep, pos_mes_val, title, label_line) in enumerate(data):
+            ax[pos].plot(epochs, res[train_mes], label = train_mes)
+            ax[pos].plot(epochs, res[val_mes], label = val_mes)
+            if pos == 0: ax[pos].set_ylim([0, 5])
+            ax[pos].axvline(pos_mes_ep, linestyle='--', color='r', label=label_line)
 
-        ax[0].axhline(minloss_val, linestyle='--', color='r')
-        ax[0].set_title('Total Loss - Epochs')
-        ax[0].set_xlabel('Epochs')
-        ax[0].set_ylabel('Total Loss')
-        ax[0].grid()
-        ax[0].legend()
-
-
-        # train_accuracy, val_accuracy
-        ax[1].plot(epochs, res['train_accuracy'], label = 'train_accuracy_score')
-        ax[1].plot(epochs, res['val_accuracy'], label = 'val_accuracy_score')
-        ax[1].axvline(maxacc_ep, linestyle='--', color='r', label='Max Accuracy')
-
-        ax[1].axhline(maxacc_val, linestyle='--', color='r')
-        ax[1].set_title('Accuracy Score - Epochs')
-        ax[1].set_ylabel('Accuracy Score')
-        ax[1].set_xlabel('Epochs')
-        ax[1].grid()
-        ax[1].legend()
+            ax[pos].axhline(pos_mes_val, linestyle='--', color='r')
+            ax[pos].set_title(f'{title} - Epochs')
+            ax[pos].set_xlabel('Epochs')
+            ax[pos].set_ylabel(title)
+            ax[pos].grid()
+            ax[pos].legend()
+        
 
     plt.suptitle(f'AL iter {cicle_iter}.{al_iter} - {results_info["model_name"]}', fontsize = 30)
     
-    path_plots = f'results/{ts_dir}/{dataset_name}/{cicle_iter}/train_val_plots/{results_info["model_name"]}'
+    path_plots = f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{results_info["model_name"]}/train_val_plots/'
 
     if(not os.path.exists(path_plots)):
         os.makedirs(path_plots)
@@ -216,13 +155,11 @@ def create_directory(dir: str) -> None:
 
 
             
-def create_ts_dir_res(timestamp: str, dataset_name: str, iter: str) -> None:
+def create_ts_dir(timestamp: str, dataset_name: str, iter: str) -> None:
     mydir = os.path.join('results', timestamp)
     create_directory(mydir)
     create_directory(os.path.join(mydir, dataset_name))
     create_directory(os.path.join(mydir, dataset_name, iter))
-    create_directory(os.path.join(mydir, dataset_name, iter, 'train_val_plots'))
-    create_directory(os.path.join(mydir, dataset_name, iter, 'tsne_plots'))
     
     
     
@@ -239,69 +176,69 @@ def init_weights_apply(m: torch.nn.Module) -> None:
         init.constant_(m.weight, 1)
         init.constant_(m.bias, 0)
         
-        
-        
-        
-def plot_history(path: str, labels: List[int], classes: List[str], method_name: str, story_tensor: torch.Tensor, iter: int, max_x: int) -> None:
     
-    create_directory(f'{path}/{method_name}')
-    create_directory(f'{path}/{method_name}/history')
     
-    plt.figure(figsize = (10,8))
+
+def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels: List[int], \
+    classes: List[int], path: str, iter: int, max_x: int, dir: str) -> None:
+    
+    create_directory(f'{path}/gtg_entropies_plots/{dir}')
+    
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(20, 10))
     
     x = np.arange(max_x)
+    array = tensor.cpu().numpy()
+    
+    new_labeled = array[topk]
+    new_labeled_lab = [lab_unlabels[k] for k in topk]
+    
+    mask = np.ones(array.shape[0], dtype=bool)
+    mask[topk] = False
+    unlabeled = array[mask]
 
-    story_tensor = story_tensor.cpu().numpy()
+    title = 'Entropy History' if dir == 'history' else 'Entropy Derivatives'
 
     palette = list(mcolors.TABLEAU_COLORS.values())
-    plotted_classes = set()
+    pl_cls_1, pl2_cls_2 = set(), set()
 
-    for i, lab in zip(range(len(story_tensor)), labels):
-        if lab not in plotted_classes:
-            plt.plot(x, story_tensor[i], linestyle="-", label=classes[lab], color=palette[lab])
-            plotted_classes.add(lab)
+    for i, lab in zip(range(len(array)), lab_unlabels):
+        if lab not in pl_cls_1:
+            axes[0].plot(x, array[i], linestyle="-", label=classes[lab], color=palette[lab])
+            pl_cls_1.add(lab)
         else:
-            plt.plot(x, story_tensor[i], linestyle="-", color=palette[lab])
+            axes[0].plot(x, array[i], linestyle="-", color=palette[lab])
     
-    plt.ylabel('GTG Iterations')
-    plt.xlabel('Entropy')
-    plt.grid()
-    plt.title(f'Entropy History - Iteration {iter}', fontsize = 15)
-    plt.legend()
-    plt.savefig(f'{path}/{method_name}/history/{iter}.png')
-    
+    axes[0].set_title(f'{title} Classes')
+    axes[0].set_ylabel('GTG Iterations')
+    axes[0].set_xlabel('Entropy')
+    axes[0].grid()
+    axes[0].legend()
     
     
-    
-def plot_derivatives(method_name: str, der_tensor: torch.Tensor, path: str, labels: List[int], classes: List[str], iter: int, max_x: int, dir: str) -> None:   
-    
-    create_directory(f'{path}/{method_name}')
-    create_directory(f'{path}/{method_name}/{dir}')
-    
-    plt.figure(figsize=(10,8))
-    
-    x = np.arange(max_x)
-    palette = list(mcolors.TABLEAU_COLORS.values())
+    for array, color, width, style, label in [(unlabeled, 'lightblue', 0.5, '--', 'unlabeled'), (new_labeled, None, 1, '-', new_labeled_lab)]:
+        if style == '-':
+            labels_array = label
+        
+        for i in range(len(array)):
             
-    der_tensor = der_tensor.cpu().numpy()
+            if style == '-':
+                color = palette[labels_array[i]]
+                label = classes[labels_array[i]]
+                        
+            if label not in pl2_cls_2:
+                axes[1].plot(x, array[i], linewidth=width, linestyle=style, label=label, color=color)
+                pl2_cls_2.add(label)
+            else: axes[1].plot(x, array[i], linewidth=width, linestyle=style, color=color)
         
-    plotted_classes = set()
-
-    for i, lab in zip(range(len(der_tensor)), labels):
-        if lab not in plotted_classes:
-            plt.plot(x, der_tensor[i], linestyle="-", label=classes[lab], color=palette[lab])
-            plotted_classes.add(lab)
-        else:
-            plt.plot(x, der_tensor[i], linestyle="-", color=palette[lab])
-                
-    plt.xlabel('GTG Iterations')
-    plt.ylabel('Entropy')
-    plt.grid()
-    plt.legend()
-    plt.title(f'Derivatives - Iteration {iter}')
-
-    plt.savefig(f'{path}/{method_name}/{dir}/{iter}.png')
-
+    axes[1].set_ylabel('GTG Iterations')
+    axes[1].set_xlabel('Entropy')
+    axes[1].set_title(f'{title} - New_Lab / Unlab')
+    axes[1].grid()
+    axes[1].legend()
+    
+    plt.suptitle(f'Entropy History - Iteration {iter}', fontsize = 15)
+    plt.savefig(f'{path}/gtg_entropies_plots/{dir}/{iter}.png')
+    
 
 
 
@@ -341,7 +278,14 @@ def plot_accuracy_std_mean(timestamp: str, dataset_name: str) -> None:
 class Entropy_Strategy(Enum):
     DER = 0
     H_INT = 1
+    SUM = 2
+    
 
+class Affinity_Threshold(Enum):
+    THRESHOLD = 0
+    MEAN = 1
+    QUANTILE = 2
+    
 
 
 def set_seeds(seed: int = 10001) -> None:
@@ -371,7 +315,8 @@ def download_tinyimagenet() -> None:
 
 
 
-def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: List[str], time_stamp: str, ds_name: str, samp_iter: int, method: str, affinity: str, strategy: str):
+def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: List[str], time_stamp: str, \
+    ds_name: str, samp_iter: int, method: str, affinity: str, strategy: str) -> None:
     
     A_1, A_2 = A
     
@@ -401,9 +346,7 @@ def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: Li
         axes[idx][1].legend()
 
     plt.suptitle('Affinity TSNE plots')
-    
-    create_directory(f'results/{time_stamp}/{ds_name}/{samp_iter}/tsne_plots/{method}')
-    plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/tsne_plots/{method}/{affinity}.png')
+    plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{affinity}.png')
     
 
 
@@ -433,8 +376,7 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
     axes[1].legend()
     
     plt.suptitle(f'{ds_name} - {method} - {iter - 1}')
-    create_directory(f'results/{time_stamp}/{ds_name}/{samp_iter}/tsne_plots/{method}')
-    plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/tsne_plots/{method}/{iter - 1}.png')
+    plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{iter - 1}.png')
     
     
     
