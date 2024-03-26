@@ -2,10 +2,12 @@ from strategies.Strategies import Strategies
 from utils import plot_tsne_A, create_directory, entropy, plot_gtg_entropy_tensor, Entropy_Strategy
 
 import torch
+import torch.nn as nn 
 from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
 from scipy.integrate import simpson #,trapz
+import scipy.spatial as sp
 #from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
@@ -55,7 +57,7 @@ class GTG(Strategies):
         
     # select the relative choosen affinity matrix method
     def get_A(self) -> None:
-        
+
         concat_embedds = torch.cat(
             (self.lab_embedds_dict['embedds'], self.unlab_embedds_dict['embedds'])
         ).to(self.device)
@@ -84,8 +86,11 @@ class GTG(Strategies):
             # Unlabeled VS Labeled -> distance = 1 - A
             # Labeled VS Unlabeled -> distance = 1 - A
         
-        # remove weak connections 
+        # remove weak connections with the choosen threshold strategy and value
+        print(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
         A_2 = torch.where(A < self.get_A_treshold(A), 0, A)
+        mat_cos_sim = nn.CosineSimilarity(dim=0)
+        print(f' Cosine Similarity between the initial matrix and the thresholded one: {mat_cos_sim(A_1.flatten(), A_2.flatten()).item()}')
 
         self.A = A_2
         

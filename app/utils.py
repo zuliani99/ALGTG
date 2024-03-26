@@ -280,10 +280,10 @@ class Entropy_Strategy(Enum):
     H_INT = 1
     
 
-class Affinity_Threshold(Enum):
+'''class Affinity_Threshold(Enum):
     THRESHOLD = 0
     MEAN = 1
-    QUANTILE = 2
+    QUANTILE = 2'''
     
 
 
