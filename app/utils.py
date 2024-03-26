@@ -16,6 +16,9 @@ import os
 import random
 from typing import List, Dict, Any, Tuple
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 
 
@@ -157,7 +160,6 @@ def create_directory(dir: str) -> None:
             
 def create_ts_dir(timestamp: str, dataset_name: str, iter: str) -> None:
     mydir = os.path.join('results', timestamp)
-    create_directory(mydir)
     create_directory(os.path.join(mydir, dataset_name))
     create_directory(os.path.join(mydir, dataset_name, iter))
     
@@ -304,13 +306,13 @@ def set_seeds(seed: int = 10001) -> None:
 
 def download_tinyimagenet() -> None:
     if not os.path.exists('datasets/tiny-imagenet-200'):
-        print(' => Downloading Tiny-IMAGENET Dataset')
+        logger.info(' => Downloading Tiny-IMAGENET Dataset')
         os.system('wget http://cs231n.stanford.edu/tiny-imagenet-200.zip')
         os.system('unzip tiny-imagenet-200.zip -d datasets')
         os.remove('tiny-imagenet-200.zip')
-        print(' DONE\n')
+        logger.info(' DONE\n')
     else:
-        print('Tiny-IMAGENET Dataset already downloaded')
+        logger.info('Tiny-IMAGENET Dataset already downloaded')
 
 
 
@@ -393,7 +395,7 @@ def count_class_observation(classes, dataset, topk_idx_obs=None):
     
 def download_coco_dataset() -> None:
     if not os.path.exists('datasets/coco'):
-        print(' => Downloading COCO-2017 Dataset')
+        logger.info(' => Downloading COCO-2017 Dataset')
                 
         os.system('wget -c http://images.cocodataset.org/zips/train2017.zip')
         os.system('wget -c http://images.cocodataset.org/zips/val2017.zip')
@@ -419,4 +421,4 @@ def download_coco_dataset() -> None:
         os.remove('stuff_annotations_trainval2017.zip')
         os.remove('image_info_test2017.zip')
     else:
-        print('COCO-2017 Dataset already downloaded')
+        logger.info('COCO-2017 Dataset already downloaded')

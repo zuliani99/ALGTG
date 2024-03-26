@@ -9,6 +9,9 @@ import random
 import math
 import copy
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 
 
@@ -31,8 +34,8 @@ class Strategies(TrainEvaluate):
                 
         limit = int(math.ceil((self.al_iters * self.n_top_k_obs) / self.unlab_sample_dim))
             
-        print(f'Number of subsets of dimension {self.unlab_sample_dim}: {limit}')
-        print(f'Random seed for reproducibility: {self.dataset_id * self.samp_iter}')
+        logger.info(f'Number of subsets of dimension {self.unlab_sample_dim}: {limit}')
+        logger.info(f'Random seed for reproducibility: {self.dataset_id * self.samp_iter}')
         random.seed(self.dataset_id * self.samp_iter)
         
         for idx in range(limit):
@@ -41,7 +44,7 @@ class Strategies(TrainEvaluate):
             else: 
                 seq = self.unlabeled_indices
             
-            print(f'Index: {idx} \t Last 5 observations: {seq[-5:]}')
+            logger.info(f'Index: {idx} \t Last 5 observations: {seq[-5:]}')
             
             unlabeled_subset = Subset(self.non_transformed_trainset, seq)
             
@@ -49,10 +52,10 @@ class Strategies(TrainEvaluate):
             
             self.unlab_sampled_list.append(unlabeled_subset)
             for x in seq: self.unlabeled_indices.remove(x)
-            print('Observations per class', d_labels)
-            print('\n')
+            logger.info('Observations per class', d_labels)
+            logger.info('\n')
         
-        print(f'Lenght of the unlabeled sampled subset list: {len(self.unlab_sampled_list)}\n')
+        logger.info(f'Lenght of the unlabeled sampled subset list: {len(self.unlab_sampled_list)}\n')
         random.seed(10001) # reset the random seed
         del self.unlabeled_indices
         
@@ -70,7 +73,7 @@ class Strategies(TrainEvaluate):
         
         results = { 'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}
         
-        print(f'----------------------- ITERATION {self.iter} / {self.al_iters} -----------------------\n')
+        logger.info(f'----------------------- ITERATION {self.iter} / {self.al_iters} -----------------------\n')
         
         self.train_evaluate_save(epochs, self.n_top_k_obs, self.iter, results)
         
@@ -83,16 +86,16 @@ class Strategies(TrainEvaluate):
             
             self.iter += 1
             
-            print(f'----------------------- ITERATION {self.iter} / {self.al_iters} -----------------------\n')
+            logger.info(f'----------------------- ITERATION {self.iter} / {self.al_iters} -----------------------\n')
             
-            print(f' => Working with the unlabeled sampled list {idx_list}')
-            print(' START QUERY PROCESS\n')
+            logger.info(f' => Working with the unlabeled sampled list {idx_list}')
+            logger.info(' START QUERY PROCESS\n')
             
             # run method query strategy
             topk_idx_obs: List[int] = self.query(self.unlab_sampled_list[idx_list], self.n_top_k_obs)
             
             d_labels = count_class_observation(self.classes, self.transformed_trainset, topk_idx_obs)
-            print(f' Number of observations per class added to the labeled set:\n {d_labels}\n')
+            logger.info(f' Number of observations per class added to the labeled set:\n {d_labels}\n')
             
             # get the new labeled indices from the subset to plot the tsne embeddings
             indices_unlab = [self.unlab_sampled_list[idx_list].indices.index(item) for item in topk_idx_obs]

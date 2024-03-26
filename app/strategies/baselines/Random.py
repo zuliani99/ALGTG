@@ -7,6 +7,9 @@ from torch.utils.data import Subset
 
 from typing import Dict, Any, List
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class Random(Strategies):
         
@@ -18,10 +21,10 @@ class Random(Strategies):
         
         
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> List[int]:
-        print(f' => Sampling K unlabeled observations')
+        logger.info(f' => Sampling K unlabeled observations')
         if(len(sample_unlab_subset.indices) > n_top_k_obs):           
             sample = random.sample(sample_unlab_subset.indices, n_top_k_obs)
         else:
             sample = sample_unlab_subset.indices
-        print(' DONE\n')
+        logger.info(' DONE\n')
         return sample

@@ -7,6 +7,8 @@ from strategies.Strategies import Strategies
 
 from typing import Dict, Any, List
 
+import logging
+logger = logging.getLogger(__name__)
 
 
 class LeastConfidence(Strategies):
@@ -25,11 +27,11 @@ class LeastConfidence(Strategies):
             shuffle=False, pin_memory=True
         )
             
-        print(' => Getting the unlabeled probebilities')
+        logger.info(' => Getting the unlabeled probebilities')
         self.embedds_dict = {'probs': None, 'idxs': None}
         self.get_embeddings(self.unlab_train_dl, self.embedds_dict)
         unlab_probs = F.softmax(self.embedds_dict['probs'], dim=1)
-        print(' DONE\n')
+        logger.info(' DONE\n')
             
         topk_idx_obs = torch.topk(unlab_probs.max(1)[0], n_top_k_obs)
         

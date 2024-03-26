@@ -9,7 +9,8 @@ from strategies.Strategies import Strategies
 
 from typing import Dict, Any, List
 
-
+import logging
+logger = logging.getLogger(__name__)
 
 
 
@@ -60,14 +61,14 @@ class BADGE(Strategies):
             shuffle=False, pin_memory=True
         )
             
-        print(' => Getting the unlabeled embeddings')
+        logger.info(' => Getting the unlabeled embeddings')
         self.embedds_dict = {'embedds': None, 'idxs': None}
         self.get_embeddings(self.unlab_train_dl, self.embedds_dict)
-        print(' DONE\n')
+        logger.info(' DONE\n')
                         
-        print(' => Top K extraction using init_centers')
+        logger.info(' => Top K extraction using init_centers')
         topk_idx_obs = self.init_centers(n_top_k_obs)
-        print(' DONE\n')
+        logger.info(' DONE\n')
         
                 
         return [self.embedds_dict['idxs'][id].item() for id in topk_idx_obs]

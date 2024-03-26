@@ -6,6 +6,8 @@ from strategies.Strategies import Strategies
 
 from typing import Dict, Any, List
 
+import logging
+logger = logging.getLogger(__name__)
 
 
 class CoreSet(Strategies):
@@ -47,17 +49,17 @@ class CoreSet(Strategies):
             shuffle=False, pin_memory=True,
         )
             
-        print(' => Getting the labeled and unlabeled embeddings')
+        logger.info(' => Getting the labeled and unlabeled embeddings')
         self.lab_embedds_dict = {'embedds': None}
         self.unlab_embedds_dict = {'embedds': None, 'idxs': None}
             
         self.get_embeddings(self.lab_train_dl, self.lab_embedds_dict)
         self.get_embeddings(self.unlab_train_dl, self.unlab_embedds_dict)
-        print(' DONE\n')
+        logger.info(' DONE\n')
                         
-        print(' => Top K extraction')
+        logger.info(' => Top K extraction')
         topk_idx_obs = self.furthest_first(n_top_k_obs)
-        print(' DONE\n')
+        logger.info(' DONE\n')
         
         del self.lab_embedds_dict
         torch.cuda.empty_cache()

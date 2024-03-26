@@ -8,7 +8,8 @@ from utils import entropy
 
 from typing import Dict, Any, List, Tuple
 
-
+import logging
+logger = logging.getLogger(__name__)
 
 
 
@@ -69,9 +70,9 @@ class BALD(Strategies):
             shuffle=False, pin_memory=True
         )
             
-        print(' => Performing the disagreement dropout')
+        logger.info(' => Performing the disagreement dropout')
         indices, res_entropy = self.disagreement_dropout()
-        print(' DONE\n')
+        logger.info(' DONE\n')
             
         overall_topk = torch.topk(res_entropy, n_top_k_obs)
         

@@ -11,6 +11,9 @@ from utils import create_directory, save_train_val_curves, write_csv, plot_new_l
 import copy
 from typing import List, Dict, Any
 
+import logging
+logger = logging.getLogger(__name__)
+
 
     
     
@@ -110,7 +113,7 @@ class TrainEvaluate(object):
     def save_tsne(self, idx_samp_unlab_obs: int, incides_unlab: List[int], al_iter: int) -> None:
         # plot the tsne graph for each iteration
         
-        print(' => Saving the TSNE embeddings plot with labeled, unlabeled and new labeled observations')
+        logger.info(' => Saving the TSNE embeddings plot with labeled, unlabeled and new labeled observations')
         
         unlab_train_dl = DataLoader(
             self.unlab_sampled_list[idx_samp_unlab_obs],
@@ -121,11 +124,11 @@ class TrainEvaluate(object):
         lab_embedds_dict = {'embedds': None, 'labels': None}
         unlab_embedds_dict = {'embedds': None, 'labels': None}
             
-        print(' Getting the embeddings...')
+        logger.info(' Getting the embeddings...')
         self.get_embeddings(self.lab_train_dl, lab_embedds_dict)
         self.get_embeddings(unlab_train_dl, unlab_embedds_dict)
         
-        print(' Plotting...')
+        logger.info(' Plotting...')
         plot_new_labeled_tsne(
             lab_embedds_dict, unlab_embedds_dict,
             al_iter, self.method_name,
@@ -133,7 +136,7 @@ class TrainEvaluate(object):
             self.timestamp, self.samp_iter
         )
         
-        print(' DONE\n')
+        logger.info(' DONE\n')
         
                 
 
@@ -141,7 +144,7 @@ class TrainEvaluate(object):
     def update_sets(self, overall_topk: List[int], idx_samp_unlab_obs: int) -> None:        
         
         # Update the labeeld and unlabeled training set
-        print(' => Modifing the Subsets and Dataloader')
+        logger.info(' => Modifing the Subsets and Dataloader')
         # extend with the overall_topk
         self.labeled_indices.extend(overall_topk)
         
@@ -151,8 +154,10 @@ class TrainEvaluate(object):
         
         # sanity check
         if len(list(set(self.unlab_sampled_list[idx_samp_unlab_obs].indices) & set(self.labeled_indices))) == 0:
-            print(' Intersection between indices is EMPTY')
-        else: raise Exception('NON EMPTY INDICES INTERSECTION')
+            logger.info(' Intersection between indices is EMPTY')
+        else: 
+            logger.exception('NON EMPTY INDICES INTERSECTION')
+            raise #Exception('NON EMPTY INDICES INTERSECTION')
 
         # generate the new labeled DataLoader
         self.lab_train_dl = DataLoader(
@@ -160,7 +165,7 @@ class TrainEvaluate(object):
             batch_size=self.batch_size, shuffle=False, pin_memory=True
         )
         
-        print(' DONE\n')
+        logger.info(' DONE\n')
         
                 
         
@@ -183,7 +188,7 @@ class TrainEvaluate(object):
         
         # if we are using multiple gpus
         if self.world_size > 1:
-            print(' => RUNNING DISTRIBUTED TRAINING')
+            logger.info(' => RUNNING DISTRIBUTED TRAINING')
             
             # spawn the process
             mp.spawn(train_ddp, args=(self.world_size, params, epochs, child_conn, ), nprocs=self.world_size, join=True)
@@ -191,13 +196,13 @@ class TrainEvaluate(object):
             while parent_conn.poll(): train_recv, test_recv = parent_conn.recv()
                 
         else:
-            print(' => RUNNING TRAINING')
+            logger.info(' => RUNNING TRAINING')
             
             # add the already created labeeld train dataloader
             train_recv, test_recv = train(params, epochs)
 
         
-        print(' DONE\n')
+        logger.info(' DONE\n')
         
         train_results = {
             'model_name': self.method_name, 
@@ -211,7 +216,7 @@ class TrainEvaluate(object):
              
         test_accuracy, test_loss, test_loss_ce, test_loss_weird = test_recv
         
-        print('TESTING RESULTS -> test_accuracy: {:.6f}, test_loss: {:.6f}, test_loss_ce: {:.6f} , test_loss_weird: {:.6f}\n\n'.format(
+        logger.info('TESTING RESULTS -> test_accuracy: {:.6f}, test_loss: {:.6f}, test_loss_ce: {:.6f} , test_loss_weird: {:.6f}\n\n'.format(
                 test_accuracy, test_loss, test_loss_ce, test_loss_weird ))
              
         results['test_accuracy'].append(test_accuracy)

@@ -11,6 +11,8 @@ from typing import List, Tuple
 
 from utils import download_tinyimagenet
 
+import logging
+logger = logging.getLogger(__name__)
 
 
 
@@ -147,7 +149,7 @@ class SubsetDataloaders():
         # each time should be a new shuffle, thus a new train-validation, labeled-unlabeled split
             
         ##############################
-        print(shuffled_indices[-5:])
+        logger.info(f' Last 5 shuffled observations: {shuffled_indices[-5:]}')
         ##############################
             
         # indices for the train and validation sets

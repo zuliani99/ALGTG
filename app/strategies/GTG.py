@@ -14,6 +14,8 @@ import numpy as np
 import gc
 from typing import Dict, Any, List
     
+import logging
+logger = logging.getLogger(__name__)
 
 
 class GTG(Strategies):
@@ -87,10 +89,10 @@ class GTG(Strategies):
             # Labeled VS Unlabeled -> distance = 1 - A
         
         # remove weak connections with the choosen threshold strategy and value
-        print(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
+        logger.info(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
         A_2 = torch.where(A < self.get_A_treshold(A), 0, A)
         mat_cos_sim = nn.CosineSimilarity(dim=0)
-        print(f' Cosine Similarity between the initial matrix and the thresholded one: {mat_cos_sim(A_1.flatten(), A_2.flatten()).item()}')
+        logger.info(f' Cosine Similarity between the initial matrix and the thresholded one: {mat_cos_sim(A_1.flatten(), A_2.flatten()).item()}')
 
         self.A = A_2
         
@@ -180,7 +182,8 @@ class GTG(Strategies):
     def check_increasing_sum(self, old_rowsum_X):
         rowsum_X = torch.sum(self.X).item()
         if rowsum_X < old_rowsum_X: # it has to be increasing or at least equal
-            raise Exception('Sum of the vector on the denominator is lower than the previous step')
+            logger.exception('Sum of the vector on the denominator is lower than the previous step')
+            raise #Exception('Sum of the vector on the denominator is lower than the previous step')
         return rowsum_X
         
         
@@ -207,8 +210,11 @@ class GTG(Strategies):
             # I have to map only the sample_unlabeled to the correct position
             
             # Update only the unlabeled observations
-            assert len(self.unlab_entropy_hist[:,i]) == len(iter_entropy[len(self.labeled_indices):]), 'Should have the same dimension'
-            self.unlab_entropy_hist[:,i] = iter_entropy[len(self.labeled_indices):]
+            try:
+                assert len(self.unlab_entropy_hist[:,i]) == len(iter_entropy[len(self.labeled_indices):])
+            except AssertionError as err:
+                logger.exception('Should have the same dimension')
+                raise err
             # they have the same dimension
                         
             err = torch.norm(self.X - X_old)
@@ -227,13 +233,13 @@ class GTG(Strategies):
             shuffle=False, pin_memory=True
         )
                 
-        print(' => Getting the labeled and unlabeled embeddings')
+        logger.info(' => Getting the labeled and unlabeled embeddings')
         self.lab_embedds_dict = {'embedds': None, 'labels': None}
         self.unlab_embedds_dict = {'embedds': None}
             
         self.get_embeddings(self.lab_train_dl, self.lab_embedds_dict)
         self.get_embeddings(self.unlab_train_dl, self.unlab_embedds_dict)
-        print(' DONE\n')
+        logger.info(' DONE\n')
             
         # i can take the indices and labels fromt he dataloader, without using the get_embeddings function so no cuda memory is used in this case
         # I have a single batch
@@ -245,9 +251,9 @@ class GTG(Strategies):
         self.unlab_entropy_hist = torch.zeros((self.len_unlab_sample, self.gtg_max_iter), device=self.device)
         
             
-        print(' => Execution of the Graph Trasduction Game')
+        logger.info(' => Execution of the Graph Trasduction Game')
         self.graph_trasduction_game()
-        print(' DONE\n')
+        logger.info(' DONE\n')
         
         
         del self.A
@@ -257,7 +263,7 @@ class GTG(Strategies):
         torch.cuda.empty_cache()         
         
                             
-        print(f' => Extracting the Top-k unlabeled observations using {self.ent_strategy}')
+        logger.info(f' => Extracting the Top-k unlabeled observations using {self.ent_strategy}')
             
         if self.ent_strategy is Entropy_Strategy.H_INT:
             # computing the area of each entropies derivates fucntion via the simpson formula 
@@ -310,7 +316,9 @@ class GTG(Strategies):
             del self.unlab_entropy_der
             torch.cuda.empty_cache()
         
-        else: raise Exception('Unrecognized derivates computation strategy')
+        else: 
+            logger.exception('Unrecognized derivates computation strategy')
+            raise #Exception('Unrecognized derivates computation strategy')
         
         # plot entropy hisstory tensor
         plot_gtg_entropy_tensor(
@@ -323,7 +331,7 @@ class GTG(Strategies):
         gc.collect()
         torch.cuda.empty_cache() 
         
-        print(' DONE\n')
+        logger.info(' DONE\n')
         
         return [self.idx_unlabeled[id].item() for id in overall_topk.indices.tolist()]
     

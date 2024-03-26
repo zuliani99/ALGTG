@@ -7,7 +7,8 @@ from strategies.Strategies import Strategies
 
 from typing import Dict, Any, List
 
-
+import logging
+logger = logging.getLogger(__name__)
 
 
 
@@ -46,7 +47,7 @@ class CDAL(Strategies):
             shuffle=False, pin_memory=True
         )
             
-        print(' => Getting the labeled and unlabeled probebilities')
+        logger.info(' => Getting the labeled and unlabeled probebilities')
         self.lab_embedds_dict, self.unlab_embedds_dict = {'probs': None}, {'probs': None}
         self.get_embeddings(self.lab_train_dl, self.lab_embedds_dict)
         self.get_embeddings(self.unlab_train_dl, self.unlab_embedds_dict)
@@ -54,7 +55,7 @@ class CDAL(Strategies):
         lab_probs = F.softmax(self.lab_embedds_dict['probs'], dim=1)
         unlab_probs = F.softmax(self.unlab_embedds_dict['probs'], dim=1)
         
-        print(' DONE\n')
+        logger.info(' DONE\n')
         
         topk_idx_obs = self.furthest_first(unlab_probs, lab_probs, n_top_k_obs)
                     

@@ -13,13 +13,16 @@ from strategies.competitors.BADGE import BADGE
 from strategies.competitors.LeastConfidence import LeastConfidence
 from strategies.competitors.K_Means import K_Means
 
-from utils import create_ts_dir, accuracy_score, plot_loss_curves, plot_accuracy_std_mean, set_seeds, Entropy_Strategy
+from utils import create_directory, create_ts_dir, accuracy_score, plot_loss_curves, \
+    plot_accuracy_std_mean, set_seeds, Entropy_Strategy
 
 from datetime import datetime
 import argparse
 import time
 from typing import Dict, Any, List, Tuple
 
+import logging
+logger = logging.getLogger(__name__)
 
 
 
@@ -138,16 +141,9 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
 
     for method in methods:
             
-        print(f'-------------------------- {method.method_name} --------------------------\n')
+        logger.info(f'-------------------------- {method.method_name} --------------------------\n')
             
         results[method.method_name] = method.run(epochs)
-            
-                    
-    print('Resulting dictionary')
-    print(f'{results}\n')
-        
-    print('Resulting number of observations')
-    print(f'{n_lab_obs}\n')
         
     return results, n_lab_obs
 
@@ -155,46 +151,54 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
 
 def main() -> None:
     
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    create_directory(f'results/{timestamp}')
+    
+    logging.basicConfig(filename=f'results/{timestamp}/AL_DDP.log',
+                    filemode='a',
+                    format='%(asctime)s - %(name)s - %(levelname)s -> %(message)s',
+                    datefmt='%H:%M:%S',
+                    level=logging.INFO)
+    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     if torch.cuda.is_available():
         num_gpus = torch.cuda.device_count()
-        print("Number of available GPUs:", num_gpus)
+        logger.info("Number of available GPUs:", num_gpus)
         device = torch.device('cuda')
-        if torch.distributed.is_available(): print('We can train on multiple GPU')
-        if torch.distributed.is_nccl_available(): print('NCCL backend available')
+        if torch.distributed.is_available(): logger.info('We can train on multiple GPU')
+        if torch.distributed.is_nccl_available(): logger.info('NCCL backend available')
     else:
-        print("CUDA is not available. Using CPU.")
+        logger.info("CUDA is not available. Using CPU.")
         device = torch.device('cpu')
 
-    print(f'Application running on {device}\n')
+    logger.info(f'Application running on {device}\n')
 
 
     # later added to argparser
-    al_iters = 5#10
+    al_iters = 2#5#10
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
     init_lab_obs = 1000
     
-    epochs = 200
+    epochs = 10#200
     batch_size = 128
     patience = 50
     
-    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     
         
     for dataset_name in choosen_datasets:
 
-        print(f'----------------------- RUNNING ACTIVE LEARNING BENCHMARK ON {dataset_name} -----------------------\n')
+        logger.info(f'----------------------- RUNNING ACTIVE LEARNING BENCHMARK ON {dataset_name} -----------------------\n')
 
         for samp_iter in range(sample_iterations):
             
-            print(f'----------------------- SAMPLE ITERATION {samp_iter + 1} / {sample_iterations} -----------------------\n')
+            logger.info(f'----------------------- SAMPLE ITERATION {samp_iter + 1} / {sample_iterations} -----------------------\n')
             
             create_ts_dir(timestamp, dataset_name, str(samp_iter))
             DatasetChoice = SubsetDataloaders(dataset_name, batch_size, val_rateo=0.2, init_lab_obs=init_lab_obs)
             
-            print('\n')
+            logger.info('\n')
             
             training_params = {
                 'DatasetChoice': DatasetChoice,
@@ -243,4 +247,4 @@ if __name__ == "__main__":
     main()
     end = time.time()
     
-    print(f'####################################################### TOTAL ELAPSED SECONDS: {end-start} #######################################################')
+    logger.info(f'####################################################### TOTAL ELAPSED SECONDS: {end-start} #######################################################')

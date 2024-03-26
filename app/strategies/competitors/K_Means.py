@@ -8,7 +8,8 @@ from sklearn.cluster import KMeans
 
 from typing import Dict, Any, List
 
-
+import logging
+logger = logging.getLogger(__name__)
 
 
 
@@ -49,14 +50,14 @@ class K_Means(Strategies):
             shuffle=False, pin_memory=True
         )
                             
-        print(' => Getting the unlabeled embeddings')
+        logger.info(' => Getting the unlabeled embeddings')
         self.embedds_dict = {'embedds': None, 'idxs': None}
         self.get_embeddings(self.unlab_train_dl, self.embedds_dict)
-        print(' DONE\n')
+        logger.info(' DONE\n')
             
-        print(' => Top K extraction using k-means')
+        logger.info(' => Top K extraction using k-means')
         topk_idx_obs = self.apply_kmeans(n_top_k_obs)
-        print(' DONE\n')
+        logger.info(' DONE\n')
         
                 
         return [self.embedds_dict['idxs'][id].item() for id in topk_idx_obs]
