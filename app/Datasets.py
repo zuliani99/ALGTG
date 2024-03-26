@@ -148,9 +148,7 @@ class SubsetDataloaders():
         shuffled_indices = torch.randperm(train_size)
         # each time should be a new shuffle, thus a new train-validation, labeled-unlabeled split
             
-        ##############################
         logger.info(f' Last 5 shuffled observations: {shuffled_indices[-5:]}')
-        ##############################
             
         # indices for the train and validation sets
         train_indices = shuffled_indices[:new_train_size]

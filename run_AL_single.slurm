@@ -9,13 +9,11 @@
 #SBATCH --gres-flags=enforce-binding
 #SBATCH --mem=128gb                     # Job memory request
 #SBATCH --time=48:00:00               # Time limit hrs:min:sec
-#SBATCH --output=log_AL_single.log   # Standard output and error log
+#SBATCH --output=empty_log.log   # Standard output and error log
 #SBATCH --gres=gpu:1
 #SBATCH --gpus-per-node=1      # number of GPUs per node
 #SBATCH --gpus-per-task=1      # number of GPUs per process
 
-
-date
 
 #export MASTER_PORT=$(expr 10000 + $(echo -n $SLURM_JOBID | tail -c 4))
 #export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
@@ -24,5 +22,3 @@ date
 conda activate al_env
 
 python3 app/main.py -d cifar10 -s mixed -i 1
-
-date

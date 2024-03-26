@@ -163,8 +163,7 @@ def main() -> None:
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     if torch.cuda.is_available():
-        num_gpus = torch.cuda.device_count()
-        logger.info("Number of available GPUs:", num_gpus)
+        logger.info(f"Number of available GPUs: {torch.cuda.device_count()}")
         device = torch.device('cuda')
         if torch.distributed.is_available(): logger.info('We can train on multiple GPU')
         if torch.distributed.is_nccl_available(): logger.info('NCCL backend available')
@@ -176,12 +175,12 @@ def main() -> None:
 
 
     # later added to argparser
-    al_iters = 2#5#10
+    al_iters = 5#10
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
     init_lab_obs = 1000
     
-    epochs = 10#200
+    epochs = 200
     batch_size = 128
     patience = 50
     
