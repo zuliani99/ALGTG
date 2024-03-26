@@ -238,7 +238,7 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
     axes[1].grid()
     axes[1].legend()
     
-    plt.suptitle(f'Entropy History - Iteration {iter}', fontsize = 15)
+    plt.suptitle(f'Entropy History - Iteration {iter}', fontsize = 30)
     plt.savefig(f'{path}/gtg_entropies_plots/{dir}/{iter}.png')
     
 
@@ -317,7 +317,7 @@ def download_tinyimagenet() -> None:
 
 
 def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: List[str], time_stamp: str, \
-    ds_name: str, samp_iter: int, method: str, affinity: str, strategy: str) -> None:
+    ds_name: str, samp_iter: int, method: str, affinity: str, strategy: str, iter: int) -> None:
     
     A_1, A_2 = A
     
@@ -339,15 +339,17 @@ def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: Li
         
         sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', ax=axes[idx][0])
         sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', ax=axes[idx][0])
-        axes[idx][0].set_title(f'{name} Affnity Matrix')
+        axes[idx][0].set_title(f'{name} Affnity Matrix - Iteration {iter}')
         axes[idx][0].legend()
         
         sns.scatterplot(x=x, y=y, hue=[classes[l] for l in label], ax=axes[idx][1])
-        axes[idx][1].set_title(f'{name} Affnity Matrix - Classes')
+        axes[idx][1].set_title(f'{name} Affnity Matrix Classes - Iteration {iter}')
         axes[idx][1].legend()
 
-    plt.suptitle('Affinity TSNE plots')
-    plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{affinity}.png')
+    plt.suptitle('Affinity TSNE plots', fontsize=30)
+    
+    create_directory(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{affinity}_matrix')
+    plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{affinity}_matrix/{iter}.png')
     
 
 
@@ -376,7 +378,7 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
     axes[1].set_title('TSNE - classes')
     axes[1].legend()
     
-    plt.suptitle(f'{ds_name} - {method} - {iter - 1}')
+    plt.suptitle(f'{ds_name} - {method} - {iter - 1}', fontsize=30)
     plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{iter - 1}.png')
     
     

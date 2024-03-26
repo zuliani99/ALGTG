@@ -73,40 +73,39 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
             gtg_params={
                 **gtg_params,
                 'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.DER,
-                'threshold_strategy': 'mean', 'threshold': None#0.5
+                'threshold_strategy': 'threshold', 'threshold': 0.5
             }, LL=True),
         GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
                 'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
-                'threshold_strategy': 'mean', 'threshold': None#0.5
+                'threshold_strategy': 'threshold', 'threshold': 0.5
             }, LL=True),
         
         GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
                 'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.DER,
-                'threshold_strategy': 'mean', 'threshold': None#0.5
+                'threshold_strategy': 'threshold', 'threshold': 0.5
             }, LL=True),
         GTG(al_params=al_params, training_params=training_params,
             gtg_params={
                 **gtg_params,
                 'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
-                'threshold_strategy': 'mean', 'threshold': None#0.5
+                'threshold_strategy': 'threshold', 'threshold': 0.5
             }, LL=True),
-
-            
+        
         GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
                 'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.DER,
-                'threshold_strategy': 'mean', 'threshold': None#0.5
+                'threshold_strategy': 'threshold', 'threshold': 0.5
             }, LL=True),
         GTG(al_params=al_params, training_params=training_params,
             gtg_params={
                 **gtg_params,
                 'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
-                'threshold_strategy': 'mean', 'threshold': None#0.5
+                'threshold_strategy': 'threshold', 'threshold': 0.5
             }, LL=True),
         
         # Random
@@ -156,7 +155,8 @@ def main() -> None:
     
     logging.basicConfig(filename=f'results/{timestamp}/AL_DDP.log',
                     filemode='a',
-                    format='%(asctime)s - %(name)s - %(levelname)s -> %(message)s',
+                    #format='%(asctime)s - %(name)s - %(levelname)s -> %(message)s',
+                    format='%(asctime)s - %(levelname)s: %(message)s',
                     datefmt='%H:%M:%S',
                     level=logging.INFO)
     

@@ -100,7 +100,7 @@ class GTG(Strategies):
         plot_tsne_A(
             (A_1, A_2),
             (self.lab_embedds_dict['labels'], self.labels_unlabeled), self.classes,
-            self.timestamp, self.dataset_name, self.samp_iter, self.method_name, self.A_function, self.strategy_type
+            self.timestamp, self.dataset_name, self.samp_iter, self.method_name, self.A_function, self.strategy_type, self.iter
         )
 
 
@@ -289,21 +289,17 @@ class GTG(Strategies):
             for row, (first_0, last_0) in enumerate(zip(first_negative, last_negative)):
                 for idx in range(first_0 + 1, last_0):
                     self.unlab_entropy_der[row, idx] = -torch.abs(self.unlab_entropy_der[row, idx])
-                                
-            mean_denominator = torch.full((1, self.unlab_entropy_der.shape[0]), self.unlab_entropy_der.shape[1], device=self.device).squeeze()
+                    
             
-            # update the derivatives tensor setting all the cell that are less than 1e-5 to zero, from the last negative number going on
-            for idx, col in enumerate(last_negative):
-                check_less = self.unlab_entropy_der[idx, col+1:]
-                check = check_less <= 1e-5
-                non_zero = check.nonzero().squeeze()
-                if len((non_zero + col+1).size()) == 0:
-                    mean_denominator[idx] = (non_zero + col+1).item()
-                    self.unlab_entropy_der[non_zero, non_zero + col+1:] = 0.
+            bool_ent_der = self.unlab_entropy_der <= 1e-3
+            bool_ent_his = self.unlab_entropy_hist[:, 1:] <= 1e-3
+            
+            denominator = torch.logical_and(bool_ent_der, bool_ent_his)
+            denominator = torch.argmax(denominator.long(), dim=1)           
             
             # computing the actual mean
             overall_topk = torch.topk(
-                torch.sum(self.unlab_entropy_der, dim=1) / mean_denominator,
+                torch.sum(self.unlab_entropy_der, dim=1) / denominator,
                 k=n_top_k_obs, largest=False
             )            
 
