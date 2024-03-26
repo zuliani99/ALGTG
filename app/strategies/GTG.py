@@ -216,6 +216,8 @@ class GTG(Strategies):
                 logger.exception('Should have the same dimension')
                 raise err
             # they have the same dimension
+            
+            self.unlab_entropy_hist[:,i] = iter_entropy[len(self.labeled_indices):]
                         
             err = torch.norm(self.X - X_old)
             i += 1
@@ -279,7 +281,7 @@ class GTG(Strategies):
             rows, cols = negative_indices.unbind(1)
             
             first_negative = torch.full((1, self.len_unlab_sample), -1).squeeze()
-            last_negative = torch.full((1, self.len_unlab_sample), -1).squeeze()
+            last_negative = torch.full((1, self.len_unlab_sample), 0).squeeze()
             
             for row, col in zip(rows, cols):
                 if first_negative[row] == -1: first_negative[row] = col
@@ -295,7 +297,9 @@ class GTG(Strategies):
             bool_ent_his = self.unlab_entropy_hist[:, 1:] <= 1e-3
             
             denominator = torch.logical_and(bool_ent_der, bool_ent_his)
-            denominator = torch.argmax(denominator.long(), dim=1)           
+            denominator = torch.argmax(denominator.long(), dim=1)
+            denominator = torch.where(denominator == 0, self.unlab_entropy_der.shape[1], denominator)
+            
             
             # computing the actual mean
             overall_topk = torch.topk(
