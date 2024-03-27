@@ -92,16 +92,17 @@ class Strategies(TrainEvaluate):
             logger.info(' START QUERY PROCESS\n')
             
             # run method query strategy
-            topk_idx_obs: List[int] = self.query(self.unlab_sampled_list[idx_list], self.n_top_k_obs)
+            idxs_new_labels, topk_idx_obs = self.query(self.unlab_sampled_list[idx_list], self.n_top_k_obs)
             
             d_labels = count_class_observation(self.classes, self.transformed_trainset, topk_idx_obs)
             logger.info(f' Number of observations per class added to the labeled set:\n {d_labels}\n')
             
-            # get the new labeled indices from the subset to plot the tsne embeddings
-            indices_unlab = [self.unlab_sampled_list[idx_list].indices.index(item) for item in topk_idx_obs]
-            
             # Saving the tsne embeddings plot
-            self.save_tsne(idx_list, indices_unlab, self.iter)
+            if self.method_name.split('_')[0] == 'GTG':
+                # if we are performing GTG plot also the GTG predictions in the TSNE plot 
+                self.save_tsne(idx_list, idxs_new_labels, self.iter, self.gtg_result_prediction)
+            
+            else: self.save_tsne(idx_list, idxs_new_labels, self.iter)
 
             # modify the datasets and dataloader and plot the tsne
             self.update_sets(topk_idx_obs, idx_list)

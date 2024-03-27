@@ -12,7 +12,7 @@ import scipy.spatial as sp
 import numpy as np
 
 import gc
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
     
 import logging
 logger = logging.getLogger(__name__)
@@ -40,11 +40,17 @@ class GTG(Strategies):
                 
         str_diag = '0diag' if self.zero_diag else '1diag'
         str_rbf = 'rbf_' if self.rbf_aff else ''
-        str_treshold = f'{self.threshold_strategy}_{self.threshold}' if self.threshold_strategy != 'mean' else 'mean'
+        if self.threshold_strategy != None:
+            str_treshold = f'{self.threshold_strategy}_{self.threshold}' if self.threshold_strategy != 'mean' else 'mean'
         
-                
-        self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}_LL' if LL \
-            else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}'
+            self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}_LL' if LL \
+                else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}'
+        
+        else:
+            self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_LL' if LL \
+                else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}'
+        
+            
 
         super().__init__(al_params, training_params, LL)
         
@@ -89,16 +95,17 @@ class GTG(Strategies):
             # Labeled VS Unlabeled -> distance = 1 - A
         
         # remove weak connections with the choosen threshold strategy and value
-        logger.info(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
-        A_2 = torch.where(A < self.get_A_treshold(A), 0, A)
-        mat_cos_sim = nn.CosineSimilarity(dim=0)
-        logger.info(f' Cosine Similarity between the initial matrix and the thresholded one: {mat_cos_sim(A_1.flatten(), A_2.flatten()).item()}')
+        #logger.info(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
+        #A_2 = torch.where(A < self.get_A_treshold(A), 0, A)
+        #mat_cos_sim = nn.CosineSimilarity(dim=0)
+        #logger.info(f' Cosine Similarity between the initial matrix and the thresholded one: {mat_cos_sim(A_1.flatten(), A_2.flatten()).item()}')
 
-        self.A = A_2
+        self.A = A_1#A_2
         
         # plot the TSNE fo the original and modified affinity matrix
         plot_tsne_A(
-            (A_1, A_2),
+            (A, A_1),
+            #(A_1, A_2),
             (self.lab_embedds_dict['labels'], self.labels_unlabeled), self.classes,
             self.timestamp, self.dataset_name, self.samp_iter, self.method_name, self.A_function, self.strategy_type, self.iter
         )
@@ -168,8 +175,7 @@ class GTG(Strategies):
                 
         self.X: torch.Tensor = torch.zeros(
             (len(self.labeled_indices) + self.len_unlab_sample, self.n_classes),
-            dtype=torch.float32,
-            device=self.device
+            dtype=torch.float32, device=self.device
         )
 
         for idx, label in enumerate(self.lab_embedds_dict['labels']): self.X[idx][label.item()] = 1.
@@ -180,10 +186,12 @@ class GTG(Strategies):
         
         
     def check_increasing_sum(self, old_rowsum_X):
+        
         rowsum_X = torch.sum(self.X).item()
         if rowsum_X < old_rowsum_X: # it has to be increasing or at least equal
             logger.exception('Sum of the vector on the denominator is lower than the previous step')
-            raise #Exception('Sum of the vector on the denominator is lower than the previous step')
+            raise
+        
         return rowsum_X
         
         
@@ -209,22 +217,21 @@ class GTG(Strategies):
             iter_entropy = entropy(self.X).to(self.device) # there are both labeled and sample unlabeled
             # I have to map only the sample_unlabeled to the correct position
             
-            # Update only the unlabeled observations
             try:
-                assert len(self.unlab_entropy_hist[:,i]) == len(iter_entropy[len(self.labeled_indices):])
+                # they should have the same dimension
+                assert len(self.unlab_entropy_hist[:, i]) == len(iter_entropy[len(self.labeled_indices):])
+                # Update only the unlabeled observations
+                self.unlab_entropy_hist[:, i] = iter_entropy[len(self.labeled_indices):]
             except AssertionError as err:
                 logger.exception('Should have the same dimension')
                 raise err
-            # they have the same dimension
-            
-            self.unlab_entropy_hist[:,i] = iter_entropy[len(self.labeled_indices):]
                         
             err = torch.norm(self.X - X_old)
             i += 1
             
 
 
-    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> List[int]:
+    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
             
         # set the entire batch size to the dimension of the sampled unlabeled set
         self.len_unlab_sample = len(sample_unlab_subset)
@@ -243,7 +250,7 @@ class GTG(Strategies):
         self.get_embeddings(self.unlab_train_dl, self.unlab_embedds_dict)
         logger.info(' DONE\n')
             
-        # i can take the indices and labels fromt he dataloader, without using the get_embeddings function so no cuda memory is used in this case
+        # I can take the indices and labels from the dataloader, without using the get_embeddings function so no cuda memory is used in this case
         # I have a single batch
         self.idx_unlabeled = next(iter(self.unlab_train_dl))[0]
         self.labels_unlabeled = next(iter(self.unlab_train_dl))[2]
@@ -257,6 +264,13 @@ class GTG(Strategies):
         self.graph_trasduction_game()
         logger.info(' DONE\n')
         
+        pred_labels_gtg = torch.argmax(self.X, dim=1).cpu()
+        true_labels = torch.cat((self.lab_embedds_dict['labels'], self.labels_unlabeled))
+        
+        # TRUE / FALSE np.ndarray
+        self.gtg_result_prediction = (pred_labels_gtg == true_labels).numpy()
+        
+        logging.info(f' GTG Accuracty Score: {(pred_labels_gtg == true_labels).sum().item() / len(pred_labels_gtg)}')
         
         del self.A
         del self.X
@@ -318,7 +332,7 @@ class GTG(Strategies):
         
         else: 
             logger.exception('Unrecognized derivates computation strategy')
-            raise #Exception('Unrecognized derivates computation strategy')
+            raise
         
         # plot entropy hisstory tensor
         plot_gtg_entropy_tensor(
@@ -333,5 +347,5 @@ class GTG(Strategies):
         
         logger.info(' DONE\n')
         
-        return [self.idx_unlabeled[id].item() for id in overall_topk.indices.tolist()]
+        return overall_topk.indices.tolist(), [self.idx_unlabeled[id].item() for id in overall_topk.indices.tolist()]
     

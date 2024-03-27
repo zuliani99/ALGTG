@@ -63,7 +63,7 @@ class BALD(Strategies):
         
     
     
-    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> List[int]:
+    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
                         
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset, batch_size=self.batch_size,
@@ -79,5 +79,5 @@ class BALD(Strategies):
         del res_entropy
         torch.cuda.empty_cache()
         
-        return [indices[id].item() for id in overall_topk.indices.tolist()]
+        return overall_topk.indices.tolist(), [indices[id].item() for id in overall_topk.indices.tolist()]
     

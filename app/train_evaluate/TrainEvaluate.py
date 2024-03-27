@@ -110,7 +110,8 @@ class TrainEvaluate(object):
         
         
         
-    def save_tsne(self, idx_samp_unlab_obs: int, incides_unlab: List[int], al_iter: int) -> None:
+    def save_tsne(self, idx_samp_unlab_obs: int, idxs_new_labels: List[int], al_iter: int,\
+            gtg_result_prediction = None) -> None:
         # plot the tsne graph for each iteration
         
         logger.info(' => Saving the TSNE embeddings plot with labeled, unlabeled and new labeled observations')
@@ -132,8 +133,9 @@ class TrainEvaluate(object):
         plot_new_labeled_tsne(
             lab_embedds_dict, unlab_embedds_dict,
             al_iter, self.method_name,
-            self.dataset_name, incides_unlab, self.classes, 
-            self.timestamp, self.samp_iter
+            self.dataset_name, idxs_new_labels, self.classes, 
+            self.timestamp, self.samp_iter,
+            gtg_result_prediction
         )
         
         logger.info(' DONE\n')
@@ -157,7 +159,7 @@ class TrainEvaluate(object):
             logger.info(' Intersection between indices is EMPTY')
         else: 
             logger.exception('NON EMPTY INDICES INTERSECTION')
-            raise #Exception('NON EMPTY INDICES INTERSECTION')
+            raise
 
         # generate the new labeled DataLoader
         self.lab_train_dl = DataLoader(

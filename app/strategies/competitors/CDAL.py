@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader, Subset
 
 from strategies.Strategies import Strategies
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 
 import logging
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ class CDAL(Strategies):
         return overall_topk
 
 
-    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> List[int]:
+    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
                                 
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset, batch_size=self.batch_size,
@@ -60,5 +60,5 @@ class CDAL(Strategies):
         topk_idx_obs = self.furthest_first(unlab_probs, lab_probs, n_top_k_obs)
                     
         
-        return [self.embedds_dict['idxs'][id].item() for id in topk_idx_obs]
+        return topk_idx_obs, [self.unlab_embedds_dict['idxs'][id].item() for id in topk_idx_obs]
     

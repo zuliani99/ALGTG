@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader, Subset
 import numpy as np
 from sklearn.cluster import KMeans
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 
 import logging
 logger = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ class K_Means(Strategies):
         return closest_indices
     
     
-    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> List[int]:
+    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
                         
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset, batch_size=self.batch_size,
@@ -60,5 +60,5 @@ class K_Means(Strategies):
         logger.info(' DONE\n')
         
                 
-        return [self.embedds_dict['idxs'][id].item() for id in topk_idx_obs]
+        return topk_idx_obs, [self.embedds_dict['idxs'][id].item() for id in topk_idx_obs]
     

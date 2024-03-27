@@ -337,12 +337,12 @@ def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: Li
         x, y = np.hstack((x_lab, x_unlab)), np.hstack((y_lab, y_unlab))
         label = np.hstack((label_lab, unlabel_lab))
         
-        sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', ax=axes[idx][0])
-        sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', ax=axes[idx][0])
+        sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', s=15, ax=axes[idx][0])
+        sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=15, ax=axes[idx][0])
         axes[idx][0].set_title(f'{name} Affnity Matrix')
         axes[idx][0].legend()
         
-        sns.scatterplot(x=x, y=y, hue=[classes[l] for l in label], ax=axes[idx][1])
+        sns.scatterplot(x=x, y=y, hue=[classes[l] for l in label], s=15, ax=axes[idx][1])
         axes[idx][1].set_title(f'{name} Affnity Matrix Classes')
         axes[idx][1].legend()
 
@@ -354,29 +354,52 @@ def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: Li
 
 
 def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor], iter: int, \
-        method: str, ds_name: str, incides_unlab: List[int], classes: List[str], time_stamp: str, samp_iter: int):
+        method: str, ds_name: str, idxs_new_labels: List[int], classes: List[str], time_stamp: str, samp_iter: int, \
+        gtg_result_prediction: np.ndarray = None):
     
     tsne = TSNE().fit_transform(np.vstack((lab['embedds'].cpu().numpy(), unlab['embedds'].cpu().numpy())))
     
     tsne_lab, tsne_unlab = tsne[:len(lab['embedds']),:], tsne[len(lab['embedds']):,:]
     label_lab, unlabel_lab = lab['labels'], unlab['labels']
-    x_lab, y_lab = tsne_lab[:,0],tsne_lab[:,1]
+    x_lab, y_lab = tsne_lab[:,0], tsne_lab[:,1]
     x_unlab, y_unlab = tsne_unlab[:,0], tsne_unlab[:,1]
     x, y = np.hstack((x_lab, x_unlab)), np.hstack((y_lab, y_unlab))
     label = np.hstack((label_lab, unlabel_lab))
     
-    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(23, 12))
+    if isinstance(gtg_result_prediction, np.ndarray):
+        
+        pred_lab = gtg_result_prediction[:len(lab['labels'])]
+        gtg_result_prediction = gtg_result_prediction[len(lab['labels']):] 
+        
+        idxs_unlab_again = []
+        for id in range(len(unlab['labels'])):
+            if id not in idxs_new_labels: idxs_unlab_again.append(id)
+            
+        pred_unlab = gtg_result_prediction[idxs_unlab_again]
+        pred_new_lab = gtg_result_prediction[idxs_new_labels]
+        
+        
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(25, 14))
     
-    sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', ax=axes[0])
-    sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', ax=axes[0])
-    sns.scatterplot(x=x_unlab[incides_unlab], y=y_unlab[incides_unlab], label='new_labeled', color='red', ax=axes[0])
+    if isinstance(gtg_result_prediction, np.ndarray):
+        sns.scatterplot(x=x_unlab[idxs_unlab_again], y=y_unlab[idxs_unlab_again], label='unlabeled', color='blue', s=15, ax=axes[0], \
+            style=pred_unlab, markers=['X', 'o'] if len(np.unique(pred_unlab)) == 2 else 'o')
+    else:
+        sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', s=15, ax=axes[0])
+    
+    sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=15, ax=axes[0], \
+        style=pred_lab if isinstance(gtg_result_prediction, np.ndarray) else None, markers=['X', 'o'] if len(np.unique(pred_lab)) == 2 else ['o'])
+    sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labeled', s=15, color='red', ax=axes[0], \
+        style=pred_new_lab if isinstance(gtg_result_prediction, np.ndarray) else None, markers=['X', 'o'] if len(np.unique(pred_new_lab)) == 2 else ['o'])
+    
     axes[0].set_title('TSNE -- labeled - unlabeled - new_labeled')
     axes[0].legend()
-        
     
-    sns.scatterplot(x=x, y=y, hue=[classes[l] for l in label], ax=axes[1])
+    
+    sns.scatterplot(x=x, y=y, hue=[classes[l] for l in label], s=15)
     axes[1].set_title('TSNE - classes')
     axes[1].legend()
+    
     
     plt.suptitle(f'{ds_name} - {method} - {iter}', fontsize=30)
     plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{iter}.png')
@@ -395,7 +418,7 @@ def count_class_observation(classes, dataset, topk_idx_obs=None):
     
     
     
-def download_coco_dataset() -> None:
+'''def download_coco_dataset() -> None:
     if not os.path.exists('datasets/coco'):
         logger.info(' => Downloading COCO-2017 Dataset')
                 
@@ -423,4 +446,4 @@ def download_coco_dataset() -> None:
         os.remove('stuff_annotations_trainval2017.zip')
         os.remove('image_info_test2017.zip')
     else:
-        logger.info('COCO-2017 Dataset already downloaded')
+        logger.info('COCO-2017 Dataset already downloaded')'''

@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from strategies.Strategies import Strategies
 from utils import entropy
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 
 import logging
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class Entropy(Strategies):
         
         
         
-    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> List[int]:
+    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int]]:
         
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset,
@@ -40,4 +40,4 @@ class Entropy(Strategies):
         overall_topk = torch.topk(tot_entr, n_top_k_obs)
         logger.info(' DONE\n')
         
-        return [embeds_dict['idxs'][id].item() for id in overall_topk.indices.tolist()]
+        return overall_topk.indices.tolist(), [embeds_dict['idxs'][id].item() for id in overall_topk.indices.tolist()]
