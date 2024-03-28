@@ -82,14 +82,7 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], epochs: int, c
     dist.barrier()    
     
     
-    #####################
     # shutdown the worker
-    #####################
-    
-    #params['train_dl']._iterator._shutdown_workers()
-    #params['val_dl']._iterator._shutdown_workers()
-    #params['test_dl']._iterator._shutdown_workers()
-    
     del params['train_dl']._iterator
     del params['val_dl']._iterator
     del params['test_dl']._iterator

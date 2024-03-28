@@ -2,11 +2,12 @@
 import torch
 from torch.utils.data import DataLoader, Subset
 import torch.multiprocessing as mp
-from train_evaluate.Train_DDP import train, train_ddp
+from torchvision.utils import save_image
 
+from train_evaluate.Train_DDP import train, train_ddp
 from ResNet18 import BasicBlock, ResNet_Weird
 from Datasets import DatasetChoice, SubsetDataloaders
-from utils import create_directory, save_train_val_curves, write_csv, plot_new_labeled_tsne
+from utils import create_directory, save_train_val_curves, write_csv, plot_new_labeled_tsne, create_method_res_dir, create_class_dir
 
 import copy
 from typing import List, Dict, Any
@@ -63,10 +64,22 @@ class TrainEvaluate(object):
         
         
         self.path = f'results/{self.timestamp}/{self.dataset_name}/{self.samp_iter}/{self.method_name}'
-        create_directory(self.path)
-        create_directory(self.path + '/train_val_plots')
-        create_directory(self.path + '/tsne_plots')
-
+        create_method_res_dir(self.path)
+        
+        # save initial labeled images
+        self.save_labeled_images(self.labeled_indices)
+        
+    
+    
+    def save_labeled_images(self, new_labeled_idxs: List[int]) -> None:
+        logger.info(' => Saving the new labeled images for further visual analysis...')
+        create_class_dir(self.path, self.iter, self.classes)
+        for idx, img, lab in Subset(self.non_transformed_trainset, new_labeled_idxs):
+            save_image(
+                img, f'{self.path}/new_labeled_images/{self.iter}/{self.classes[lab]}/{idx}.png'
+            )
+        logger.info(' DONE\n')
+        
         
         
     def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, torch.Tensor]) -> None:
@@ -110,7 +123,7 @@ class TrainEvaluate(object):
         
         
         
-    def save_tsne(self, idx_samp_unlab_obs: int, idxs_new_labels: List[int], al_iter: int,\
+    def save_tsne(self, idx_samp_unlab_obs: int, idxs_new_labels: List[int], d_labels: Dict[str, int], al_iter: int,\
             gtg_result_prediction = None) -> None:
         # plot the tsne graph for each iteration
         
@@ -134,7 +147,7 @@ class TrainEvaluate(object):
             lab_embedds_dict, unlab_embedds_dict,
             al_iter, self.method_name,
             self.dataset_name, idxs_new_labels, self.classes, 
-            self.timestamp, self.samp_iter,
+            self.timestamp, self.samp_iter, d_labels,
             gtg_result_prediction
         )
         
@@ -143,7 +156,10 @@ class TrainEvaluate(object):
                 
 
 
-    def update_sets(self, overall_topk: List[int], idx_samp_unlab_obs: int) -> None:        
+    def update_sets(self, overall_topk: List[int], idx_samp_unlab_obs: int) -> None:
+        
+        # save the new labeled images to further visual analysis
+        self.save_labeled_images(overall_topk)
         
         # Update the labeeld and unlabeled training set
         logger.info(' => Modifing the Subsets and Dataloader')

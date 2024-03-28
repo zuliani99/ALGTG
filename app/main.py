@@ -58,50 +58,32 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
     results = { }
     n_lab_obs = [len_lab_train_ds + (iter * al_params['n_top_k_obs']) for iter in range(al_params['al_iters'])]
     
-    '''
-    ----------------------------------------------------------------------------------------------------------------
     
+    '''           
     GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
                 'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.DER,
                 'threshold_strategy': None, 'threshold': None
-                #'threshold_strategy': 'threshold', 'threshold': 0.7
             }, LL=True),
-        GTG(al_params=al_params, training_params=training_params,
+        GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
                 'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
                 'threshold_strategy': None, 'threshold': None
-                #'threshold_strategy': 'threshold', 'threshold': 0.7
             }, LL=True),
-        
+            
         GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
                 'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.DER,
                 'threshold_strategy': None, 'threshold': None
-                #'threshold_strategy': 'threshold', 'threshold': 0.7
             }, LL=True),
-        GTG(al_params=al_params, training_params=training_params,
+        GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
                 'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
                 'threshold_strategy': None, 'threshold': None
-                #'threshold_strategy': 'threshold', 'threshold': 0.7
-            }, LL=True),
-    
-    ----------------------------------------------------------------------------------------------------------------
-    '''
-    
-    
-    '''
-    GTG(al_params=al_params, training_params=training_params, 
-            gtg_params={
-                **gtg_params,
-                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
-                'threshold_strategy': None, 'threshold': None
-                #'threshold_strategy': 'threshold', 'threshold': 0.7
             }, LL=True),
     '''
     
@@ -125,7 +107,7 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
         
         # Random
         #Random(al_params=al_params, training_params=training_params, LL=False),
-        Random(al_params=al_params, training_params=training_params, LL=True),
+        #Random(al_params=al_params, training_params=training_params, LL=True),
         
         # LeastConfidence
         #LeastConfidence(al_params=al_params, training_params=training_params, LL=False)
@@ -133,7 +115,7 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
         
         # Entropy
         #Entropy(al_params=al_params, training_params=training_params, LL=False)
-        Entropy(al_params=al_params, training_params=training_params, LL=True),
+        #Entropy(al_params=al_params, training_params=training_params, LL=True),
         
         # KMeans
         #K_Means(al_params=al_params, training_params=training_params, LL=True),
@@ -170,7 +152,6 @@ def main() -> None:
     
     logging.basicConfig(filename=f'results/{timestamp}/AL_DDP.log',
                     filemode='a',
-                    #format='%(asctime)s - %(name)s - %(levelname)s -> %(message)s',
                     format='%(asctime)s - %(levelname)s: %(message)s',
                     datefmt='%H:%M:%S',
                     level=logging.INFO)

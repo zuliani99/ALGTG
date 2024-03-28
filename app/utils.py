@@ -1,9 +1,9 @@
 
-from enum import Enum
 import torch
-
 import torch.nn as nn
 import torch.nn.init as init
+from torch.utils.data import Dataset
+
 
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
@@ -14,6 +14,7 @@ import numpy as np
 import csv
 import os
 import random
+from enum import Enum
 from typing import List, Dict, Any, Tuple
 
 import logging
@@ -63,15 +64,13 @@ def plot_loss_curves(methods_results: Dict[str, List[float]], n_lab_obs: List[in
     
     
 def save_train_val_curves(results_info: Dict[str, Any], ts_dir: str, dataset_name: str, al_iter: str, \
-    cicle_iter: str, flag_LL: bool) -> None:
+                         cicle_iter: str, flag_LL: bool) -> None:
 
     res = results_info['results']
     epochs = range(1, len(res['train_loss']) + 1)
 
-    if flag_LL:
-        fig, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
-    else: 
-        fig, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
+    if flag_LL: _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
+    else: _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
         
     minloss_val = min(res['val_loss'])
     minloss_ep = res['val_loss'].index(minloss_val) + 1
@@ -126,12 +125,7 @@ def save_train_val_curves(results_info: Dict[str, Any], ts_dir: str, dataset_nam
         
 
     plt.suptitle(f'AL iter {cicle_iter}.{al_iter} - {results_info["model_name"]}', fontsize = 30)
-    
-    path_plots = f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{results_info["model_name"]}/train_val_plots/'
-
-    if(not os.path.exists(path_plots)):
-        os.makedirs(path_plots)
-    plt.savefig(os.path.join(path_plots, f'{al_iter}.png'))
+    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{results_info["model_name"]}/train_val_plots/{al_iter}.png')
 
 
 
@@ -152,17 +146,17 @@ def write_csv(ts_dir: str, dataset_name: str, head: List[str], values: List[str]
                  
             
 
-def create_directory(dir: str) -> None:
-    if not os.path.exists(dir):
-        os.makedirs(dir)
+def create_directory(dir: str) -> None: os.makedirs(dir, exist_ok=True)
 
-
-            
 def create_ts_dir(timestamp: str, dataset_name: str, iter: str) -> None:
-    mydir = os.path.join('results', timestamp)
-    create_directory(os.path.join(mydir, dataset_name))
-    create_directory(os.path.join(mydir, dataset_name, iter))
+    create_directory(os.path.join('results', timestamp, dataset_name, iter))
     
+def create_method_res_dir(path: str) -> None:
+    for dir in ['train_val_plots', 'tsne_plots', 'new_labeled_images']:
+        create_directory(os.path.join(path, dir))
+    
+def create_class_dir(base_path: str, iter: int, classes: List[str]) -> None:
+    for cls in classes: create_directory(f'{base_path}/new_labeled_images/{iter}/{cls}')
     
     
         
@@ -182,11 +176,11 @@ def init_weights_apply(m: torch.nn.Module) -> None:
     
 
 def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels: List[int], \
-    classes: List[int], path: str, iter: int, max_x: int, dir: str) -> None:
+                           classes: List[int], path: str, iter: int, max_x: int, dir: str) -> None:
     
     create_directory(f'{path}/gtg_entropies_plots/{dir}')
     
-    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(20, 10))
+    _, axes = plt.subplots(nrows=1, ncols=2, figsize=(20, 10))
     
     x = np.arange(max_x)
     array = tensor.cpu().numpy()
@@ -282,12 +276,6 @@ class Entropy_Strategy(Enum):
     H_INT = 1
     
 
-'''class Affinity_Threshold(Enum):
-    THRESHOLD = 0
-    MEAN = 1
-    QUANTILE = 2'''
-    
-
 
 def set_seeds(seed: int = 10001) -> None:
     # setting seed and deterministic behaviour of pytorch for reproducibility
@@ -317,7 +305,7 @@ def download_tinyimagenet() -> None:
 
 
 def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: List[str], time_stamp: str, \
-    ds_name: str, samp_iter: int, method: str, affinity: str, strategy: str, iter: int) -> None:
+                ds_name: str, samp_iter: int, method: str, affinity: str, strategy: str, iter: int) -> None:
     
     A_1, A_2 = A
     
@@ -327,9 +315,9 @@ def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: Li
     tsne_A1 = TSNE().fit_transform(A_1.cpu().numpy())
     tsne_A2 = TSNE().fit_transform(A_2.cpu().numpy())
     
-    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(23, 18))
+    _, axes = plt.subplots(nrows=2, ncols=2, figsize=(23, 18))
         
-    for idx, (tsne, name) in enumerate(zip([tsne_A1, tsne_A2], ['Uncertanity', f'{strategy} Sparsification'])):
+    for idx, (tsne, name) in enumerate(zip([tsne_A1, tsne_A2], ['Original', f'{strategy} Sparsification'])):
         
         tsne_lab, tsne_unlab = tsne[:len_lab,:], tsne[len_lab:,:]
         x_lab, y_lab = tsne_lab[:,0], tsne_lab[:,1]
@@ -337,12 +325,12 @@ def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: Li
         x, y = np.hstack((x_lab, x_unlab)), np.hstack((y_lab, y_unlab))
         label = np.hstack((label_lab, unlabel_lab))
         
-        sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', s=15, ax=axes[idx][0])
-        sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=15, ax=axes[idx][0])
+        sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', s=17, ax=axes[idx][0])
+        sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=17, ax=axes[idx][0])
         axes[idx][0].set_title(f'{name} Affnity Matrix')
         axes[idx][0].legend()
         
-        sns.scatterplot(x=x, y=y, hue=[classes[l] for l in label], s=15, ax=axes[idx][1])
+        sns.scatterplot(x=x, y=y, hue=[classes[l] for l in label], s=17, ax=axes[idx][1])
         axes[idx][1].set_title(f'{name} Affnity Matrix Classes')
         axes[idx][1].legend()
 
@@ -351,62 +339,62 @@ def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: Li
     create_directory(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{affinity}_matrix')
     plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{affinity}_matrix/{iter}.png')
     
-
-
-def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor], iter: int, \
-        method: str, ds_name: str, idxs_new_labels: List[int], classes: List[str], time_stamp: str, samp_iter: int, \
-        gtg_result_prediction: np.ndarray = None):
+    
+    
+def plot_new_labeled_tsne(lab: Dict[str, np.ndarray], unlab: Dict[str, np.ndarray], iter: int, method: str, ds_name: str, idxs_new_labels: List[int], 
+                          classes: List[str], time_stamp: str, samp_iter: int, d_labels: Dict[str, int], gtg_result_prediction: np.ndarray = None):
     
     tsne = TSNE().fit_transform(np.vstack((lab['embedds'].cpu().numpy(), unlab['embedds'].cpu().numpy())))
+    tsne_lab, tsne_unlab = tsne[:len(lab['embedds']), :], tsne[len(lab['embedds']):, :]
     
-    tsne_lab, tsne_unlab = tsne[:len(lab['embedds']),:], tsne[len(lab['embedds']):,:]
-    label_lab, unlabel_lab = lab['labels'], unlab['labels']
-    x_lab, y_lab = tsne_lab[:,0], tsne_lab[:,1]
-    x_unlab, y_unlab = tsne_unlab[:,0], tsne_unlab[:,1]
-    x, y = np.hstack((x_lab, x_unlab)), np.hstack((y_lab, y_unlab))
-    label = np.hstack((label_lab, unlabel_lab))
+    x_lab, y_lab = tsne_lab[:, 0], tsne_lab[:, 1]
+    x_unlab, y_unlab = tsne_unlab[:, 0], tsne_unlab[:, 1]
     
-    if isinstance(gtg_result_prediction, np.ndarray):
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(25, 14))
+    
+    if isinstance(gtg_result_prediction, np.ndarray):      
         
         pred_lab = gtg_result_prediction[:len(lab['labels'])]
         gtg_result_prediction = gtg_result_prediction[len(lab['labels']):] 
-        
-        idxs_unlab_again = []
-        for id in range(len(unlab['labels'])):
-            if id not in idxs_new_labels: idxs_unlab_again.append(id)
+            
+        idxs_unlab_again = [id for id in range(len(unlab['labels'])) if id not in idxs_new_labels]
             
         pred_unlab = gtg_result_prediction[idxs_unlab_again]
         pred_new_lab = gtg_result_prediction[idxs_new_labels]
         
+        sns.scatterplot(x=x_unlab[idxs_unlab_again], y=y_unlab[idxs_unlab_again], 
+                        label='unlabeled', color='blue', s=17, ax=axes[0], style=pred_unlab, 
+                        markers=['X', 'o'] if len(np.unique(pred_unlab)) == 2 else ['o'])
         
-    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(25, 14))
-    
-    if isinstance(gtg_result_prediction, np.ndarray):
-        sns.scatterplot(x=x_unlab[idxs_unlab_again], y=y_unlab[idxs_unlab_again], label='unlabeled', color='blue', s=15, ax=axes[0], \
-            style=pred_unlab, markers=['X', 'o'] if len(np.unique(pred_unlab)) == 2 else 'o')
+        sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=17, ax=axes[0], 
+                        style=pred_lab, markers=['X', 'o'] if len(np.unique(pred_lab)) == 2 else ['o'])
+        
+        sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labeled', 
+                        s=17, color='red', ax=axes[0], style=pred_new_lab, 
+                        markers=['X', 'o'] if len(np.unique(pred_new_lab)) == 2 else ['o'])
     else:
-        sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', s=15, ax=axes[0])
-    
-    sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=15, ax=axes[0], \
-        style=pred_lab if isinstance(gtg_result_prediction, np.ndarray) else None, markers=['X', 'o'] if len(np.unique(pred_lab)) == 2 else ['o'])
-    sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labeled', s=15, color='red', ax=axes[0], \
-        style=pred_new_lab if isinstance(gtg_result_prediction, np.ndarray) else None, markers=['X', 'o'] if len(np.unique(pred_new_lab)) == 2 else ['o'])
+        sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', s=17, ax=axes[0], markers=['o'])
+        sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=17, ax=axes[0], markers=['o'])
+        sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labeled', 
+                        s=17, color='red', ax=axes[0], markers=['o'])
     
     axes[0].set_title('TSNE -- labeled - unlabeled - new_labeled')
     axes[0].legend()
     
-    
-    sns.scatterplot(x=x, y=y, hue=[classes[l] for l in label], s=15)
+    sns.scatterplot(x=np.hstack((x_lab, x_unlab)), y=np.hstack((y_lab, y_unlab)), 
+                    hue=[classes[l] for l in np.hstack((lab['labels'], unlab['labels']))], s=17, ax=axes[1])
     axes[1].set_title('TSNE - classes')
     axes[1].legend()
     
+    fig.text(0.5, 0.05, f'New Labeled Observations: {d_labels}', ha='center', va='center', fontdict={'size':17})
     
     plt.suptitle(f'{ds_name} - {method} - {iter}', fontsize=30)
     plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{iter}.png')
+
     
     
     
-def count_class_observation(classes, dataset, topk_idx_obs=None):
+def count_class_observation(classes: List[int], dataset: Dataset, topk_idx_obs=None) -> Dict[str, int]:
     if topk_idx_obs == None: labels = [lab for _,_,lab in dataset]
     else: labels = [dataset[k][2] for k in topk_idx_obs]
     

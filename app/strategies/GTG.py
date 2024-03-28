@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
-from scipy.integrate import simpson #,trapz
+from scipy.integrate import simpson
 import scipy.spatial as sp
 #from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
@@ -81,7 +81,7 @@ class GTG(Strategies):
             A = 1 - A
         elif self.strategy_type == 'mixed':    
             # set the unlabeled submatrix as distance matrix and not similarity matrix
-            n_lab_obs = len(self.lab_embedds_dict['embedds'])
+            n_lab_obs = len(self.labeled_indices)
             if self.A_function == 'e_d':
                 A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs]
                 A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:]
@@ -100,12 +100,12 @@ class GTG(Strategies):
         #mat_cos_sim = nn.CosineSimilarity(dim=0)
         #logger.info(f' Cosine Similarity between the initial matrix and the thresholded one: {mat_cos_sim(A_1.flatten(), A_2.flatten()).item()}')
 
-        self.A = A_1#A_2
+        self.A = A#A_2
         
         # plot the TSNE fo the original and modified affinity matrix
         plot_tsne_A(
-            (A, A_1),
             #(A_1, A_2),
+            (A_1, A),
             (self.lab_embedds_dict['labels'], self.labels_unlabeled), self.classes,
             self.timestamp, self.dataset_name, self.samp_iter, self.method_name, self.A_function, self.strategy_type, self.iter
         )
@@ -283,7 +283,7 @@ class GTG(Strategies):
             
         if self.ent_strategy is Entropy_Strategy.H_INT:
             # computing the area of each entropies derivates fucntion via the simpson formula 
-            area: np.ndarray = simpson(self.unlab_entropy_hist.cpu().numpy())
+            area: np.ndarray = simpson(self.unlab_entropy_hist.cpu().numpy(), axis=1)
                         
             overall_topk = torch.topk(torch.from_numpy(area), k=n_top_k_obs, largest=True)
         

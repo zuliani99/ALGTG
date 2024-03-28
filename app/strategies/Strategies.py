@@ -18,7 +18,10 @@ logger = logging.getLogger(__name__)
 class Strategies(TrainEvaluate):
     def __init__(self, al_params:  Dict[str, Any], training_params: Dict[str, Any], LL: bool) -> None:
         
+        self.iter = 1
+        
         super().__init__(training_params, LL)
+        
         self.al_iters: int = al_params['al_iters']
         self.n_top_k_obs: int = al_params['n_top_k_obs']
         self.unlab_sample_dim: int = al_params['unlab_sample_dim']
@@ -26,8 +29,8 @@ class Strategies(TrainEvaluate):
         self.unlabeled_indices: List[int] = copy.deepcopy(training_params['DatasetChoice'].unlabeled_indices)
         
         self.get_sampled_sets()
-                
-                
+        
+        
                 
     def get_sampled_sets(self) -> None:
         self.unlab_sampled_list : List[Subset] = []
@@ -68,9 +71,7 @@ class Strategies(TrainEvaluate):
         
         
     def run(self, epochs: int) -> Dict[str, List[float]]:
-        
-        self.iter = 1
-        
+                
         results = { 'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}
         
         logger.info(f'----------------------- ITERATION {self.iter} / {self.al_iters} -----------------------\n')
@@ -100,9 +101,9 @@ class Strategies(TrainEvaluate):
             # Saving the tsne embeddings plot
             if self.method_name.split('_')[0] == 'GTG':
                 # if we are performing GTG plot also the GTG predictions in the TSNE plot 
-                self.save_tsne(idx_list, idxs_new_labels, self.iter, self.gtg_result_prediction)
+                self.save_tsne(idx_list, idxs_new_labels, d_labels, self.iter, self.gtg_result_prediction)
             
-            else: self.save_tsne(idx_list, idxs_new_labels, self.iter)
+            else: self.save_tsne(idx_list, idxs_new_labels, d_labels, self.iter)
 
             # modify the datasets and dataloader and plot the tsne
             self.update_sets(topk_idx_obs, idx_list)
