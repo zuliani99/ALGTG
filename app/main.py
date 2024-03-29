@@ -59,50 +59,36 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
     n_lab_obs = [len_lab_train_ds + (iter * al_params['n_top_k_obs']) for iter in range(al_params['al_iters'])]
     
     
-    '''           
-    GTG(al_params=al_params, training_params=training_params, 
+    ''' 
+        GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
-                'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.DER,
+                'rbf_aff': True, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
                 'threshold_strategy': None, 'threshold': None
             }, LL=True),
         GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
-                'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
-                'threshold_strategy': None, 'threshold': None
-            }, LL=True),
-            
-        GTG(al_params=al_params, training_params=training_params, 
-            gtg_params={
-                **gtg_params,
-                'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.DER,
-                'threshold_strategy': None, 'threshold': None
-            }, LL=True),
-        GTG(al_params=al_params, training_params=training_params, 
-            gtg_params={
-                **gtg_params,
-                'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
+                'rbf_aff': True, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.DER,
                 'threshold_strategy': None, 'threshold': None
             }, LL=True),
     '''
     
     methods = [
         
-        # GTG
         GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
-                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.DER,
+                'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
                 'threshold_strategy': None, 'threshold': None
             }, LL=True),
         GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
-                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
+                'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.DER,
                 'threshold_strategy': None, 'threshold': None
             }, LL=True),
-        
+
         
         
         # Random

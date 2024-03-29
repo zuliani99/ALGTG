@@ -49,12 +49,12 @@ class GTG(Strategies):
         else:
             self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_LL' if LL \
                 else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}'
-        
-            
+                
 
         super().__init__(al_params, training_params, LL)
         
         create_directory(self.path + '/gtg_entropies_plots')
+        
         
     
     def get_A_treshold(self, A: torch.Tensor) -> float:
@@ -71,8 +71,7 @@ class GTG(Strategies):
         ).to(self.device)
         
         # compute the affinity matrix
-        A = self.get_A_fn[self.A_function](concat_embedds) \
-        if self.A_function != 'rbfk' else self.get_A_rbfk(concat_embedds)
+        A = self.get_A_rbfk(concat_embedds) if self.rbf_aff else self.get_A_fn[self.A_function](concat_embedds)
 
         A_1 = torch.clone(A)
         
@@ -82,12 +81,24 @@ class GTG(Strategies):
         elif self.strategy_type == 'mixed':    
             # set the unlabeled submatrix as distance matrix and not similarity matrix
             n_lab_obs = len(self.labeled_indices)
+                
             if self.A_function == 'e_d':
-                A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs]
-                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:]
-            else:   
-                A[:n_lab_obs, n_lab_obs:] = 1 - A[:n_lab_obs, n_lab_obs:]
-                A[n_lab_obs:, :n_lab_obs] = 1 - A[n_lab_obs:, :n_lab_obs]
+                # not working, maybe
+                A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL -> similarity
+                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #UU -> similarity
+            else:
+                A[:n_lab_obs, n_lab_obs:] = 1 - A[:n_lab_obs, n_lab_obs:] #UL -> distacne
+                A[n_lab_obs:, :n_lab_obs] = 1 - A[n_lab_obs:, :n_lab_obs] #LU -> distance
+            
+            '''if self.A_function == 'e_d':
+                A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL to similarity
+                
+            else:
+                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #UU to distance
+                
+                A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #UL to distance
+                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #LU to distance'''
+                
             
             # Unlabeled VS Unlabeled -> similarity = A
             # Labeled VS Labeled -> similarity = A
@@ -106,7 +117,7 @@ class GTG(Strategies):
         plot_tsne_A(
             #(A_1, A_2),
             (A_1, A),
-            (self.lab_embedds_dict['labels'], self.labels_unlabeled), self.classes,
+            (self.lab_embedds_dict['labels'], self.unlabeled_labels), self.classes,
             self.timestamp, self.dataset_name, self.samp_iter, self.method_name, self.A_function, self.strategy_type, self.iter
         )
 
@@ -122,13 +133,12 @@ class GTG(Strategies):
         else:
             # if correlation or cosine_similairty are choosen we take the 7th highest observation which is the 7th most similar one (descending order)
             seventh_neigh = concat_embedds[torch.argsort(A_matrix, dim=1, descending=True)[:, 6]]
-        
+            
         sigmas = torch.unsqueeze(torch.tensor([
-            self.get_A_fn[self.A_function](
-                torch.unsqueeze(concat_embedds[i], dim=0), 
-                torch.unsqueeze(seventh_neigh[i], dim=0)
-            )
-            for i in range(concat_embedds.shape[0])
+            self.get_A_fn[self.A_function](torch.cat((
+                torch.unsqueeze(concat_embedds[i], dim=0), torch.unsqueeze(seventh_neigh[i], dim=0)
+            )))[0,1].item()
+            for i in range(concat_embedds.shape[0]) 
         ], device=self.device), dim=0)
         
         A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(self.device)
@@ -190,7 +200,7 @@ class GTG(Strategies):
         rowsum_X = torch.sum(self.X).item()
         if rowsum_X < old_rowsum_X: # it has to be increasing or at least equal
             logger.exception('Sum of the vector on the denominator is lower than the previous step')
-            raise
+            raise Exception('Sum of the vector on the denominator is lower than the previous step')
         
         return rowsum_X
         
@@ -252,8 +262,8 @@ class GTG(Strategies):
             
         # I can take the indices and labels from the dataloader, without using the get_embeddings function so no cuda memory is used in this case
         # I have a single batch
-        self.idx_unlabeled = next(iter(self.unlab_train_dl))[0]
-        self.labels_unlabeled = next(iter(self.unlab_train_dl))[2]
+        self.unlabeled_idxs = next(iter(self.unlab_train_dl))[0]
+        self.unlabeled_labels = next(iter(self.unlab_train_dl))[2]
             
             
         # I save the entropy history in order to be able to plot it
@@ -264,13 +274,12 @@ class GTG(Strategies):
         self.graph_trasduction_game()
         logger.info(' DONE\n')
         
-        pred_labels_gtg = torch.argmax(self.X, dim=1).cpu()
-        true_labels = torch.cat((self.lab_embedds_dict['labels'], self.labels_unlabeled))
+        unlab_pred_labels_gtg = torch.argmax(self.X[len(self.labeled_indices):], dim=1).cpu()
         
         # TRUE / FALSE np.ndarray
-        self.gtg_result_prediction = (pred_labels_gtg == true_labels).numpy()
+        self.gtg_result_prediction = (unlab_pred_labels_gtg == self.unlabeled_labels).numpy()
         
-        logging.info(f' GTG Accuracty Score: {(pred_labels_gtg == true_labels).sum().item() / len(pred_labels_gtg)}')
+        logging.info(f' Unlabeled GTG Accuracty Score: {(unlab_pred_labels_gtg == self.unlabeled_labels).sum().item() / len(unlab_pred_labels_gtg)}')
         
         del self.A
         del self.X
@@ -323,7 +332,7 @@ class GTG(Strategies):
 
             # plot entropy derivatives tensor
             plot_gtg_entropy_tensor(
-                tensor=self.unlab_entropy_der, topk=overall_topk.indices.tolist(), lab_unlabels=self.labels_unlabeled.tolist(), classes=self.classes, 
+                tensor=self.unlab_entropy_der, topk=overall_topk.indices.tolist(), lab_unlabels=self.unlabeled_labels.tolist(), classes=self.classes, 
                 path=self.path, iter=self.iter - 1, max_x=self.gtg_max_iter - 1, dir='derivatives'
             )
         
@@ -332,11 +341,11 @@ class GTG(Strategies):
         
         else: 
             logger.exception('Unrecognized derivates computation strategy')
-            raise
+            raise Exception('Unrecognized derivates computation strategy')
         
         # plot entropy hisstory tensor
         plot_gtg_entropy_tensor(
-            tensor=self.unlab_entropy_hist, topk=overall_topk.indices.tolist(), lab_unlabels=self.labels_unlabeled.tolist(), classes=self.classes, 
+            tensor=self.unlab_entropy_hist, topk=overall_topk.indices.tolist(), lab_unlabels=self.unlabeled_labels.tolist(), classes=self.classes, 
             path=self.path, iter=self.iter - 1, max_x=self.gtg_max_iter, dir='history'
         )
         
@@ -347,5 +356,5 @@ class GTG(Strategies):
         
         logger.info(' DONE\n')
         
-        return overall_topk.indices.tolist(), [self.idx_unlabeled[id].item() for id in overall_topk.indices.tolist()]
+        return overall_topk.indices.tolist(), [self.unlabeled_idxs[id].item() for id in overall_topk.indices.tolist()]
     

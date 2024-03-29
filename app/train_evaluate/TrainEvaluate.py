@@ -7,7 +7,7 @@ from torchvision.utils import save_image
 from train_evaluate.Train_DDP import train, train_ddp
 from ResNet18 import BasicBlock, ResNet_Weird
 from Datasets import DatasetChoice, SubsetDataloaders
-from utils import create_directory, save_train_val_curves, write_csv, plot_new_labeled_tsne, create_method_res_dir, create_class_dir
+from utils import save_train_val_curves, write_csv, plot_new_labeled_tsne, create_method_res_dir, create_class_dir
 
 import copy
 from typing import List, Dict, Any
@@ -123,8 +123,8 @@ class TrainEvaluate(object):
         
         
         
-    def save_tsne(self, idx_samp_unlab_obs: int, idxs_new_labels: List[int], d_labels: Dict[str, int], al_iter: int,\
-            gtg_result_prediction = None) -> None:
+    def save_tsne(self, idx_samp_unlab_obs: int, idxs_new_labels: List[int], \
+                 d_labels: Dict[str, int], al_iter: int, gtg_result_prediction = None) -> None:
         # plot the tsne graph for each iteration
         
         logger.info(' => Saving the TSNE embeddings plot with labeled, unlabeled and new labeled observations')
@@ -175,7 +175,7 @@ class TrainEvaluate(object):
             logger.info(' Intersection between indices is EMPTY')
         else: 
             logger.exception('NON EMPTY INDICES INTERSECTION')
-            raise
+            raise Exception('NON EMPTY INDICES INTERSECTION')
 
         # generate the new labeled DataLoader
         self.lab_train_dl = DataLoader(

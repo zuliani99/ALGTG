@@ -352,13 +352,10 @@ def plot_new_labeled_tsne(lab: Dict[str, np.ndarray], unlab: Dict[str, np.ndarra
     
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(25, 14))
     
-    if isinstance(gtg_result_prediction, np.ndarray):      
+    if isinstance(gtg_result_prediction, np.ndarray):
         
-        pred_lab = gtg_result_prediction[:len(lab['labels'])]
-        gtg_result_prediction = gtg_result_prediction[len(lab['labels']):] 
-            
-        idxs_unlab_again = [id for id in range(len(unlab['labels'])) if id not in idxs_new_labels]
-            
+        idxs_unlab_again = [id for id in range(len(gtg_result_prediction)) if id not in idxs_new_labels]
+        
         pred_unlab = gtg_result_prediction[idxs_unlab_again]
         pred_new_lab = gtg_result_prediction[idxs_new_labels]
         
@@ -366,8 +363,7 @@ def plot_new_labeled_tsne(lab: Dict[str, np.ndarray], unlab: Dict[str, np.ndarra
                         label='unlabeled', color='blue', s=17, ax=axes[0], style=pred_unlab, 
                         markers=['X', 'o'] if len(np.unique(pred_unlab)) == 2 else ['o'])
         
-        sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=17, ax=axes[0], 
-                        style=pred_lab, markers=['X', 'o'] if len(np.unique(pred_lab)) == 2 else ['o'])
+        sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=17, ax=axes[0], markers=['o'])
         
         sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labeled', 
                         s=17, color='red', ax=axes[0], style=pred_new_lab, 
@@ -377,6 +373,7 @@ def plot_new_labeled_tsne(lab: Dict[str, np.ndarray], unlab: Dict[str, np.ndarra
         sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=17, ax=axes[0], markers=['o'])
         sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labeled', 
                         s=17, color='red', ax=axes[0], markers=['o'])
+    
     
     axes[0].set_title('TSNE -- labeled - unlabeled - new_labeled')
     axes[0].legend()
@@ -395,7 +392,7 @@ def plot_new_labeled_tsne(lab: Dict[str, np.ndarray], unlab: Dict[str, np.ndarra
     
     
 def count_class_observation(classes: List[int], dataset: Dataset, topk_idx_obs=None) -> Dict[str, int]:
-    if topk_idx_obs == None: labels = [lab for _,_,lab in dataset]
+    if topk_idx_obs == None: labels = [lab for _, _ ,lab in dataset]
     else: labels = [dataset[k][2] for k in topk_idx_obs]
     
     d_labels = {}

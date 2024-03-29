@@ -28,7 +28,9 @@ class Strategies(TrainEvaluate):
         
         self.unlabeled_indices: List[int] = copy.deepcopy(training_params['DatasetChoice'].unlabeled_indices)
         
+        logger.info(' => Obtaining the intial sample of unlabeled observations...')
         self.get_sampled_sets()
+        logger.info(' DONE\n')
         
         
                 
@@ -44,8 +46,7 @@ class Strategies(TrainEvaluate):
         for idx in range(limit):
             if(len(self.unlabeled_indices) > self.unlab_sample_dim):
                 seq = random.sample(self.unlabeled_indices, self.unlab_sample_dim)
-            else: 
-                seq = self.unlabeled_indices
+            else: seq = self.unlabeled_indices
             
             logger.info(f'Index: {idx} \t Last 5 observations: {seq[-5:]}')
             
@@ -55,10 +56,9 @@ class Strategies(TrainEvaluate):
             
             self.unlab_sampled_list.append(unlabeled_subset)
             for x in seq: self.unlabeled_indices.remove(x)
-            logger.info('Observations per class', d_labels)
-            logger.info('\n')
+            logger.info(f'Observations per class: \t{d_labels}')
         
-        logger.info(f'Lenght of the unlabeled sampled subset list: {len(self.unlab_sampled_list)}\n')
+        logger.info(f'Length of the unlabeled sampled subset list: {len(self.unlab_sampled_list)}')
         random.seed(10001) # reset the random seed
         del self.unlabeled_indices
         
