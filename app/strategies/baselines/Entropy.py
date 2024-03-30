@@ -22,7 +22,7 @@ class Entropy(Strategies):
         
         
         
-    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int]]:
+    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
         
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset,
@@ -30,7 +30,10 @@ class Entropy(Strategies):
         )
                 
         logger.info(' => Evaluating unlabeled observations')
-        embeds_dict = {'probs': None, 'idxs': None}
+        embeds_dict = {
+            'probs': torch.empty((0, self.n_classes), dtype=torch.float32),
+            'idxs': torch.empty(0, dtype=torch.int8)
+        }
         self.get_embeddings(self.unlab_train_dl, embeds_dict)
         prob_dist = F.softmax(embeds_dict['probs'], dim=1)
         logger.info(' DONE\n')
@@ -40,4 +43,4 @@ class Entropy(Strategies):
         overall_topk = torch.topk(tot_entr, n_top_k_obs)
         logger.info(' DONE\n')
         
-        return overall_topk.indices.tolist(), [embeds_dict['idxs'][id].item() for id in overall_topk.indices.tolist()]
+        return overall_topk.indices.tolist(), [int(embeds_dict['idxs'][id].item()) for id in overall_topk.indices.tolist()]

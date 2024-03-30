@@ -63,8 +63,8 @@ def plot_loss_curves(methods_results: Dict[str, List[float]], n_lab_obs: List[in
     
     
     
-def save_train_val_curves(results_info: Dict[str, Any], ts_dir: str, dataset_name: str, al_iter: str, \
-                         cicle_iter: str, flag_LL: bool) -> None:
+def save_train_val_curves(results_info: Dict[str, Any], ts_dir: str, dataset_name: str, al_iter: int, \
+                         cicle_iter: int, flag_LL: bool) -> None:
 
     res = results_info['results']
     epochs = range(1, len(res['train_loss']) + 1)
@@ -129,7 +129,7 @@ def save_train_val_curves(results_info: Dict[str, Any], ts_dir: str, dataset_nam
 
 
 
-def write_csv(ts_dir: str, dataset_name: str, head: List[str], values: List[str]) -> None:
+def write_csv(ts_dir: str, dataset_name: str, head: List[str], values: List[int | float | str]) -> None:
     res_path = os.path.join('results', ts_dir, dataset_name, 'results.csv')
     
     if (not os.path.exists(res_path)):
@@ -176,7 +176,7 @@ def init_weights_apply(m: torch.nn.Module) -> None:
     
 
 def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels: List[int], \
-                           classes: List[int], path: str, iter: int, max_x: int, dir: str) -> None:
+                           classes: List[str], path: str, iter: int, max_x: int, dir: str) -> None:
     
     create_directory(f'{path}/gtg_entropies_plots/{dir}')
     
@@ -259,7 +259,7 @@ def plot_accuracy_std_mean(timestamp: str, dataset_name: str) -> None:
         method_data = df_grouped[df_grouped['method'] == method]
         plt.plot(method_data['lab_obs'], method_data['mean'], label=method, linestyle = 'dashed' if method in ['Random_LL', 'Random'] else 'solid')
         plt.fill_between(method_data['lab_obs'], method_data['ci_lower'], method_data['ci_upper'], alpha=0.3)
-        plt.scatter(method_data['lab_obs'], method_data['mean'], marker=shapes[idx], color=plt.gca().lines[-1].get_color(), zorder=5)
+        plt.scatter(method_data['lab_obs'], method_data['mean'], marker=shapes[idx], color=plt.gca().lines[-1].get_color(), zorder=5) # type: ignore
 
     plt.xlabel('Labeled Observations')
     plt.ylabel('Test Accuracy')
@@ -304,7 +304,7 @@ def download_tinyimagenet() -> None:
 
 
 
-def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: List[str], time_stamp: str, \
+def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor, torch.Tensor], classes: List[str], time_stamp: str, \
                 ds_name: str, samp_iter: int, method: str, affinity: str, strategy: str, iter: int) -> None:
     
     A_1, A_2 = A
@@ -341,8 +341,8 @@ def plot_tsne_A(A: Tuple[torch.Tensor], labels: Tuple[torch.Tensor], classes: Li
     
     
     
-def plot_new_labeled_tsne(lab: Dict[str, np.ndarray], unlab: Dict[str, np.ndarray], iter: int, method: str, ds_name: str, idxs_new_labels: List[int], 
-                          classes: List[str], time_stamp: str, samp_iter: int, d_labels: Dict[str, int], gtg_result_prediction: np.ndarray = None):
+def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor], iter: int, method: str, ds_name: str, idxs_new_labels: List[int], 
+                          classes: List[str], time_stamp: str, samp_iter: int, d_labels: Dict[str, int], gtg_result_prediction = None):
     
     tsne = TSNE().fit_transform(np.vstack((lab['embedds'].cpu().numpy(), unlab['embedds'].cpu().numpy())))
     tsne_lab, tsne_unlab = tsne[:len(lab['embedds']), :], tsne[len(lab['embedds']):, :]
@@ -391,7 +391,7 @@ def plot_new_labeled_tsne(lab: Dict[str, np.ndarray], unlab: Dict[str, np.ndarra
     
     
     
-def count_class_observation(classes: List[int], dataset: Dataset, topk_idx_obs=None) -> Dict[str, int]:
+def count_class_observation(classes: List[str], dataset: Dataset, topk_idx_obs=None) -> Dict[str, int]:
     if topk_idx_obs == None: labels = [lab for _, _ ,lab in dataset]
     else: labels = [dataset[k][2] for k in topk_idx_obs]
     

@@ -29,7 +29,7 @@ class BALD(Strategies):
 
         self.model.train()
         
-        prob_dist_drop = torch.zeros((n_drop, len(self.unlab_train_dl.dataset), self.n_classes), dtype=torch.float32, device=self.device) 
+        prob_dist_drop = torch.zeros((n_drop, len(self.unlab_train_dl.dataset), self.n_classes), dtype=torch.float32, device=self.device)  # type: ignore
         indices = torch.empty(0, dtype=torch.int8, device=self.device) 
         
         for drop in range(n_drop):
@@ -79,5 +79,5 @@ class BALD(Strategies):
         del res_entropy
         torch.cuda.empty_cache()
         
-        return overall_topk.indices.tolist(), [indices[id].item() for id in overall_topk.indices.tolist()]
+        return overall_topk.indices.tolist(), [int(indices[id].item()) for id in overall_topk.indices.tolist()]
     

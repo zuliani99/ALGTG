@@ -41,7 +41,7 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], epochs: int, c
     test_results = [torch.zeros(4, device=rank) for _ in range(world_size)]
     
     
-    model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], image_size=params['image_size'], num_classes=params['num_classes'], n_channels=params['n_channels']).to(rank)
+    model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], image_size=params['image_size'], num_classes=params['num_classes'], n_channels=params['n_channels']).to(rank) # type: ignore
     model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
     params['model'] = model
     
@@ -104,7 +104,7 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], epochs: int, c
     
 def train(params: Dict[str, Any], epochs: int) -> Tuple[List[float], List[float]]:
     
-    params['model'] = ResNet_Weird(BasicBlock, [2, 2, 2, 2], image_size=params['image_size'], num_classes=params['num_classes'], n_channels=params['n_channels']).to(params['main_device'])
+    params['model'] = ResNet_Weird(BasicBlock, [2, 2, 2, 2], image_size=params['image_size'], num_classes=params['num_classes'], n_channels=params['n_channels']).to(params['main_device']) # type: ignore
     
     params['train_dl'] = DataLoader(params['train_ds'], batch_size=params['batch_size'], shuffle=False, pin_memory=True)
     params['val_dl'] = DataLoader(params['val_ds'], batch_size=params['batch_size'], shuffle=False, pin_memory=True)

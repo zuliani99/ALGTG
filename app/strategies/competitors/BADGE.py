@@ -26,7 +26,7 @@ class BADGE(Strategies):
     def init_centers(self, n_top_k_obs: int) -> List[int]:
         ind = torch.argmax(torch.norm(self.embedds_dict['embedds'], dim=1))
         mu = self.embedds_dict['embedds'][ind].unsqueeze(0)
-        indsAll = [ind.item()]
+        indsAll = [int(ind.item())]
         centInds = [0] * len(self.embedds_dict['embedds'])
         cent = 0
         while len(mu) < n_top_k_obs:
@@ -47,7 +47,7 @@ class BADGE(Strategies):
             
             mu = torch.cat((mu, self.embedds_dict['embedds'][ind].unsqueeze(0)))
             
-            indsAll.append(ind.item())
+            indsAll.append(int(ind.item()))
             cent += 1
             
         return indsAll
@@ -62,7 +62,10 @@ class BADGE(Strategies):
         )
             
         logger.info(' => Getting the unlabeled embeddings')
-        self.embedds_dict = {'embedds': None, 'idxs': None}
+        self.embedds_dict = {
+            'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device),
+            'idxs': torch.empty(0, dtype=torch.int8)
+        }
         self.get_embeddings(self.unlab_train_dl, self.embedds_dict)
         logger.info(' DONE\n')
                         
@@ -71,6 +74,6 @@ class BADGE(Strategies):
         logger.info(' DONE\n')
         
                 
-        return topk_idx_obs, [self.embedds_dict['idxs'][id].item() for id in topk_idx_obs]
+        return topk_idx_obs, [int(self.embedds_dict['idxs'][id].item()) for id in topk_idx_obs]
 
     

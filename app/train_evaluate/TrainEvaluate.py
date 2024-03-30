@@ -1,5 +1,6 @@
 
 import torch
+import torch.distributed as dist
 from torch.utils.data import DataLoader, Subset
 import torch.multiprocessing as mp
 from torchvision.utils import save_image
@@ -32,7 +33,7 @@ class TrainEvaluate(object):
         self.classes = sdl.classes
         
         self.test_ds: DatasetChoice = sdl.test_ds
-        self.val_ds: DatasetChoice = sdl.val_ds
+        self.val_ds: Subset = sdl.val_ds
         
         self.transformed_trainset: DatasetChoice = sdl.transformed_trainset 
         self.non_transformed_trainset: DatasetChoice = sdl.non_transformed_trainset 
@@ -57,7 +58,7 @@ class TrainEvaluate(object):
             batch_size=self.batch_size, shuffle=False, pin_memory=True
         )
         
-        self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], image_size=self.image_size, num_classes=self.n_classes, n_channels=self.n_channels).to(self.device)
+        self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], image_size=self.image_size, num_classes=self.n_classes, n_channels=self.n_channels).to(self.device) # type: ignore
     
         self.world_size = torch.cuda.device_count()
         
@@ -81,24 +82,15 @@ class TrainEvaluate(object):
         
         
         
-    def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, torch.Tensor]) -> None:
+    def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, Any]) -> None:
         
-        if torch.distributed.is_available():
+        if dist.is_available():
             if self.world_size > 1: device = 'cuda:0'
             else: device = 'cuda' 
         else: device = 'cpu'
 
         checkpoint: Dict = torch.load(f'{self.best_check_filename}/best_{self.method_name}_{device}.pth.tar', map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
-        
-        if 'embedds' in dict_to_modify:
-            dict_to_modify['embedds'] = torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device)
-        if 'probs' in dict_to_modify:
-            dict_to_modify['probs'] = torch.empty((0, self.n_classes), dtype=torch.float32)
-        if 'labels' in dict_to_modify:
-            dict_to_modify['labels'] = torch.empty(0, dtype=torch.int8)
-        if 'idxs' in dict_to_modify:
-            dict_to_modify['idxs'] = torch.empty(0, dtype=torch.int8)
         
         self.model.eval()
 
@@ -133,8 +125,14 @@ class TrainEvaluate(object):
         )
         
         # recompute the embedding to plot the tsne
-        lab_embedds_dict = {'embedds': None, 'labels': None}
-        unlab_embedds_dict = {'embedds': None, 'labels': None}
+        lab_embedds_dict = {
+            'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device),
+            'labels': torch.empty(0, dtype=torch.int8)
+        }
+        unlab_embedds_dict = {
+            'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device),
+            'labels': torch.empty(0, dtype=torch.int8)
+        }
             
         logger.info(' Getting the embeddings...')
         self.get_embeddings(self.lab_train_dl, lab_embedds_dict)
@@ -187,7 +185,7 @@ class TrainEvaluate(object):
         
 
 
-    def train_evaluate_save(self, epochs: int, lab_obs: List[int], iter: int, results: Dict[str, List[float]]) -> None:
+    def train_evaluate_save(self, epochs: int, lab_obs: int, iter: int, results: Dict[str, List[float]]) -> None:
                 
         params = {
             'num_classes': self.n_classes, 'n_channels': self.n_channels, 'image_size': self.image_size,
@@ -207,7 +205,7 @@ class TrainEvaluate(object):
             logger.info(' => RUNNING DISTRIBUTED TRAINING')
             
             # spawn the process
-            mp.spawn(train_ddp, args=(self.world_size, params, epochs, child_conn, ), nprocs=self.world_size, join=True)
+            mp.spawn(train_ddp, args=(self.world_size, params, epochs, child_conn, ), nprocs=self.world_size, join=True) # type: ignore
             # obtain the results
             while parent_conn.poll(): train_recv, test_recv = parent_conn.recv()
                 

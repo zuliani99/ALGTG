@@ -2,6 +2,7 @@
 from strategies.Strategies import Strategies
 
 from torch.utils.data import DataLoader, Subset
+import torch
 
 import numpy as np
 from sklearn.cluster import KMeans
@@ -22,7 +23,7 @@ class K_Means(Strategies):
         
                            
         
-    def apply_kmeans(self, n_clusters: int) -> np.ndarray:
+    def apply_kmeans(self, n_clusters: int) -> List[int]:
         unlab_embeddings = self.embedds_dict['embedds'].cpu().numpy()
         
         cluster_learner = KMeans(n_clusters=n_clusters, n_init='auto')
@@ -40,7 +41,7 @@ class K_Means(Strategies):
         ])
 
         
-        return closest_indices
+        return closest_indices.tolist()
     
     
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
@@ -51,7 +52,10 @@ class K_Means(Strategies):
         )
                             
         logger.info(' => Getting the unlabeled embeddings')
-        self.embedds_dict = {'embedds': None, 'idxs': None}
+        self.embedds_dict = {
+            'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device),
+            'idxs': torch.empty(0, dtype=torch.int8)
+        }
         self.get_embeddings(self.unlab_train_dl, self.embedds_dict)
         logger.info(' DONE\n')
             
@@ -60,5 +64,5 @@ class K_Means(Strategies):
         logger.info(' DONE\n')
         
                 
-        return topk_idx_obs, [self.embedds_dict['idxs'][id].item() for id in topk_idx_obs]
+        return topk_idx_obs, [int(self.embedds_dict['idxs'][id].item()) for id in topk_idx_obs]
     

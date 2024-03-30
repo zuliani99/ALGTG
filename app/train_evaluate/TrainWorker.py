@@ -18,13 +18,13 @@ from typing import Tuple, Dict, Any
 
 
 class TrainWorker():
-    def __init__(self, gpu_id: str, params: Dict[str, Any], world_size: int = 1) -> None:
+    def __init__(self, gpu_id: int, params: Dict[str, Any], world_size: int = 1) -> None:
         
         self.device = torch.device(gpu_id)
         
         self.LL: bool = params['LL']
-        self.world_size = world_size
-        self.patience: int = params['patience'],
+        self.world_size: int = world_size
+        self.patience = params['patience'],
         self.model: ResNet_Weird = params['model']
         
         self.dataset_name: str = params['dataset_name']
@@ -36,7 +36,7 @@ class TrainWorker():
         
         
         self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none').to(self.device)
-        self.score_fn: function = params['score_fn']
+        self.score_fn = params['score_fn']
         self.loss_weird = LearningLoss(self.device).to(self.device)
         
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
@@ -69,7 +69,7 @@ class TrainWorker():
 
 
 
-    def compute_losses(self, weight: int, out_weird: torch.Tensor, outputs: torch.Tensor, \
+    def compute_losses(self, weight: float, out_weird: torch.Tensor, outputs: torch.Tensor, \
         labels: torch.Tensor, tot_loss_ce: float, tot_loss_weird: float) -> Tuple[torch.Tensor, float, float]:
         
         loss_ce = self.loss_fn(outputs, labels)
@@ -90,7 +90,7 @@ class TrainWorker():
 
 
 
-    def evaluate(self, dataloader: DataLoader, weight: int) -> Tuple[float, float, float, float]:
+    def evaluate(self, dataloader: DataLoader, weight: float) -> Tuple[float, float, float, float]:
                 
         tot_loss, tot_loss_ce, tot_loss_weird, tot_accuracy = .0, .0, .0, .0
         
@@ -135,7 +135,7 @@ class TrainWorker():
 
             
             if self.world_size > 1:
-                self.train_dl.sampler.set_epoch(epoch)
+                self.train_dl.sampler.set_epoch(epoch) # type: ignore
             self.model.train()
             
                         

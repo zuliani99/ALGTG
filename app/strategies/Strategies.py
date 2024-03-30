@@ -32,10 +32,12 @@ class Strategies(TrainEvaluate):
         seed = self.dataset_id * (self.samp_iter * self.al_iters + (self.iter - 1))
         set_seeds(seed)
         
-        rand_perm_unlabeled = torch.randperm(len(self.unlabeled_indices))
-        logger.info(f' SEED: {seed} - Last 10 permuted indices are: {rand_perm_unlabeled[-10:]}')
-        unlab_perm_subset = Subset(self.non_transformed_trainset, rand_perm_unlabeled[:self.unlab_sample_dim])
-        logger.info(f' SEED: {seed} - With true dataset indices: {unlab_perm_subset.indices[-10:]}')
+        rand_perm = torch.randperm(len(self.unlabeled_indices)).tolist()
+        rand_perm_unlabeled = [self.unlabeled_indices[idx] for idx in rand_perm[:self.unlab_sample_dim]]
+        
+        logger.info(f' SEED: {seed} - Last 10 permuted indices are: {rand_perm[-10:]}')
+        unlab_perm_subset = Subset(self.non_transformed_trainset, rand_perm_unlabeled)
+        logger.info(f' SEED: {seed} - With dataset indices: {unlab_perm_subset.indices[-10:]}')
         
         #reset the original seed
         set_seeds()
