@@ -48,9 +48,8 @@ class TrainEvaluate(object):
 
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
                 
-        # I need the deep copy only of the list of labeled
-        # the ulabeled indices are modified in te Strategies.py file since I have to make a random sample
         self.labeled_indices = copy.deepcopy(sdl.labeled_indices)
+        self.unlabeled_indices = copy.deepcopy(sdl.unlabeled_indices)
         
         
         self.lab_train_dl = DataLoader(
@@ -123,15 +122,14 @@ class TrainEvaluate(object):
         
         
         
-    def save_tsne(self, idx_samp_unlab_obs: int, idxs_new_labels: List[int], \
-                 d_labels: Dict[str, int], al_iter: int, gtg_result_prediction = None) -> None:
+    def save_tsne(self, samp_unlab_subset: Subset, idxs_new_labels: List[int], \
+                  d_labels: Dict[str, int], al_iter: int, gtg_result_prediction = None) -> None:
         # plot the tsne graph for each iteration
         
         logger.info(' => Saving the TSNE embeddings plot with labeled, unlabeled and new labeled observations')
         
         unlab_train_dl = DataLoader(
-            self.unlab_sampled_list[idx_samp_unlab_obs],
-            batch_size=self.batch_size, shuffle=False, pin_memory=True
+            samp_unlab_subset, batch_size=self.batch_size, shuffle=False, pin_memory=True
         )
         
         # recompute the embedding to plot the tsne
@@ -156,7 +154,8 @@ class TrainEvaluate(object):
                 
 
 
-    def update_sets(self, overall_topk: List[int], idx_samp_unlab_obs: int) -> None:
+    #def update_sets(self, overall_topk: List[int], idx_samp_unlab_obs: int) -> None:
+    def update_sets(self, overall_topk: List[int]) -> None:
         
         # save the new labeled images to further visual analysis
         self.save_labeled_images(overall_topk)
@@ -167,11 +166,10 @@ class TrainEvaluate(object):
         self.labeled_indices.extend(overall_topk)
         
         # remove new labeled observations
-        for idx_to_remove in overall_topk: 
-            self.unlab_sampled_list[idx_samp_unlab_obs].indices.remove(idx_to_remove)
+        for idx_to_remove in overall_topk: self.unlabeled_indices.remove(idx_to_remove)
         
         # sanity check
-        if len(list(set(self.unlab_sampled_list[idx_samp_unlab_obs].indices) & set(self.labeled_indices))) == 0:
+        if len(list(set(self.unlabeled_indices) & set(self.labeled_indices))) == 0:
             logger.info(' Intersection between indices is EMPTY')
         else: 
             logger.exception('NON EMPTY INDICES INTERSECTION')
