@@ -82,22 +82,23 @@ class GTG(Strategies):
             # set the unlabeled submatrix as distance matrix and not similarity matrix
             n_lab_obs = len(self.labeled_indices)
                 
-            if self.A_function == 'e_d':
-                # not working, maybe
+            '''if self.A_function == 'e_d':
+                # vascon suggestion
                 A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL -> similarity
                 A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #UU -> similarity
             else:
                 A[:n_lab_obs, n_lab_obs:] = 1 - A[:n_lab_obs, n_lab_obs:] #UL -> distacne
-                A[n_lab_obs:, :n_lab_obs] = 1 - A[n_lab_obs:, :n_lab_obs] #LU -> distance
+                A[n_lab_obs:, :n_lab_obs] = 1 - A[n_lab_obs:, :n_lab_obs] #LU -> distance'''
             
-            '''if self.A_function == 'e_d':
+            if self.A_function == 'e_d':
                 A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL to similarity
                 
             else:
                 A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #UU to distance
                 
                 A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #UL to distance
-                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #LU to distance'''
+                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #LU to distance
+                
                 
             
             # Unlabeled VS Unlabeled -> similarity = A

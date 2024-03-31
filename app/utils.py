@@ -124,7 +124,7 @@ def save_train_val_curves(results_info: Dict[str, Any], ts_dir: str, dataset_nam
             ax[pos].legend()
         
 
-    plt.suptitle(f'AL iter {cicle_iter}.{al_iter} - {results_info["model_name"]}', fontsize = 30)
+    plt.suptitle(f'Iteration: {al_iter} - {results_info["model_name"]}', fontsize = 30)
     plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{results_info["model_name"]}/train_val_plots/{al_iter}.png')
 
 

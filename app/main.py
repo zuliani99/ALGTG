@@ -77,9 +77,6 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, Any], 
     
     methods = [
         
-        
-        
-        
         # Random
         #Random(al_params=al_params, training_params=training_params, LL=False),
         Random(al_params=al_params, training_params=training_params, LL=True),
@@ -108,13 +105,25 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, Any], 
         #BADGE(al_params=al_params, training_params=training_params, LL=True), 
         #BADGE(al_params=al_params, training_params=training_params, LL=True),
         
-        
+        GTG(al_params=al_params, training_params=training_params, 
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
+                'threshold_strategy': None, 'threshold': None
+            }, LL=True),
+        GTG(al_params=al_params, training_params=training_params, 
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
+                'threshold_strategy': None, 'threshold': None
+            }, LL=True),
         GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
                 'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
-                'threshold_strategy': '', 'threshold': 0
+                'threshold_strategy': None, 'threshold': None
             }, LL=True),
+        
     ]
     
 
@@ -154,12 +163,12 @@ def main() -> None:
 
 
     # later added to argparser
-    al_iters = 3#10
+    al_iters = 10
     n_top_k_obs = 1000
     unlab_sample_dim = 10000
     init_lab_obs = 1000
     
-    epochs = 10#200
+    epochs = 200
     batch_size = 128
     patience = 50
     

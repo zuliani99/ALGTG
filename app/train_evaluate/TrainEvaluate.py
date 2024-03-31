@@ -72,7 +72,7 @@ class TrainEvaluate(object):
     
     
     def save_labeled_images(self, new_labeled_idxs: List[int]) -> None:
-        logger.info(' => Saving the new labeled images for further visual analysis...')
+        logger.info(f' => Iteration {self.iter} - Saving the new labeled images for further visual analysis...')
         create_class_dir(self.path, self.iter, self.classes)
         for idx, img, lab in Subset(self.non_transformed_trainset, new_labeled_idxs):
             save_image(
@@ -189,7 +189,7 @@ class TrainEvaluate(object):
                 
         params = {
             'num_classes': self.n_classes, 'n_channels': self.n_channels, 'image_size': self.image_size,
-            'LL': self.LL, 'patience': self.patience, 'dataset_name': self.dataset_name, 'method_name': self.method_name,
+            'LL': self.LL, 'patience': self.patience, 'dataset_name': self.dataset_name, 'method_name': self.method_name, 'iter': iter,
             # the training is done only on the labeled training set
             'train_ds': Subset(self.transformed_trainset, self.labeled_indices), 'val_ds': self.val_ds, 'test_ds': self.test_ds,
             'batch_size': self.batch_size, 'score_fn': self.score_fn, 'main_device': self.device

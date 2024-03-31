@@ -29,7 +29,6 @@ becnhmark_datasets = {
                         v2.ToImage(),
                         v2.RandomCrop(32, padding=4),
                         v2.RandomHorizontalFlip(),
-                        #v2.RandomRotation(15),
                         v2.ToDtype(torch.float32, scale=True),
                         v2.Normalize((0.49139968, 0.48215841, 0.44653091),
                                      (0.24703223, 0.24348513, 0.26158784))
@@ -47,13 +46,34 @@ becnhmark_datasets = {
         'method': datasets.CIFAR100,
         'n_classes': 100,
         'channels': 3,
-        'image_size': 32, 
+        'image_size': 32,
+        'classes' : [
+            'beaver', 'dolphin', 'otter', 'seal', 'whale',
+            'aquarium fish', 'flatfish', 'ray', 'shark', 'trout',
+            'orchids', 'poppies', 'roses', 'sunflowers', 'tulips',
+            'bottles', 'bowls', 'cans', 'cups', 'plates',
+            'apples', 'mushrooms', 'oranges', 'pears', 'sweet peppers',
+            'clock', 'computer keyboard', 'lamp', 'telephone', 'television',
+            'bed', 'chair', 'couch', 'table', 'wardrobe',
+            'bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach',
+            'bear', 'leopard', 'lion', 'tiger', 'wolf',
+            'bridge', 'castle', 'house', 'road', 'skyscraper',
+            'cloud', 'forest', 'mountain', 'plain', 'sea',
+            'camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo',
+            'fox', 'porcupine', 'possum', 'raccoon', 'skunk',
+            'crab', 'lobster', 'snail', 'spider', 'worm',
+            'baby', 'boy', 'girl', 'man', 'woman',
+            'crocodile', 'dinosaur', 'lizard', 'snake', 'turtle',
+            'hamster', 'mouse', 'rabbit', 'shrew', 'squirrel',
+            'maple', 'oak', 'palm', 'pine', 'willow',
+            'bicycle', 'bus', 'motorcycle', 'pickup truck', 'train',
+            'lawn-mower', 'rocket', 'streetcar', 'tank', 'tractor'
+        ],
         'transforms': {
             'train': v2.Compose([
                         v2.ToImage(),
                         v2.RandomCrop(32, padding=4),
                         v2.RandomHorizontalFlip(),
-                        #v2.RandomRotation(15),
                         v2.ToDtype(torch.float32, scale=True),
                         v2.Normalize((0.50707516, 0.48654887, 0.44091784),
                                      (0.26733429, 0.25643846, 0.27615047))
@@ -72,12 +92,12 @@ becnhmark_datasets = {
         'method': datasets.SVHN,
         'channels': 3,
         'image_size': 32, 
+        'classes': ['0','1','2','3','4','5','6','7','8','9'],
         'transforms': {
             'train': v2.Compose([
                         v2.ToImage(),
                         v2.RandomCrop(32, padding=4),
                         v2.RandomHorizontalFlip(),
-                        #v2.RandomRotation(15),
                         v2.ToDtype(torch.float32, scale=True),
                         v2.Normalize((0.4376821 , 0.4437697 , 0.47280442),
                                      (0.19803012, 0.20101562, 0.19703614))
@@ -100,7 +120,6 @@ becnhmark_datasets = {
                         v2.ToImage(),
                         v2.RandomCrop(64, padding=4),
                         v2.RandomHorizontalFlip(),
-                        #v2.RandomRotation(15),
                         v2.ToDtype(torch.float32, scale=True),
                         v2.Normalize((0.48042979, 0.44819701, 0.39755623),
                                      (0.27643974, 0.26888656, 0.28166852))

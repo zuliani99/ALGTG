@@ -106,7 +106,7 @@ def train(params: Dict[str, Any], epochs: int) -> Tuple[List[float], List[float]
     
     params['model'] = ResNet_Weird(BasicBlock, [2, 2, 2, 2], image_size=params['image_size'], num_classes=params['num_classes'], n_channels=params['n_channels']).to(params['main_device']) # type: ignore
     
-    params['train_dl'] = DataLoader(params['train_ds'], batch_size=params['batch_size'], shuffle=False, pin_memory=True)
+    params['train_dl'] = DataLoader(params['train_ds'], batch_size=params['batch_size'], shuffle=True, pin_memory=True)
     params['val_dl'] = DataLoader(params['val_ds'], batch_size=params['batch_size'], shuffle=False, pin_memory=True)
     params['test_dl'] = DataLoader(params['test_ds'], batch_size=params['batch_size'], shuffle=False, pin_memory=True)
     

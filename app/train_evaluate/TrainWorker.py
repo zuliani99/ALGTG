@@ -21,10 +21,11 @@ class TrainWorker():
     def __init__(self, gpu_id: int, params: Dict[str, Any], world_size: int = 1) -> None:
         
         self.device = torch.device(gpu_id)
+        self.iter: int = params['iter']
         
         self.LL: bool = params['LL']
         self.world_size: int = world_size
-        self.patience = params['patience'],
+        self.patience: int = params['patience'],
         self.model: ResNet_Weird = params['model']
         
         self.dataset_name: str = params['dataset_name']
@@ -43,10 +44,13 @@ class TrainWorker():
         self.init_check_filename = f'{self.best_check_filename}_init_checkpoint.pth.tar'
         
 
+
         self.model.apply(init_weights_apply)
-            
+        
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[160], gamma=0.1)
+
+        ###############
         #self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
 
     
@@ -64,8 +68,13 @@ class TrainWorker():
     def __load_checkpoint(self, filename: str) -> None:
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.module.load_state_dict(checkpoint['state_dict']) if self.world_size > 1 else self.model.load_state_dict(checkpoint['state_dict'])
-        self.optimizer.load_state_dict(checkpoint['optimizer'])
-        self.scheduler.load_state_dict(checkpoint['scheduler'])
+        #self.optimizer.load_state_dict(checkpoint['optimizer'])
+        #self.scheduler.load_state_dict(checkpoint['scheduler'])
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
+        self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[160], gamma=0.1)
+        
+        #self.optimizer.reset_parameters()
+        #self.scehduler.reset_parameters()
 
 
 
@@ -126,6 +135,11 @@ class TrainWorker():
         check_best_path = f'{self.best_check_filename}/best_{self.method_name}_{self.device}.pth.tar'
         best_val_accuracy = 0.0
         results = torch.zeros((8, epochs), device=self.device)
+        
+        
+        if self.iter > 1:
+            self.__load_checkpoint(check_best_path)
+                    
     
         for epoch in range(epochs):
 
@@ -134,8 +148,7 @@ class TrainWorker():
             if self.LL and epoch == 121: weight = 0
 
             
-            if self.world_size > 1:
-                self.train_dl.sampler.set_epoch(epoch) # type: ignore
+            if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore
             self.model.train()
             
                         
@@ -177,10 +190,11 @@ class TrainWorker():
                 results[pos][epoch] = metric
                 
             
-            if(val_accuracy > best_val_accuracy):
-                best_val_accuracy = val_accuracy
+            #if(val_accuracy > best_val_accuracy):
+            #    best_val_accuracy = val_accuracy
                 
-                self.__save_checkpoint(check_best_path)
+            #    self.__save_checkpoint(check_best_path)
+            self.__save_checkpoint(check_best_path)
                 
         
         

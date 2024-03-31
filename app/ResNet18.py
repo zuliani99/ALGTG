@@ -111,9 +111,28 @@ class LearningLoss(nn.Module):
         super(LearningLoss, self).__init__()
         self.margin = margin
         self.device = device
+        
+        
+    def forward(self, inputs: torch.Tensor, targets: torch.Tensor):
+        mid = inputs.shape[0] // 2
+
+        pred_lossi = inputs[:mid].squeeze()
+        target_lossi = targets[:mid]
+
+        pred_lossj = inputs[mid:].squeeze()
+        target_lossj = targets[mid:]
+        
+        final_target = torch.sign(target_lossi - target_lossj).to(self.device)
+        
+        loss = F.margin_ranking_loss(pred_lossi, pred_lossj, final_target, margin=self.margin)
+                        
+        return 2 * loss
 
 
-    def forward(self, output: torch.Tensor, real_loss: torch.Tensor) -> torch.Tensor:
+
+
+
+    '''def forward(self, output: torch.Tensor, real_loss: torch.Tensor) -> torch.Tensor:
         output = output.squeeze()
         
         mid = output.shape[0] // 2
@@ -137,6 +156,6 @@ class LearningLoss(nn.Module):
         greater_than_zero = greater_than_zero.long()#type(torch.FloatTensor)
         greater_than_zero = greater_than_zero.to(self.device)
         loss = calc_loss * greater_than_zero
-        return torch.mean(loss)
+        return torch.mean(loss)'''
 
 
