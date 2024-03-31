@@ -68,8 +68,7 @@ class TrainWorker():
     def __load_checkpoint(self, filename: str) -> None:
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.module.load_state_dict(checkpoint['state_dict']) if self.world_size > 1 else self.model.load_state_dict(checkpoint['state_dict'])
-        #self.optimizer.load_state_dict(checkpoint['optimizer'])
-        #self.scheduler.load_state_dict(checkpoint['scheduler'])
+
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[160], gamma=0.1)
         
@@ -133,8 +132,7 @@ class TrainWorker():
                 
         weight = 1.
         check_best_path = f'{self.best_check_filename}/best_{self.method_name}_{self.device}.pth.tar'
-        best_val_accuracy = 0.0
-        results = torch.zeros((8, epochs), device=self.device)
+        results = torch.zeros((4, epochs), device=self.device)
         
         
         if self.iter > 1:
@@ -177,23 +175,13 @@ class TrainWorker():
             
 
             
-            for pos, metric in zip(range(4), [train_loss, train_loss_ce, train_loss_weird, train_accuracy]):
+            #for pos, metric in zip(range(4), [train_loss, train_loss_ce, train_loss_weird, train_accuracy]):
+            for pos, metric in zip(range(results.shape[0]), [train_loss, train_loss_ce, train_loss_weird, train_accuracy]):
                 results[pos][epoch] = metric
-            
-            # evaluating using the validation set
-            val_accuracy, val_loss, val_loss_ce, val_loss_weird = self.evaluate(self.val_dl, weight)
-            
+
             #MultiStepLR
             self.scheduler.step()
             
-            for pos, metric in zip(range(4,8), [val_loss, val_loss_ce, val_loss_weird, val_accuracy]):
-                results[pos][epoch] = metric
-                
-            
-            #if(val_accuracy > best_val_accuracy):
-            #    best_val_accuracy = val_accuracy
-                
-            #    self.__save_checkpoint(check_best_path)
             self.__save_checkpoint(check_best_path)
                 
         

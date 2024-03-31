@@ -183,7 +183,8 @@ def main() -> None:
             logger.info(f'----------------------- SAMPLE ITERATION {samp_iter + 1} / {sample_iterations} -----------------------\n')
             
             create_ts_dir(timestamp, dataset_name, str(samp_iter))
-            DatasetChoice = SubsetDataloaders(dataset_name, batch_size, val_rateo=0.2, init_lab_obs=init_lab_obs)
+            #DatasetChoice = SubsetDataloaders(dataset_name, batch_size, val_rateo=0.2, init_lab_obs=init_lab_obs)
+            DatasetChoice = SubsetDataloaders(dataset_name, batch_size, init_lab_obs=init_lab_obs)
             
             logger.info('\n')
             

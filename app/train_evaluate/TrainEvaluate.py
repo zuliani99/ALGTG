@@ -33,7 +33,7 @@ class TrainEvaluate(object):
         self.classes = sdl.classes
         
         self.test_ds: DatasetChoice = sdl.test_ds
-        self.val_ds: Subset = sdl.val_ds
+        #self.val_ds: Subset = sdl.val_ds
         
         self.transformed_trainset: DatasetChoice = sdl.transformed_trainset 
         self.non_transformed_trainset: DatasetChoice = sdl.non_transformed_trainset 
@@ -185,13 +185,13 @@ class TrainEvaluate(object):
         
 
 
-    def train_evaluate_save(self, epochs: int, lab_obs: int, iter: int, results: Dict[str, List[float]]) -> None:
+    def train_evaluate_save(self, epochs: int, lab_obs: int, iter: int, results: Dict[str, List[float]]) -> Dict[str, Any]:
                 
         params = {
             'num_classes': self.n_classes, 'n_channels': self.n_channels, 'image_size': self.image_size,
             'LL': self.LL, 'patience': self.patience, 'dataset_name': self.dataset_name, 'method_name': self.method_name, 'iter': iter,
             # the training is done only on the labeled training set
-            'train_ds': Subset(self.transformed_trainset, self.labeled_indices), 'val_ds': self.val_ds, 'test_ds': self.test_ds,
+            'train_ds': Subset(self.transformed_trainset, self.labeled_indices), 'test_ds': self.test_ds,
             'batch_size': self.batch_size, 'score_fn': self.score_fn, 'main_device': self.device
         }
         
@@ -219,13 +219,8 @@ class TrainEvaluate(object):
         logger.info(' DONE\n')
         
         train_results = {
-            'model_name': self.method_name, 
-            'results': {
-                    'train_loss': train_recv[0], 'train_loss_ce': train_recv[1],
-                    'train_loss_weird': train_recv[2], 'train_accuracy': train_recv[3], 
-                    'val_loss': train_recv[4], 'val_loss_ce': train_recv[5],
-                    'val_loss_weird': train_recv[6], 'val_accuracy': train_recv[7]
-                }
+            'train_loss': train_recv[0], 'train_loss_ce': train_recv[1],
+            'train_loss_weird': train_recv[2], 'train_accuracy': train_recv[3], 
         }
              
         test_accuracy, test_loss, test_loss_ce, test_loss_weird = test_recv
@@ -245,7 +240,7 @@ class TrainEvaluate(object):
             values = [self.method_name, self.samp_iter, lab_obs, test_accuracy, test_loss, test_loss_ce, test_loss_weird]
         )
         
-        save_train_val_curves(train_results, self.timestamp, self.dataset_name, iter, self.samp_iter, self.LL)
+        save_train_val_curves(train_results, self.method_name, self.timestamp, self.dataset_name, iter, self.samp_iter, self.LL)
 
-        
+        return train_results
         

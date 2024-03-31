@@ -137,7 +137,8 @@ becnhmark_datasets = {
 
 class SubsetDataloaders():
     
-    def __init__(self, dataset_name: str, batch_size: int, val_rateo: float, init_lab_obs: int) -> None:
+    #def __init__(self, dataset_name: str, batch_size: int, val_rateo: float, init_lab_obs: int) -> None:
+    def __init__(self, dataset_name: str, batch_size: int, init_lab_obs: int) -> None:
         self.batch_size = batch_size
         
         self.transformed_trainset = DatasetChoice(dataset_name=dataset_name, bool_train=True, bool_transform=True)
@@ -151,34 +152,25 @@ class SubsetDataloaders():
         self.image_size: int = becnhmark_datasets[dataset_name]['image_size']
         self.classes: List[str] = becnhmark_datasets[dataset_name]['classes']
     
-        self.get_initial_subsets(val_rateo, init_lab_obs)
+        #self.get_initial_subsets(val_rateo, init_lab_obs)
+        self.get_initial_subsets(init_lab_obs)
     
     
     
-    def get_initial_subsets(self, val_rateo: float, init_lab_obs: int) -> None:
+    #def get_initial_subsets(self, val_rateo: float, init_lab_obs: int) -> None:
+    def get_initial_subsets(self, init_lab_obs: int) -> None:
 
         train_size = len(self.transformed_trainset)
-
-        # computing the size for the train and validation sets
-        val_size = int(train_size * val_rateo)
-        new_train_size = train_size - val_size
         
         # random shuffle of the train indices
         shuffled_indices = torch.randperm(train_size)
         # each time should be a new shuffle, thus a new train-validation, labeled-unlabeled split
-                        
-        # indices for the train and validation sets
-        train_indices = shuffled_indices[:new_train_size]
-        validation_indices = shuffled_indices[new_train_size:]
-        
-        logger.info(f' Last 5 shuffled train observations: {train_indices[-5:]}')
-                    
-        # validation dataset
-        self.val_ds = Subset(self.non_transformed_trainset, validation_indices.tolist())
 
-        # indices for the labeled and unlabeled sets      
-        self.labeled_indices: List[int] = train_indices[:init_lab_obs].tolist()
-        self.unlabeled_indices: List[int] = train_indices[init_lab_obs:].tolist()
+        logger.info(f' Last 5 shuffled train observations: {shuffled_indices[-5:]}')
+
+        # indices for the labeled and unlabeled sets
+        self.labeled_indices: List[int] = shuffled_indices[:init_lab_obs].tolist()
+        self.unlabeled_indices: List[int] = shuffled_indices[init_lab_obs:].tolist()
 
     
 

@@ -63,38 +63,22 @@ def plot_loss_curves(methods_results: Dict[str, List[float]], n_lab_obs: List[in
     
     
     
-def save_train_val_curves(results_info: Dict[str, Any], ts_dir: str, dataset_name: str, al_iter: int, \
+def save_train_val_curves(results_info: Dict[str, Any], method_name: str,  ts_dir: str, dataset_name: str, al_iter: int, \
                          cicle_iter: int, flag_LL: bool) -> None:
 
-    res = results_info['results']
-    epochs = range(1, len(res['train_loss']) + 1)
+    epochs = range(1, len(results_info['train_loss']) + 1)
 
-    if flag_LL: _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
-    else: _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
-        
-    minloss_val = min(res['val_loss'])
-    minloss_ep = res['val_loss'].index(minloss_val) + 1
-
-    maxacc_val = max(res['val_accuracy'])
-    maxacc_ep = res['val_accuracy'].index(maxacc_val) + 1
-    
     if flag_LL:
+        _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
         
         data = [
-            [(0,0), 'train_loss', 'val_loss', minloss_ep, minloss_val, 'Total Loss', 'Min Loss'],
-            [(0,1), 'train_accuracy', 'val_accuracy', maxacc_ep, maxacc_val, 'Accuracy Score', 'Max Accuracy'],
-            [(1,0), 'train_loss_ce', 'val_loss_ce', None, None, 'CE Loss', None],
-            [(1,1), 'train_loss_weird', 'val_loss_weird',  None, None, 'Loss Weird', None]
+            [(0,0), 'train_loss', 'Total Loss'], [(0,1), 'train_accuracy', 'Accuracy Score'],
+            [(1,0), 'train_loss_ce', 'CE Loss'], [(1,1), 'train_loss_weird', 'Loss Weird']
         ]
         
-        for (pos1, pos2), train_mes, val_mes, pos_mes_ep, pos_mes_val, title, label_line in data:
-            ax[pos1][pos2].plot(epochs, res[train_mes], label = train_mes)
-            ax[pos1][pos2].plot(epochs, res[val_mes], label = val_mes)
+        for (pos1, pos2), train_mes, title in data:
+            ax[pos1][pos2].plot(epochs, results_info[train_mes], label = train_mes)
             if not (pos1 == 0 and pos2 ==1): ax[pos1][pos2].set_ylim([0, 5])
-            
-            if pos1 == 0:
-                ax[pos1][pos2].axvline(pos_mes_ep, linestyle='--', color='r', label=label_line)
-                ax[pos1][pos2].axhline(pos_mes_val, linestyle='--', color='r')
             
             ax[pos1][pos2].set_title(f'{title} - Epochs')
             ax[pos1][pos2].set_xlabel('Epochs')
@@ -102,21 +86,15 @@ def save_train_val_curves(results_info: Dict[str, Any], ts_dir: str, dataset_nam
             ax[pos1][pos2].grid()
             ax[pos1][pos2].legend()
         
-        
+    else: 
+        _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
     
-    else:        
-        data = [
-            ['train_loss', 'val_loss', minloss_ep, minloss_val, 'Total Loss', 'Min Loss'],
-            ['train_accuracy', 'val_accuracy', maxacc_ep, maxacc_val, 'Accuracy Score', 'Max Accuracy'],
-        ]
+        data = [ ['train_loss', 'Total Loss'], ['train_accuracy', 'Accuracy Score'] ]
         
-        for pos, (train_mes, val_mes, pos_mes_ep, pos_mes_val, title, label_line) in enumerate(data):
-            ax[pos].plot(epochs, res[train_mes], label = train_mes)
-            ax[pos].plot(epochs, res[val_mes], label = val_mes)
+        for pos, (train_mes, title) in enumerate(data):
+            ax[pos].plot(epochs, results_info[train_mes], label = train_mes)
             if pos == 0: ax[pos].set_ylim([0, 5])
-            ax[pos].axvline(pos_mes_ep, linestyle='--', color='r', label=label_line)
 
-            ax[pos].axhline(pos_mes_val, linestyle='--', color='r')
             ax[pos].set_title(f'{title} - Epochs')
             ax[pos].set_xlabel('Epochs')
             ax[pos].set_ylabel(title)
@@ -124,8 +102,55 @@ def save_train_val_curves(results_info: Dict[str, Any], ts_dir: str, dataset_nam
             ax[pos].legend()
         
 
-    plt.suptitle(f'Iteration: {al_iter} - {results_info["model_name"]}', fontsize = 30)
-    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{results_info["model_name"]}/train_val_plots/{al_iter}.png')
+    plt.suptitle(f'Iteration: {al_iter} - {method_name}', fontsize = 30)
+    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{method_name}/train_val_plots/{al_iter}.png')
+
+
+
+def print_cumulative_train_results(cum_train_results: Dict[int, Any], method_name: str, epochs: int, ts_dir: str, dataset_name: str, cicle_iter: int, flag_LL: bool):
+
+    if flag_LL:
+        _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
+        
+        data = [
+            [(0,0), 'train_loss', 'Total Loss'], [(0,1), 'train_accuracy', 'Accuracy Score'],
+            [(1,0), 'train_loss_ce', 'CE Loss'], [(1,1), 'train_loss_weird', 'Loss Weird']
+        ]
+        
+        for iter, results_info in cum_train_results.items():
+            res = results_info['results']
+            for (pos1, pos2), train_mes, title in data:
+                ax[pos1][pos2].plot(epochs, res[train_mes], label = f'{train_mes}_{iter}')
+                if not (pos1 == 0 and pos2 ==1): ax[pos1][pos2].set_ylim([0, 5])
+                
+                ax[pos1][pos2].set_title(f'{title} - Epochs')
+                ax[pos1][pos2].set_xlabel('Epochs')
+                ax[pos1][pos2].set_ylabel(title)
+                ax[pos1][pos2].grid()
+                ax[pos1][pos2].legend()
+
+    
+    else:
+        _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
+        
+        data = [ ['train_loss', 'Total Loss'], ['train_accuracy', 'Accuracy Score'] ]
+        
+        for iter, results_info in cum_train_results.items():
+            res = results_info['results']
+            
+            for pos, (train_mes, title) in enumerate(data):
+                ax[pos].plot(epochs, res[train_mes], label = f'{train_mes}_{iter}')
+                if pos == 0: ax[pos].set_ylim([0, 5])
+
+                ax[pos].set_title(f'{title} - Epochs')
+                ax[pos].set_xlabel('Epochs')
+                ax[pos].set_ylabel(title)
+                ax[pos].grid()
+                ax[pos].legend()
+        
+
+    plt.suptitle(f'Cumulative Train Results - {method_name}', fontsize = 30)
+    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{method_name}/train_val_plots/cumulative_train_results.png')
 
 
 

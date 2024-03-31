@@ -1,5 +1,5 @@
 
-from utils import count_class_observation, set_seeds
+from utils import count_class_observation, print_cumulative_train_results, set_seeds
 from train_evaluate.TrainEvaluate import TrainEvaluate
 
 from torch.utils.data import Subset
@@ -24,6 +24,7 @@ class Strategies(TrainEvaluate):
         self.al_iters: int = al_params['al_iters']
         self.n_top_k_obs: int = al_params['n_top_k_obs']
         self.unlab_sample_dim: int = al_params['unlab_sample_dim']
+        self.train_results: Dict[int, Any] = {}
         
     
     
@@ -52,7 +53,7 @@ class Strategies(TrainEvaluate):
         
         logger.info(f'----------------------- ITERATION {self.iter} / {self.al_iters} -----------------------\n')
         
-        self.train_evaluate_save(epochs, self.n_top_k_obs, self.iter, results)
+        self.train_results[self.iter] = self.train_evaluate_save(epochs, self.n_top_k_obs, self.iter, results)
         
         
         # start of the loop
@@ -85,7 +86,10 @@ class Strategies(TrainEvaluate):
             self.update_sets(topk_idx_obs)
 
             # iter + 1
-            self.train_evaluate_save(epochs, self.iter * self.n_top_k_obs, self.iter, results)
+            self.train_results[self.iter] = self.train_evaluate_save(epochs, self.iter * self.n_top_k_obs, self.iter, results)
             
-            
+        # plotting the cumulative train results
+        print_cumulative_train_results(self.train_results, self.method_name, epochs, self.timestamp, self.dataset_name, self.samp_iter, self.LL)            
+        
+        
         return results
