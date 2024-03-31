@@ -50,8 +50,11 @@ class CoreSet(Strategies):
         )
             
         logger.info(' => Getting the labeled and unlabeled embeddings')
-        self.lab_embedds_dict = {'embedds': None}
-        self.unlab_embedds_dict = {'embedds': None, 'idxs': None}
+        self.lab_embedds_dict = {'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device)}
+        self.unlab_embedds_dict = {
+            'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device),
+            'idxs': torch.empty(0, dtype=torch.int8)
+        }
             
         self.get_embeddings(self.lab_train_dl, self.lab_embedds_dict)
         self.get_embeddings(self.unlab_train_dl, self.unlab_embedds_dict)
@@ -64,5 +67,5 @@ class CoreSet(Strategies):
         del self.lab_embedds_dict
         torch.cuda.empty_cache()
         
-        return topk_idx_obs, [self.unlab_embedds_dict['idxs'][id].item() for id in topk_idx_obs]
+        return topk_idx_obs, [int(self.unlab_embedds_dict['idxs'][id].item()) for id in topk_idx_obs]
     

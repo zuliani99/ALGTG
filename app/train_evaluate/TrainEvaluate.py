@@ -1,5 +1,6 @@
 
 import torch
+import torch.distributed as dist
 from torch.utils.data import DataLoader, Subset
 import torch.multiprocessing as mp
 from torchvision.utils import save_image
@@ -32,7 +33,7 @@ class TrainEvaluate(object):
         self.classes = sdl.classes
         
         self.test_ds: DatasetChoice = sdl.test_ds
-        self.val_ds: DatasetChoice = sdl.val_ds
+        self.val_ds: Subset = sdl.val_ds
         
         self.transformed_trainset: DatasetChoice = sdl.transformed_trainset 
         self.non_transformed_trainset: DatasetChoice = sdl.non_transformed_trainset 
@@ -48,9 +49,8 @@ class TrainEvaluate(object):
 
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
                 
-        # I need the deep copy only of the list of labeled
-        # the ulabeled indices are modified in te Strategies.py file since I have to make a random sample
         self.labeled_indices = copy.deepcopy(sdl.labeled_indices)
+        self.unlabeled_indices = copy.deepcopy(sdl.unlabeled_indices)
         
         
         self.lab_train_dl = DataLoader(
@@ -58,7 +58,7 @@ class TrainEvaluate(object):
             batch_size=self.batch_size, shuffle=False, pin_memory=True
         )
         
-        self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], image_size=self.image_size, num_classes=self.n_classes, n_channels=self.n_channels).to(self.device)
+        self.model = ResNet_Weird(BasicBlock, [2, 2, 2, 2], image_size=self.image_size, num_classes=self.n_classes, n_channels=self.n_channels).to(self.device) # type: ignore
     
         self.world_size = torch.cuda.device_count()
         
@@ -72,7 +72,7 @@ class TrainEvaluate(object):
     
     
     def save_labeled_images(self, new_labeled_idxs: List[int]) -> None:
-        logger.info(' => Saving the new labeled images for further visual analysis...')
+        logger.info(f' => Iteration {self.iter} - Saving the new labeled images for further visual analysis...')
         create_class_dir(self.path, self.iter, self.classes)
         for idx, img, lab in Subset(self.non_transformed_trainset, new_labeled_idxs):
             save_image(
@@ -82,24 +82,15 @@ class TrainEvaluate(object):
         
         
         
-    def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, torch.Tensor]) -> None:
+    def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, Any]) -> None:
         
-        if torch.distributed.is_available():
+        if dist.is_available():
             if self.world_size > 1: device = 'cuda:0'
             else: device = 'cuda' 
         else: device = 'cpu'
 
         checkpoint: Dict = torch.load(f'{self.best_check_filename}/best_{self.method_name}_{device}.pth.tar', map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
-        
-        if 'embedds' in dict_to_modify:
-            dict_to_modify['embedds'] = torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device)
-        if 'probs' in dict_to_modify:
-            dict_to_modify['probs'] = torch.empty((0, self.n_classes), dtype=torch.float32)
-        if 'labels' in dict_to_modify:
-            dict_to_modify['labels'] = torch.empty(0, dtype=torch.int8)
-        if 'idxs' in dict_to_modify:
-            dict_to_modify['idxs'] = torch.empty(0, dtype=torch.int8)
         
         self.model.eval()
 
@@ -123,20 +114,25 @@ class TrainEvaluate(object):
         
         
         
-    def save_tsne(self, idx_samp_unlab_obs: int, idxs_new_labels: List[int], \
-                 d_labels: Dict[str, int], al_iter: int, gtg_result_prediction = None) -> None:
+    def save_tsne(self, samp_unlab_subset: Subset, idxs_new_labels: List[int], \
+                  d_labels: Dict[str, int], al_iter: int, gtg_result_prediction = None) -> None:
         # plot the tsne graph for each iteration
         
         logger.info(' => Saving the TSNE embeddings plot with labeled, unlabeled and new labeled observations')
         
         unlab_train_dl = DataLoader(
-            self.unlab_sampled_list[idx_samp_unlab_obs],
-            batch_size=self.batch_size, shuffle=False, pin_memory=True
+            samp_unlab_subset, batch_size=self.batch_size, shuffle=False, pin_memory=True
         )
         
         # recompute the embedding to plot the tsne
-        lab_embedds_dict = {'embedds': None, 'labels': None}
-        unlab_embedds_dict = {'embedds': None, 'labels': None}
+        lab_embedds_dict = {
+            'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device),
+            'labels': torch.empty(0, dtype=torch.int8)
+        }
+        unlab_embedds_dict = {
+            'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device),
+            'labels': torch.empty(0, dtype=torch.int8)
+        }
             
         logger.info(' Getting the embeddings...')
         self.get_embeddings(self.lab_train_dl, lab_embedds_dict)
@@ -156,7 +152,8 @@ class TrainEvaluate(object):
                 
 
 
-    def update_sets(self, overall_topk: List[int], idx_samp_unlab_obs: int) -> None:
+    #def update_sets(self, overall_topk: List[int], idx_samp_unlab_obs: int) -> None:
+    def update_sets(self, overall_topk: List[int]) -> None:
         
         # save the new labeled images to further visual analysis
         self.save_labeled_images(overall_topk)
@@ -167,11 +164,10 @@ class TrainEvaluate(object):
         self.labeled_indices.extend(overall_topk)
         
         # remove new labeled observations
-        for idx_to_remove in overall_topk: 
-            self.unlab_sampled_list[idx_samp_unlab_obs].indices.remove(idx_to_remove)
+        for idx_to_remove in overall_topk: self.unlabeled_indices.remove(idx_to_remove)
         
         # sanity check
-        if len(list(set(self.unlab_sampled_list[idx_samp_unlab_obs].indices) & set(self.labeled_indices))) == 0:
+        if len(list(set(self.unlabeled_indices) & set(self.labeled_indices))) == 0:
             logger.info(' Intersection between indices is EMPTY')
         else: 
             logger.exception('NON EMPTY INDICES INTERSECTION')
@@ -189,11 +185,11 @@ class TrainEvaluate(object):
         
 
 
-    def train_evaluate_save(self, epochs: int, lab_obs: List[int], iter: int, results: Dict[str, List[float]]) -> None:
+    def train_evaluate_save(self, epochs: int, lab_obs: int, iter: int, results: Dict[str, List[float]]) -> None:
                 
         params = {
             'num_classes': self.n_classes, 'n_channels': self.n_channels, 'image_size': self.image_size,
-            'LL': self.LL, 'patience': self.patience, 'dataset_name': self.dataset_name, 'method_name': self.method_name,
+            'LL': self.LL, 'patience': self.patience, 'dataset_name': self.dataset_name, 'method_name': self.method_name, 'iter': iter,
             # the training is done only on the labeled training set
             'train_ds': Subset(self.transformed_trainset, self.labeled_indices), 'val_ds': self.val_ds, 'test_ds': self.test_ds,
             'batch_size': self.batch_size, 'score_fn': self.score_fn, 'main_device': self.device
@@ -209,7 +205,7 @@ class TrainEvaluate(object):
             logger.info(' => RUNNING DISTRIBUTED TRAINING')
             
             # spawn the process
-            mp.spawn(train_ddp, args=(self.world_size, params, epochs, child_conn, ), nprocs=self.world_size, join=True)
+            mp.spawn(train_ddp, args=(self.world_size, params, epochs, child_conn, ), nprocs=self.world_size, join=True) # type: ignore
             # obtain the results
             while parent_conn.poll(): train_recv, test_recv = parent_conn.recv()
                 

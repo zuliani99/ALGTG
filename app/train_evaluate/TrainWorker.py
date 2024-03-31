@@ -18,12 +18,13 @@ from typing import Tuple, Dict, Any
 
 
 class TrainWorker():
-    def __init__(self, gpu_id: str, params: Dict[str, Any], world_size: int = 1) -> None:
+    def __init__(self, gpu_id: int, params: Dict[str, Any], world_size: int = 1) -> None:
         
         self.device = torch.device(gpu_id)
+        self.iter: int = params['iter']
         
         self.LL: bool = params['LL']
-        self.world_size = world_size
+        self.world_size: int = world_size
         self.patience: int = params['patience'],
         self.model: ResNet_Weird = params['model']
         
@@ -36,17 +37,20 @@ class TrainWorker():
         
         
         self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none').to(self.device)
-        self.score_fn: function = params['score_fn']
+        self.score_fn = params['score_fn']
         self.loss_weird = LearningLoss(self.device).to(self.device)
         
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
         self.init_check_filename = f'{self.best_check_filename}_init_checkpoint.pth.tar'
         
 
+
         self.model.apply(init_weights_apply)
-            
+        
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[160], gamma=0.1)
+
+        ###############
         #self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
 
     
@@ -64,12 +68,17 @@ class TrainWorker():
     def __load_checkpoint(self, filename: str) -> None:
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.module.load_state_dict(checkpoint['state_dict']) if self.world_size > 1 else self.model.load_state_dict(checkpoint['state_dict'])
-        self.optimizer.load_state_dict(checkpoint['optimizer'])
-        self.scheduler.load_state_dict(checkpoint['scheduler'])
+        #self.optimizer.load_state_dict(checkpoint['optimizer'])
+        #self.scheduler.load_state_dict(checkpoint['scheduler'])
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
+        self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[160], gamma=0.1)
+        
+        #self.optimizer.reset_parameters()
+        #self.scehduler.reset_parameters()
 
 
 
-    def compute_losses(self, weight: int, out_weird: torch.Tensor, outputs: torch.Tensor, \
+    def compute_losses(self, weight: float, out_weird: torch.Tensor, outputs: torch.Tensor, \
         labels: torch.Tensor, tot_loss_ce: float, tot_loss_weird: float) -> Tuple[torch.Tensor, float, float]:
         
         loss_ce = self.loss_fn(outputs, labels)
@@ -90,7 +99,7 @@ class TrainWorker():
 
 
 
-    def evaluate(self, dataloader: DataLoader, weight: int) -> Tuple[float, float, float, float]:
+    def evaluate(self, dataloader: DataLoader, weight: float) -> Tuple[float, float, float, float]:
                 
         tot_loss, tot_loss_ce, tot_loss_weird, tot_accuracy = .0, .0, .0, .0
         
@@ -126,6 +135,11 @@ class TrainWorker():
         check_best_path = f'{self.best_check_filename}/best_{self.method_name}_{self.device}.pth.tar'
         best_val_accuracy = 0.0
         results = torch.zeros((8, epochs), device=self.device)
+        
+        
+        if self.iter > 1:
+            self.__load_checkpoint(check_best_path)
+                    
     
         for epoch in range(epochs):
 
@@ -134,8 +148,7 @@ class TrainWorker():
             if self.LL and epoch == 121: weight = 0
 
             
-            if self.world_size > 1:
-                self.train_dl.sampler.set_epoch(epoch)
+            if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore
             self.model.train()
             
                         
@@ -177,10 +190,11 @@ class TrainWorker():
                 results[pos][epoch] = metric
                 
             
-            if(val_accuracy > best_val_accuracy):
-                best_val_accuracy = val_accuracy
+            #if(val_accuracy > best_val_accuracy):
+            #    best_val_accuracy = val_accuracy
                 
-                self.__save_checkpoint(check_best_path)
+            #    self.__save_checkpoint(check_best_path)
+            self.__save_checkpoint(check_best_path)
                 
         
         

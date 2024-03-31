@@ -29,16 +29,15 @@ becnhmark_datasets = {
                         v2.ToImage(),
                         v2.RandomCrop(32, padding=4),
                         v2.RandomHorizontalFlip(),
-                        #v2.RandomRotation(15),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(np.array([0.49139968, 0.48215841, 0.44653091]),
-                                     np.array([0.24703223, 0.24348513, 0.26158784]))
+                        v2.Normalize((0.49139968, 0.48215841, 0.44653091),
+                                     (0.24703223, 0.24348513, 0.26158784))
                     ]),
             'test': v2.Compose([
                         v2.ToImage(),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(np.array([0.49139968, 0.48215841, 0.44653091]),
-                                     np.array([0.24703223, 0.24348513, 0.26158784]))
+                        v2.Normalize((0.49139968, 0.48215841, 0.44653091),
+                                     (0.24703223, 0.24348513, 0.26158784))
                     ])
         }
     },
@@ -47,22 +46,43 @@ becnhmark_datasets = {
         'method': datasets.CIFAR100,
         'n_classes': 100,
         'channels': 3,
-        'image_size': 32, 
+        'image_size': 32,
+        'classes' : [
+            'beaver', 'dolphin', 'otter', 'seal', 'whale',
+            'aquarium fish', 'flatfish', 'ray', 'shark', 'trout',
+            'orchids', 'poppies', 'roses', 'sunflowers', 'tulips',
+            'bottles', 'bowls', 'cans', 'cups', 'plates',
+            'apples', 'mushrooms', 'oranges', 'pears', 'sweet peppers',
+            'clock', 'computer keyboard', 'lamp', 'telephone', 'television',
+            'bed', 'chair', 'couch', 'table', 'wardrobe',
+            'bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach',
+            'bear', 'leopard', 'lion', 'tiger', 'wolf',
+            'bridge', 'castle', 'house', 'road', 'skyscraper',
+            'cloud', 'forest', 'mountain', 'plain', 'sea',
+            'camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo',
+            'fox', 'porcupine', 'possum', 'raccoon', 'skunk',
+            'crab', 'lobster', 'snail', 'spider', 'worm',
+            'baby', 'boy', 'girl', 'man', 'woman',
+            'crocodile', 'dinosaur', 'lizard', 'snake', 'turtle',
+            'hamster', 'mouse', 'rabbit', 'shrew', 'squirrel',
+            'maple', 'oak', 'palm', 'pine', 'willow',
+            'bicycle', 'bus', 'motorcycle', 'pickup truck', 'train',
+            'lawn-mower', 'rocket', 'streetcar', 'tank', 'tractor'
+        ],
         'transforms': {
             'train': v2.Compose([
                         v2.ToImage(),
                         v2.RandomCrop(32, padding=4),
                         v2.RandomHorizontalFlip(),
-                        #v2.RandomRotation(15),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(np.array([0.50707516, 0.48654887, 0.44091784]),
-                                     np.array([0.26733429, 0.25643846, 0.27615047]))
+                        v2.Normalize((0.50707516, 0.48654887, 0.44091784),
+                                     (0.26733429, 0.25643846, 0.27615047))
                     ]),
             'test': v2.Compose([
                         v2.ToImage(),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(np.array([0.50707516, 0.48654887, 0.44091784]),
-                                     np.array([0.26733429, 0.25643846, 0.27615047]))
+                        v2.Normalize((0.50707516, 0.48654887, 0.44091784),
+                                     (0.26733429, 0.25643846, 0.27615047))
                     ])
         }
     },
@@ -72,21 +92,21 @@ becnhmark_datasets = {
         'method': datasets.SVHN,
         'channels': 3,
         'image_size': 32, 
+        'classes': ['0','1','2','3','4','5','6','7','8','9'],
         'transforms': {
             'train': v2.Compose([
                         v2.ToImage(),
                         v2.RandomCrop(32, padding=4),
                         v2.RandomHorizontalFlip(),
-                        #v2.RandomRotation(15),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(np.array([0.4376821 , 0.4437697 , 0.47280442]),
-                                     np.array([0.19803012, 0.20101562, 0.19703614]))
+                        v2.Normalize((0.4376821 , 0.4437697 , 0.47280442),
+                                     (0.19803012, 0.20101562, 0.19703614))
                     ]),
             'test': v2.Compose([
                         v2.ToImage(),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(np.array([0.4376821 , 0.4437697 , 0.47280442]),
-                                     np.array([0.19803012, 0.20101562, 0.19703614]))
+                        v2.Normalize((0.4376821 , 0.4437697 , 0.47280442),
+                                     (0.19803012, 0.20101562, 0.19703614))
                     ])
         }
     },
@@ -100,16 +120,15 @@ becnhmark_datasets = {
                         v2.ToImage(),
                         v2.RandomCrop(64, padding=4),
                         v2.RandomHorizontalFlip(),
-                        #v2.RandomRotation(15),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(np.array([0.48042979, 0.44819701, 0.39755623]),
-                                     np.array([0.27643974, 0.26888656, 0.28166852]))
+                        v2.Normalize((0.48042979, 0.44819701, 0.39755623),
+                                     (0.27643974, 0.26888656, 0.28166852))
                     ]),
             'test': v2.Compose([
                         v2.ToImage(),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(np.array([0.48042979, 0.44819701, 0.39755623]),
-                                     np.array([0.27643974, 0.26888656, 0.28166852]))
+                        v2.Normalize((0.48042979, 0.44819701, 0.39755623),
+                                     (0.27643974, 0.26888656, 0.28166852))
                     ])
         }
     }
@@ -118,7 +137,7 @@ becnhmark_datasets = {
 
 class SubsetDataloaders():
     
-    def __init__(self, dataset_name: str, batch_size: int, val_rateo: int, init_lab_obs: int) -> None:
+    def __init__(self, dataset_name: str, batch_size: int, val_rateo: float, init_lab_obs: int) -> None:
         self.batch_size = batch_size
         
         self.transformed_trainset = DatasetChoice(dataset_name=dataset_name, bool_train=True, bool_transform=True)
@@ -127,7 +146,7 @@ class SubsetDataloaders():
         self.test_ds = DatasetChoice(dataset_name=dataset_name, bool_train=False, bool_transform=False)
 
         self.n_classes: int = becnhmark_datasets[dataset_name]['n_classes']
-        self.n_channels: str = becnhmark_datasets[dataset_name]['channels']
+        self.n_channels: int = becnhmark_datasets[dataset_name]['channels']
         self.dataset_id: int = becnhmark_datasets[dataset_name]['id']
         self.image_size: int = becnhmark_datasets[dataset_name]['image_size']
         self.classes: List[str] = becnhmark_datasets[dataset_name]['classes']
@@ -136,7 +155,7 @@ class SubsetDataloaders():
     
     
     
-    def get_initial_subsets(self, val_rateo: int, init_lab_obs: int) -> None:
+    def get_initial_subsets(self, val_rateo: float, init_lab_obs: int) -> None:
 
         train_size = len(self.transformed_trainset)
 
@@ -147,12 +166,12 @@ class SubsetDataloaders():
         # random shuffle of the train indices
         shuffled_indices = torch.randperm(train_size)
         # each time should be a new shuffle, thus a new train-validation, labeled-unlabeled split
-            
-        logger.info(f' Last 5 shuffled observations: {shuffled_indices[-5:]}')
-            
+                        
         # indices for the train and validation sets
         train_indices = shuffled_indices[:new_train_size]
         validation_indices = shuffled_indices[new_train_size:]
+        
+        logger.info(f' Last 5 shuffled train observations: {train_indices[-5:]}')
                     
         # validation dataset
         self.val_ds = Subset(self.non_transformed_trainset, validation_indices.tolist())
@@ -206,7 +225,7 @@ class DatasetChoice(Dataset):
         
         
     def __len__(self) -> int:
-        return len(self.ds)
+        return len(self.ds) # type: ignore
 
 
     def __getitem__(self, index: int) -> Tuple[int, torch.Tensor, int]:

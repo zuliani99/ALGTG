@@ -23,8 +23,8 @@ class Random(Strategies):
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
         logger.info(f' => Sampling K unlabeled observations')
         if(len(sample_unlab_subset.indices) > n_top_k_obs):           
-            sample = random.sample(sample_unlab_subset.indices, n_top_k_obs)
+            sample = list(random.sample(list(sample_unlab_subset.indices), n_top_k_obs))
         else:
-            sample = sample_unlab_subset.indices
+            sample = list(sample_unlab_subset.indices)
         logger.info(' DONE\n')
-        return [sample_unlab_subset.indices.index(item) for item in sample], sample
+        return [list(sample_unlab_subset.indices).index(item) for item in sample], sample

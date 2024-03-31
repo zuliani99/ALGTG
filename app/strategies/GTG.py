@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 class GTG(Strategies):
     
-    def __init__(self, al_params: Dict[str, Any], training_params: Dict[str, Any], gtg_params: Dict[str, int], LL: bool) -> None:
+    def __init__(self, al_params: Dict[str, Any], training_params: Dict[str, Any], gtg_params: Dict[str, Any], LL: bool) -> None:
         
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,
@@ -36,7 +36,7 @@ class GTG(Strategies):
         self.gtg_max_iter: int = gtg_params['gtg_max_iter']
         self.strategy_type: str = gtg_params['strategy_type']
         self.threshold_strategy: str = gtg_params['threshold_strategy']
-        self.threshold: str = gtg_params['threshold']
+        self.threshold: float = gtg_params['threshold']
                 
         str_diag = '0diag' if self.zero_diag else '1diag'
         str_rbf = 'rbf_' if self.rbf_aff else ''
@@ -57,7 +57,7 @@ class GTG(Strategies):
         
         
     
-    def get_A_treshold(self, A: torch.Tensor) -> float:
+    def get_A_treshold(self, A: torch.Tensor) -> Any:
         if self.threshold_strategy == 'mean': return torch.mean(A)
         elif self.threshold_strategy == 'threshold': return self.threshold
         else: return np.quantile(A.cpu().numpy(), self.threshold)
@@ -82,22 +82,23 @@ class GTG(Strategies):
             # set the unlabeled submatrix as distance matrix and not similarity matrix
             n_lab_obs = len(self.labeled_indices)
                 
-            if self.A_function == 'e_d':
-                # not working, maybe
+            '''if self.A_function == 'e_d':
+                # vascon suggestion
                 A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL -> similarity
                 A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #UU -> similarity
             else:
                 A[:n_lab_obs, n_lab_obs:] = 1 - A[:n_lab_obs, n_lab_obs:] #UL -> distacne
-                A[n_lab_obs:, :n_lab_obs] = 1 - A[n_lab_obs:, :n_lab_obs] #LU -> distance
+                A[n_lab_obs:, :n_lab_obs] = 1 - A[n_lab_obs:, :n_lab_obs] #LU -> distance'''
             
-            '''if self.A_function == 'e_d':
+            if self.A_function == 'e_d':
                 A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL to similarity
                 
             else:
                 A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #UU to distance
                 
                 A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #UL to distance
-                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #LU to distance'''
+                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #LU to distance
+                
                 
             
             # Unlabeled VS Unlabeled -> similarity = A
@@ -188,7 +189,7 @@ class GTG(Strategies):
             dtype=torch.float32, device=self.device
         )
 
-        for idx, label in enumerate(self.lab_embedds_dict['labels']): self.X[idx][label.item()] = 1.
+        for idx, label in enumerate(self.lab_embedds_dict['labels']): self.X[idx][int(label.item())] = 1.
         
         for idx in range(len(self.labeled_indices), len(self.labeled_indices) + self.len_unlab_sample):
             for label in range(self.n_classes): self.X[idx][label] = 1. / self.n_classes
@@ -253,8 +254,11 @@ class GTG(Strategies):
         )
                 
         logger.info(' => Getting the labeled and unlabeled embeddings')
-        self.lab_embedds_dict = {'embedds': None, 'labels': None}
-        self.unlab_embedds_dict = {'embedds': None}
+        self.lab_embedds_dict = {
+            'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device),
+            'labels': torch.empty(0, dtype=torch.int8)
+        }
+        self.unlab_embedds_dict = {'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device)}
             
         self.get_embeddings(self.lab_train_dl, self.lab_embedds_dict)
         self.get_embeddings(self.unlab_train_dl, self.unlab_embedds_dict)
@@ -292,7 +296,7 @@ class GTG(Strategies):
             
         if self.ent_strategy is Entropy_Strategy.H_INT:
             # computing the area of each entropies derivates fucntion via the simpson formula 
-            area: np.ndarray = simpson(self.unlab_entropy_hist.cpu().numpy(), axis=1)
+            area: np.ndarray = simpson(self.unlab_entropy_hist.cpu().numpy(), axis=1) # type: ignore
                         
             overall_topk = torch.topk(torch.from_numpy(area), k=n_top_k_obs, largest=True)
         

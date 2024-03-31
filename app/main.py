@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import torch
+import torch.distributed as dist
 
 from Datasets import SubsetDataloaders
 
@@ -52,7 +53,7 @@ set_seeds()
 
 
 
-def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], al_params: Dict[str, Any], \
+def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, Any], al_params: Dict[str, Any], \
     epochs: int, len_lab_train_ds: int) -> Tuple[Dict[str, List[float]], List[int]]:
 
     results = { }
@@ -76,24 +77,9 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
     
     methods = [
         
-        GTG(al_params=al_params, training_params=training_params, 
-            gtg_params={
-                **gtg_params,
-                'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
-                'threshold_strategy': None, 'threshold': None
-            }, LL=True),
-        GTG(al_params=al_params, training_params=training_params, 
-            gtg_params={
-                **gtg_params,
-                'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.DER,
-                'threshold_strategy': None, 'threshold': None
-            }, LL=True),
-
-        
-        
         # Random
         #Random(al_params=al_params, training_params=training_params, LL=False),
-        #Random(al_params=al_params, training_params=training_params, LL=True),
+        Random(al_params=al_params, training_params=training_params, LL=True),
         
         # LeastConfidence
         #LeastConfidence(al_params=al_params, training_params=training_params, LL=False)
@@ -101,7 +87,7 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
         
         # Entropy
         #Entropy(al_params=al_params, training_params=training_params, LL=False)
-        #Entropy(al_params=al_params, training_params=training_params, LL=True),
+        Entropy(al_params=al_params, training_params=training_params, LL=True),
         
         # KMeans
         #K_Means(al_params=al_params, training_params=training_params, LL=True),
@@ -118,6 +104,26 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, int], 
         # BADGE
         #BADGE(al_params=al_params, training_params=training_params, LL=True), 
         #BADGE(al_params=al_params, training_params=training_params, LL=True),
+        
+        GTG(al_params=al_params, training_params=training_params, 
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
+                'threshold_strategy': None, 'threshold': None
+            }, LL=True),
+        GTG(al_params=al_params, training_params=training_params, 
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
+                'threshold_strategy': None, 'threshold': None
+            }, LL=True),
+        GTG(al_params=al_params, training_params=training_params, 
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
+                'threshold_strategy': None, 'threshold': None
+            }, LL=True),
+        
     ]
     
 
@@ -147,8 +153,8 @@ def main() -> None:
     if torch.cuda.is_available():
         logger.info(f"Number of available GPUs: {torch.cuda.device_count()}")
         device = torch.device('cuda')
-        if torch.distributed.is_available(): logger.info('We can train on multiple GPU')
-        if torch.distributed.is_nccl_available(): logger.info('NCCL backend available')
+        if dist.is_available(): logger.info('We can train on multiple GPU')
+        if dist.is_nccl_available(): logger.info('NCCL backend available')
     else:
         logger.info("CUDA is not available. Using CPU.")
         device = torch.device('cpu')

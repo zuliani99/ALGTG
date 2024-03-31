@@ -48,7 +48,8 @@ class CDAL(Strategies):
         )
             
         logger.info(' => Getting the labeled and unlabeled probebilities')
-        self.lab_embedds_dict, self.unlab_embedds_dict = {'probs': None}, {'probs': None}
+        self.lab_embedds_dict = {'probs': torch.empty((0, self.n_classes), dtype=torch.float32)}
+        self.unlab_embedds_dict = {'probs': torch.empty((0, self.n_classes), dtype=torch.float32)}
         self.get_embeddings(self.lab_train_dl, self.lab_embedds_dict)
         self.get_embeddings(self.unlab_train_dl, self.unlab_embedds_dict)
         
@@ -60,5 +61,5 @@ class CDAL(Strategies):
         topk_idx_obs = self.furthest_first(unlab_probs, lab_probs, n_top_k_obs)
                     
         
-        return topk_idx_obs, [self.unlab_embedds_dict['idxs'][id].item() for id in topk_idx_obs]
+        return topk_idx_obs, [int(self.unlab_embedds_dict['idxs'][id].item()) for id in topk_idx_obs]
     
