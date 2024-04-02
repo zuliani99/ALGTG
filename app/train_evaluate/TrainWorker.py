@@ -32,7 +32,6 @@ class TrainWorker():
         self.method_name: str = params['method_name']
         
         self.train_dl: DataLoader = params['train_dl']
-        self.val_dl: DataLoader = params['val_dl']
         self.test_dl: DataLoader = params['test_dl']
         
         

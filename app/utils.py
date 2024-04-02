@@ -118,9 +118,8 @@ def print_cumulative_train_results(cum_train_results: Dict[int, Any], method_nam
         ]
         
         for iter, results_info in cum_train_results.items():
-            res = results_info['results']
             for (pos1, pos2), train_mes, title in data:
-                ax[pos1][pos2].plot(epochs, res[train_mes], label = f'{train_mes}_{iter}')
+                ax[pos1][pos2].plot(range(1, epochs + 1), results_info[train_mes], label = f'{train_mes}_{iter}')
                 if not (pos1 == 0 and pos2 ==1): ax[pos1][pos2].set_ylim([0, 5])
                 
                 ax[pos1][pos2].set_title(f'{title} - Epochs')
@@ -136,10 +135,9 @@ def print_cumulative_train_results(cum_train_results: Dict[int, Any], method_nam
         data = [ ['train_loss', 'Total Loss'], ['train_accuracy', 'Accuracy Score'] ]
         
         for iter, results_info in cum_train_results.items():
-            res = results_info['results']
             
             for pos, (train_mes, title) in enumerate(data):
-                ax[pos].plot(epochs, res[train_mes], label = f'{train_mes}_{iter}')
+                ax[pos].plot(range(1, epochs + 1), results_info[train_mes], label = f'{train_mes}_{iter}')
                 if pos == 0: ax[pos].set_ylim([0, 5])
 
                 ax[pos].set_title(f'{title} - Epochs')
@@ -154,7 +152,7 @@ def print_cumulative_train_results(cum_train_results: Dict[int, Any], method_nam
 
 
 
-def write_csv(ts_dir: str, dataset_name: str, head: List[str], values: List[int | float | str]) -> None:
+def write_csv(ts_dir: str, dataset_name: str, head: List[str], values: List[Any]) -> None:
     res_path = os.path.join('results', ts_dir, dataset_name, 'results.csv')
     
     if (not os.path.exists(res_path)):
@@ -230,8 +228,8 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
             axes[0].plot(x, array[i], linestyle="-", color=palette[lab])
     
     axes[0].set_title(f'{title} Classes')
-    axes[0].set_ylabel('GTG Iterations')
-    axes[0].set_xlabel('Entropy')
+    axes[0].set_ylabel('Entropy')
+    axes[0].set_xlabel('GTG Iterations')
     axes[0].grid()
     axes[0].legend()
     
@@ -251,8 +249,8 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
                 pl2_cls_2.add(label)
             else: axes[1].plot(x, array[i], linestyle=style, color=color)
         
-    axes[1].set_ylabel('GTG Iterations')
-    axes[1].set_xlabel('Entropy')
+    axes[1].set_ylabel('Entropy')
+    axes[1].set_xlabel('GTG Iterations')
     axes[1].set_title(f'{title} - New_Lab / Unlab')
     axes[1].grid()
     axes[1].legend()

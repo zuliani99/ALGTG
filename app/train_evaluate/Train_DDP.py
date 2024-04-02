@@ -37,7 +37,7 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], epochs: int, c
     
     initialize_preocess(rank, world_size)
     
-    train_results = [torch.zeros((8, epochs), device=rank) for _ in range(world_size)]
+    train_results = [torch.zeros((4, epochs), device=rank) for _ in range(world_size)]
     test_results = [torch.zeros(4, device=rank) for _ in range(world_size)]
     
     

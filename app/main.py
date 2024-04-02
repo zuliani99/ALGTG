@@ -73,6 +73,28 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, Any], 
                 'rbf_aff': True, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.DER,
                 'threshold_strategy': None, 'threshold': None
             }, LL=True),
+            
+            
+            
+        GTG(al_params=al_params, training_params=training_params, 
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
+                'threshold_strategy': None, 'threshold': None
+            }, LL=True),
+        GTG(al_params=al_params, training_params=training_params, 
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
+                'threshold_strategy': None, 'threshold': None
+            }, LL=True),
+        GTG(al_params=al_params, training_params=training_params, 
+            gtg_params={
+                **gtg_params,
+                'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
+                'threshold_strategy': None, 'threshold': None
+            }, LL=True),
+        
     '''
     
     methods = [
@@ -105,22 +127,11 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, Any], 
         #BADGE(al_params=al_params, training_params=training_params, LL=True), 
         #BADGE(al_params=al_params, training_params=training_params, LL=True),
         
-        GTG(al_params=al_params, training_params=training_params, 
-            gtg_params={
-                **gtg_params,
-                'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
-                'threshold_strategy': None, 'threshold': None
-            }, LL=True),
+        
         GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
                 'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
-                'threshold_strategy': None, 'threshold': None
-            }, LL=True),
-        GTG(al_params=al_params, training_params=training_params, 
-            gtg_params={
-                **gtg_params,
-                'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
                 'threshold_strategy': None, 'threshold': None
             }, LL=True),
         
@@ -183,7 +194,6 @@ def main() -> None:
             logger.info(f'----------------------- SAMPLE ITERATION {samp_iter + 1} / {sample_iterations} -----------------------\n')
             
             create_ts_dir(timestamp, dataset_name, str(samp_iter))
-            #DatasetChoice = SubsetDataloaders(dataset_name, batch_size, val_rateo=0.2, init_lab_obs=init_lab_obs)
             DatasetChoice = SubsetDataloaders(dataset_name, batch_size, init_lab_obs=init_lab_obs)
             
             logger.info('\n')
