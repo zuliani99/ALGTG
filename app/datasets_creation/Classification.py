@@ -1,0 +1,102 @@
+
+from torch.utils.data import Dataset, ConcatDataset
+from torchvision import datasets
+import torch
+
+from typing import List, Tuple
+
+from utils import download_tinyimagenet
+from config import cls_datasets 
+
+import logging
+logger = logging.getLogger(__name__)
+
+
+
+class Cls_Datasets():
+    
+    def __init__(self, dataset_name: str, init_lab_obs: int) -> None:
+        
+        self.transformed_trainset = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=True)
+        self.non_transformed_trainset = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=False)
+        
+        self.test_ds = Cls_Dataset(dataset_name=dataset_name, bool_train=False, bool_transform=False)
+
+        self.n_classes: int = cls_datasets[dataset_name]['n_classes']
+        self.n_channels: int = cls_datasets[dataset_name]['channels']
+        self.dataset_id: int = cls_datasets[dataset_name]['id']
+        self.image_size: int = cls_datasets[dataset_name]['image_size']
+        self.classes: List[str] = cls_datasets[dataset_name]['classes']
+    
+        self.get_initial_subsets(init_lab_obs)
+    
+    
+    
+    def get_initial_subsets(self, init_lab_obs: int) -> None:
+
+        train_size = len(self.transformed_trainset)
+        
+        # random shuffle of the train indices
+        shuffled_indices = torch.randperm(train_size)
+        # each time should be a new shuffle, thus a new train-validation, labeled-unlabeled split
+
+        logger.info(f' Last 5 shuffled train observations: {shuffled_indices[-5:]}')
+
+        # indices for the labeled and unlabeled sets
+        self.labeled_indices: List[int] = shuffled_indices[:init_lab_obs].tolist()
+        self.unlabeled_indices: List[int] = shuffled_indices[init_lab_obs:].tolist()
+
+    
+
+
+class Cls_Dataset(Dataset):
+    def __init__(self, dataset_name: str, bool_train: bool, bool_transform = True) -> None:
+        
+        if bool_train and bool_transform:
+            # train
+            if dataset_name == 'tinyimagenet':
+                download_tinyimagenet()
+                self.ds = ConcatDataset([
+                    datasets.ImageFolder('/datasets/tiny-imagenet-200/train', transform=cls_datasets[dataset_name]['transforms']['train']), 
+                    datasets.ImageFolder('/datasets/tiny-imagenet-200/val', transform=cls_datasets[dataset_name]['transforms']['train'])
+                ])
+            elif dataset_name == 'svhn':
+                self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', split='train', download=True,
+                    transform=cls_datasets[dataset_name]['transforms']['train']
+                )
+            else:
+                self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True,
+                    transform=cls_datasets[dataset_name]['transforms']['train']
+                )    
+            
+        else:
+            # validation or test
+            if dataset_name == 'tinyimagenet':
+                download_tinyimagenet()
+                if bool_train:
+                    self.ds = ConcatDataset([
+                        datasets.ImageFolder('/datasets/tiny-imagenet-200/train', transform=cls_datasets[dataset_name]['transforms']['test']), 
+                        datasets.ImageFolder('/datasets/tiny-imagenet-200/val', transform=cls_datasets[dataset_name]['transforms']['test'])
+                    ])
+                else:
+                    self.ds: Dataset = datasets.ImageFolder('/datasets/tiny-imagenet-200/test', transform=cls_datasets[dataset_name]['transforms']['test'])
+            elif dataset_name == 'svhn':
+                self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', split='train' if bool_train else 'test', download=True,
+                    transform=cls_datasets[dataset_name]['transforms']['test']
+                )
+            else:
+                self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True,
+                    transform=cls_datasets[dataset_name]['transforms']['test']
+                )           
+        
+        
+    def __len__(self) -> int:
+        return len(self.ds) # type: ignore
+
+
+    def __getitem__(self, index: int) -> Tuple[int, torch.Tensor, int]:
+                
+        image, label = self.ds[index]
+        return index, image, label
+
+    

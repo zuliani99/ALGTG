@@ -10,14 +10,16 @@ https://medium.com/@ramyamounir/distributed-data-parallel-with-slurm-submitit-py
 
 import torch
 
-from utils import init_weights_apply
-from ResNet18 import LearningLoss, ResNet_Weird
+from ...utils import accuracy_score
+from ...models.ResNet18 import ResNet
+from ...models.Lossnet import LossPredLoss
+
 from torch.utils.data import DataLoader
 
 from typing import Tuple, Dict, Any
 
 
-class TrainWorker():
+class Cls_TrainWorker():
     def __init__(self, gpu_id: int, params: Dict[str, Any], world_size: int = 1) -> None:
         
         self.device = torch.device(gpu_id)
@@ -25,10 +27,10 @@ class TrainWorker():
         
         self.LL: bool = params['LL']
         self.world_size: int = world_size
-        self.patience: int = params['patience'],
-        self.model: ResNet_Weird = params['model']
+        self.model: ResNet = params['ct_p']['model']
+        self.epochs = params['t_p']['epochs']
         
-        self.dataset_name: str = params['dataset_name']
+        self.dataset_name: str = params['ct_p']['dataset_name']
         self.method_name: str = params['method_name']
         
         self.train_dl: DataLoader = params['train_dl']
@@ -36,29 +38,21 @@ class TrainWorker():
         
         
         self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none').to(self.device)
-        self.score_fn = params['score_fn']
-        self.loss_weird = LearningLoss(self.device).to(self.device)
+        self.score_fn = accuracy_score
+        self.loss_weird = LossPredLoss(self.device).to(self.device)
         
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
         self.init_check_filename = f'{self.best_check_filename}_init_checkpoint.pth.tar'
         
-
-
-        self.model.apply(init_weights_apply)
         
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[160], gamma=0.1)
-
-        ###############
-        #self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
 
     
     
     def __save_checkpoint(self, filename: str) -> None:
         checkpoint = {
             'state_dict': self.model.module.state_dict() if self.world_size > 1 else self.model.state_dict(),
-            'optimizer': self.optimizer.state_dict(),
-            'scheduler': self.scheduler.state_dict()
         }
         torch.save(checkpoint, filename)
     
@@ -70,9 +64,6 @@ class TrainWorker():
 
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[160], gamma=0.1)
-        
-        #self.optimizer.reset_parameters()
-        #self.scehduler.reset_parameters()
 
 
 
@@ -92,53 +83,22 @@ class TrainWorker():
             loss = torch.mean(loss_ce)
             if self.LL: tot_loss_ce += loss.item()
             
-        return loss, tot_loss_ce, tot_loss_weird
-
-
-
-
-    def evaluate(self, dataloader: DataLoader, weight: float) -> Tuple[float, float, float, float]:
-                
-        tot_loss, tot_loss_ce, tot_loss_weird, tot_accuracy = .0, .0, .0, .0
+        return loss, tot_loss_ce, tot_loss_weird               
         
-        self.model.eval()
-
-        with torch.no_grad(): # Allow inference mode
-            for _, images, labels in dataloader:
-                
-                images, labels = images.to(self.device, non_blocking=True), labels.to(self.device, non_blocking=True)
-                outputs, _, out_weird, _ = self.model(images)
-
-                loss, tot_loss_ce, tot_loss_weird = self.compute_losses(
-                        weight, out_weird, outputs, labels, tot_loss_ce, tot_loss_weird
-                    )
-                
-                tot_accuracy += self.score_fn(outputs, labels)
-                tot_loss += loss.item()
-
-
-            tot_accuracy /= len(dataloader)
-            tot_loss /= len(dataloader)
-            tot_loss_ce /= len(dataloader)
-            tot_loss_weird /= len(dataloader)
-            
-            
-        return tot_accuracy, tot_loss, tot_loss_ce, tot_loss_weird
     
     
     
-    def train_evaluate(self, epochs: int) -> torch.Tensor:
+    def train(self) -> torch.Tensor:
                 
         weight = 1.
         check_best_path = f'{self.best_check_filename}/best_{self.method_name}_{self.device}.pth.tar'
-        results = torch.zeros((4, epochs), device=self.device)
+        results = torch.zeros((4, self.epochs), device=self.device)
         
         
-        if self.iter > 1:
-            self.__load_checkpoint(check_best_path)
+        if self.iter > 1: self.__load_checkpoint(check_best_path)
                     
     
-        for epoch in range(epochs):
+        for epoch in range(self.epochs):
 
             train_loss, train_loss_ce, train_loss_weird, train_accuracy = .0, .0, .0, .0
             
@@ -192,8 +152,31 @@ class TrainWorker():
 
 
 
-    def test(self) -> torch.Tensor:           
-        return torch.tensor(self.evaluate(self.test_dl, weight=1), device=self.device)
+    def test(self) -> torch.Tensor:
+        tot_loss, tot_loss_ce, tot_loss_weird, tot_accuracy = .0, .0, .0, .0
+        
+        self.model.eval()
+
+        with torch.no_grad(): # Allow inference mode
+            for _, images, labels in self.test_dl:
+                
+                images, labels = images.to(self.device, non_blocking=True), labels.to(self.device, non_blocking=True)
+                outputs, _, out_weird, _ = self.model(images)
+
+                loss, tot_loss_ce, tot_loss_weird = self.compute_losses(
+                        1, out_weird, outputs, labels, tot_loss_ce, tot_loss_weird
+                    )
+                
+                tot_accuracy += self.score_fn(outputs, labels)
+                tot_loss += loss.item()
+
+
+            tot_accuracy /= len(self.test_dl)
+            tot_loss /= len(self.test_dl)
+            tot_loss_ce /= len(self.test_dl)
+            tot_loss_weird /= len(self.test_dl)
+            
+        return torch.tensor((tot_accuracy, tot_loss, tot_loss_ce, tot_loss_weird), device=self.device)
 
         
         

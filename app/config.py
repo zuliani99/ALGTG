@@ -1,22 +1,11 @@
 
-from torch.utils.data import Dataset, Subset, ConcatDataset
-
 from torchvision import datasets
 from torchvision.transforms import v2
 import torch
 
-import numpy as np
+from utils import accuracy_score
 
-from typing import List, Tuple
-
-from utils import download_tinyimagenet
-
-import logging
-logger = logging.getLogger(__name__)
-
-
-
-becnhmark_datasets = {
+cls_datasets = {
     'cifar10': {
         'id': 1,
         'method': datasets.CIFAR10,
@@ -135,94 +124,57 @@ becnhmark_datasets = {
 }
 
 
-class SubsetDataloaders():
-    
-    #def __init__(self, dataset_name: str, batch_size: int, val_rateo: float, init_lab_obs: int) -> None:
-    def __init__(self, dataset_name: str, batch_size: int, init_lab_obs: int) -> None:
-        self.batch_size = batch_size
-        
-        self.transformed_trainset = DatasetChoice(dataset_name=dataset_name, bool_train=True, bool_transform=True)
-        self.non_transformed_trainset = DatasetChoice(dataset_name=dataset_name, bool_train=True, bool_transform=False)
-        
-        self.test_ds = DatasetChoice(dataset_name=dataset_name, bool_train=False, bool_transform=False)
 
-        self.n_classes: int = becnhmark_datasets[dataset_name]['n_classes']
-        self.n_channels: int = becnhmark_datasets[dataset_name]['channels']
-        self.dataset_id: int = becnhmark_datasets[dataset_name]['id']
-        self.image_size: int = becnhmark_datasets[dataset_name]['image_size']
-        self.classes: List[str] = becnhmark_datasets[dataset_name]['classes']
-    
-        #self.get_initial_subsets(val_rateo, init_lab_obs)
-        self.get_initial_subsets(init_lab_obs)
-    
-    
-    
-    #def get_initial_subsets(self, val_rateo: float, init_lab_obs: int) -> None:
-    def get_initial_subsets(self, init_lab_obs: int) -> None:
+# later added to argparser
 
-        train_size = len(self.transformed_trainset)
-        
-        # random shuffle of the train indices
-        shuffled_indices = torch.randperm(train_size)
-        # each time should be a new shuffle, thus a new train-validation, labeled-unlabeled split
-
-        logger.info(f' Last 5 shuffled train observations: {shuffled_indices[-5:]}')
-
-        # indices for the labeled and unlabeled sets
-        self.labeled_indices: List[int] = shuffled_indices[:init_lab_obs].tolist()
-        self.unlabeled_indices: List[int] = shuffled_indices[init_lab_obs:].tolist()
-
+al_params = dict(
+    al_iters = 10, 
+    unlab_sample_dim = 1000, 
+    n_top_k_obs = 10000,
+)
     
 
+cls_config = dict(
+    epochs = 200,
+    batch_size = 128,
+    results_dict = { 'train': {'train_accuracy': [], 'train_loss': [] , 'train_loss_ce': [], 'train_loss_weird': []},
+                     'test': {'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}}
+)
 
-class DatasetChoice(Dataset):
-    def __init__(self, dataset_name: str, bool_train: bool, bool_transform = True) -> None:
-        
-        if bool_train and bool_transform:
-            # train
-            if dataset_name == 'tinyimagenet':
-                download_tinyimagenet()
-                self.ds = ConcatDataset([
-                    datasets.ImageFolder('/datasets/tiny-imagenet-200/train', transform=becnhmark_datasets[dataset_name]['transforms']['train']), 
-                    datasets.ImageFolder('/datasets/tiny-imagenet-200/val', transform=becnhmark_datasets[dataset_name]['transforms']['train'])
-                ])
-            elif dataset_name == 'svhn':
-                self.ds: Dataset = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', split='train', download=True,
-                    transform=becnhmark_datasets[dataset_name]['transforms']['train']
-                )
-            else:
-                self.ds: Dataset = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True,
-                    transform=becnhmark_datasets[dataset_name]['transforms']['train']
-                )    
-            
-        else:
-            # validation or test
-            if dataset_name == 'tinyimagenet':
-                download_tinyimagenet()
-                if bool_train:
-                    self.ds = ConcatDataset([
-                        datasets.ImageFolder('/datasets/tiny-imagenet-200/train', transform=becnhmark_datasets[dataset_name]['transforms']['test']), 
-                        datasets.ImageFolder('/datasets/tiny-imagenet-200/val', transform=becnhmark_datasets[dataset_name]['transforms']['test'])
-                    ])
-                else:
-                    self.ds: Dataset = datasets.ImageFolder('/datasets/tiny-imagenet-200/test', transform=becnhmark_datasets[dataset_name]['transforms']['test'])
-            elif dataset_name == 'svhn':
-                self.ds: Dataset = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', split='train' if bool_train else 'test', download=True,
-                    transform=becnhmark_datasets[dataset_name]['transforms']['test']
-                )
-            else:
-                self.ds: Dataset = becnhmark_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True,
-                    transform=becnhmark_datasets[dataset_name]['transforms']['test']
-                )           
-        
-        
-    def __len__(self) -> int:
-        return len(self.ds) # type: ignore
+det_datasets = {
+    'voc': {
+        'id': 5,
+        'n_classes': 21,
+        'channels': 3,
+        'image_size': 300,
+        'dataset_path': '/content/VOCdevkit', 
+        'classes': [
+                'aeroplane', 'bicycle', 'bird', 'boat',
+                'bottle', 'bus', 'car', 'cat', 'chair',
+                'cow', 'diningtable', 'dog', 'horse',
+                'motorbike', 'person', 'pottedplant',
+                'sheep', 'sofa', 'train', 'tvmonitor'
+            ],
+    }
+}
 
 
-    def __getitem__(self, index: int) -> Tuple[int, torch.Tensor, int]:
-                
-        image, label = self.ds[index]
-        return index, image, label
+voc_config = {
+    'lr_steps': (80000, 100000, 120000),
+    'max_iter': 120000,
+    'feature_maps': [38, 19, 10, 5, 3, 1],
+    'min_dim': 300,
+    'steps': [8, 16, 32, 64, 100, 300],
+    'min_sizes': [30, 60, 111, 162, 213, 264],
+    'max_sizes': [60, 111, 162, 213, 264, 315],
+    'aspect_ratios': [[2], [2, 3], [2, 3], [2, 3], [2], [2]],
+    'variance': [0.1, 0.2],
+    'clip': True,
+}
 
-    
+det_config = {
+    'batch_size': 32,
+    'results_dict': { 'train': { 'train_loss': [] , 'train_loc_loss': [], 'train_conf_loss': [], 'train_loss_weird': []},
+                     'test': {'test_map': [], 'test_loss': [] , 'test_loss_target': [], 'test_loss_weird': []}
+                    }
+}

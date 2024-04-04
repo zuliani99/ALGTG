@@ -1,7 +1,7 @@
 
 import random
 
-from strategies.Strategies import Strategies
+from strategies.ActiveLearner import ActiveLearner
 
 from torch.utils.data import Subset
 
@@ -11,12 +11,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class Random(Strategies):
+class Random(ActiveLearner):
         
-    def __init__(self, al_params: Dict[str, Any], training_params: Dict[str, Any], LL: bool) -> None:
-        self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
+    def __init__(self, strategy_dict_params: Dict[str, Dict[str, Any] | bool]) -> None:
+        self.method_name = f'{self.__class__.__name__}_LL' if strategy_dict_params['LL'] else self.__class__.__name__
         
-        super().__init__(al_params, training_params, LL)
+        super().__init__(strategy_dict_params)
         
         
         

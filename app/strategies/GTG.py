@@ -1,5 +1,5 @@
-from strategies.Strategies import Strategies
-from utils import plot_tsne_A, create_directory, entropy, plot_gtg_entropy_tensor, Entropy_Strategy
+from .ActiveLearner import ActiveLearner
+from ..utils import plot_tsne_A, create_directory, entropy, plot_gtg_entropy_tensor, Entropy_Strategy
 
 import torch
 import torch.nn as nn 
@@ -18,9 +18,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class GTG(Strategies):
+class GTG(ActiveLearner):
     
-    def __init__(self, al_params: Dict[str, Any], training_params: Dict[str, Any], gtg_params: Dict[str, Any], LL: bool) -> None:
+    def __init__(self, strategy_dict_params: Dict[str, Dict[str, Any] | bool], gtg_params: Dict[str, Any]) -> None:
         
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,
@@ -43,15 +43,15 @@ class GTG(Strategies):
         if self.threshold_strategy != None:
             str_treshold = f'{self.threshold_strategy}_{self.threshold}' if self.threshold_strategy != 'mean' else 'mean'
         
-            self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}_LL' if LL \
+            self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}_LL' if strategy_dict_params['LL'] \
                 else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}'
         
         else:
-            self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_LL' if LL \
+            self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_LL' if strategy_dict_params['LL'] \
                 else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}'
                 
 
-        super().__init__(al_params, training_params, LL)
+        super().__init__(strategy_dict_params)
         
         create_directory(self.path + '/gtg_entropies_plots')
         
@@ -118,8 +118,8 @@ class GTG(Strategies):
         plot_tsne_A(
             #(A_1, A_2),
             (A_1, A),
-            (self.lab_embedds_dict['labels'], self.unlabeled_labels), self.classes,
-            self.timestamp, self.dataset_name, self.samp_iter, self.method_name, self.A_function, self.strategy_type, self.iter
+            (self.lab_embedds_dict['labels'], self.unlabeled_labels), self.dataset.classes,
+            self.ct_p['timestamp'], self.ct_p['dataset_name'], self.ct_p['trial'], self.method_name, self.A_function, self.strategy_type, self.iter
         )
 
 
@@ -185,14 +185,14 @@ class GTG(Strategies):
     def get_X(self) -> None:
                 
         self.X: torch.Tensor = torch.zeros(
-            (len(self.labeled_indices) + self.len_unlab_sample, self.n_classes),
+            (len(self.labeled_indices) + self.len_unlab_sample, self.dataset.n_classes),
             dtype=torch.float32, device=self.device
         )
 
         for idx, label in enumerate(self.lab_embedds_dict['labels']): self.X[idx][int(label.item())] = 1.
         
         for idx in range(len(self.labeled_indices), len(self.labeled_indices) + self.len_unlab_sample):
-            for label in range(self.n_classes): self.X[idx][label] = 1. / self.n_classes
+            for label in range(self.dataset.n_classes): self.X[idx][label] = 1. / self.dataset.n_classes
         
         
         
@@ -336,7 +336,7 @@ class GTG(Strategies):
 
             # plot entropy derivatives tensor
             plot_gtg_entropy_tensor(
-                tensor=self.unlab_entropy_der, topk=overall_topk.indices.tolist(), lab_unlabels=self.unlabeled_labels.tolist(), classes=self.classes, 
+                tensor=self.unlab_entropy_der, topk=overall_topk.indices.tolist(), lab_unlabels=self.unlabeled_labels.tolist(), classes=self.dataset.classes, 
                 path=self.path, iter=self.iter - 1, max_x=self.gtg_max_iter - 1, dir='derivatives'
             )
         
@@ -349,7 +349,7 @@ class GTG(Strategies):
         
         # plot entropy hisstory tensor
         plot_gtg_entropy_tensor(
-            tensor=self.unlab_entropy_hist, topk=overall_topk.indices.tolist(), lab_unlabels=self.unlabeled_labels.tolist(), classes=self.classes, 
+            tensor=self.unlab_entropy_hist, topk=overall_topk.indices.tolist(), lab_unlabels=self.unlabeled_labels.tolist(), classes=self.dataset.classes, 
             path=self.path, iter=self.iter - 1, max_x=self.gtg_max_iter, dir='history'
         )
         

@@ -3,8 +3,8 @@ import torch
 from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
-from strategies.Strategies import Strategies
-from utils import entropy
+from ...strategies.ActiveLearner import ActiveLearner
+from ...utils import entropy
 
 from typing import Dict, Any, List, Tuple
 
@@ -12,12 +12,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class Entropy(Strategies):
+class Entropy(ActiveLearner):
     
-    def __init__(self, al_params: Dict[str, Any], training_params: Dict[str, Any], LL: bool) -> None:
-        self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
+    def __init__(self, strategy_dict_params: Dict[str, Dict[str, Any] | bool]) -> None:
+        self.method_name = f'{self.__class__.__name__}_LL' if strategy_dict_params['LL'] else self.__class__.__name__
         
-        super().__init__(al_params, training_params, LL)
+        super().__init__(strategy_dict_params)
                 
         
         
@@ -26,12 +26,12 @@ class Entropy(Strategies):
         
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset,
-            batch_size=self.batch_size, shuffle=False, pin_memory=True
+            batch_size=self.ct_p['batch_size'], shuffle=False, pin_memory=True
         )
                 
         logger.info(' => Evaluating unlabeled observations')
         embeds_dict = {
-            'probs': torch.empty((0, self.n_classes), dtype=torch.float32),
+            'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32),
             'idxs': torch.empty(0, dtype=torch.int8)
         }
         self.get_embeddings(self.unlab_train_dl, embeds_dict)
