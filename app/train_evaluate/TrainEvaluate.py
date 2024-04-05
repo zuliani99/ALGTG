@@ -157,7 +157,6 @@ class TrainEvaluate(object):
                 
 
 
-    #def update_sets(self, overall_topk: List[int], idx_samp_unlab_obs: int) -> None:
     def update_sets(self, overall_topk: List[int], samp_unlab_indices: List[int], unlab_sample_dim: int) -> None:
         
         # save the new labeled images to further visual analysis
@@ -166,15 +165,22 @@ class TrainEvaluate(object):
         # Update the labeeld and unlabeled training set
         logger.info(' => Modifing the Subsets and Dataloader')
         # extend with the overall_topk
-        self.labeled_indices.extend(overall_topk)
+        self.labeled_indices.extend(overall_topk) # +1000
         
-        # remove new labeled observations
-        self.pool_unlabeled_indices = list(set(self.pool_unlabeled_indices) - set(samp_unlab_indices))
-        self.pool_seen_unlabeled_indices.extend(list(set(self.pool_unlabeled_indices) - set(overall_topk)))
         
+        # remove sampled set observations from the pool -> -10000
+        for idx_to_remove in samp_unlab_indices: self.pool_unlabeled_indices.remove(idx_to_remove)
+        # remove the overall_topk observations from the sampled set -> 10000 - 1000 = 9000 uninformative observations
+        for idx_to_remove in overall_topk: samp_unlab_indices.remove(idx_to_remove)
+        # we have analysed these so we move to a temporary pool -> +9000
+        self.pool_seen_unlabeled_indices.extend(samp_unlab_indices)
+        
+        # in case the actual unlabeled pool has less than unlab_sample_dim observations we move copy the observations in the pool
+        # and clear the temporary pool
         if len(self.pool_unlabeled_indices) < unlab_sample_dim:
             self.pool_unlabeled_indices = copy.deepcopy(self.pool_seen_unlabeled_indices)
             self.pool_seen_unlabeled_indices.clear()
+          
             
         # sanity check
         if len(list(set(self.pool_unlabeled_indices) & set(self.labeled_indices))) == 0:

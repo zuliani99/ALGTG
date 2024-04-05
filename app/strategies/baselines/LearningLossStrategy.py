@@ -27,7 +27,7 @@ class LearningLossStrategy(Strategies):
                 
         logger.info(' => Evaluating unlabeled observations')
         embeds_dict = {
-            'out_weird': torch.empty((0, self.n_classes), dtype=torch.float32),
+            'out_weird': torch.empty(0, dtype=torch.float32),
             'idxs': torch.empty(0, dtype=torch.int8)
         }
         self.get_embeddings(self.unlab_train_dl, embeds_dict)
