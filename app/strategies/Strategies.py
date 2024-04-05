@@ -32,8 +32,8 @@ class Strategies(TrainEvaluate):
         seed = self.dataset_id * (self.samp_iter * self.al_iters + (self.iter - 1))
         set_seeds(seed)
         
-        rand_perm = torch.randperm(len(self.unlabeled_indices)).tolist()
-        rand_perm_unlabeled = [self.unlabeled_indices[idx] for idx in rand_perm[:self.unlab_sample_dim]]
+        rand_perm = torch.randperm(len(self.pool_unlabeled_indices)).tolist()
+        rand_perm_unlabeled = [self.pool_unlabeled_indices[idx] for idx in rand_perm[:self.unlab_sample_dim]]
         
         logger.info(f' SEED: {seed} - Last 10 permuted indices are: {rand_perm[-10:]}')
         unlab_perm_subset = Subset(self.non_transformed_trainset, rand_perm_unlabeled)
@@ -82,7 +82,7 @@ class Strategies(TrainEvaluate):
             else: self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, self.iter)
 
             # modify the datasets and dataloader and plot the tsne
-            self.update_sets(topk_idx_obs)
+            self.update_sets(topk_idx_obs, samp_unlab_subset.indices, self.unlab_sample_dim)
 
             # iter + 1
             self.train_evaluate_save(epochs, self.iter * self.n_top_k_obs, self.iter, results)

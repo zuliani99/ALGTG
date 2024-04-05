@@ -71,9 +71,18 @@ class GTG(Strategies):
         ).to(self.device)
         
         # compute the affinity matrix
-        A = self.get_A_rbfk(concat_embedds) if self.rbf_aff else self.get_A_fn[self.A_function](concat_embedds)
+        A = self.get_A_rbfk(concat_embedds, to_cpu=True) if self.rbf_aff else self.get_A_fn[self.A_function](concat_embedds)
 
-        A_1 = torch.clone(A)
+        A_copy = torch.clone(A)
+        
+        
+        # remove weak connections with the choosen threshold strategy and value
+        logger.info(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
+        A = torch.where(
+            A < self.get_A_treshold(A) if self.A_function != 'e_d' else A > self.get_A_treshold(A),
+            0 if self.A_function != 'e_d' else 1, A
+        )
+        
         
         if self.strategy_type == 'diversity':
             # set the whole matrix as a distance matrix and not similarity matrix
@@ -81,14 +90,6 @@ class GTG(Strategies):
         elif self.strategy_type == 'mixed':    
             # set the unlabeled submatrix as distance matrix and not similarity matrix
             n_lab_obs = len(self.labeled_indices)
-                
-            '''if self.A_function == 'e_d':
-                # vascon suggestion
-                A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL -> similarity
-                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #UU -> similarity
-            else:
-                A[:n_lab_obs, n_lab_obs:] = 1 - A[:n_lab_obs, n_lab_obs:] #UL -> distacne
-                A[n_lab_obs:, :n_lab_obs] = 1 - A[n_lab_obs:, :n_lab_obs] #LU -> distance'''
             
             if self.A_function == 'e_d':
                 A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL to similarity
@@ -98,35 +99,31 @@ class GTG(Strategies):
                 
                 A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #UL to distance
                 A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #LU to distance
-                
-                
-            
-            # Unlabeled VS Unlabeled -> similarity = A
-            # Labeled VS Labeled -> similarity = A
-            # Unlabeled VS Labeled -> distance = 1 - A
-            # Labeled VS Unlabeled -> distance = 1 - A
         
-        # remove weak connections with the choosen threshold strategy and value
-        #logger.info(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
-        #A_2 = torch.where(A < self.get_A_treshold(A), 0, A)
-        #mat_cos_sim = nn.CosineSimilarity(dim=0)
-        #logger.info(f' Cosine Similarity between the initial matrix and the thresholded one: {mat_cos_sim(A_1.flatten(), A_2.flatten()).item()}')
 
-        self.A = A#A_2
+        mat_cos_sim = nn.CosineSimilarity(dim=0)
+        logger.info(f' Cosine Similarity between the initial matrix and the thresholded one: {mat_cos_sim(A_copy.flatten(), A.flatten()).item()}')
+
+        self.A = A
         
         # plot the TSNE fo the original and modified affinity matrix
         plot_tsne_A(
-            #(A_1, A_2),
-            (A_1, A),
+            (A_copy, A),
             (self.lab_embedds_dict['labels'], self.unlabeled_labels), self.classes,
             self.timestamp, self.dataset_name, self.samp_iter, self.method_name, self.A_function, self.strategy_type, self.iter
         )
-
-
-
-    def get_A_rbfk(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         
-        A_matrix = self.get_A_fn[self.A_function](concat_embedds)
+        del A_copy
+        del A
+        del concat_embedds
+        torch.cuda.empty_cache()
+
+
+
+    def get_A_rbfk(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
+        
+        device = 'cpu' if to_cpu else self.device
+        A_matrix = self.get_A_fn[self.A_function](concat_embedds, to_cpu)
         
         if self.A_function == 'e_d':
             # if euclidean distance is choosen we take the 7th smallest observation which is the 7th closest one (ascending order)
@@ -140,18 +137,23 @@ class GTG(Strategies):
                 torch.unsqueeze(concat_embedds[i], dim=0), torch.unsqueeze(seventh_neigh[i], dim=0)
             )))[0,1].item()
             for i in range(concat_embedds.shape[0]) 
-        ], device=self.device), dim=0)
+        ], device=device), dim=0)
         
-        A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(self.device)
+        A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(device)
         
-        if self.zero_diag: A.fill_diagonal_(0.)  
-        return A
+        if self.zero_diag: A.fill_diagonal_(0.)
+        
+        del A_matrix
+        del sigmas
+        torch.cuda.empty_cache()
+        
+        return A.to(self.device)
     
     
     
-    def get_A_e_d(self, concat_embedds: torch.Tensor) -> torch.Tensor:
+    def get_A_e_d(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         
-        A = torch.cdist(concat_embedds, concat_embedds).to(self.device)
+        A = torch.cdist(concat_embedds, concat_embedds).to('cpu' if to_cpu else self.device)
         
         #if self.zero_diag: A.fill_diagonal_(0.)
         #else: A.fill_diagonal_(1.)
@@ -159,23 +161,29 @@ class GTG(Strategies):
 
 
 
-    def get_A_cos_sim(self, concat_embedds: torch.Tensor) -> torch.Tensor:
-                               
-        normalized_embedding = F.normalize(concat_embedds, dim=-1).to(self.device)
+    def get_A_cos_sim(self, concat_embedds: torch.Tensor, to_cpu = True) -> torch.Tensor:
         
-        A = F.relu(torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device))
+        device = 'cpu' if to_cpu else self.device
+        
+        normalized_embedding = F.normalize(concat_embedds, dim=-1).to(device)
+        
+        A = F.relu(torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(device))
         
         if self.zero_diag: A.fill_diagonal_(0.)
         else: A.fill_diagonal_(1.)
         #A = cosine_similarity(concat_embedds.cpu().numpy())
         #return torch.from_numpy(A).to(self.device)
-        return A
+        
+        del normalized_embedding
+        torch.cuda.empty_cache()
+        
+        return A.to(self.device)
         
         
         
-    def get_A_corr(self, concat_embedds: torch.Tensor) -> torch.Tensor:
+    def get_A_corr(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         
-        A = F.relu(torch.corrcoef(concat_embedds).to(self.device))
+        A = F.relu(torch.corrcoef(concat_embedds).to('cpu' if to_cpu else self.device))
         
         if self.zero_diag: A.fill_diagonal_(0.)
         return A
@@ -239,7 +247,9 @@ class GTG(Strategies):
                         
             err = torch.norm(self.X - X_old)
             i += 1
-            
+        
+        del X_old
+        torch.cuda.empty_cache()
 
 
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
@@ -256,7 +266,7 @@ class GTG(Strategies):
         logger.info(' => Getting the labeled and unlabeled embeddings')
         self.lab_embedds_dict = {
             'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device),
-            'labels': torch.empty(0, dtype=torch.int8)
+            'labels': torch.empty(0, dtype=torch.int8, device='cpu')
         }
         self.unlab_embedds_dict = {'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device)}
             

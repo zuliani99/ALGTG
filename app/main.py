@@ -5,6 +5,7 @@ import torch.distributed as dist
 
 from Datasets import SubsetDataloaders
 
+from strategies.baselines.LearningLossStrategy import LearningLossStrategy
 from strategies.baselines.Random import Random
 from strategies.baselines.Entropy import Entropy
 from strategies.GTG import GTG
@@ -33,10 +34,10 @@ parser.add_argument('-d', '--datasets', type=str, nargs='+', choices=['cifar10',
 parser.add_argument('-i', '--iterations', type=int, nargs=1, required=True, help='Number or iterations of AL benchmark for each dataset')
 parser.add_argument('-s', '--strategy', type=str, nargs=1, choices=['uncertanity', 'diversity', 'mixed'], 
                     required=True, help='Possible query strategy types to choose')
-'''parser.add_argument('-ts', '--threshold_strategy', type=str, nargs=1, choices=['threshold', 'mean', 'quantile'], 
+parser.add_argument('-ts', '--threshold_strategy', type=str, nargs=1, choices=['threshold', 'mean', 'quantile'], 
                     required=True, help='Possible query strategy types to choose')
 parser.add_argument('-t', '--threshold', type=float, nargs=1, required=False, 
-                    help='Affinity Matrix Threshold, when threshold_strategy = mean, this is ingnored')'''
+                    help='Affinity Matrix Threshold, when threshold_strategy = mean, this is ingnored')
 
 
 args = parser.parse_args()
@@ -44,8 +45,8 @@ args = parser.parse_args()
 choosen_datasets = args.datasets
 sample_iterations = args.iterations[0]
 strategy_type = args.strategy[0]
-#treshold_strategy = args.threshold_strategy[0]
-#treshold = args.threshold[0]
+treshold_strategy = args.threshold_strategy[0]
+treshold = args.threshold[0]
 
 
 # setting seed and deterministic behaviour of pytorch for reproducibility
@@ -59,35 +60,21 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, Any], 
     results = { }
     n_lab_obs = [len_lab_train_ds + (iter * al_params['n_top_k_obs']) for iter in range(al_params['al_iters'])]
     
-    
-    ''' 
-        GTG(al_params=al_params, training_params=training_params, 
-            gtg_params={
-                **gtg_params,
-                'rbf_aff': True, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
-                'threshold_strategy': None, 'threshold': None
-            }, LL=True),
-        GTG(al_params=al_params, training_params=training_params, 
-            gtg_params={
-                **gtg_params,
-                'rbf_aff': True, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.DER,
-                'threshold_strategy': None, 'threshold': None
-            }, LL=True),
-    '''
+
     
     methods = [
         
         # Random
-        #Random(al_params=al_params, training_params=training_params, LL=False),
-        Random(al_params=al_params, training_params=training_params, LL=True),
+        Random(al_params=al_params, training_params=training_params, LL=False),
+        #Random(al_params=al_params, training_params=training_params, LL=True),
         
         # LeastConfidence
         #LeastConfidence(al_params=al_params, training_params=training_params, LL=False)
         #LeastConfidence(al_params=al_params, training_params=training_params, LL=True)
         
         # Entropy
-        #Entropy(al_params=al_params, training_params=training_params, LL=False)
-        Entropy(al_params=al_params, training_params=training_params, LL=True),
+        Entropy(al_params=al_params, training_params=training_params, LL=False),
+        #Entropy(al_params=al_params, training_params=training_params, LL=True),
         
         # KMeans
         #K_Means(al_params=al_params, training_params=training_params, LL=True),
@@ -105,24 +92,23 @@ def train_evaluate(training_params: Dict[str, Any], gtg_params: Dict[str, Any], 
         #BADGE(al_params=al_params, training_params=training_params, LL=True), 
         #BADGE(al_params=al_params, training_params=training_params, LL=True),
         
-        GTG(al_params=al_params, training_params=training_params, 
-            gtg_params={
-                **gtg_params,
-                'rbf_aff': False, 'A_function': 'cos_sim', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
-                'threshold_strategy': None, 'threshold': None
-            }, LL=True),
+        # LearningLoss
+        LearningLossStrategy(al_params=al_params, training_params=training_params, LL=True),
+        
+
         GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
                 'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
-                'threshold_strategy': None, 'threshold': None
-            }, LL=True),
+                'threshold_strategy': 'mean', 'threshold': None
+            }, LL=False),
         GTG(al_params=al_params, training_params=training_params, 
             gtg_params={
                 **gtg_params,
-                'rbf_aff': True, 'A_function': 'e_d', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
-                'threshold_strategy': None, 'threshold': None
+                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
+                'threshold_strategy': 'mean', 'threshold': None
             }, LL=True),
+
         
     ]
     
@@ -206,10 +192,10 @@ def main() -> None:
             
             gtg_params = {
                 'gtg_tol': 0.001,
-                'gtg_max_iter': 30, # remember that simpson's rule need an even number of observations to compute the integrals
+                'gtg_max_iter': 30,#60, # remember that simpson's rule need an even number of observations to compute the integrals
                 'strategy_type': strategy_type,
-                #'threshold_strategy': treshold_strategy,
-                #'threshold': treshold
+                'threshold_strategy': treshold_strategy,
+                'threshold': treshold
             }
             
 

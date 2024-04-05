@@ -52,21 +52,21 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], epochs: int, c
                             params['train_ds'], batch_size=params['batch_size'],
                             sampler=DistributedSampler(params['train_ds'], num_replicas=world_size, rank=rank, shuffle=True, seed=100001),
                             shuffle=False, pin_memory=True, persistent_workers=True,
-                            num_workers=num_workers
+                            num_workers=num_workers#, drop_last=True
                         )
     
     params['val_dl'] = DataLoader(
                             params['val_ds'], batch_size=params['batch_size'],
                             sampler=DistributedSampler(params['val_ds'], num_replicas=world_size, rank=rank, shuffle=False, seed=100001),
                             shuffle=False, pin_memory=True, persistent_workers=True,
-                            num_workers=num_workers
+                            num_workers=num_workers#, drop_last=True
                         )
     
     params['test_dl'] = DataLoader(
                             params['test_ds'], batch_size=params['batch_size'],
                             sampler=DistributedSampler(params['test_ds'], num_replicas=world_size, rank=rank, shuffle=False, seed=100001),
                             shuffle=False, pin_memory=True, persistent_workers=True,
-                            num_workers=num_workers
+                            num_workers=num_workers#, drop_last=True
                         )
    
     
@@ -106,9 +106,9 @@ def train(params: Dict[str, Any], epochs: int) -> Tuple[List[float], List[float]
     
     params['model'] = ResNet_Weird(BasicBlock, [2, 2, 2, 2], image_size=params['image_size'], num_classes=params['num_classes'], n_channels=params['n_channels']).to(params['main_device']) # type: ignore
     
-    params['train_dl'] = DataLoader(params['train_ds'], batch_size=params['batch_size'], shuffle=True, pin_memory=True)
-    params['val_dl'] = DataLoader(params['val_ds'], batch_size=params['batch_size'], shuffle=False, pin_memory=True)
-    params['test_dl'] = DataLoader(params['test_ds'], batch_size=params['batch_size'], shuffle=False, pin_memory=True)
+    params['train_dl'] = DataLoader(params['train_ds'], batch_size=params['batch_size'], shuffle=True, pin_memory=True, drop_last=True)
+    params['val_dl'] = DataLoader(params['val_ds'], batch_size=params['batch_size'], shuffle=False, pin_memory=True, drop_last=True)
+    params['test_dl'] = DataLoader(params['test_ds'], batch_size=params['batch_size'], shuffle=False, pin_memory=True, drop_last=True)
     
     train_test = TrainWorker(params['main_device'], params)           
         

@@ -129,7 +129,7 @@ def save_train_val_curves(results_info: Dict[str, Any], ts_dir: str, dataset_nam
 
 
 
-def write_csv(ts_dir: str, dataset_name: str, head: List[str], values: List[int | float | str]) -> None:
+def write_csv(ts_dir: str, dataset_name: str, head: List[str], values: List[Any]) -> None:
     res_path = os.path.join('results', ts_dir, dataset_name, 'results.csv')
     
     if (not os.path.exists(res_path)):
@@ -205,8 +205,8 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
             axes[0].plot(x, array[i], linestyle="-", color=palette[lab])
     
     axes[0].set_title(f'{title} Classes')
-    axes[0].set_ylabel('GTG Iterations')
-    axes[0].set_xlabel('Entropy')
+    axes[0].set_ylabel('Entropy')
+    axes[0].set_xlabel('GTG Iterations')
     axes[0].grid()
     axes[0].legend()
     
@@ -226,8 +226,8 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
                 pl2_cls_2.add(label)
             else: axes[1].plot(x, array[i], linestyle=style, color=color)
         
-    axes[1].set_ylabel('GTG Iterations')
-    axes[1].set_xlabel('Entropy')
+    axes[1].set_ylabel('Entropy')
+    axes[1].set_xlabel('GTG Iterations')
     axes[1].set_title(f'{title} - New_Lab / Unlab')
     axes[1].grid()
     axes[1].legend()

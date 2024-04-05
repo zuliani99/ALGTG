@@ -83,8 +83,9 @@ class TrainWorker():
         
         loss_ce = self.loss_fn(outputs, labels)
         
-        if self.LL and weight:    
+        if self.LL and weight:
             loss_weird = self.loss_weird(out_weird, loss_ce)
+            
             loss_ce = torch.mean(loss_ce)
             loss = loss_ce + loss_weird
                     

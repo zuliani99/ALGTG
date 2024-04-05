@@ -50,7 +50,8 @@ class TrainEvaluate(object):
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
                 
         self.labeled_indices = copy.deepcopy(sdl.labeled_indices)
-        self.unlabeled_indices = copy.deepcopy(sdl.unlabeled_indices)
+        self.pool_unlabeled_indices = copy.deepcopy(sdl.unlabeled_indices)
+        self.pool_seen_unlabeled_indices = list()
         
         
         self.lab_train_dl = DataLoader(
@@ -106,6 +107,10 @@ class TrainEvaluate(object):
                     outs, _, _, _ = self.model(images.to(self.device))
                     dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], outs.squeeze().cpu()), dim=0)
                     
+                if 'out_weird' in dict_to_modify:
+                    _, _, out_weird, _ = self.model(images.to(self.device))
+                    dict_to_modify['out_weird'] = torch.cat((dict_to_modify['out_weird'], out_weird.squeeze().cpu()), dim=0)
+                    
                 if 'labels' in dict_to_modify:
                     dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)
                 if 'idxs' in dict_to_modify:
@@ -153,7 +158,7 @@ class TrainEvaluate(object):
 
 
     #def update_sets(self, overall_topk: List[int], idx_samp_unlab_obs: int) -> None:
-    def update_sets(self, overall_topk: List[int]) -> None:
+    def update_sets(self, overall_topk: List[int], samp_unlab_indices: List[int], unlab_sample_dim: int) -> None:
         
         # save the new labeled images to further visual analysis
         self.save_labeled_images(overall_topk)
@@ -164,10 +169,15 @@ class TrainEvaluate(object):
         self.labeled_indices.extend(overall_topk)
         
         # remove new labeled observations
-        for idx_to_remove in overall_topk: self.unlabeled_indices.remove(idx_to_remove)
+        self.pool_unlabeled_indices = list(set(self.pool_unlabeled_indices) - set(samp_unlab_indices))
+        self.pool_seen_unlabeled_indices.extend(list(set(self.pool_unlabeled_indices) - set(overall_topk)))
         
+        if len(self.pool_unlabeled_indices) < unlab_sample_dim:
+            self.pool_unlabeled_indices = copy.deepcopy(self.pool_seen_unlabeled_indices)
+            self.pool_seen_unlabeled_indices.clear()
+            
         # sanity check
-        if len(list(set(self.unlabeled_indices) & set(self.labeled_indices))) == 0:
+        if len(list(set(self.pool_unlabeled_indices) & set(self.labeled_indices))) == 0:
             logger.info(' Intersection between indices is EMPTY')
         else: 
             logger.exception('NON EMPTY INDICES INTERSECTION')
