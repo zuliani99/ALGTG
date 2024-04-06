@@ -3,17 +3,19 @@
 import torch
 import torch.distributed as dist
 
-from .datasets_creation.Classification import Cls_Datasets
-from .datasets_creation.Detection import Det_Datasets
-from .models import get_resnet_model, get_ssd_model
-from .strategies.baselines.Random import Random
-from .strategies.baselines.Entropy import Entropy
-from .strategies.GTG import GTG
+from datasets_creation.Classification import Cls_Datasets
+from datasets_creation.Detection import Det_Datasets
+from models import get_resnet_model, get_ssd_model
+from models.ResNet18 import ResNet
+from models.ssd_pytorch.SSD import SSD
+from strategies.baselines.Random import Random
+from strategies.baselines.Entropy import Entropy
+from strategies.GTG import GTG
 
-from .utils import create_directory, create_ts_dir, plot_loss_curves, plot_accuracy_std_mean, set_seeds, Entropy_Strategy
+from utils import create_directory, create_ts_dir, plot_loss_curves, plot_accuracy_std_mean, set_seeds, Entropy_Strategy
     
     
-from .config import cls_config, al_params, det_config
+from config import cls_config, al_params, det_config
 from datetime import datetime
 import argparse
 import time
@@ -25,19 +27,19 @@ logger = logging.getLogger(__name__)
 
 
 
-def get_dataset(task, dataset_name, init_lab_obs):
+def get_dataset(task, dataset_name: str, init_lab_obs: int) -> Cls_Datasets | Det_Datasets:
     if task == 'clf': return Cls_Datasets(dataset_name, init_lab_obs=init_lab_obs)
     else: return Det_Datasets(dataset_name, init_lab_obs=init_lab_obs)
 
 
-def get_model(n_classes, device, task):
-    if task == 'clf': return get_resnet_model(n_classes, device)
+def get_model(n_classes: int, n_channels: int, device: torch.device, task: str) -> ResNet | SSD:
+    if task == 'clf': return get_resnet_model(n_classes, n_channels, device)
     else: return get_ssd_model(n_classes, device)
 
 
 
 
-def get_args():
+def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'fmnist', 'tinyimagenet', 'voc', 'coco'],
                         required=True, help='Possible datasets to choose')
@@ -108,12 +110,8 @@ def main() -> None:
     # setting seed and deterministic behaviour of pytorch for reproducibility
     set_seeds()
 
-    if choosen_datasets in ['cifar10', 'cifar100', 'fmnist', 'tinyimagenet']: task = 'clf'
-    else: task = 'detection'
-    
     init_lab_obs = 1000
-    
-    
+        
     gtg_params = {
         'gtg_tol': 0.001,
         'gtg_max_iter': 30, # remember that simpson's rule need an even number of observations to compute the integrals
@@ -124,6 +122,9 @@ def main() -> None:
     
         
     for dataset_name in choosen_datasets:
+        
+        if dataset_name in ['cifar10', 'cifar100', 'fmnist', 'tinyimagenet']: task = 'clf'
+        else: task = 'detection'
 
         logger.info(f'----------------------- RUNNING ACTIVE LEARNING BENCHMARK ON {dataset_name} -----------------------\n')
 
@@ -134,7 +135,7 @@ def main() -> None:
             create_ts_dir(timestamp, dataset_name, str(trial))
             
             Dataset = get_dataset(task, dataset_name, init_lab_obs=init_lab_obs)
-            Model = get_model(dataset_name, device, task)
+            Model = get_model(Dataset.n_classes, Dataset.n_channels, device, task)
             
             logger.info('\n')
             
@@ -158,7 +159,7 @@ def main() -> None:
                         
             plot_loss_curves(results, n_lab_obs, timestamp, plot_png_name=f'{dataset_name}/{trial}/results.png')
             
-        plot_accuracy_std_mean(timestamp, dataset_name)
+        plot_accuracy_std_mean(task, timestamp, dataset_name)
 
 
 if __name__ == "__main__":

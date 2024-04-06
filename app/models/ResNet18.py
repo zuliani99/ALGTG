@@ -3,17 +3,17 @@ Reference:
     https://github.com/kuangliu/pytorch-cifar
 '''
 
-
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from typing import List, Tuple
 from models.Lossnet import LossNet
 
 
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, in_planes, planes, stride=1):
+    def __init__(self, in_planes: int, planes: int, stride=1) -> None:
         super(BasicBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -27,7 +27,7 @@ class BasicBlock(nn.Module):
                 nn.BatchNorm2d(self.expansion*planes)
             )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = F.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
         out += self.shortcut(x)
@@ -38,7 +38,7 @@ class BasicBlock(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, loss_net, block, num_blocks, n_channels=3, num_classes=10):
+    def __init__(self, loss_net: LossNet, block: BasicBlock, num_blocks: List[int], n_channels=3, n_classes=10) -> None:
         super(ResNet, self).__init__()
         self.in_planes = 64
         
@@ -50,9 +50,9 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
         self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
-        self.linear = nn.Linear(512*block.expansion, num_classes)
+        self.linear = nn.Linear(512 * block.expansion, n_classes)
 
-    def _make_layer(self, block, planes, num_blocks, stride):
+    def _make_layer(self, block: BasicBlock, planes: int, num_blocks: int, stride: int) -> nn.Sequential:
         strides = [stride] + [1]*(num_blocks-1)
         layers = []
         for stride in strides:
@@ -60,7 +60,7 @@ class ResNet(nn.Module):
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         out = F.relu(self.bn1(self.conv1(x)))
 
         out1 = self.layer1(out)
@@ -69,17 +69,17 @@ class ResNet(nn.Module):
         out4 = self.layer4(out3)
 
         out = F.avg_pool2d(out4, 4)
-        out = out.view(out.size(0), -1)
-        out = self.linear(out)
+        embedds = out.view(out.size(0), -1)
+        out = self.linear(embedds)
 
         self.features = [out1, out2, out3, out4]
 
-        return out, self.loss_net(self.features), None
+        return out, embedds, self.loss_net(self.features)
     
-    def get_features(self):
+    def get_features(self) -> List[torch.Tensor]:
         return self.features
 
 
 
-def ResNet18(loss_net, num_classes=10, n_channels=3):
-    return ResNet(loss_net, BasicBlock, [2,2,2,2], num_classes, n_channels)
+def ResNet18(loss_net: LossNet, n_classes=10, n_channels=3) -> ResNet:
+    return ResNet(loss_net, BasicBlock, [2,2,2,2], n_channels, n_classes)

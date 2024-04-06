@@ -12,6 +12,8 @@ import torch.utils.data as data
 import cv2
 import numpy as np
 
+from typing import List, Tuple
+
 if sys.version_info[0] == 2:
     import xml.etree.cElementTree as ET
 else:
@@ -105,26 +107,26 @@ class VOCDetection(data.Dataset):
         self.name = dataset_name
         self._annopath = osp.join('%s', 'Annotations', '%s.xml')
         self._imgpath = osp.join('%s', 'JPEGImages', '%s.jpg')
-        self.ids = list()
+        self.ids: List[Tuple[str, str]] = list()
         for (year, name) in image_sets:
-            rootpath = osp.join(self.root, 'VOC' + year)
+            rootpath: str = osp.join(self.root, 'VOC' + year)
             for line in open(osp.join(rootpath, 'ImageSets', 'Main', name + '.txt')):
                 self.ids.append((rootpath, line.strip()))
 
-    def __getitem__(self, index):
-        im, gt, h, w = self.pull_item(index)
+    def __getitem__(self, index: int) -> Tuple[int, torch.Tensor, np.ndarray]:
+        im, gt, _, _ = self.pull_item(index)
 
-        return im, gt
+        return index, im, gt
 
     def __len__(self):
         return len(self.ids)
 
-    def pull_item(self, index):
+    def pull_item(self, index: int) -> Tuple[torch.Tensor, np.ndarray, int, int]:
         img_id = self.ids[index]
 
         target = ET.parse(self._annopath % img_id).getroot()
         img = cv2.imread(self._imgpath % img_id)
-        height, width, channels = img.shape
+        height, width, _ = img.shape
 
         if self.target_transform is not None:
             target = self.target_transform(target, width, height)

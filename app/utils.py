@@ -66,7 +66,7 @@ def plot_loss_curves(methods_results: Dict[str, List[float]], n_lab_obs: List[in
 def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any], method_name: str,  ts_dir: str, dataset_name: str, al_iter: int, \
                          cicle_iter: int, flag_LL: bool) -> None:
 
-    epochs = range(1, len(results_info['train_loss']) + 1)
+    epochs = range(1, len(results_info[list_dict_keys[0]]) + 1)
 
     if flag_LL:
         _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
@@ -256,8 +256,8 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
 
 
 
-def plot_accuracy_std_mean(timestamp: str, dataset_name: str) -> None:
-    df = pd.read_csv(f'results/{timestamp}/{dataset_name}/results.csv')
+def plot_accuracy_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
+    df = pd.read_csv(f'results/{timestamp}/{dataset_name}/{task}_results.csv')
 
     df_grouped = (
         df[['method', 'lab_obs', 'test_accuracy']].groupby(['method', 'lab_obs']).agg(['mean', 'std', 'count'])
@@ -387,6 +387,7 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
                         s=17, color='red', ax=axes[0], style=pred_new_lab, 
                         markers=['X', 'o'] if len(np.unique(pred_new_lab)) == 2 else ['o'])
     else:
+        
         sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', s=17, ax=axes[0], markers=['o'])
         sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=17, ax=axes[0], markers=['o'])
         sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labeled', 

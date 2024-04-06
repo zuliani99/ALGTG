@@ -5,13 +5,14 @@ Reference:
     https://github.com/amdegroot/ssd.pytorch
 '''
 import os
-from pyexpat import features
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-from ssd_layers import *
+from models.Lossnet import LossNet
+
+from .ssd_layers import *
 
 import logging
 logger = logging.getLogger(__name__)
@@ -39,12 +40,12 @@ class SSD(nn.Module):
 
     def __init__(self, loss_net, phase, size, base, extras, head, num_classes, voc_cfg):
         super(SSD, self).__init__()
-        self.loss_net = loss_net
+        self.loss_net: LossNet = loss_net
         self.phase = phase
         self.num_classes = num_classes
-        self.cfg = voc_cfg #(coco, voc)[num_classes == 21]
-        self.priorbox = PriorBox(self.cfg)
-        self.priors = Variable(self.priorbox.forward(), volatile=True)
+        #self.cfg = voc_cfg #(coco, voc)[num_classes == 21]
+        self.priorbox = PriorBox(voc_cfg)
+        self.priors = Variable(self.priorbox.forward(), requires_grad=False) # volatile=True
         self.size = size
 
         # SSD network
@@ -98,8 +99,7 @@ class SSD(nn.Module):
         conf = list()
 
         # apply vgg up to conv4_3 relu
-        for k in range(23):
-            x = self.vgg[k](x)
+        for k in range(23): x = self.vgg[k](x)
 
         self.features.append(x)
 
@@ -107,8 +107,7 @@ class SSD(nn.Module):
         sources.append(s)
 
         # apply vgg up to fc7
-        for k in range(23, len(self.vgg)):
-            x = self.vgg[k](x)
+        for k in range(23, len(self.vgg)): x = self.vgg[k](x)
         sources.append(x)
         self.features.append(x)
 
@@ -243,14 +242,15 @@ mbox = {
 }
 
 
-def build_ssd(loss_net, phase, voc_cfg, size=300, num_classes=21):
+def build_ssd(loss_net, phase, voc_cfg, size=300, num_classes=21) -> SSD:
     if phase != "test" and phase != "train":
-        logger.info("ERROR: Phase: " + phase + " not recognized")
-        return
+        logger.exception("ERROR: Phase: " + phase + " not recognized")
+        raise Exception("ERROR: Phase: " + phase + " not recognized")
     if size != 300:
         logger.info("ERROR: You specified size " + repr(size) + ". However, " +
               "currently only SSD300 (size=300) is supported!")
-        return
+        raise Exception("ERROR: You specified size " + repr(size) + ". However, " +
+              "currently only SSD300 (size=300) is supported!")
     base_, extras_, head_ = multibox(vgg(base[str(size)], 3),
                                      add_extras(extras[str(size)], 1024),
                                      mbox[str(size)], num_classes)

@@ -10,9 +10,9 @@ https://medium.com/@ramyamounir/distributed-data-parallel-with-slurm-submitit-py
 
 import torch
 
-from ...utils import accuracy_score
-from ...models.ResNet18 import ResNet
-from ...models.Lossnet import LossPredLoss
+from utils import accuracy_score
+from models.ResNet18 import ResNet
+from models.Lossnet import LossPredLoss
 
 from torch.utils.data import DataLoader
 
@@ -27,7 +27,7 @@ class Cls_TrainWorker():
         
         self.LL: bool = params['LL']
         self.world_size: int = world_size
-        self.model: ResNet = params['ct_p']['model']
+        self.model: ResNet = params['ct_p']['Model']
         self.epochs = params['t_p']['epochs']
         
         self.dataset_name: str = params['ct_p']['dataset_name']
@@ -113,7 +113,7 @@ class Cls_TrainWorker():
                                     
                 images, labels = images.to(self.device, non_blocking=True), labels.to(self.device, non_blocking=True)
                 self.optimizer.zero_grad()
-                outputs, _, out_weird, _ = self.model(images)
+                outputs, _, out_weird = self.model(images)
                 
                 loss, train_loss_ce, train_loss_weird  = self.compute_losses(
                         weight, out_weird, outputs, labels, train_loss_ce, train_loss_weird
@@ -161,7 +161,7 @@ class Cls_TrainWorker():
             for _, images, labels in self.test_dl:
                 
                 images, labels = images.to(self.device, non_blocking=True), labels.to(self.device, non_blocking=True)
-                outputs, _, out_weird, _ = self.model(images)
+                outputs, _, out_weird  = self.model(images)
 
                 loss, tot_loss_ce, tot_loss_weird = self.compute_losses(
                         1, out_weird, outputs, labels, tot_loss_ce, tot_loss_weird

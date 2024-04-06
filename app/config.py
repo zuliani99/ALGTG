@@ -3,8 +3,6 @@ from torchvision import datasets
 from torchvision.transforms import v2
 import torch
 
-from utils import accuracy_score
-
 cls_datasets = {
     'cifar10': {
         'id': 1,
@@ -128,14 +126,14 @@ cls_datasets = {
 # later added to argparser
 
 al_params = dict(
-    al_iters = 10, 
-    unlab_sample_dim = 1000, 
-    n_top_k_obs = 10000,
+    al_iters = 2,#10, 
+    unlab_sample_dim = 10000, 
+    n_top_k_obs = 1000,
 )
     
 
 cls_config = dict(
-    epochs = 200,
+    epochs = 10,#200,
     batch_size = 128,
     results_dict = { 'train': {'train_accuracy': [], 'train_loss': [] , 'train_loss_ce': [], 'train_loss_weird': []},
                      'test': {'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}}
@@ -173,8 +171,11 @@ voc_config = {
 }
 
 det_config = {
+    'lr_steps': (80000, 100000, 120000),
+    'max_iter': 120000,
+    'clip': True,
     'batch_size': 32,
     'results_dict': { 'train': { 'train_loss': [] , 'train_loc_loss': [], 'train_conf_loss': [], 'train_loss_weird': []},
-                     'test': {'test_map': [], 'test_loss': [] , 'test_loss_target': [], 'test_loss_weird': []}
+                     'test': {'test_map': []}
                     }
 }
