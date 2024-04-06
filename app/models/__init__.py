@@ -30,14 +30,14 @@ def get_ssd_model(n_classes: int, device: torch.device) -> SSD:
     return ssd_net
 
 
-def get_resnet_model(n_classes: int, n_channels: int, device: torch.device) -> ResNet:
+def get_resnet_model(image_size: int, n_classes: int, n_channels: int, device: torch.device) -> ResNet:
     
     
     loss_net = LossNet()
     loss_net.apply(init_weights_apply)
     loss_net = loss_net.to(device)
     
-    resnet = ResNet18(loss_net, n_classes=n_classes, n_channels=n_channels)
+    resnet = ResNet18(image_size, loss_net, n_classes=n_classes, n_channels=n_channels)
     resnet.apply(init_weights_apply)
     resnet = resnet.to(device)
 

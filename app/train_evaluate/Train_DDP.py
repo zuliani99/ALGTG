@@ -18,56 +18,63 @@ from typing import Tuple, Dict, Any, List
 from multiprocessing import connection 
 
 
-    
-    
+
 def initialize_preocess(rank: int, world_size: int) -> None:
     torch.cuda.set_device(rank)
     
     os.environ["MASTER_ADDR"] = "ppv-gpu1"
     os.environ["MASTER_PORT"] = "16217"
     
-    init_process_group(backend='nccl', init_method=f'tcp://{os.environ["MASTER_ADDR"]}:{os.environ["MASTER_PORT"]}', rank=rank, world_size=world_size)
-    
-    
+    init_process_group(backend='nccl', 
+                       init_method=f'tcp://{os.environ["MASTER_ADDR"]}:{os.environ["MASTER_PORT"]}', 
+                       rank=rank, world_size=world_size)
     
     
 def clear_process() -> None: destroy_process_group()
 
 
 
-def train_ddp(rank: int, task: str, world_size: int, params: Dict[str, Any], conn: connection.Connection) -> None:
+def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connection.Connection) -> None:
     
     initialize_preocess(rank, world_size)
     
-    params['ct_p']['Model'] = DDP(params['ct_p']['Model'].to(rank), device_ids=[rank], output_device=rank, find_unused_parameters=True)
-    
+    ct_p = params['ct_p']
+    t_p = params['t_p']
     num_workers = int(os.environ['SLURM_CPUS_PER_TASK'])
     
-    train_ds = Subset(params['ct_p']['Dataset'].transformed_trainset, params['ct_p']['Dataset'].labeled_indices)
+    ct_p['Model'] = DDP(ct_p['Model'].to(rank), device_ids=[rank], output_device=rank, find_unused_parameters=True)
+    train_ds = Subset(ct_p['Dataset'].transformed_trainset, ct_p['Dataset'].labeled_indices)
+    dict_dl = dict(batch_size=t_p['batch_size'], shuffle=False, pin_memory=True, persistent_workers=True, num_workers=num_workers)
     
-    if task == 'detection': params['t_p']['epochs'] = len(train_ds) // params['t_p']['batch_size']
+    if ct_p['task'] == 'detection': 
+        dict_dl['collate_fn'] = detection_collate
+        t_p['epochs'] = len(train_ds) // t_p['batch_size']
+        TrainWorker = Det_TrainWorker
+    else:
+        TrainWorker = Cls_TrainWorker
+        
+    if world_size % 2 != 0: dict_dl['drop_last'] = True
     
-    train_results = [torch.zeros((4, params['t_p']['epochs']), device=rank) for _ in range(world_size)]
+    train_results = [torch.zeros((4, t_p['epochs']), device=rank) for _ in range(world_size)]
     test_results = [torch.zeros(4, device=rank) for _ in range(world_size)]
     
     
     params['train_dl'] = DataLoader(
-                            train_ds, batch_size=params['t_p']['batch_size'],
-                            sampler=DistributedSampler(train_ds, num_replicas=world_size, rank=rank, shuffle=True, seed=100001),
-                            shuffle=False, pin_memory=True, persistent_workers=True,
-                            num_workers=num_workers, collate_fn=detection_collate if task == 'detection' else None
-                        )
+        train_ds,
+        sampler=DistributedSampler(train_ds, num_replicas=world_size,
+                                   rank=rank, shuffle=True, seed=100001),
+        **dict_dl
+    )
     
     params['test_dl'] = DataLoader(
-                            params['ct_p']['Dataset'].test_ds, batch_size=params['t_p']['batch_size'],
-                            sampler=DistributedSampler(params['ct_p']['Dataset'].test_ds, num_replicas=world_size, rank=rank, shuffle=False, seed=100001),
-                            shuffle=False, pin_memory=True, persistent_workers=True,
-                            num_workers=num_workers, collate_fn=detection_collate if task == 'detection' else None
-                        )
+        ct_p['Dataset'].test_ds, 
+        sampler=DistributedSampler(ct_p['Dataset'].test_ds, num_replicas=world_size, 
+                                   rank=rank, shuffle=False, seed=100001),
+        **dict_dl
+    )
        
+    train_test = TrainWorker(rank, params, world_size)
     
-    
-    train_test = Cls_TrainWorker(rank, params, world_size) if task == 'clf' else Det_TrainWorker(rank, params, world_size)
     
     if rank == 0:
         dist.gather(train_test.train(), train_results)
@@ -98,17 +105,24 @@ def train_ddp(rank: int, task: str, world_size: int, params: Dict[str, Any], con
 
     
     
-def train(task: str, params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
+def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
+    ct_p = params['ct_p']
+    t_p = params['t_p']
     
-    train_ds = Subset(params['ct_p']['Dataset'].transformed_trainset, params['ct_p']['Dataset'].labeled_indices)
+    train_ds = Subset(ct_p['Dataset'].transformed_trainset, ct_p['Dataset'].labeled_indices)
+    dict_dl = dict(batch_size=t_p['batch_size'], pin_memory=True)
     
-    if task == 'detection': params['t_p']['epochs'] = len(train_ds) // params['t_p']['batch_size']
+    if ct_p['task'] == 'detection': 
+        dict_dl['collate_fn'] = detection_collate
+        t_p['epochs'] = len(train_ds) // t_p['batch_size']
+        TrainWorker = Det_TrainWorker
+    else:
+        TrainWorker = Cls_TrainWorker
     
-    params['train_dl'] = DataLoader(train_ds, batch_size=params['t_p']['batch_size'], shuffle=True, pin_memory=True, collate_fn=detection_collate if task == 'detection' else None)
-    params['test_dl'] = DataLoader(params['ct_p']['Dataset'].test_ds, batch_size=params['t_p']['batch_size'], shuffle=False, pin_memory=True, collate_fn=detection_collate if task == 'detection' else None)
+    params['train_dl'] = DataLoader(train_ds, shuffle=True, **dict_dl)
+    params['test_dl'] = DataLoader(ct_p['Dataset'].test_ds, shuffle=False, **dict_dl)
     
-    train_test = Cls_TrainWorker(params['ct_p']['device'], params) if task == 'clf' else Det_TrainWorker(params['ct_p']['device'], params)
-        
+    train_test = TrainWorker(params['ct_p']['device'], params)
         
     train_results = train_test.train().cpu().tolist()
     test_results = train_test.test().cpu().tolist()

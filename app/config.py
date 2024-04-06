@@ -3,6 +3,7 @@ from torchvision import datasets
 from torchvision.transforms import v2
 import torch
 
+
 cls_datasets = {
     'cifar10': {
         'id': 1,
@@ -125,19 +126,21 @@ cls_datasets = {
 
 # later added to argparser
 
-al_params = dict(
-    al_iters = 2,#10, 
-    unlab_sample_dim = 10000, 
-    n_top_k_obs = 1000,
-)
+al_params = {
+    'init_lab_obs': 1000,
+    'al_iters': 2,#10, 
+    'unlab_sample_dim': 10000, 
+    'n_top_k_obs': 1000,
+}
     
 
-cls_config = dict(
-    epochs = 10,#200,
-    batch_size = 128,
-    results_dict = { 'train': {'train_accuracy': [], 'train_loss': [] , 'train_loss_ce': [], 'train_loss_weird': []},
+cls_config = {
+    'epochs': 10,#200,
+    'batch_size': 128,
+    'results_dict': { 'train': {'train_accuracy': [], 'train_loss': [] , 'train_loss_ce': [], 'train_loss_weird': []},
                      'test': {'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}}
-)
+}
+
 
 det_datasets = {
     'voc': {
@@ -146,7 +149,7 @@ det_datasets = {
         'channels': 3,
         'image_size': 300,
         'dataset_path': '/content/VOCdevkit', 
-        'classes': [
+        'classes': ['background',
                 'aeroplane', 'bicycle', 'bird', 'boat',
                 'bottle', 'bus', 'car', 'cat', 'chair',
                 'cow', 'diningtable', 'dog', 'horse',
@@ -159,7 +162,7 @@ det_datasets = {
 
 voc_config = {
     'lr_steps': (80000, 100000, 120000),
-    'max_iter': 120000,
+    'max_iter': 9375,#120000,
     'feature_maps': [38, 19, 10, 5, 3, 1],
     'min_dim': 300,
     'steps': [8, 16, 32, 64, 100, 300],
@@ -170,10 +173,10 @@ voc_config = {
     'clip': True,
 }
 
+
 det_config = {
     'lr_steps': (80000, 100000, 120000),
-    'max_iter': 120000,
-    'clip': True,
+    'max_iter': 9375,#120000,
     'batch_size': 32,
     'results_dict': { 'train': { 'train_loss': [] , 'train_loc_loss': [], 'train_conf_loss': [], 'train_loss_weird': []},
                      'test': {'test_map': []}

@@ -1,7 +1,7 @@
 
 import random
 
-from strategies.ActiveLearner import ActiveLearner
+from ActiveLearner import ActiveLearner
 
 from torch.utils.data import Subset
 
@@ -13,11 +13,10 @@ logger = logging.getLogger(__name__)
 
 class Random(ActiveLearner):
         
-    def __init__(self, strategy_dict_params: Dict[str, Dict[str, Any] | bool]) -> None:
-        self.method_name = f'{self.__class__.__name__}_LL' if strategy_dict_params['LL'] else self.__class__.__name__
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any]) -> None:
+        self.method_name = self.__class__.__name__
         
-        super().__init__(strategy_dict_params)
-        
+        super().__init__(ct_p, t_p, al_p)
         
         
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:

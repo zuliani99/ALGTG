@@ -1,13 +1,4 @@
 
-'''
-https://medium.com/polo-club-of-data-science/multi-gpu-training-in-pytorch-with-code-part-3-distributed-data-parallel-d26e93f17c62
-https://medium.com/codex/a-comprehensive-tutorial-to-pytorch-distributeddataparallel-1f4b42bb1b51
-https://pytorch.org/docs/stable/multiprocessing.html
-https://discuss.pytorch.org/t/how-can-i-get-returns-from-a-function-in-distributed-data-parallel/120067/2
-https://tuni-itc.github.io/wiki/Technical-Notes/Distributed_dataparallel_pytorch/#distributeddataparallel-as-a-batch-job-in-the-servers
-https://medium.com/@ramyamounir/distributed-data-parallel-with-slurm-submitit-pytorch-168c1004b2ca
-'''
-
 import torch
 
 from utils import accuracy_score
@@ -25,7 +16,7 @@ class Cls_TrainWorker():
         self.device = torch.device(gpu_id)
         self.iter: int = params['iter']
         
-        self.LL: bool = params['LL']
+        #self.LL: bool = params['LL']
         self.world_size: int = world_size
         self.model: ResNet = params['ct_p']['Model']
         self.epochs = params['t_p']['epochs']
@@ -72,16 +63,16 @@ class Cls_TrainWorker():
         
         loss_ce = self.loss_fn(outputs, labels)
         
-        if self.LL and weight:    
-            loss_weird = self.loss_weird(out_weird, loss_ce)
-            loss_ce = torch.mean(loss_ce)
-            loss = loss_ce + loss_weird
+        #if self.LL and weight:    
+        loss_weird = self.loss_weird(out_weird, loss_ce)
+        loss_ce = torch.mean(loss_ce)
+        loss = loss_ce + loss_weird
                     
-            tot_loss_ce += loss_ce.cpu().item()
-            tot_loss_weird += loss_weird.cpu().item()
-        else:
-            loss = torch.mean(loss_ce)
-            if self.LL: tot_loss_ce += loss.item()
+        tot_loss_ce += loss_ce.cpu().item()
+        tot_loss_weird += loss_weird.cpu().item()
+        #else:
+            #loss = torch.mean(loss_ce)
+            #if self.LL: tot_loss_ce += loss.item()
             
         return loss, tot_loss_ce, tot_loss_weird               
         
@@ -102,7 +93,8 @@ class Cls_TrainWorker():
 
             train_loss, train_loss_ce, train_loss_weird, train_accuracy = .0, .0, .0, .0
             
-            if self.LL and epoch == 121: weight = 0
+            #if self.LL and epoch == 121: weight = 0
+            if epoch == 121: weight = 0
 
             
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore

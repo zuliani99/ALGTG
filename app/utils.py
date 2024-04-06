@@ -63,27 +63,28 @@ def plot_loss_curves(methods_results: Dict[str, List[float]], n_lab_obs: List[in
     
     
     
-def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any], method_name: str,  ts_dir: str, dataset_name: str, al_iter: int, \
-                         cicle_iter: int, flag_LL: bool) -> None:
+def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any], method_name: str, \
+                          ts_dir: str, dataset_name: str, al_iter: int, cicle_iter: int) -> None:
+    #, flag_LL: bool) -> None:
 
     epochs = range(1, len(results_info[list_dict_keys[0]]) + 1)
 
-    if flag_LL:
-        _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
+    #if flag_LL:
+    _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
         
-        data = zip([(0,0), (0,1), (1,0), (1,1)], list_dict_keys)
+    data = zip([(0,0), (0,1), (1,0), (1,1)], list_dict_keys)
         
-        for (pos1, pos2), train_mes in data:
-            ax[pos1][pos2].plot(epochs, results_info[train_mes], label = train_mes)
-            if not (pos1 == 0 and pos2 ==1): ax[pos1][pos2].set_ylim([0, 5])
+    for (pos1, pos2), train_mes in data:
+        ax[pos1][pos2].plot(epochs, results_info[train_mes], label = train_mes)
+        if not (pos1 == 0 and pos2 ==1): ax[pos1][pos2].set_ylim([0, 5])
             
-            ax[pos1][pos2].set_title(f'{train_mes} - Epochs')
-            ax[pos1][pos2].set_xlabel('Epochs')
-            ax[pos1][pos2].set_ylabel(train_mes)
-            ax[pos1][pos2].grid()
-            ax[pos1][pos2].legend()
+        ax[pos1][pos2].set_title(f'{train_mes} - Epochs')
+        ax[pos1][pos2].set_xlabel('Epochs')
+        ax[pos1][pos2].set_ylabel(train_mes)
+        ax[pos1][pos2].grid()
+        ax[pos1][pos2].legend()
         
-    else: 
+    '''else: 
         _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
     
         data = [ ['train_loss', 'Total Loss'], ['train_accuracy', 'Accuracy Score'] ]
@@ -96,7 +97,7 @@ def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any
             ax[pos].set_xlabel('Epochs')
             ax[pos].set_ylabel(title)
             ax[pos].grid()
-            ax[pos].legend()
+            ax[pos].legend()'''
         
 
     plt.suptitle(f'Iteration: {al_iter} - {method_name}', fontsize = 30)
@@ -104,27 +105,28 @@ def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any
 
 
 
-def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results: Dict[int, Any], method_name: str, epochs: int, ts_dir: str, dataset_name: str, cicle_iter: int, flag_LL: bool):
+def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results: Dict[int, Any], method_name: str,\
+                                   epochs: int, ts_dir: str, dataset_name: str, cicle_iter: int):#, flag_LL: bool):
 
-    if flag_LL:
-        _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
+    #if flag_LL:
+    _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
         
-        data = zip([(0,0), (0,1), (1,0), (1,1)], list_dict_keys)
+    data = zip([(0,0), (0,1), (1,0), (1,1)], list_dict_keys)
         
         
-        for iter, results_info in cum_train_results.items():
-            for (pos1, pos2), train_mes in data:
-                ax[pos1][pos2].plot(range(1, epochs + 1), results_info[train_mes], label = f'{train_mes}_{iter}')
-                if not (pos1 == 0 and pos2 ==1): ax[pos1][pos2].set_ylim([0, 5])
+    for iter, results_info in cum_train_results.items():
+        for (pos1, pos2), train_mes in data:
+            ax[pos1][pos2].plot(range(1, epochs + 1), results_info[train_mes], label = f'{train_mes}_{iter}')
+            if not (pos1 == 0 and pos2 ==1): ax[pos1][pos2].set_ylim([0, 5])
                 
-                ax[pos1][pos2].set_title(f'{train_mes} - Epochs')
-                ax[pos1][pos2].set_xlabel('Epochs')
-                ax[pos1][pos2].set_ylabel(train_mes)
-                ax[pos1][pos2].grid()
-                ax[pos1][pos2].legend()
+            ax[pos1][pos2].set_title(f'{train_mes} - Epochs')
+            ax[pos1][pos2].set_xlabel('Epochs')
+            ax[pos1][pos2].set_ylabel(train_mes)
+            ax[pos1][pos2].grid()
+        ax[pos1][pos2].legend()
 
     
-    else:
+    '''else:
         _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
         
         data = [ ['train_loss', 'Total Loss'], ['train_accuracy', 'Accuracy Score'] ]
@@ -139,7 +141,7 @@ def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results:
                 ax[pos].set_xlabel('Epochs')
                 ax[pos].set_ylabel(title)
                 ax[pos].grid()
-                ax[pos].legend()
+                ax[pos].legend()'''
         
 
     plt.suptitle(f'Cumulative Train Results - {method_name}', fontsize = 30)
@@ -423,19 +425,7 @@ def count_class_observation(classes: List[str], dataset: Dataset, topk_idx_obs=N
 
 def cycle(iterable):
     while True:
-        for x in iterable:
-            yield x
-
-def get_output_dir(name, phase):
-    """Return the directory where experimental artifacts are placed.
-    If the directory does not exist, it is created.
-    A canonical path is built using the name from an imdb and a network
-    (if not None).
-    """
-    filedir = os.path.join(name, phase)
-    if not os.path.exists(filedir):
-        os.makedirs(filedir)
-    return filedir
+        for x in iterable: yield x
 
     
     

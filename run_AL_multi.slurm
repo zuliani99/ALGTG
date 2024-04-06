@@ -22,4 +22,4 @@ export PYTHONWARNINGS='ignore:semaphore_tracker:UserWarning'
 
 conda activate al_env
 
-python3 app/main.py -d cifar10 -s mixed -i 1 #2
+python3 app/main.py -d voc -s mixed -i 1

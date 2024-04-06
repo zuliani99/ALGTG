@@ -75,6 +75,7 @@ class Det_Datasets():
         self.dataset_id: int = det_datasets[dataset_name]['id']
         self.classes: List[str] = det_datasets[dataset_name]['classes']
         self.n_channels: int = det_datasets[dataset_name]['channels']
+        self.image_size: int = det_datasets[dataset_name]['image_size']
         self.dataset_path: str = det_datasets[dataset_name]['dataset_path']
         
         self.get_initial_subsets(init_lab_obs)

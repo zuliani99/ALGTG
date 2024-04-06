@@ -1,10 +1,10 @@
 
 from models.ResNet18 import ResNet
-from ..datasets_creation.Classification import Cls_Datasets
-from ..datasets_creation.Detection import Det_Datasets
-from ..models.ssd_pytorch.SSD import SSD
-from ..train_evaluate.Train_DDP import train, train_ddp
-from ..utils import count_class_observation, print_cumulative_train_results, set_seeds,\
+from datasets_creation.Classification import Cls_Datasets
+from datasets_creation.Detection import Det_Datasets
+from models.ssd_pytorch.SSD import SSD
+from train_evaluate.Train_DDP import train, train_ddp
+from utils import count_class_observation, print_cumulative_train_results, set_seeds,\
     create_class_dir, create_method_res_dir, plot_new_labeled_tsne, save_train_val_curves, write_csv
 
 from torch.utils.data import Subset, DataLoader
@@ -12,6 +12,7 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 from torchvision.utils import save_image
 import torch
+import numpy as np
 
 from typing import List, Dict, Any
 import copy
@@ -21,19 +22,19 @@ logger = logging.getLogger(__name__)
 
 
 class ActiveLearner():
-    def __init__(self, strategy_dict_params: Dict[str, Any]) -> None:
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any]) -> None:
         
         self.iter = 1
         
-        self.al_p: Dict[str, Any] = strategy_dict_params['al_params']
-        self.ct_p: Dict[str, Any] = strategy_dict_params['common_training_params']
+        self.al_p: Dict[str, Any] = al_p
+        self.ct_p: Dict[str, Any] = ct_p
+        self.t_p: Dict[str, Any] = t_p
+        
         self.model: SSD | ResNet = self.ct_p['Model']
         self.device: torch.device = self.ct_p['device']
         
-        self.t_p: Dict[str, Any] = strategy_dict_params['task_params']
-        self.LL: bool = strategy_dict_params['LL']
         
-        self.dataset: Cls_Datasets | Det_Datasets = self.al_p['Dataset']
+        self.dataset: Cls_Datasets | Det_Datasets = self.ct_p['Dataset']
         
         self.best_check_filename: str = f'app/checkpoints/{self.ct_p['dataset_name']}'
         
@@ -61,11 +62,15 @@ class ActiveLearner():
     def save_labeled_images(self, new_labeled_idxs: List[int]) -> None:
         logger.info(f' => Iteration {self.iter} - Saving the new labeled images for further visual analysis...')
         create_class_dir(self.path, self.iter, self.dataset.classes)
-        for idx, img, lab in Subset(self.dataset.non_transformed_trainset, new_labeled_idxs):
-            save_image(
-                img, f'{self.path}/new_labeled_images/{self.iter}/{self.dataset.classes[lab]}/{idx}.png'
-            )
+        for idx, img, gt in Subset(self.dataset.non_transformed_trainset, new_labeled_idxs):
+            if self.ct_p['task'] != 'clf': 
+                unique_labs = np.unique(np.array([labs[-1] for labs in gt]))
+                for lab in unique_labs: 
+                    save_image(img, f'{self.path}/new_labeled_images/{self.iter}/{self.dataset.classes[int(lab)]}/{idx}.png')
+            else:
+                save_image(img, f'{self.path}/new_labeled_images/{self.iter}/{self.dataset.classes[gt]}/{idx}.png')
         logger.info(' DONE\n')
+        
         
     
     def get_samp_unlab_subset(self) -> Subset:
@@ -89,6 +94,7 @@ class ActiveLearner():
             return Subset(self.dataset.non_transformed_trainset, self.unlabeled_indices)
     
     
+    # CHANGE THIS FUNCTION ONCE WE ARE IN DECTECTION TASK
     ##################################################################################################################
     def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, Any]) -> None:
         
@@ -135,7 +141,7 @@ class ActiveLearner():
         )
         
         # recompute the embedding to plot the tsne
-        
+        # CHANGE THIS FUNCTION ONCE WE ARE IN DECTECTION TASK
         ##################################################################################################################
         lab_embedds_dict = {
             'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device),
@@ -171,11 +177,12 @@ class ActiveLearner():
         
         
         
-    def train_evaluate_save(self, lab_obs: int, iter: int, results: Dict[str, List[float]]) -> Dict[str, Any]:
+    def train_evaluate_save(self, lab_obs: int, iter: int, results_format: Dict[str, Dict[str, List[float]]]) -> Dict[str, Any]:
         
-        results_keys = list(results.keys())
+        test_res_keys = list(results_format['test'].keys())
+        train_res_keys = list(results_format['train'].keys())
         
-        params = { 'ct_p': self.ct_p, 't_p': self.t_p, 'method_name': self.method_name, 'iter': iter, 'LL': self.LL }        
+        params = { 'ct_p': self.ct_p, 't_p': self.t_p, 'method_name': self.method_name, 'iter': iter}
         
         # Pipe for the itra-process communication of the results
         parent_conn, child_conn = mp.Pipe()
@@ -185,25 +192,24 @@ class ActiveLearner():
             logger.info(' => RUNNING DISTRIBUTED TRAINING')
             
             # spawn the process
-            mp.spawn(train_ddp, args=(self.ct_p['task'], self.world_size, params, child_conn, ), nprocs=self.world_size, join=True) # type: ignore
+            mp.spawn(train_ddp, args=(self.world_size, params, child_conn, ), nprocs=self.world_size, join=True) # type: ignore
             # obtain the results
             while parent_conn.poll(): train_recv, test_recv = parent_conn.recv()
                 
         else:
             logger.info(' => RUNNING TRAINING')
-            
             # add the already created labeeld train dataloader
-            train_recv, test_recv = train(self.ct_p['task'], params)
+            train_recv, test_recv = train(params)
 
         
         logger.info(' DONE\n')
         
-        iter_train_results, iter_test_results = {}
-        for idx, metric in enumerate(train_recv): iter_train_results[results_keys[idx]] = metric
+        iter_train_results, iter_test_results = {}, {}
+        for idx, metric in enumerate(train_recv): iter_train_results[train_res_keys[idx]] = metric
             
         for idx, metric in enumerate(test_recv): 
-            iter_test_results[results_keys[idx]] = metric
-            results[results_keys[idx]].append(metric)
+            iter_test_results[test_res_keys[idx]] = metric
+            results_format['test'][test_res_keys[idx]].append(metric)
         
         logger.info(f'TESTING RESULTS -> {iter_test_results}')
         
@@ -211,11 +217,12 @@ class ActiveLearner():
             task = self.ct_p['task'],
             ts_dir = self.ct_p['timestamp'],
             dataset_name = self.ct_p['dataset_name'],
-            head = ['method', 'iter', 'lab_obs'] + results_keys,
-            values = [self.method_name, self.ct_p['trail'], lab_obs] + list(iter_train_results.values())
+            head = ['method', 'iter', 'lab_obs'] + test_res_keys,
+            values = [self.method_name, self.ct_p['trial'], lab_obs] + list(iter_test_results.values())
         )
         
-        save_train_val_curves(list(self.t_p['results_dict']['train'].keys()), iter_train_results, self.method_name, self.ct_p['timestamp'], self.ct_p['dataset_name'], iter, self.ct_p['trial'], self.LL)
+        save_train_val_curves(list(self.t_p['results_dict']['train'].keys()), iter_train_results, self.method_name,
+                              self.ct_p['timestamp'], self.ct_p['dataset_name'], iter, self.ct_p['trial'])
 
         return iter_train_results
         
@@ -232,8 +239,7 @@ class ActiveLearner():
         self.labeled_indices.extend(overall_topk)
         
         # remove new labeled observations
-        #for idx_to_remove in overall_topk: self.unlabeled_indices.remove(idx_to_remove)
-        self.unlabeled_indices = list(set(self.unlabeled_indices) - set(overall_topk))
+        for idx_to_remove in overall_topk: self.unlabeled_indices.remove(idx_to_remove)
         
         # sanity check
         if len(list(set(self.unlabeled_indices) & set(self.labeled_indices))) == 0:
@@ -254,11 +260,11 @@ class ActiveLearner():
         
     def run(self) -> Dict[str, List[float]]:
                 
-        results = copy.deepcopy(self.t_p['results_dict']['test'])
+        results_format = copy.deepcopy(self.t_p['results_dict'])
         
         logger.info(f'----------------------- ITERATION {self.iter} / {self.al_p['al_iters']} -----------------------\n')
         
-        self.train_results[self.iter] = self.train_evaluate_save(self.al_p['n_top_k_obs'], self.iter, results)
+        self.train_results[self.iter] = self.train_evaluate_save(self.al_p['n_top_k_obs'], self.iter, results_format)
         
         
         # start of the loop
@@ -291,12 +297,15 @@ class ActiveLearner():
             self.update_sets(topk_idx_obs)
 
             # iter + 1
-            self.train_results[self.iter] = self.train_evaluate_save(self.iter * self.al_p['n_top_k_obs'], self.iter, results)
-        
-        epochs = len(self.train_results[0]['train_loss_weird'])
+            self.train_results[self.iter] = self.train_evaluate_save(self.iter * self.al_p['n_top_k_obs'], self.iter, results_format)
+                
+        epochs = len(self.train_results[1]['train_loss_weird'])
         
         # plotting the cumulative train results
-        print_cumulative_train_results(list(self.t_p['results_dict']['train'].keys()), self.train_results, self.method_name, epochs, self.ct_p['timestamp'], self.ct_p['dataset_name'], self.ct_p['trial'], self.LL)            
+        print_cumulative_train_results(list(self.t_p['results_dict']['train'].keys()), 
+                                       self.train_results, self.method_name, epochs,
+                                       self.ct_p['timestamp'], self.ct_p['dataset_name'], 
+                                       self.ct_p['trial'])
         
         
-        return results
+        return results_format['test']

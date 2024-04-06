@@ -38,10 +38,10 @@ class BasicBlock(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, loss_net: LossNet, block: BasicBlock, num_blocks: List[int], n_channels=3, n_classes=10) -> None:
+    def __init__(self, image_size: int, loss_net: LossNet, block: BasicBlock, num_blocks: List[int], n_channels=3, n_classes=10) -> None:
         super(ResNet, self).__init__()
         self.in_planes = 64
-        
+        self.image_size = image_size
         self.loss_net = loss_net
 
         self.conv1 = nn.Conv2d(n_channels, 64, kernel_size=3, stride=1, padding=1, bias=False)
@@ -68,7 +68,7 @@ class ResNet(nn.Module):
         out3 = self.layer3(out2)
         out4 = self.layer4(out3)
 
-        out = F.avg_pool2d(out4, 4)
+        out = F.avg_pool2d(out4, int(self.image_size / 8))
         embedds = out.view(out.size(0), -1)
         out = self.linear(embedds)
 
@@ -81,5 +81,5 @@ class ResNet(nn.Module):
 
 
 
-def ResNet18(loss_net: LossNet, n_classes=10, n_channels=3) -> ResNet:
-    return ResNet(loss_net, BasicBlock, [2,2,2,2], n_channels, n_classes)
+def ResNet18(image_size: int, loss_net: LossNet, n_classes=10, n_channels=3) -> ResNet:
+    return ResNet(image_size, loss_net, BasicBlock, [2,2,2,2], n_channels, n_classes)

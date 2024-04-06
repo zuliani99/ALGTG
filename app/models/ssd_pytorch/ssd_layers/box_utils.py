@@ -37,8 +37,10 @@ def intersect(box_a, box_b):
     Return:
       (tensor) intersection area, Shape: [A,B].
     """
+
     A = box_a.size(0)
     B = box_b.size(0)
+
     max_xy = torch.min(box_a[:, 2:].unsqueeze(1).expand(A, B, 2),
                        box_b[:, 2:].unsqueeze(0).expand(A, B, 2))
     min_xy = torch.max(box_a[:, :2].unsqueeze(1).expand(A, B, 2),
@@ -59,6 +61,7 @@ def jaccard(box_a, box_b):
     Return:
         jaccard overlap: (tensor) Shape: [box_a.size(0), box_b.size(0)]
     """
+ 
     inter = intersect(box_a, box_b)
     area_a = ((box_a[:, 2]-box_a[:, 0]) *
               (box_a[:, 3]-box_a[:, 1])).unsqueeze(1).expand_as(inter)  # [A,B]
@@ -172,6 +175,7 @@ def log_sum_exp(x):
 # Original author: Francisco Massa:
 # https://github.com/fmassa/object-detection.torch
 # Ported to PyTorch by Max deGroot (02/01/2017)
+# edited and updated by me :) (06/04/2024)
 def nms(boxes, scores, overlap=0.5, top_k=200):
     """Apply non-maximum suppression at test time to avoid detecting too many
     overlapping bounding boxes for a given object.
@@ -191,14 +195,17 @@ def nms(boxes, scores, overlap=0.5, top_k=200):
     y1 = boxes[:, 1]
     x2 = boxes[:, 2]
     y2 = boxes[:, 3]
+    
     area = torch.mul(x2 - x1, y2 - y1)
-    v, idx = scores.sort(0)  # sort in ascending order
+    _, idx = scores.sort(0)  # sort in ascending order
+
     # I = I[v >= 0.01]
     idx = idx[-top_k:]  # indices of the top-k largest vals
     xx1 = boxes.new()
     yy1 = boxes.new()
     xx2 = boxes.new()
-    yy2 = boxes.new()
+    yy2 = boxes.new()    
+   
     w = boxes.new()
     h = boxes.new()
 
@@ -212,6 +219,17 @@ def nms(boxes, scores, overlap=0.5, top_k=200):
         if idx.size(0) == 1:
             break
         idx = idx[:-1]  # remove kept element from view
+        
+        
+        ###############################################
+        # added
+        xx1 = xx1.resize_(0).resize_as_(x1[idx])
+        yy1 = yy1.resize_(0).resize_as_(y1[idx])
+        xx2 = xx2.resize_(0).resize_as_(x2[idx])
+        yy2 = yy2.resize_(0).resize_as_(y2[idx])
+        ###############################################
+        
+        
         # load bboxes of next highest vals
         torch.index_select(x1, 0, idx, out=xx1)
         torch.index_select(y1, 0, idx, out=yy1)

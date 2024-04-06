@@ -11,7 +11,6 @@ if sys.version_info[0] == 2:
 else:
     import xml.etree.ElementTree as ET
 
-from ..data.voc import voc_classes
 
 import logging
 logger = logging.getLogger(__name__)
@@ -19,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 
-def do_python_eval(data_path, output_dir='output', use_07=True):
+def do_python_eval(voc_classes, data_path, output_dir='output', use_07=True):
     cachedir = os.path.join(data_path, 'VOC2007', 'annotations_cache')
     annopath = os.path.join(data_path, 'VOC2007', 'Annotations', '%s.xml')
     imgsetpath = os.path.join(data_path, 'VOC2007', 'ImageSets', 'Main', 'test.txt')
@@ -247,7 +246,7 @@ def voc_ap(rec, prec, use_07_metric=True):
     return ap
 
 
-def write_voc_results_file(all_boxes, dataset, data_path):
+def write_voc_results_file(all_boxes, dataset, data_path, voc_classes):
     for cls_ind, cls in enumerate(voc_classes):
         logger.info('Writing {:s} VOC results file'.format(cls))
         filename = get_voc_results_file_template(data_path, 'test', cls)
