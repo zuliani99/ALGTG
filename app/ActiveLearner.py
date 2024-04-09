@@ -112,17 +112,17 @@ class ActiveLearner():
         # again no gradients needed
         with torch.inference_mode():
             for idxs, images, labels in dataloader:
-                
+
                 if 'embedds' in dict_to_modify:
-                    _, embed = self.model(images.to(self.device))
+                    _, embed, _ = self.model(images.to(self.device))
                     dict_to_modify['embedds'] = torch.cat((dict_to_modify['embedds'], embed.squeeze()), dim=0)
                     
                 if 'probs' in dict_to_modify:
-                    outs, _  = self.model(images.to(self.device))
+                    outs, _, _  = self.model(images.to(self.device))
                     dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], outs.squeeze().cpu()), dim=0)
                     
                 if 'pred_loss' in dict_to_modify:
-                    _, pred_loss = self.model(images.to(self.device))
+                    _, _, pred_loss = self.model(images.to(self.device))
                     dict_to_modify['pred_loss'] = torch.cat((dict_to_modify['pred_loss'], pred_loss.squeeze().cpu()), dim=0)
                     
                 if 'labels' in dict_to_modify:
