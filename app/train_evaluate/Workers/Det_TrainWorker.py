@@ -53,8 +53,8 @@ class Det_TrainWorker():
         self.init_check_filename = f'{self.best_check_filename}_init_checkpoint.pth.tar'
         
         # set device for priors
-        if self.world_size > 1: self.model.module.ssd_net.set_device_priors(self.device) 
-        else: self.model.ssd_net.set_device_priors(self.device)
+        if self.world_size > 1: self.model.module.backbone.set_device_priors(self.device) 
+        else: self.model.backbone.set_device_priors(self.device)
     
     
     def init_opt_sched(self):
@@ -160,8 +160,8 @@ class Det_TrainWorker():
 
     def test(self) -> torch.Tensor:
         
-        if self.world_size > 1: self.model.module.ssd_net.change_phase() 
-        else: self.model.ssd_net.change_phase()
+        if self.world_size > 1: self.model.module.backbone.change_phase() 
+        else: self.model.backbone.change_phase()
         
         self.model.eval()
 

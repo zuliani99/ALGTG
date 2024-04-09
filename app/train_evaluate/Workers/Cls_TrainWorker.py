@@ -49,8 +49,8 @@ class Cls_TrainWorker():
 
 
     def init_opt_sched(self):
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.9)    
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.01, momentum=0.9, weight_decay=5e-4)
+        self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[160], gamma=0.1)
     
     
     def __save_checkpoint(self, filename: str) -> None:
@@ -66,36 +66,36 @@ class Cls_TrainWorker():
 
 
     def compute_losses(self, weight: float, pred_loss: torch.Tensor, outputs: torch.Tensor, \
-                       labels: torch.Tensor, tot_loss_ce: float, tot_loss_weird: float) -> Tuple[torch.Tensor, float, float]:
+                       labels: torch.Tensor, tot_loss_ce: float, tot_pred_loss: float) -> Tuple[torch.Tensor, float, float]:
         
-        loss_ce = self.loss_fn['backbone'](outputs, labels)
-        
+        loss_ce = self.loss_fn['backbone'](outputs, labels.long())
+        backbone_loss = torch.mean(loss_ce)
+        loss = backbone_loss
         if weight:    
             loss_weird = self.loss_fn['module'](pred_loss, loss_ce)
-            loss_ce = torch.mean(loss_ce)
-            loss = loss_ce + loss_weird
+            loss = backbone_loss + loss_weird
                         
-            tot_loss_ce += loss_ce.cpu().item()
-            tot_loss_weird += loss_weird.cpu().item()
+            tot_loss_ce += backbone_loss.cpu().item()
+            tot_pred_loss += loss_weird.cpu().item()
         else:
-            loss = torch.mean(loss_ce)
-            tot_loss_ce += loss.item()
+            tot_loss_ce += backbone_loss.cpu().item()
             
-        return loss, tot_loss_ce, tot_loss_weird               
+        return loss, tot_loss_ce, tot_pred_loss               
         
     
     
     
     def train(self) -> torch.Tensor:
         
-        if self.wandb_run != None: self.wandb_run.watch(self.model, log="all", log_freq=10)
+        #if self.wandb_run != None: self.wandb_run.watch(self.model, log="all", log_freq=10)
         
         weight = 1.
         check_best_path = f'{self.best_check_filename}/best_{self.method_name}_{self.device}.pth.tar'
         results = torch.zeros((4, self.epochs), device=self.device)
         
         if self.iter > 1: self.__load_checkpoint(check_best_path)
-                    
+        
+        self.model.train()
     
         for epoch in range(self.epochs):
 
@@ -104,10 +104,7 @@ class Cls_TrainWorker():
             #if self.LL and epoch == 121: weight = 0
             if epoch == 121: weight = 0
             
-            if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore
-            
-            self.model.train()
-            
+            if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore            
                         
             for _, images, labels in self.train_dl:                
                                     
@@ -118,7 +115,8 @@ class Cls_TrainWorker():
                 outputs, _, pred_loss = self.model(images)
                 
                 loss, train_loss_ce, train_loss_pred  = self.compute_losses(
-                        weight, pred_loss, outputs, labels, train_loss_ce, train_loss_pred
+                        weight=weight, pred_loss=pred_loss, outputs=outputs, labels=labels,
+                        tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred
                     )
                                 
                 loss.backward()
@@ -135,11 +133,11 @@ class Cls_TrainWorker():
             train_loss_pred /= len(self.train_dl)
             
             
-            #logger.info(f'GPU: {self.device} ||| Epoch {epoch} | train_accuracy: {round(train_accuracy, 5)} - train_loss: {round(train_loss, 5)} - train_loss_ce: {round(train_loss_ce, 5)} - train_loss_pred: {round(train_loss_pred, 5)}')
+            logger.info(f'GPU: {self.device} ||| Epoch {epoch} | train_accuracy: {round(train_accuracy, 5)} - train_loss: {round(train_loss, 5)} - train_loss_ce: {round(train_loss_ce, 5)} - train_loss_pred: {round(train_loss_pred, 5)}')
             
             
             #for pos, metric in zip(range(4), [train_loss, train_loss_ce, train_loss_pred, train_accuracy]):
-            for pos, metric in zip(range(results.shape[0]), [train_loss, train_loss_ce, train_loss_pred, train_accuracy]):
+            for pos, metric in zip(range(results.shape[0]), [train_accuracy, train_loss, train_loss_ce, train_loss_pred]):
                 results[pos][epoch] = metric
                 
             if self.wandb_run != None:
@@ -166,7 +164,7 @@ class Cls_TrainWorker():
 
 
     def test(self) -> torch.Tensor:
-        tot_loss, tot_loss_ce, tot_loss_weird, tot_accuracy = .0, .0, .0, .0
+        tot_loss, tot_loss_ce, tot_pred_loss, tot_accuracy = .0, .0, .0, .0
         
         self.model.eval()
 
@@ -176,8 +174,8 @@ class Cls_TrainWorker():
                 images, labels = images.to(self.device, non_blocking=True), labels.to(self.device, non_blocking=True)
                 outputs, _, pred_loss = self.model(images)
 
-                loss, tot_loss_ce, tot_loss_weird = self.compute_losses(
-                        1, pred_loss, outputs, labels, tot_loss_ce, tot_loss_weird
+                loss, tot_loss_ce, tot_pred_loss = self.compute_losses(
+                        1, pred_loss, outputs, labels, tot_loss_ce, tot_pred_loss
                     )
                 
                 tot_accuracy += self.score_fn(outputs, labels)
@@ -187,9 +185,9 @@ class Cls_TrainWorker():
             tot_accuracy /= len(self.test_dl)
             tot_loss /= len(self.test_dl)
             tot_loss_ce /= len(self.test_dl)
-            tot_loss_weird /= len(self.test_dl)
+            tot_pred_loss /= len(self.test_dl)
             
-        return torch.tensor((tot_accuracy, tot_loss, tot_loss_ce, tot_loss_weird), device=self.device)
+        return torch.tensor((tot_accuracy, tot_loss, tot_loss_ce, tot_pred_loss), device=self.device)
 
         
         
