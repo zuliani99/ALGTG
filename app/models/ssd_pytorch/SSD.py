@@ -77,7 +77,9 @@ class SSD(nn.Module):
     def set_device_priors(self, gpu_id: torch.device): 
         self.device = gpu_id
         self.priors.to(self.device)
-            
+        
+    def get_embedding_dim(self) -> int:
+        return 0
 
     def forward(self, x):
         """Applies network layers and ops on input image(s) x.
@@ -258,17 +260,17 @@ class SSD_LL(nn.Module):
         super(SSD_LL, self).__init__()
         self.loss_net = LossNet(ln_p)#.to(device)
         #self.ssd_net = build_ssd(device, phase, voc_config, num_classes=num_classes)
-        self.ssd_net = build_ssd(phase, voc_config, num_classes=num_classes)
+        self.backbone = build_ssd(phase, voc_config, num_classes=num_classes)
         vgg_weights = torch.load('app/models/ssd_pytorch/vgg16_reducedfc.pth')
-        self.ssd_net.vgg.load_state_dict(vgg_weights)
+        self.backbone.vgg.load_state_dict(vgg_weights)
         # initialize
         #self.ssd_net.extras.apply(init_weights_apply)
         #self.ssd_net.loc.apply(init_weights_apply)
         #self.ssd_net.conf.apply(init_weights_apply)
         
     def forward(self, x):
-        outs, embedds = self.ssd_net(x)
-        features = self.ssd_net.get_features()
+        outs, embedds = self.backbone(x)
+        features = self.backbone.get_features()
         pred_loss = self.loss_net(features)
         return outs, embedds, pred_loss
 

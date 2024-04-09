@@ -63,7 +63,7 @@ class BADGE(ActiveLearner):
             
         logger.info(' => Getting the unlabeled embeddings')
         self.embedds_dict = {
-            'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device),
+            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
             'idxs': torch.empty(0, dtype=torch.int8)
         }
         self.get_embeddings(self.unlab_train_dl, self.embedds_dict)

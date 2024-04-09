@@ -50,9 +50,9 @@ class CoreSet(ActiveLearner):
         )
             
         logger.info(' => Getting the labeled and unlabeled embeddings')
-        self.lab_embedds_dict = {'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device)}
+        self.lab_embedds_dict = {'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device)}
         self.unlab_embedds_dict = {
-            'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device),
+            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
             'idxs': torch.empty(0, dtype=torch.int8)
         }
             

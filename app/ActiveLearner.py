@@ -149,11 +149,11 @@ class ActiveLearner():
         # CHANGE THIS FUNCTION ONCE WE ARE IN DECTECTION TASK
         ##################################################################################################################
         lab_embedds_dict = {
-            'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device),
+            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
             'labels': torch.empty(0, dtype=torch.int8)
         }
         unlab_embedds_dict = {
-            'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device),
+            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
             'labels': torch.empty(0, dtype=torch.int8)
         }
             

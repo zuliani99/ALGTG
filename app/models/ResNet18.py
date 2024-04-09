@@ -81,6 +81,9 @@ class ResNet(nn.Module):
     def get_features(self) -> List[torch.Tensor]:
         return self.features
     
+    def get_embedding_dim(self) -> int:
+        return self.linear.in_features
+    
     
     
     
@@ -97,10 +100,10 @@ class ResNet_LL(nn.Module):
         super(ResNet_LL, self).__init__()
         self.loss_net = LossNet()#.to(device)
         #self.resnet = ResNet18(device, image_size, n_classes=n_classes, n_channels=n_channels)
-        self.resnet = ResNet18(image_size, n_classes=n_classes, n_channels=n_channels)
+        self.backbone = ResNet18(image_size, n_classes=n_classes, n_channels=n_channels)
         
     def forward(self, x):
-        outs, embedds = self.resnet(x)
-        features = self.resnet.get_features()
+        outs, embedds = self.backbone(x)
+        features = self.backbone.get_features()
         pred_loss = self.loss_net(features)
         return outs, embedds, pred_loss
