@@ -1,5 +1,6 @@
-from .ActiveLearner import ActiveLearner
-from ..utils import plot_tsne_A, create_directory, entropy, plot_gtg_entropy_tensor, Entropy_Strategy
+
+from ActiveLearner import ActiveLearner
+from utils import plot_tsne_A, create_directory, entropy, plot_gtg_entropy_tensor, Entropy_Strategy
 
 import torch
 import torch.nn as nn 
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 class GTG(ActiveLearner):
     
-    def __init__(self, strategy_dict_params: Dict[str, Dict[str, Any] | bool], gtg_params: Dict[str, Any]) -> None:
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any]) -> None:
         
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,
@@ -28,30 +29,34 @@ class GTG(ActiveLearner):
             'e_d': self.get_A_e_d,
         }
 
-        self.A_function: str = gtg_params['A_function']
-        self.zero_diag: bool = gtg_params['zero_diag']
-        self.ent_strategy: Entropy_Strategy = gtg_params['ent_strategy']
-        self.rbf_aff: bool = gtg_params['rbf_aff']
-        self.gtg_tol: float = gtg_params['gtg_tol']
-        self.gtg_max_iter: int = gtg_params['gtg_max_iter']
-        self.strategy_type: str = gtg_params['strategy_type']
-        self.threshold_strategy: str = gtg_params['threshold_strategy']
-        self.threshold: float = gtg_params['threshold']
+        self.A_function: str = gtg_p['A_function']
+        self.zero_diag: bool = gtg_p['zero_diag']
+        self.ent_strategy: Entropy_Strategy = gtg_p['ent_strategy']
+        self.rbf_aff: bool = gtg_p['rbf_aff']
+        self.gtg_tol: float = gtg_p['gtg_tol']
+        self.gtg_max_iter: int = gtg_p['gtg_max_iter']
+        self.strategy_type: str = gtg_p['strategy_type']
+        self.threshold_strategy: str = gtg_p['threshold_strategy']
+        self.threshold: float = gtg_p['threshold']
                 
         str_diag = '0diag' if self.zero_diag else '1diag'
         str_rbf = 'rbf_' if self.rbf_aff else ''
         if self.threshold_strategy != None:
             str_treshold = f'{self.threshold_strategy}_{self.threshold}' if self.threshold_strategy != 'mean' else 'mean'
-        
-            self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}_LL' if strategy_dict_params['LL'] \
-                else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}'
+
+            self.method_name =  f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}'
+            
+            #self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}_LL' if strategy_dict_params['LL'] \
+            #    else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}'
         
         else:
-            self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_LL' if strategy_dict_params['LL'] \
-                else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}'
+            
+            #self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_LL' if strategy_dict_params['LL'] \
+            #    else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}'
+            self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}'
                 
 
-        super().__init__(strategy_dict_params)
+        super().__init__(ct_p, t_p, al_p)
         
         create_directory(self.path + '/gtg_entropies_plots')
         

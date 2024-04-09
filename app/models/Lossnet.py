@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
     
 # Loss Prediction Loss
-'''class LossPredLoss(nn.Module):
+class LossPredLoss(nn.Module):
 
     def __init__(self, device: torch.device, margin=1):
         super(LossPredLoss, self).__init__()
@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
     def forward(self, inputs: torch.Tensor, targets: torch.Tensor):
         assert len(inputs) % 2 == 0, 'The batch size is not even.'
         assert inputs.shape == inputs.flip(0).shape
+        
+        targets = targets.detach()
         
         mid = inputs.shape[0] // 2
 
@@ -36,9 +38,9 @@ logger = logging.getLogger(__name__)
         
         loss = F.margin_ranking_loss(pred_lossi, pred_lossj, final_target, margin=self.margin)
                         
-        return 2 * loss'''
+        return 2 * loss
     
-class LossPredLoss(nn.Module):
+'''class LossPredLoss(nn.Module):
     def __init__(self,device: torch.device, margin=1):
         super(LossPredLoss, self).__init__()
         self.device = device
@@ -67,16 +69,19 @@ class LossPredLoss(nn.Module):
         else:
             NotImplementedError()
 
-        return loss
+        return loss'''
         
 
 
 # Loss Prediction Network
 class LossNet(nn.Module):
-    def __init__(self, feature_sizes=[32, 16, 8, 4], 
-                 num_channels=[64, 128, 256, 512],
-                 interm_dim=128, task='clf'):
+    def __init__(self, dict_params = {}):
         super(LossNet, self).__init__()
+
+        feature_sizes = dict_params['feature_sizes'] if 'feature_sizes' in dict_params else [32, 16, 8, 4] 
+        num_channels = dict_params['num_channels'] if 'num_channels' in dict_params else [64, 128, 256, 512]
+        interm_dim = dict_params['interm_dim'] if 'interm_dim' in dict_params else 128
+        task = dict_params['task'] if 'task' in dict_params else 'clf'
 
         self.GAP = []
         for feature_size in feature_sizes:

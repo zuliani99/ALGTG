@@ -1,13 +1,16 @@
 
 import torch
 
-from utils import accuracy_score
-from models.ResNet18 import ResNet
+from utils import accuracy_score, init_weights_apply
+from models.ResNet18 import ResNet_LL
 from models.Lossnet import LossPredLoss
 
 from torch.utils.data import DataLoader
 
 from typing import Tuple, Dict, Any
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 class Cls_TrainWorker():
@@ -18,7 +21,10 @@ class Cls_TrainWorker():
         
         #self.LL: bool = params['LL']
         self.world_size: int = world_size
-        self.model: ResNet = params['ct_p']['Model']
+        self.wandb_run = params['wandb_p'] if 'wandb_p' in params else None
+
+        self.model: ResNet_LL = params['ct_p']['Model']
+        
         self.epochs = params['t_p']['epochs']
         
         self.dataset_name: str = params['ct_p']['dataset_name']
@@ -27,52 +33,53 @@ class Cls_TrainWorker():
         self.train_dl: DataLoader = params['train_dl']
         self.test_dl: DataLoader = params['test_dl']
         
-        
-        self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none').to(self.device)
+        self.loss_fn = dict(
+            backbone = torch.nn.CrossEntropyLoss(reduction='none').to(self.device),
+            module = LossPredLoss(self.device).to(self.device)
+        )
+                
         self.score_fn = accuracy_score
-        self.loss_weird = LossPredLoss(self.device).to(self.device)
         
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
         self.init_check_filename = f'{self.best_check_filename}_init_checkpoint.pth.tar'
         
+        self.model.apply(init_weights_apply)
         
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
-        self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[160], gamma=0.1)
+        self.init_opt_sched()
 
+
+    def init_opt_sched(self):
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
+        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.9)    
     
     
     def __save_checkpoint(self, filename: str) -> None:
-        checkpoint = {
-            'state_dict': self.model.module.state_dict() if self.world_size > 1 else self.model.state_dict(),
-        }
+        checkpoint = dict(state_dict = self.model.module.state_dict() if self.world_size > 1 else self.model.state_dict())
         torch.save(checkpoint, filename)
-    
     
     
     def __load_checkpoint(self, filename: str) -> None:
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.module.load_state_dict(checkpoint['state_dict']) if self.world_size > 1 else self.model.load_state_dict(checkpoint['state_dict'])
-
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
-        self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[160], gamma=0.1)
+        self.init_opt_sched()
 
 
 
-    def compute_losses(self, weight: float, out_weird: torch.Tensor, outputs: torch.Tensor, \
-        labels: torch.Tensor, tot_loss_ce: float, tot_loss_weird: float) -> Tuple[torch.Tensor, float, float]:
+    def compute_losses(self, weight: float, pred_loss: torch.Tensor, outputs: torch.Tensor, \
+                       labels: torch.Tensor, tot_loss_ce: float, tot_loss_weird: float) -> Tuple[torch.Tensor, float, float]:
         
-        loss_ce = self.loss_fn(outputs, labels)
+        loss_ce = self.loss_fn['backbone'](outputs, labels)
         
-        #if self.LL and weight:    
-        loss_weird = self.loss_weird(out_weird, loss_ce)
-        loss_ce = torch.mean(loss_ce)
-        loss = loss_ce + loss_weird
-                    
-        tot_loss_ce += loss_ce.cpu().item()
-        tot_loss_weird += loss_weird.cpu().item()
-        #else:
-            #loss = torch.mean(loss_ce)
-            #if self.LL: tot_loss_ce += loss.item()
+        if weight:    
+            loss_weird = self.loss_fn['module'](pred_loss, loss_ce)
+            loss_ce = torch.mean(loss_ce)
+            loss = loss_ce + loss_weird
+                        
+            tot_loss_ce += loss_ce.cpu().item()
+            tot_loss_weird += loss_weird.cpu().item()
+        else:
+            loss = torch.mean(loss_ce)
+            tot_loss_ce += loss.item()
             
         return loss, tot_loss_ce, tot_loss_weird               
         
@@ -80,35 +87,38 @@ class Cls_TrainWorker():
     
     
     def train(self) -> torch.Tensor:
-                
+        
+        if self.wandb_run != None: self.wandb_run.watch(self.model, log="all", log_freq=10)
+        
         weight = 1.
         check_best_path = f'{self.best_check_filename}/best_{self.method_name}_{self.device}.pth.tar'
         results = torch.zeros((4, self.epochs), device=self.device)
-        
         
         if self.iter > 1: self.__load_checkpoint(check_best_path)
                     
     
         for epoch in range(self.epochs):
 
-            train_loss, train_loss_ce, train_loss_weird, train_accuracy = .0, .0, .0, .0
+            train_loss, train_loss_ce, train_loss_pred, train_accuracy = .0, .0, .0, .0
             
             #if self.LL and epoch == 121: weight = 0
             if epoch == 121: weight = 0
-
             
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore
+            
             self.model.train()
             
                         
             for _, images, labels in self.train_dl:                
                                     
                 images, labels = images.to(self.device, non_blocking=True), labels.to(self.device, non_blocking=True)
-                self.optimizer.zero_grad()
-                outputs, _, out_weird = self.model(images)
                 
-                loss, train_loss_ce, train_loss_weird  = self.compute_losses(
-                        weight, out_weird, outputs, labels, train_loss_ce, train_loss_weird
+                self.optimizer.zero_grad()
+                
+                outputs, _, pred_loss = self.model(images)
+                
+                loss, train_loss_ce, train_loss_pred  = self.compute_losses(
+                        weight, pred_loss, outputs, labels, train_loss_ce, train_loss_pred
                     )
                                 
                 loss.backward()
@@ -122,16 +132,27 @@ class Cls_TrainWorker():
             train_accuracy /= len(self.train_dl)
             train_loss /= len(self.train_dl)
             train_loss_ce /= len(self.train_dl)
-            train_loss_weird /= len(self.train_dl)
+            train_loss_pred /= len(self.train_dl)
             
-
             
-            #for pos, metric in zip(range(4), [train_loss, train_loss_ce, train_loss_weird, train_accuracy]):
-            for pos, metric in zip(range(results.shape[0]), [train_loss, train_loss_ce, train_loss_weird, train_accuracy]):
+            logger.info(f'GPU: {self.device} ||| Epoch {epoch} | train_accuracy: {round(train_accuracy, 5)} - train_loss: {round(train_loss, 5)} - train_loss_ce: {round(train_loss_ce, 5)} - train_loss_pred: {round(train_loss_pred, 5)}')
+            
+            
+            #for pos, metric in zip(range(4), [train_loss, train_loss_ce, train_loss_pred, train_accuracy]):
+            for pos, metric in zip(range(results.shape[0]), [train_loss, train_loss_ce, train_loss_pred, train_accuracy]):
                 results[pos][epoch] = metric
+                
+            if self.wandb_run != None:
+                self.wandb_run.log({
+                    'train_accuracy': train_accuracy,
+                    'train_loss': train_loss,
+                    'train_loss_ce': train_loss_ce,
+                    'train_loss_pred': train_loss_pred
+                })        
+        
 
             #MultiStepLR
-            self.scheduler.step()
+            self.lr_scheduler.step()
             
             self.__save_checkpoint(check_best_path)
                 
@@ -153,10 +174,10 @@ class Cls_TrainWorker():
             for _, images, labels in self.test_dl:
                 
                 images, labels = images.to(self.device, non_blocking=True), labels.to(self.device, non_blocking=True)
-                outputs, _, out_weird  = self.model(images)
+                outputs, _, pred_loss = self.model(images)
 
                 loss, tot_loss_ce, tot_loss_weird = self.compute_losses(
-                        1, out_weird, outputs, labels, tot_loss_ce, tot_loss_weird
+                        1, pred_loss, outputs, labels, tot_loss_ce, tot_loss_weird
                     )
                 
                 tot_accuracy += self.score_fn(outputs, labels)

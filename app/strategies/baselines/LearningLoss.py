@@ -26,13 +26,13 @@ class LearningLoss(ActiveLearner):
                 
         logger.info(' => Evaluating unlabeled observations')
         embeds_dict = {
-            'out_weird': torch.empty(0, dtype=torch.float32),
+            'pred_loss': torch.empty(0, dtype=torch.float32),
             'idxs': torch.empty(0, dtype=torch.int8)
         }
         self.get_embeddings(self.unlab_train_dl, embeds_dict)
         
         logger.info(f' => Extracting the Top-k unlabeled observations')
-        overall_topk = torch.topk(embeds_dict['out_weird'], n_top_k_obs)
+        overall_topk = torch.topk(embeds_dict['pred_loss'], n_top_k_obs)
         logger.info(' DONE\n')
         
         return overall_topk.indices.tolist(), [int(embeds_dict['idxs'][id].item()) for id in overall_topk.indices.tolist()]

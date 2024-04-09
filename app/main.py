@@ -3,14 +3,8 @@
 import torch
 import torch.distributed as dist
 
-from models.ResNet18 import ResNet
-from models.ssd_pytorch.SSD import SSD
-
-from datasets_creation.Classification import Cls_Datasets
-from datasets_creation.Detection import Det_Datasets
-
-from models import get_resnet_model, get_ssd_model
-from utils import create_directory, create_ts_dir, plot_loss_curves, plot_accuracy_std_mean, set_seeds, Entropy_Strategy
+from utils import create_directory, create_ts_dir, get_dataset, get_model, \
+    plot_loss_curves, plot_accuracy_std_mean, set_seeds, Entropy_Strategy
 
 from strategies.baselines.Random import Random
 from strategies.baselines.Entropy import Entropy
@@ -25,23 +19,9 @@ import argparse
 import time
 from typing import Dict, Any, List, Tuple
 
+import os
 import logging
 logger = logging.getLogger(__name__)
-
-
-
-
-def get_dataset(task, dataset_name: str, 
-                init_lab_obs: int) -> Cls_Datasets | Det_Datasets:
-    if task == 'clf': return Cls_Datasets(dataset_name, init_lab_obs=init_lab_obs)
-    else: return Det_Datasets(dataset_name, init_lab_obs=init_lab_obs)
-
-
-def get_model(image_size: int, n_classes: int, n_channels: int, 
-              device: torch.device, task: str) -> ResNet | SSD:
-    if task == 'clf': return get_resnet_model(image_size, n_classes, n_channels, device)
-    else: return get_ssd_model(n_classes, device)
-
 
 
 
@@ -56,6 +36,9 @@ def get_args() -> argparse.Namespace:
                         required=True, help='Possible query strategy types to choose')
     parser.add_argument('-t', '--threshold', type=float, nargs=1, required=False, 
                         help='Affinity Matrix Threshold, when threshold_strategy = mean, this is ingnored')
+    parser.add_argument('--wandb', action='store_true', 
+                        help='Log benchmark stats into Weights & Biases web app service')
+                        
 
     args = parser.parse_args()
     return args
@@ -82,6 +65,7 @@ def main() -> None:
     
     args = get_args()
     choosen_datasets = args.datasets
+    wandb = args.wandb
     trials = args.iterations[0]
     strategy_type = args.strategy[0]
     treshold_strategy = args.threshold_strategy[0]
@@ -145,7 +129,8 @@ def main() -> None:
                 'Dataset': Dataset, 'Model': Model,
                 'device': device, 'timestamp': timestamp,
                 'dataset_name': dataset_name,
-                'trial': trial, 'task': task
+                'trial': trial, 'task': task,
+                'wandb_logs': wandb
             }
 
             results, n_lab_obs = run_strategies(
@@ -161,6 +146,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    os.environ["MASTER_ADDR"] = "ppv-gpu1"
+    os.environ["MASTER_PORT"] = "16217"
     
     start = time.time()
     main()

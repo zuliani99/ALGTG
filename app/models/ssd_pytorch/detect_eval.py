@@ -29,7 +29,7 @@ def do_python_eval(voc_classes, data_path, output_dir='output', use_07=True):
     logger.info('VOC07 metric? ' + ('Yes' if use_07_metric else 'No'))
     if not os.path.isdir(output_dir):
         os.mkdir(output_dir)
-    for i, cls in enumerate(voc_classes):
+    for _, cls in enumerate(voc_classes):
         filename = get_voc_results_file_template(data_path, 'test', cls)
         rec, prec, ap = voc_eval(
             filename, annopath, imgsetpath, cls, cachedir,
@@ -252,8 +252,12 @@ def write_voc_results_file(all_boxes, dataset, data_path, voc_classes):
         filename = get_voc_results_file_template(data_path, 'test', cls)
         with open(filename, 'wt') as f:
             for im_ind, index in enumerate(dataset.ids):
+                print(type(all_boxes[cls_ind+1][im_ind]))
+                if(isinstance(all_boxes[cls_ind+1][im_ind], np.ndarray)):
+                    print(len(all_boxes[cls_ind+1][im_ind]))
                 dets = all_boxes[cls_ind+1][im_ind]
-                if dets == []:
+                #if dets == []:
+                if dets == None or dets.size() == 0:
                     continue
                 # the VOCdevkit expects 1-based indices
                 for k in range(dets.shape[0]):
@@ -261,6 +265,7 @@ def write_voc_results_file(all_boxes, dataset, data_path, voc_classes):
                             format(index[1], dets[k, -1],
                                    dets[k, 0] + 1, dets[k, 1] + 1,
                                    dets[k, 2] + 1, dets[k, 3] + 1))
+
 
 def get_voc_results_file_template(data_path, image_set, cls):
     devkit_path = data_path + 'VOC2007'

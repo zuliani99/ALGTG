@@ -103,8 +103,6 @@ def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
     best_prior_idx.squeeze_(1)
     best_prior_overlap.squeeze_(1)
     best_truth_overlap.index_fill_(0, best_prior_idx, 2)  # ensure best prior
-    # TODO refactor: index  best_prior_idx with long tensor
-    # ensure every gt matches with its prior of max overlap
     for j in range(best_prior_idx.size(0)):
         best_truth_idx[best_prior_idx[j]] = j
     matches = truths[best_truth_idx]          # Shape: [num_priors,4]
@@ -129,12 +127,12 @@ def encode(matched, priors, variances):
     """
 
     # dist b/t match center and prior's center
-    g_cxcy = (matched[:, :2] + matched[:, 2:])/2 - priors[:, :2]
+    g_cxcy = (matched[:, :2] + matched[:, 2:]) / 2 - priors[:, :2]
     # encode variance
     g_cxcy /= (variances[0] * priors[:, 2:])
     # match wh / prior wh
     g_wh = (matched[:, 2:] - matched[:, :2]) / priors[:, 2:]
-    g_wh = torch.log(g_wh) / variances[1]
+    g_wh = torch.log(g_wh + 1e-5) / variances[1]
     # return target for smooth_l1_loss
     return torch.cat([g_cxcy, g_wh], 1)  # [num_priors,4]
 
@@ -168,7 +166,7 @@ def log_sum_exp(x):
     Args:
         x (Variable(tensor)): conf_preds from conf layers
     """
-    x_max = x.data.max()
+    x_max = x.max().item()
     return torch.log(torch.sum(torch.exp(x-x_max), 1, keepdim=True)) + x_max
 
 

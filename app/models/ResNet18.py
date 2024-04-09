@@ -7,7 +7,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Tuple
-from models.Lossnet import LossNet
+from models.Lossnet import LossNet 
+
+
 
 
 class BasicBlock(nn.Module):
@@ -38,11 +40,10 @@ class BasicBlock(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, image_size: int, loss_net: LossNet, block: BasicBlock, num_blocks: List[int], n_channels=3, n_classes=10) -> None:
+    def __init__(self, image_size: int, block: BasicBlock, num_blocks: List[int], n_channels=3, n_classes=10) -> None:
         super(ResNet, self).__init__()
         self.in_planes = 64
         self.image_size = image_size
-        self.loss_net = loss_net
 
         self.conv1 = nn.Conv2d(n_channels, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
@@ -60,7 +61,7 @@ class ResNet(nn.Module):
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         out = F.relu(self.bn1(self.conv1(x)))
 
         out1 = self.layer1(out)
@@ -73,13 +74,33 @@ class ResNet(nn.Module):
         out = self.linear(embedds)
 
         self.features = [out1, out2, out3, out4]
-
-        return out, embedds, self.loss_net(self.features)
+        
+        return out, embedds
+    
     
     def get_features(self) -> List[torch.Tensor]:
         return self.features
+    
+    
+    
+    
+#def ResNet18(image_size: int, loss_net: LossNet, n_classes=10, n_channels=3) -> ResNet:
+#def ResNet18(device: torch.device, image_size: int, n_classes=10, n_channels=3) -> ResNet:
+def ResNet18(image_size: int, n_classes=10, n_channels=3) -> ResNet:
+    return ResNet(image_size, BasicBlock, [2,2,2,2], n_channels, n_classes)#.to(device)
 
 
 
-def ResNet18(image_size: int, loss_net: LossNet, n_classes=10, n_channels=3) -> ResNet:
-    return ResNet(image_size, loss_net, BasicBlock, [2,2,2,2], n_channels, n_classes)
+class ResNet_LL(nn.Module):
+    #def __init__(self, device: torch.device, image_size: int, n_classes=10,  n_channels=3) -> None:
+    def __init__(self, image_size: int, n_classes=10,  n_channels=3) -> None:
+        super(ResNet_LL, self).__init__()
+        self.loss_net = LossNet()#.to(device)
+        #self.resnet = ResNet18(device, image_size, n_classes=n_classes, n_channels=n_channels)
+        self.resnet = ResNet18(image_size, n_classes=n_classes, n_channels=n_channels)
+        
+    def forward(self, x):
+        outs, embedds = self.resnet(x)
+        features = self.resnet.get_features()
+        pred_loss = self.loss_net(features)
+        return outs, embedds, pred_loss

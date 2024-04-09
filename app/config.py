@@ -135,10 +135,10 @@ al_params = {
     
 
 cls_config = {
-    'epochs': 10,#200,
+    'epochs': 200,#10
     'batch_size': 128,
-    'results_dict': { 'train': {'train_accuracy': [], 'train_loss': [] , 'train_loss_ce': [], 'train_loss_weird': []},
-                     'test': {'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_loss_weird': []}}
+    'results_dict': { 'train': {'train_accuracy': [], 'train_loss': [] , 'train_loss_ce': [], 'train_pred_loss': []},
+                     'test': {'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_pred_loss': []}}
 }
 
 
@@ -148,8 +148,9 @@ det_datasets = {
         'n_classes': 21,
         'channels': 3,
         'image_size': 300,
-        'dataset_path': '/content/VOCdevkit', 
-        'classes': ['background',
+        'dataset_path': 'datasets/voc/VOCdevkit', 
+        
+        'classes': [#'background',
                 'aeroplane', 'bicycle', 'bird', 'boat',
                 'bottle', 'bus', 'car', 'cat', 'chair',
                 'cow', 'diningtable', 'dog', 'horse',
@@ -161,8 +162,8 @@ det_datasets = {
 
 
 voc_config = {
-    'lr_steps': (80000, 100000, 120000),
-    'max_iter': 9375,#120000,
+    #'lr_steps': (80000, 100000, 120000),
+    #'max_iter': 9375,#120000,
     'feature_maps': [38, 19, 10, 5, 3, 1],
     'min_dim': 300,
     'steps': [8, 16, 32, 64, 100, 300],
@@ -176,9 +177,10 @@ voc_config = {
 
 det_config = {
     'lr_steps': (80000, 100000, 120000),
-    'max_iter': 9375,#120000,
+    #'max_iter': 9375,#120000,
+    'epochs': 5,#300,
     'batch_size': 32,
-    'results_dict': { 'train': { 'train_loss': [] , 'train_loc_loss': [], 'train_conf_loss': [], 'train_loss_weird': []},
+    'results_dict': { 'train': { 'train_loss': [] , 'train_loc_loss': [], 'train_conf_loss': [], 'train_pred_loss': []},
                      'test': {'test_map': []}
                     }
 }

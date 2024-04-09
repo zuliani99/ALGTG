@@ -5,11 +5,24 @@ import torch
 
 from typing import List, Tuple
 
-from utils import download_tinyimagenet
+#from utils import download_tinyimagenet
+import os
 from config import cls_datasets 
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+
+def download_tinyimagenet() -> None:
+    if not os.path.exists('datasets/tiny-imagenet-200'):
+        logger.info(' => Downloading Tiny-IMAGENET Dataset')
+        os.system('wget http://cs231n.stanford.edu/tiny-imagenet-200.zip')
+        os.system('unzip tiny-imagenet-200.zip -d datasets')
+        os.remove('tiny-imagenet-200.zip')
+        logger.info(' DONE\n')
+    else:
+        logger.info('Tiny-IMAGENET Dataset already downloaded')
 
 
 

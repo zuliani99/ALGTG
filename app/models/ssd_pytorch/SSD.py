@@ -8,8 +8,8 @@ import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
 
+#from AL_GTG.app.utils import init_weights_apply
 from models.Lossnet import LossNet
 
 from .ssd_layers import *
@@ -38,14 +38,14 @@ class SSD(nn.Module):
         head: "multibox head" consists of loc and conf conv layers
     """
 
-    def __init__(self, loss_net, phase, size, base, extras, head, num_classes, voc_cfg):
+    #def __init__(self, loss_net, phase, size, base, extras, head, num_classes, voc_cfg):
+    def __init__(self, phase, size, base, extras, head, num_classes, voc_cfg):
         super(SSD, self).__init__()
-        self.loss_net: LossNet = loss_net
+        #self.loss_net: LossNet = loss_net
         self.phase = phase
         self.num_classes = num_classes
-        #self.cfg = voc_cfg #(coco, voc)[num_classes == 21]
         self.priorbox = PriorBox(voc_cfg)
-        self.priors = Variable(self.priorbox.forward(), requires_grad=False) # volatile=True
+        self.priors = self.priorbox.forward().clone().detach()
         self.size = size
 
         # SSD network
@@ -72,6 +72,11 @@ class SSD(nn.Module):
             del self.softmax
             del self.detect
             self.phase = 'train'
+            
+    # IF IT GIVES ERROR REGARDING THE DEVICE FOR PRIOR THIS IS THE PROBLEM
+    def set_device_priors(self, gpu_id: torch.device): 
+        self.device = gpu_id
+        self.priors.to(self.device)
             
 
     def forward(self, x):
@@ -126,39 +131,25 @@ class SSD(nn.Module):
         loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
         if self.phase == "test":
-            # output = self.detect(
-            #     loc.view(loc.size(0), -1, 4),                   # loc preds
-            #     self.softmax(conf.view(conf.size(0), -1,
-            #                  self.num_classes)),                # conf preds
-            #     self.priors.type(type(x.data))                  # default boxes
-            # )
-            if not self.priors.is_cuda:
-                output = self.detect.apply(self.num_classes, 0, 200, 0.01, 0.45,
-                                           loc.view(loc.size(0), -1, 4),  # loc preds
-                                           self.softmax(conf.view(conf.size(0), -1,
-                                                                  self.num_classes)),  # conf preds
-                                           self.priors.type(type(x.data)).cuda()  # default boxes
-                                           )
-            else:
-                output = self.detect.apply(self.num_classes, 0, 200, 0.01, 0.45,
-                                           loc.view(loc.size(0), -1, 4),  # loc preds
-                                           self.softmax(conf.view(conf.size(0), -1,
-                                                                  self.num_classes)),  # conf preds
-                                           self.priors.type(type(x.data))  # default boxes
-                                           )
+            output = self.detect.apply(self.num_classes, 0, 200, 0.01, 0.45,
+                                        loc.view(loc.size(0), -1, 4),  # loc preds
+                                        self.softmax(conf.view(conf.size(0), -1, self.num_classes)),  # conf preds
+                                        self.priors.to(x.dtype).to(self.device)  # default boxes
+                                      )
         else:
             output = (
                 loc.view(loc.size(0), -1, 4),
                 conf.view(conf.size(0), -1, self.num_classes),
                 self.priors
             )
-        return output, self.loss_net(self.features), None
+                        
+        return output, None
 
     def get_features(self):
         return self.features #[512, 1024, 512, 256, 256, 256]
 
     def load_weights(self, base_file):
-        other, ext = os.path.splitext(base_file)
+        _, ext = os.path.splitext(base_file)
         if ext == '.pkl' or '.pth':
             logger.info('Loading weights into state dict...')
             self.load_state_dict(torch.load(base_file,
@@ -242,7 +233,9 @@ mbox = {
 }
 
 
-def build_ssd(loss_net, phase, voc_cfg, size=300, num_classes=21) -> SSD:
+#def build_ssd(loss_net, phase, voc_cfg, size=300, num_classes=21) -> SSD:
+#def build_ssd(device, phase, voc_cfg, size=300, num_classes=21) -> SSD:
+def build_ssd(phase, voc_cfg, size=300, num_classes=21) -> SSD:
     if phase != "test" and phase != "train":
         logger.exception("ERROR: Phase: " + phase + " not recognized")
         raise Exception("ERROR: Phase: " + phase + " not recognized")
@@ -254,4 +247,29 @@ def build_ssd(loss_net, phase, voc_cfg, size=300, num_classes=21) -> SSD:
     base_, extras_, head_ = multibox(vgg(base[str(size)], 3),
                                      add_extras(extras[str(size)], 1024),
                                      mbox[str(size)], num_classes)
-    return SSD(loss_net, phase, size, base_, extras_, head_, num_classes, voc_cfg)
+    #return SSD(loss_net, phase, size, base_, extras_, head_, num_classes, voc_cfg)
+    return SSD(phase, size, base_, extras_, head_, num_classes, voc_cfg)#.to(device)
+
+
+
+class SSD_LL(nn.Module):
+    #def __init__(self, device, phase, voc_config, num_classes=21, ln_p=None) -> None:
+    def __init__(self, phase, voc_config, num_classes=21, ln_p=None) -> None:
+        super(SSD_LL, self).__init__()
+        self.loss_net = LossNet(ln_p)#.to(device)
+        #self.ssd_net = build_ssd(device, phase, voc_config, num_classes=num_classes)
+        self.ssd_net = build_ssd(phase, voc_config, num_classes=num_classes)
+        vgg_weights = torch.load('app/models/ssd_pytorch/vgg16_reducedfc.pth')
+        self.ssd_net.vgg.load_state_dict(vgg_weights)
+        # initialize
+        #self.ssd_net.extras.apply(init_weights_apply)
+        #self.ssd_net.loc.apply(init_weights_apply)
+        #self.ssd_net.conf.apply(init_weights_apply)
+        
+    def forward(self, x):
+        outs, embedds = self.ssd_net(x)
+        features = self.ssd_net.get_features()
+        pred_loss = self.loss_net(features)
+        return outs, embedds, pred_loss
+
+

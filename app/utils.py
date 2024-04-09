@@ -1,8 +1,16 @@
 
 import torch
+from torch.utils.data import Dataset
+
+
+
+import torch
 import torch.nn as nn
 import torch.nn.init as init
-from torch.utils.data import Dataset
+
+from models.ResNet18 import ResNet_LL
+from models.ssd_pytorch.SSD import SSD_LL
+from config import voc_config
 
 
 import matplotlib.pyplot as plt
@@ -16,6 +24,13 @@ import os
 import random
 from enum import Enum
 from typing import List, Dict, Any, Tuple
+
+
+from datasets_creation.Classification import Cls_Datasets
+from datasets_creation.Detection import Det_Datasets
+
+#from models import get_resnet_model, get_ssd_model
+
 
 import logging
 
@@ -177,20 +192,6 @@ def create_method_res_dir(path: str) -> None:
     
 def create_class_dir(base_path: str, iter: int, classes: List[str]) -> None:
     for cls in classes: create_directory(f'{base_path}/new_labeled_images/{iter}/{cls}')
-    
-    
-        
-# weights initiaization
-def init_weights_apply(m: torch.nn.Module) -> None:
-    if isinstance(m, nn.Conv2d):
-        init.kaiming_normal_(m.weight, mode='fan_out')
-        if m.bias is not None: init.constant_(m.bias, 0)
-    elif isinstance(m, nn.Linear):
-        init.normal_(m.weight, std=1e-3)
-        if m.bias is not None: init.constant_(m.bias, 0)
-    elif isinstance(m, nn.BatchNorm2d):
-        init.constant_(m.weight, 1)
-        init.constant_(m.bias, 0)
         
     
     
@@ -309,19 +310,6 @@ def set_seeds(seed: int = 10001) -> None:
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     
-    
-
-
-def download_tinyimagenet() -> None:
-    if not os.path.exists('datasets/tiny-imagenet-200'):
-        logger.info(' => Downloading Tiny-IMAGENET Dataset')
-        os.system('wget http://cs231n.stanford.edu/tiny-imagenet-200.zip')
-        os.system('unzip tiny-imagenet-200.zip -d datasets')
-        os.remove('tiny-imagenet-200.zip')
-        logger.info(' DONE\n')
-    else:
-        logger.info('Tiny-IMAGENET Dataset already downloaded')
-
 
 
 def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor, torch.Tensor], classes: List[str], time_stamp: str, \
@@ -426,6 +414,51 @@ def count_class_observation(classes: List[str], dataset: Dataset, topk_idx_obs=N
 def cycle(iterable):
     while True:
         for x in iterable: yield x
+        
+        
+def get_dataset(task, dataset_name: str, 
+                init_lab_obs: int) -> Cls_Datasets | Det_Datasets:
+    if task == 'clf': return Cls_Datasets(dataset_name, init_lab_obs=init_lab_obs)
+    else: return Det_Datasets(dataset_name, init_lab_obs=init_lab_obs)
+
+
+def get_model(image_size: int, n_classes: int, n_channels: int, 
+              device: torch.device, task: str) -> ResNet_LL | SSD_LL:
+    if task == 'clf': return get_resnet_model(image_size, n_classes, n_channels, device)
+    else: return get_ssd_model(n_classes, device)
+    
+    
+    
+# weights initiaization
+def init_weights_apply(m: torch.nn.Module) -> None:
+    if isinstance(m, nn.Conv2d):
+        init.kaiming_normal_(m.weight, mode='fan_out')
+        if m.bias is not None: init.constant_(m.bias, 0)
+    elif isinstance(m, nn.Linear):
+        init.normal_(m.weight, std=1e-3)
+        if m.bias is not None: init.constant_(m.bias, 0)
+    elif isinstance(m, nn.BatchNorm2d):
+        init.constant_(m.weight, 1)
+        init.constant_(m.bias, 0)
+    
+    
+def get_ssd_model(n_classes: int, device: torch.device) -> SSD_LL:
+    loss_net_params = dict(
+        feature_sizes=[512, 1024, 512, 256, 256, 256],
+        num_channels=[512, 1024, 512, 256, 256, 256],
+        task='detection'
+    )
+    #ssd_ll = SSD_LL(device, 'train', voc_config, num_classes=n_classes, ln_p=loss_net_params).to(device)
+    ssd_ll = SSD_LL('train', voc_config, num_classes=n_classes, ln_p=loss_net_params).to(device)
+    #ssd_ll.apply(init_weights_apply)
+    return ssd_ll
+
+
+def get_resnet_model(image_size: int, n_classes: int, n_channels: int, device: torch.device) -> ResNet_LL:
+    #resnet_ll = ResNet_LL(device, image_size, n_classes=n_classes,  n_channels=n_channels).to(device)
+    resnet_ll = ResNet_LL(image_size, n_classes=n_classes,  n_channels=n_channels).to(device)
+    #resnet_ll.apply(init_weights_apply)
+    return resnet_ll
 
     
     

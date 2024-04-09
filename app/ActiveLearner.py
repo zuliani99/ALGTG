@@ -1,8 +1,10 @@
 
-from models.ResNet18 import ResNet
+import wandb
+
+from models.ResNet18 import ResNet_LL
 from datasets_creation.Classification import Cls_Datasets
 from datasets_creation.Detection import Det_Datasets
-from models.ssd_pytorch.SSD import SSD
+from models.ssd_pytorch.SSD import SSD_LL
 from train_evaluate.Train_DDP import train, train_ddp
 from utils import count_class_observation, print_cumulative_train_results, set_seeds,\
     create_class_dir, create_method_res_dir, plot_new_labeled_tsne, save_train_val_curves, write_csv
@@ -30,9 +32,8 @@ class ActiveLearner():
         self.ct_p: Dict[str, Any] = ct_p
         self.t_p: Dict[str, Any] = t_p
         
-        self.model: SSD | ResNet = self.ct_p['Model']
+        self.model: SSD_LL | ResNet_LL = self.ct_p['Model']
         self.device: torch.device = self.ct_p['device']
-        
         
         self.dataset: Cls_Datasets | Det_Datasets = self.ct_p['Dataset']
         
@@ -113,12 +114,16 @@ class ActiveLearner():
             for idxs, images, labels in dataloader:
                 
                 if 'embedds' in dict_to_modify:
-                    _, embed, _ = self.model(images.to(self.device))
+                    _, embed = self.model(images.to(self.device))
                     dict_to_modify['embedds'] = torch.cat((dict_to_modify['embedds'], embed.squeeze()), dim=0)
                     
                 if 'probs' in dict_to_modify:
-                    outs, _, _ = self.model(images.to(self.device))
+                    outs, _  = self.model(images.to(self.device))
                     dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], outs.squeeze().cpu()), dim=0)
+                    
+                if 'pred_loss' in dict_to_modify:
+                    _, pred_loss = self.model(images.to(self.device))
+                    dict_to_modify['pred_loss'] = torch.cat((dict_to_modify['pred_loss'], pred_loss.squeeze().cpu()), dim=0)
                     
                 if 'labels' in dict_to_modify:
                     dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)
@@ -184,6 +189,11 @@ class ActiveLearner():
         
         params = { 'ct_p': self.ct_p, 't_p': self.t_p, 'method_name': self.method_name, 'iter': iter}
         
+        # wandb dictionary hyperparameters
+        hps = dict( **self.ct_p, **self.t_p, **self.al_p, method_name=self.method_name, iter=iter)
+        del hps['Dataset']
+        hps['Model'] = hps['Model'].__class__.__name__
+        
         # Pipe for the itra-process communication of the results
         parent_conn, child_conn = mp.Pipe()
         
@@ -191,16 +201,28 @@ class ActiveLearner():
         if self.world_size > 1:
             logger.info(' => RUNNING DISTRIBUTED TRAINING')
             
+            if (self.ct_p['wandb_logs']):
+                logger.info(' => Logging in WandB!!!')
+                params['wandb_p'] = wandb.init(project="AL_GTG", group="DDP", config=hps)
+            
             # spawn the process
-            mp.spawn(train_ddp, args=(self.world_size, params, child_conn, ), nprocs=self.world_size, join=True) # type: ignore
+            mp.spawn(fn=train_ddp, args=(self.world_size, params, child_conn, ), nprocs=self.world_size, join=True) # type: ignore
             # obtain the results
             while parent_conn.poll(): train_recv, test_recv = parent_conn.recv()
+            
+            #wandb.finish()            
                 
         else:
             logger.info(' => RUNNING TRAINING')
             # add the already created labeeld train dataloader
+            
+            if (self.ct_p['wandb_logs']):
+                logger.info(' => Logging in WandB!!!')
+                params['wandb_p'] = wandb.init(project="AL_GTG", config=hps)
+                
             train_recv, test_recv = train(params)
-
+            
+            #wandb.finish()
         
         logger.info(' DONE\n')
         
@@ -299,7 +321,7 @@ class ActiveLearner():
             # iter + 1
             self.train_results[self.iter] = self.train_evaluate_save(self.iter * self.al_p['n_top_k_obs'], self.iter, results_format)
                 
-        epochs = len(self.train_results[1]['train_loss_weird'])
+        epochs = len(self.train_results[1]['train_pred_loss'])
         
         # plotting the cumulative train results
         print_cumulative_train_results(list(self.t_p['results_dict']['train'].keys()), 
