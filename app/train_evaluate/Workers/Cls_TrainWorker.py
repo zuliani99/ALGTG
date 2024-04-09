@@ -135,7 +135,7 @@ class Cls_TrainWorker():
             train_loss_pred /= len(self.train_dl)
             
             
-            logger.info(f'GPU: {self.device} ||| Epoch {epoch} | train_accuracy: {round(train_accuracy, 5)} - train_loss: {round(train_loss, 5)} - train_loss_ce: {round(train_loss_ce, 5)} - train_loss_pred: {round(train_loss_pred, 5)}')
+            #logger.info(f'GPU: {self.device} ||| Epoch {epoch} | train_accuracy: {round(train_accuracy, 5)} - train_loss: {round(train_loss, 5)} - train_loss_ce: {round(train_loss_ce, 5)} - train_loss_pred: {round(train_loss_pred, 5)}')
             
             
             #for pos, metric in zip(range(4), [train_loss, train_loss_ce, train_loss_pred, train_accuracy]):

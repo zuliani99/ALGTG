@@ -52,7 +52,14 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
     
     methods = [
         Random(ct_p=ct_p, t_p=t_p, al_p=al_p),
-    ]
+        Entropy(ct_p=ct_p, t_p=t_p, al_p=al_p),
+        LearningLoss(ct_p=ct_p, t_p=t_p, al_p=al_p),
+        GTG(ct_p=ct_p, t_p=t_p, al_p=al_p, 
+            gtg_p={
+                **gtg_p,
+                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
+            }),    
+        ]
     
     for method in methods:
         logger.info(f'-------------------------- {method.method_name} --------------------------\n')
