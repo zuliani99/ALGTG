@@ -257,8 +257,8 @@ def write_voc_results_file(all_boxes, dataset, data_path, voc_classes):
                     print(len(all_boxes[cls_ind+1][im_ind]))
                 dets = all_boxes[cls_ind+1][im_ind]
                 #if dets == []:
-                #if dets == None or dets.size() == 0:
-                if dets.size() == 0: continue
+                #if dets == None or dets.size == 0:
+                if dets.size == 0: continue
                 # the VOCdevkit expects 1-based indices
                 for k in range(dets.shape[0]):
                     f.write('{:s} {:.3f} {:.1f} {:.1f} {:.1f} {:.1f}\n'.

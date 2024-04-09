@@ -170,9 +170,7 @@ class Det_TrainWorker():
         
         # all detections are collected into:
         all_boxes: List[List[np.ndarray | None]] = [[ None for _ in range(num_images)] for _ in range(self.dataset.n_classes)]
-        #/home/rzuliani/projects/AL_GTG/results/2024-04-09_14-20-12/voc/0/Random/test
         output_dir = f'results/{self.ct_p['timestamp']}/{self.ct_p['dataset_name']}/{self.ct_p['trial']}/{self.method_name}/test'
-        #output_dir = f'results/2024-04-09_14-20-12/voc/0/Random/test'
         create_directory(output_dir)        
         det_file = os.path.join(output_dir, f'detections_{self.device}.pkl')
         
