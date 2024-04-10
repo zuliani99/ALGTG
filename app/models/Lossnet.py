@@ -23,9 +23,7 @@ class LossPredLoss(nn.Module):
     def forward(self, inputs: torch.Tensor, targets: torch.Tensor):
         assert len(inputs) % 2 == 0, 'The batch size is not even.'
         assert inputs.shape == inputs.flip(0).shape
-        
-        targets = targets.detach()
-        
+                
         mid = inputs.shape[0] // 2
 
         pred_lossi = inputs[:mid].squeeze()
@@ -41,41 +39,10 @@ class LossPredLoss(nn.Module):
         return 2 * loss
         
     
-'''class LossPredLoss(nn.Module):
-    def __init__(self,device: torch.device, margin=1):
-        super(LossPredLoss, self).__init__()
-        self.device = device
-        self.margin = margin
-        self.reduction = 'mean'
-    
-    def forward(self, input, target):
-        assert len(input) % 2 == 0, 'the batch size is not even.'
-        assert input.shape == input.flip(0).shape
-        
-        #logger.info(f'{input.shape} - {target.shape}')
-
-        input = (input - input.flip(0))[:len(input) // 2]
-        # [l_1 - l_2B, l_2 - l_2B-1, ... , l_B - l_B+1], where batch_size = 2B
-        target = (target - target.flip(0))[:len(target) // 2]
-        target = target.detach()
-
-        one = 2 * torch.sign(torch.clamp(target, min=0)) - 1  # 1 operation which is defined by the authors
-        one = one.to(self.device)
-        
-        if self.reduction == 'mean':
-            loss = torch.sum(torch.clamp(self.margin - one * input, min=0))
-            loss = loss / input.size(0)  # Note that the size of input is already halved
-        elif self.reduction == 'none':
-            loss = torch.clamp(self.margin - one * input, min=0)
-        else:
-            NotImplementedError()
-
-        return loss'''
-        
 
 
 # Loss Prediction Network
-class LossNet(nn.Module):
+'''class LossNet(nn.Module):
     def __init__(self, dict_params = {}):
         super(LossNet, self).__init__()
 
@@ -84,8 +51,6 @@ class LossNet(nn.Module):
         interm_dim = dict_params['interm_dim'] if 'interm_dim' in dict_params else 128
         task = dict_params['task'] if 'task' in dict_params else 'clf'
         
-        print(task)
-
         self.GAP = []
         for feature_size in feature_sizes:
             if task == 'detection': self.GAP.append(nn.AdaptiveAvgPool2d((1, 1)))
@@ -108,4 +73,40 @@ class LossNet(nn.Module):
             outs.append(out)
 
         out = self.linear(torch.cat(outs, 1))
+        return out'''
+        
+class LossNet(nn.Module):
+    def __init__(self, feature_sizes=[32, 16, 8, 4], num_channels=[64, 128, 256, 512], interm_dim=128, task='clf'):
+        super(LossNet, self).__init__()
+        
+        self.GAP1 = nn.AvgPool2d(feature_sizes[0]) if task == 'clf' else nn.AdaptiveAvgPool2d((1, 1))
+        self.GAP2 = nn.AvgPool2d(feature_sizes[1]) if task == 'clf' else nn.AdaptiveAvgPool2d((1, 1))
+        self.GAP3 = nn.AvgPool2d(feature_sizes[2]) if task == 'clf' else nn.AdaptiveAvgPool2d((1, 1))
+        self.GAP4 = nn.AvgPool2d(feature_sizes[3]) if task == 'clf' else nn.AdaptiveAvgPool2d((1, 1))
+
+        self.FC1 = nn.Linear(num_channels[0], interm_dim)
+        self.FC2 = nn.Linear(num_channels[1], interm_dim)
+        self.FC3 = nn.Linear(num_channels[2], interm_dim)
+        self.FC4 = nn.Linear(num_channels[3], interm_dim)
+
+        self.linear = nn.Linear(4 * interm_dim, 1)
+    
+    def forward(self, features):
+        out1 = self.GAP1(features[0])
+        out1 = out1.view(out1.size(0), -1)
+        out1 = F.relu(self.FC1(out1))
+
+        out2 = self.GAP2(features[1])
+        out2 = out2.view(out2.size(0), -1)
+        out2 = F.relu(self.FC2(out2))
+
+        out3 = self.GAP3(features[2])
+        out3 = out3.view(out3.size(0), -1)
+        out3 = F.relu(self.FC3(out3))
+
+        out4 = self.GAP4(features[3])
+        out4 = out4.view(out4.size(0), -1)
+        out4 = F.relu(self.FC4(out4))
+
+        out = self.linear(torch.cat((out1, out2, out3, out4), 1))
         return out

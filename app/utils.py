@@ -63,8 +63,8 @@ def plot_loss_curves(methods_results: Dict[str, Dict[str, List[float]]], n_lab_o
             [(1,0), str_keys[2], 'CE Loss'], [(1,1), str_keys[3], 'Loss Weird']
         ]
         
-        for method_str, values in methods_results.items():
-            for (pos1, pos2), key, _ in data:
+        for (pos1, pos2), key, _ in data:
+            for method_str, values in methods_results.items():
                 ax[pos1][pos2].plot(n_lab_obs, values[key], label = f'{method_str}')
                 
         for (pos1, pos2), _, title in data:
@@ -95,7 +95,7 @@ def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any
         
     for (pos1, pos2), train_mes in data:
         ax[pos1][pos2].plot(epochs, results_info[train_mes], label = train_mes)
-        if not (pos1 == 0 and pos2 ==1): ax[pos1][pos2].set_ylim([0, 5])
+        #if not (pos1 == 0 and pos2 == 0): ax[pos1][pos2].set_ylim([0, 5])
             
         ax[pos1][pos2].set_title(f'{train_mes} - Epochs')
         ax[pos1][pos2].set_xlabel('Epochs')
@@ -124,19 +124,19 @@ def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any
 
 
 
-def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results: Dict[int, Any], method_name: str,\
+def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results: Dict[str, Any], method_name: str,\
                                    epochs: int, ts_dir: str, dataset_name: str, cicle_iter: int):#, flag_LL: bool):
 
     #if flag_LL:
     _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
         
     data = zip([(0,0), (0,1), (1,0), (1,1)], list_dict_keys)
+    x = range(1, epochs + 1)
         
-        
-    for iter, results_info in cum_train_results.items():
-        for (pos1, pos2), train_mes in data:
-            ax[pos1][pos2].plot(range(1, epochs + 1), results_info[train_mes], label = f'{train_mes}_{iter}')
-            if not (pos1 == 0 and pos2 ==1): ax[pos1][pos2].set_ylim([0, 5])
+    for (pos1, pos2), train_mes in data:
+        for iter, results_info in cum_train_results.items():
+            ax[pos1][pos2].plot(x, results_info[train_mes], label = f'{train_mes}_{iter}')
+            #if not (pos1 == 0 and pos2 == 0): ax[pos1][pos2].set_ylim([0, 5])
                 
             ax[pos1][pos2].set_title(f'{train_mes} - Epochs')
             ax[pos1][pos2].set_xlabel('Epochs')
@@ -302,6 +302,7 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
 class Entropy_Strategy(Enum):
     DER = 0
     H_INT = 1
+    MEAN = 2
     
 
 
@@ -356,7 +357,7 @@ def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor
     
     
     
-def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor], iter: int, method: str, ds_name: str, idxs_new_labels: List[int], 
+def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor], iter: str, method: str, ds_name: str, idxs_new_labels: List[int], 
                           classes: List[str], time_stamp: str, samp_iter: int, d_labels: Dict[str, int], gtg_result_prediction = None):
     
     tsne = TSNE().fit_transform(np.vstack((lab['embedds'].cpu().numpy(), unlab['embedds'].cpu().numpy())))

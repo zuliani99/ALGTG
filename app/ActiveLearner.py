@@ -24,8 +24,9 @@ logger = logging.getLogger(__name__)
 
 
 class ActiveLearner():
-    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any]) -> None:
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], LL) -> None:
         
+        self.LL = LL
         self.iter = 1
         
         self.al_p: Dict[str, Any] = al_p
@@ -42,7 +43,7 @@ class ActiveLearner():
         self.labeled_indices: List[int] = copy.deepcopy(self.dataset.labeled_indices)
         self.unlabeled_indices: List[int] = copy.deepcopy(self.dataset.unlabeled_indices)
 
-        self.train_results: Dict[int, Any] = {}
+        self.train_results: Dict[str, Any] = {}
         
         self.lab_train_dl = DataLoader(
             Subset(self.dataset.transformed_trainset, self.labeled_indices),
@@ -95,8 +96,7 @@ class ActiveLearner():
             return Subset(self.dataset.non_transformed_trainset, self.unlabeled_indices)
     
     
-    # CHANGE THIS FUNCTION ONCE WE ARE IN DECTECTION TASK
-    ##################################################################################################################
+    #TODO: CHANGE THIS FUNCTION ONCE WE ARE IN DECTECTION TASK
     def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, Any]) -> None:
         
         if dist.is_available():
@@ -129,14 +129,13 @@ class ActiveLearner():
                     dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)
                 if 'idxs' in dict_to_modify:
                     dict_to_modify['idxs'] = torch.cat((dict_to_modify['idxs'], idxs), dim=0)
-    ##################################################################################################################
 
     
     
     
-    
+    #TODO: CHANGE THIS FUNCTION ONCE WE ARE IN DECTECTION TASK
     def save_tsne(self, samp_unlab_subset: Subset, idxs_new_labels: List[int], \
-                  d_labels: Dict[str, int], al_iter: int, gtg_result_prediction = None) -> None:
+                  d_labels: Dict[str, int], al_iter: str, gtg_result_prediction = None) -> None:
         # plot the tsne graph for each iteration
         
         logger.info(' => Saving the TSNE embeddings plot with labeled, unlabeled and new labeled observations')
@@ -145,9 +144,6 @@ class ActiveLearner():
             samp_unlab_subset, batch_size=self.t_p['batch_size'], shuffle=False, pin_memory=True
         )
         
-        # recompute the embedding to plot the tsne
-        # CHANGE THIS FUNCTION ONCE WE ARE IN DECTECTION TASK
-        ##################################################################################################################
         lab_embedds_dict = {
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
             'labels': torch.empty(0, dtype=torch.int8)
@@ -160,11 +156,9 @@ class ActiveLearner():
         logger.info(' Getting the embeddings...')
         self.get_embeddings(self.lab_train_dl, lab_embedds_dict)
         self.get_embeddings(unlab_train_dl, unlab_embedds_dict)
-        ##################################################################################################################
         
         
-        
-        
+
         logger.info(' Plotting...')
         plot_new_labeled_tsne(
             lab_embedds_dict, unlab_embedds_dict,
@@ -187,10 +181,10 @@ class ActiveLearner():
         test_res_keys = list(results_format['test'].keys())
         train_res_keys = list(results_format['train'].keys())
         
-        params = { 'ct_p': self.ct_p, 't_p': self.t_p, 'method_name': self.method_name, 'iter': iter}
+        params = { 'ct_p': self.ct_p, 't_p': self.t_p, 'method_name': self.method_name, 'iter': iter, 'LL': self.LL}
         
         # wandb dictionary hyperparameters
-        hps = dict( **self.ct_p, **self.t_p, **self.al_p, method_name=self.method_name, iter=iter)
+        hps = dict( **self.ct_p, **self.t_p, **self.al_p, method_name=self.method_name, iter=iter, LL=self.LL)
         del hps['Dataset']
         hps['Model'] = hps['Model'].__class__.__name__
         
@@ -286,7 +280,7 @@ class ActiveLearner():
         
         logger.info(f'----------------------- ITERATION {self.iter} / {self.al_p['al_iters']} -----------------------\n')
         
-        self.train_results[self.iter] = self.train_evaluate_save(self.al_p['n_top_k_obs'], self.iter, results_format)
+        self.train_results[str(self.iter)] = self.train_evaluate_save(self.al_p['n_top_k_obs'], self.iter, results_format)
         
         
         # start of the loop
@@ -311,17 +305,17 @@ class ActiveLearner():
             # Saving the tsne embeddings plot
             if self.method_name.split('_')[0] == 'GTG':
                 # if we are performing GTG plot also the GTG predictions in the TSNE plot 
-                self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, self.iter, self.gtg_result_prediction)
+                self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction)
             
-            else: self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, self.iter)
+            else: self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter))
 
             # modify the datasets and dataloader and plot the tsne
             self.update_sets(topk_idx_obs)
 
             # iter + 1
-            self.train_results[self.iter] = self.train_evaluate_save(self.iter * self.al_p['n_top_k_obs'], self.iter, results_format)
+            self.train_results[str(self.iter)] = self.train_evaluate_save(self.iter * self.al_p['n_top_k_obs'], self.iter, results_format)
                 
-        epochs = len(self.train_results[1]['train_pred_loss'])
+        epochs = len(self.train_results['1']['train_pred_loss'])
         
         # plotting the cumulative train results
         print_cumulative_train_results(list(self.t_p['results_dict']['train'].keys()), 

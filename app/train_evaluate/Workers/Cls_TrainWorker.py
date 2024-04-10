@@ -19,7 +19,7 @@ class Cls_TrainWorker():
         self.device = torch.device(gpu_id)
         self.iter: int = params['iter']
         
-        #self.LL: bool = params['LL']
+        self.LL: bool = params['LL']
         self.world_size: int = world_size
         self.wandb_run = params['wandb_p'] if 'wandb_p' in params else None
 
@@ -70,28 +70,26 @@ class Cls_TrainWorker():
 
     def compute_losses(self, weight: float, pred_loss: torch.Tensor, outputs: torch.Tensor, \
                        labels: torch.Tensor, tot_loss_ce: float, tot_pred_loss: float) -> Tuple[torch.Tensor, float, float]:
-        
+                
         loss_ce = self.loss_fn['backbone'](outputs, labels)
-        backbone_loss = torch.mean(loss_ce)
-        loss = backbone_loss
-        if weight:    
+        backbone = torch.mean(loss_ce)
+        if self.LL and weight:
             loss_weird = self.loss_fn['module'](pred_loss, loss_ce)
-            loss = backbone_loss + loss_weird
-                        
-            tot_loss_ce += backbone_loss.cpu().item()
+            loss = backbone + loss_weird
+
+            tot_loss_ce += backbone.cpu().item()
             tot_pred_loss += loss_weird.cpu().item()
-        else:
-            tot_loss_ce += backbone_loss.cpu().item()
             
-        return loss, tot_loss_ce, tot_pred_loss               
+            return loss, tot_loss_ce, tot_pred_loss
+        else:            
+            tot_loss_ce += backbone.cpu().item()
+            return backbone, tot_loss_ce, tot_pred_loss               
         
     
     
     
     def train(self) -> torch.Tensor:
-        
-        #if self.wandb_run != None: self.wandb_run.watch(self.model, log="all", log_freq=10)
-        
+                
         weight = 1.
         check_best_path = f'{self.best_check_filename}/best_{self.method_name}_{self.device}.pth.tar'
         results = torch.zeros((4, self.epochs), device=self.device)

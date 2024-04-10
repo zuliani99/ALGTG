@@ -29,6 +29,7 @@ class Det_TrainWorker():
         self.epoch_size: int = self.t_p['epoch_size']
         self.dataset: Det_Datasets = self.ct_p['Dataset']
         
+        self.LL = params['LL']
         self.world_size: int = world_size
         self.wandb_run = params['wandb_p'] if 'wandb_p' in params else None
         
@@ -94,7 +95,6 @@ class Det_TrainWorker():
         batch_iterator = iter(cycle(self.train_dl))
         
         for iteration in range(0, self.t_p['max_iter']):
-            #print(f'GPU: {self.device} ||| iteration -> {iteration}')
             # reset epoch loss counters
             if iteration != 0 and (iteration % self.epoch_size == 0):
                 
@@ -129,8 +129,8 @@ class Det_TrainWorker():
             
             loss_l, loss_c, N = self.loss_fn['backbone'](outputs, targets)
             loss_original = (loss_l + loss_c).sum() / N
-            module_loss = self.loss_fn['module'](pred_loss, loss_l + loss_c)
-
+            
+            module_loss = self.loss_fn['module'](pred_loss, loss_l + loss_c) if self.LL else torch.tensor(0)
             loss = loss_original + module_loss
             loss.backward()
             
@@ -177,7 +177,7 @@ class Det_TrainWorker():
         with torch.no_grad(): # Allow inference mode
             logger.info(f'GPU: {self.device} |||  => Detection Phase On Going...')
             for i in range(num_images):
-                im, _, h, w = self.test_dl.dataset.pull_item(i)
+                im, _, h, w = self.test_dl.dataset.pull_item(i) # type: ignore
                 x = im.unsqueeze(0).to(self.device, non_blocking=True)
                 detection, _, _ = self.model(x)
                 
@@ -195,17 +195,7 @@ class Det_TrainWorker():
                     scores = dets[:, 0].cpu().numpy()
                     cls_dets = np.hstack((boxes.cpu().numpy(), scores[:, np.newaxis])).astype(np.float32, copy=False)
                     all_boxes[j][i] = cls_dets
-
-        '''with (open(det_file, "rb")) as openfile:
-            idx = 0
-            while True:
-                try:
-                    all_boxes[idx] = (pickle.load(openfile))
-                    idx += 1
-                except EOFError:
-                    break'''
-        
-        #print(all_boxes)        
+      
         
         logger.info(f'GPU: {self.device} |||  => Saving Detections')
         with open(det_file, 'wb') as f: pickle.dump(all_boxes, f, pickle.HIGHEST_PROTOCOL)

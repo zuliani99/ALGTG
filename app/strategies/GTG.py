@@ -7,11 +7,6 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
-from scipy.integrate import simpson
-import scipy.spatial as sp
-#from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
-
 import gc
 from typing import Dict, Any, List, Tuple
     
@@ -21,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class GTG(ActiveLearner):
     
-    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any]) -> None:
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any], LL=False) -> None:
         
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,
@@ -30,7 +25,6 @@ class GTG(ActiveLearner):
         }
 
         self.A_function: str = gtg_p['A_function']
-        self.zero_diag: bool = gtg_p['zero_diag']
         self.ent_strategy: Entropy_Strategy = gtg_p['ent_strategy']
         self.rbf_aff: bool = gtg_p['rbf_aff']
         self.gtg_tol: float = gtg_p['gtg_tol']
@@ -38,25 +32,26 @@ class GTG(ActiveLearner):
         self.strategy_type: str = gtg_p['strategy_type']
         self.threshold_strategy: str = gtg_p['threshold_strategy']
         self.threshold: float = gtg_p['threshold']
+        
+        self.LL = LL
                 
-        str_diag = '0diag' if self.zero_diag else '1diag'
         str_rbf = 'rbf_' if self.rbf_aff else ''
         if self.threshold_strategy != None:
             str_treshold = f'{self.threshold_strategy}_{self.threshold}' if self.threshold_strategy != 'mean' else 'mean'
 
-            self.method_name =  f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}'
+            #self.method_name =  f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}'
             
-            #self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}_LL' if strategy_dict_params['LL'] \
-            #    else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}'
+            self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_treshold}_LL' if self.LL \
+                else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_treshold}'
         
         else:
             
-            #self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_LL' if strategy_dict_params['LL'] \
-            #    else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}'
-            self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}'
+            self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_LL' if self.LL \
+                else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}'
+            #self.method_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}'
                 
 
-        super().__init__(ct_p, t_p, al_p)
+        super().__init__(ct_p, t_p, al_p, LL)
         
         create_directory(self.path + '/gtg_entropies_plots')
         
@@ -64,8 +59,7 @@ class GTG(ActiveLearner):
     
     def get_A_treshold(self, A: torch.Tensor) -> Any:
         if self.threshold_strategy == 'mean': return torch.mean(A)
-        elif self.threshold_strategy == 'threshold': return self.threshold
-        else: return np.quantile(A.cpu().numpy(), self.threshold)
+        else: return self.threshold
     
         
     # select the relative choosen affinity matrix method
@@ -76,9 +70,17 @@ class GTG(ActiveLearner):
         ).to(self.device)
         
         # compute the affinity matrix
-        A = self.get_A_rbfk(concat_embedds) if self.rbf_aff else self.get_A_fn[self.A_function](concat_embedds)
+        A = self.get_A_rbfk(concat_embedds, to_cpu=True) if self.rbf_aff else self.get_A_fn[self.A_function](concat_embedds)
 
-        A_1 = torch.clone(A)
+        initial_A = torch.clone(A)
+        
+        # remove weak connections with the choosen threshold strategy and value
+        logger.info(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
+        A = torch.where(
+            A < self.get_A_treshold(A) if self.A_function != 'e_d' else A > self.get_A_treshold(A),
+            0 if self.A_function != 'e_d' else 1, A
+        )
+        
         
         if self.strategy_type == 'diversity':
             # set the whole matrix as a distance matrix and not similarity matrix
@@ -86,14 +88,6 @@ class GTG(ActiveLearner):
         elif self.strategy_type == 'mixed':    
             # set the unlabeled submatrix as distance matrix and not similarity matrix
             n_lab_obs = len(self.labeled_indices)
-                
-            '''if self.A_function == 'e_d':
-                # vascon suggestion
-                A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL -> similarity
-                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #UU -> similarity
-            else:
-                A[:n_lab_obs, n_lab_obs:] = 1 - A[:n_lab_obs, n_lab_obs:] #UL -> distacne
-                A[n_lab_obs:, :n_lab_obs] = 1 - A[n_lab_obs:, :n_lab_obs] #LU -> distance'''
             
             if self.A_function == 'e_d':
                 A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL to similarity
@@ -103,35 +97,31 @@ class GTG(ActiveLearner):
                 
                 A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #UL to distance
                 A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #LU to distance
-                
-                
-            
-            # Unlabeled VS Unlabeled -> similarity = A
-            # Labeled VS Labeled -> similarity = A
-            # Unlabeled VS Labeled -> distance = 1 - A
-            # Labeled VS Unlabeled -> distance = 1 - A
         
-        # remove weak connections with the choosen threshold strategy and value
-        #logger.info(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
-        #A_2 = torch.where(A < self.get_A_treshold(A), 0, A)
-        #mat_cos_sim = nn.CosineSimilarity(dim=0)
-        #logger.info(f' Cosine Similarity between the initial matrix and the thresholded one: {mat_cos_sim(A_1.flatten(), A_2.flatten()).item()}')
 
-        self.A = A#A_2
+        mat_cos_sim = nn.CosineSimilarity(dim=0)
+        logger.info(f' Cosine Similarity between the initial matrix and the thresholded one: {mat_cos_sim(initial_A.flatten(), A.flatten()).item()}')
+
+        self.A = A
         
         # plot the TSNE fo the original and modified affinity matrix
         plot_tsne_A(
-            #(A_1, A_2),
-            (A_1, A),
+            (initial_A, A),
             (self.lab_embedds_dict['labels'], self.unlabeled_labels), self.dataset.classes,
             self.ct_p['timestamp'], self.ct_p['dataset_name'], self.ct_p['trial'], self.method_name, self.A_function, self.strategy_type, self.iter
         )
-
-
-
-    def get_A_rbfk(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         
-        A_matrix = self.get_A_fn[self.A_function](concat_embedds)
+        del A
+        del initial_A
+        del concat_embedds
+        torch.cuda.empty_cache()
+
+
+
+    def get_A_rbfk(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
+        
+        device = 'cpu' if to_cpu else self.device
+        A_matrix = self.get_A_fn[self.A_function](concat_embedds, to_cpu)
         
         if self.A_function == 'e_d':
             # if euclidean distance is choosen we take the 7th smallest observation which is the 7th closest one (ascending order)
@@ -145,44 +135,47 @@ class GTG(ActiveLearner):
                 torch.unsqueeze(concat_embedds[i], dim=0), torch.unsqueeze(seventh_neigh[i], dim=0)
             )))[0,1].item()
             for i in range(concat_embedds.shape[0]) 
-        ], device=self.device), dim=0)
+        ], device=device), dim=0)
         
-        A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(self.device)
+        A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(device)
         
-        if self.zero_diag: A.fill_diagonal_(0.)  
-        return A
+                
+        del A_matrix
+        del sigmas
+        torch.cuda.empty_cache()
+        
+        return A.to(self.device)
     
     
     
-    def get_A_e_d(self, concat_embedds: torch.Tensor) -> torch.Tensor:
+    def get_A_e_d(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         
-        A = torch.cdist(concat_embedds, concat_embedds).to(self.device)
+        A = torch.cdist(concat_embedds, concat_embedds).to('cpu' if to_cpu else self.device)
         
-        #if self.zero_diag: A.fill_diagonal_(0.)
-        #else: A.fill_diagonal_(1.)
         return A
 
 
 
-    def get_A_cos_sim(self, concat_embedds: torch.Tensor) -> torch.Tensor:
-                               
-        normalized_embedding = F.normalize(concat_embedds, dim=-1).to(self.device)
+    def get_A_cos_sim(self, concat_embedds: torch.Tensor, to_cpu = True) -> torch.Tensor:
         
-        A = F.relu(torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device))
+        device = 'cpu' if to_cpu else self.device
         
-        if self.zero_diag: A.fill_diagonal_(0.)
-        else: A.fill_diagonal_(1.)
-        #A = cosine_similarity(concat_embedds.cpu().numpy())
-        #return torch.from_numpy(A).to(self.device)
-        return A
+        normalized_embedding = F.normalize(concat_embedds, dim=-1).to(device)
+        
+        A = F.relu(torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(device))
+        A.fill_diagonal_(1.)
+
+        del normalized_embedding
+        torch.cuda.empty_cache()
+        
+        return A.to(self.device)
         
         
         
-    def get_A_corr(self, concat_embedds: torch.Tensor) -> torch.Tensor:
+    def get_A_corr(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         
-        A = F.relu(torch.corrcoef(concat_embedds).to(self.device))
+        A = F.relu(torch.corrcoef(concat_embedds).to('cpu' if to_cpu else self.device))
         
-        if self.zero_diag: A.fill_diagonal_(0.)
         return A
 
         
@@ -298,12 +291,16 @@ class GTG(ActiveLearner):
         
                             
         logger.info(f' => Extracting the Top-k unlabeled observations using {self.ent_strategy}')
-            
-        if self.ent_strategy is Entropy_Strategy.H_INT:
-            # computing the area of each entropies derivates fucntion via the simpson formula 
-            area: np.ndarray = simpson(self.unlab_entropy_hist.cpu().numpy(), axis=1) # type: ignore
-                        
-            overall_topk = torch.topk(torch.from_numpy(area), k=n_top_k_obs, largest=True)
+        
+        if self.ent_strategy is Entropy_Strategy.MEAN:
+            # computing the mean of the entropis history
+            mean_ent = torch.mean(self.unlab_entropy_hist, dim=1)
+            overall_topk = torch.topk(mean_ent, k=n_top_k_obs)
+          
+        elif self.ent_strategy is Entropy_Strategy.H_INT:
+            # computing the area of the entropis history using trapezoid formula 
+            area = torch.trapezoid(self.unlab_entropy_hist, dim=1)
+            overall_topk = torch.topk(area, k=n_top_k_obs, largest=True)
         
         elif self.ent_strategy is Entropy_Strategy.DER:
             # compute the pairwise differences to obtaion the entropy derivatives

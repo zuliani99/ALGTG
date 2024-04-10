@@ -86,20 +86,15 @@ class ResNet(nn.Module):
     
     
     
-    
-#def ResNet18(image_size: int, loss_net: LossNet, n_classes=10, n_channels=3) -> ResNet:
-#def ResNet18(device: torch.device, image_size: int, n_classes=10, n_channels=3) -> ResNet:
 def ResNet18(image_size: int, n_classes=10, n_channels=3) -> ResNet:
-    return ResNet(image_size, BasicBlock, [2,2,2,2], n_channels, n_classes)#.to(device)
+    return ResNet(image_size, BasicBlock, [2,2,2,2], n_channels, n_classes) # type: ignore
 
 
 
 class ResNet_LL(nn.Module):
-    #def __init__(self, device: torch.device, image_size: int, n_classes=10,  n_channels=3) -> None:
     def __init__(self, image_size: int, n_classes=10,  n_channels=3) -> None:
         super(ResNet_LL, self).__init__()
-        self.loss_net = LossNet()#.to(device)
-        #self.resnet = ResNet18(device, image_size, n_classes=n_classes, n_channels=n_channels)
+        self.loss_net = LossNet()
         self.backbone = ResNet18(image_size, n_classes=n_classes, n_channels=n_channels)
         
     def forward(self, x):

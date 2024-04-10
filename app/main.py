@@ -3,12 +3,14 @@
 import torch
 import torch.distributed as dist
 
-from utils import create_directory, create_ts_dir, get_dataset, get_model, \
-    plot_loss_curves, plot_accuracy_std_mean, set_seeds, Entropy_Strategy
+from init import get_dataset, get_model
+from utils import create_directory, create_ts_dir, \
+    plot_loss_curves, plot_res_std_mean, set_seeds, Entropy_Strategy as ES
 
 from strategies.baselines.Random import Random
 from strategies.baselines.Entropy import Entropy
 from strategies.baselines.LearningLoss import LearningLoss
+from strategies.competitors.CoreSet import CoreSet
 from strategies.GTG import GTG
 
     
@@ -32,7 +34,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('-i', '--iterations', type=int, nargs=1, required=True, help='Number or iterations of AL benchmark for each dataset')
     parser.add_argument('-s', '--strategy', type=str, nargs=1, choices=['uncertanity', 'diversity', 'mixed'], 
                         required=True, help='Possible query strategy types to choose')
-    parser.add_argument('-ts', '--threshold_strategy', type=str, nargs=1, choices=['threshold', 'mean', 'quantile'], 
+    parser.add_argument('-ts', '--threshold_strategy', type=str, nargs=1, choices=['threshold', 'mean'], 
                         required=True, help='Possible query strategy types to choose')
     parser.add_argument('-t', '--threshold', type=float, nargs=1, required=False, 
                         help='Affinity Matrix Threshold, when threshold_strategy = mean, this is ingnored')
@@ -45,7 +47,7 @@ def get_args() -> argparse.Namespace:
 
 
 
-def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any]) -> Tuple[Dict[str, List[float]], List[int]]:
+def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any]) -> Tuple[Dict[str, Dict[str, List[float]]], List[int]]:
 
     results = { }
     n_lab_obs = [al_p['init_lab_obs'] + (iter * al_p['n_top_k_obs']) for iter in range(al_p['al_iters'])]
@@ -53,13 +55,14 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
     methods = [
         Random(ct_p=ct_p, t_p=t_p, al_p=al_p),
         Entropy(ct_p=ct_p, t_p=t_p, al_p=al_p),
-        LearningLoss(ct_p=ct_p, t_p=t_p, al_p=al_p),
+        CoreSet(ct_p=ct_p, t_p=t_p, al_p=al_p),
+        LearningLoss(ct_p=ct_p, t_p=t_p, al_p=al_p, LL=True),
+        
         GTG(ct_p=ct_p, t_p=t_p, al_p=al_p, 
-            gtg_p={
-                **gtg_p,
-                'rbf_aff': False, 'A_function': 'corr', 'zero_diag': False, 'ent_strategy': Entropy_Strategy.H_INT,
-            }),    
-        ]
+            gtg_p={**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN}, LL=True), 
+        GTG(ct_p=ct_p, t_p=t_p, al_p=al_p, 
+            gtg_p={**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT}, LL=True),
+    ]
     
     for method in methods:
         logger.info(f'-------------------------- {method.method_name} --------------------------\n')
@@ -107,7 +110,7 @@ def main() -> None:
         
     gtg_params = {
         'gtg_tol': 0.001,
-        'gtg_max_iter': 30, # simpson's rule need an even number of observations to compute the integrals
+        'gtg_max_iter': 30,
         'strategy_type': strategy_type,
         'threshold_strategy': treshold_strategy,
         'threshold': treshold
@@ -140,16 +143,20 @@ def main() -> None:
                 'wandb_logs': wandb
             }
 
+            task_params = cls_config if task == 'clf' else det_config
+
             results, n_lab_obs = run_strategies(
                 ct_p = common_training_params, 
-                t_p = cls_config if task == 'clf' else det_config,
+                t_p = task_params,
                 al_p = al_params,
                 gtg_p = gtg_params,
             )
-                        
-            plot_loss_curves(results, n_lab_obs, timestamp, plot_png_name=f'{dataset_name}/{trial}/results.png')
             
-        plot_accuracy_std_mean(task, timestamp, dataset_name)
+            plot_loss_curves(results, n_lab_obs, timestamp,
+                             list(task_params['results_dict']['test'].keys()),
+                             plot_png_name=f'{dataset_name}/{trial}/results.png')
+            
+        plot_res_std_mean(task, timestamp, dataset_name)
 
 
 if __name__ == "__main__":
