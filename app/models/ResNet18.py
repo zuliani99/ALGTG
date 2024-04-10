@@ -97,8 +97,15 @@ class ResNet_LL(nn.Module):
         self.loss_net = LossNet()
         self.backbone = ResNet18(image_size, n_classes=n_classes, n_channels=n_channels)
         
-    def forward(self, x):
-        outs, embedds = self.backbone(x)
-        features = self.backbone.get_features()
-        pred_loss = self.loss_net(features)
-        return outs, embedds, pred_loss
+    def forward(self, x, mode='all'):
+        if mode == 'all':
+            outs, embedds = self.backbone(x)
+            pred_loss = self.loss_net(self.backbone.get_features())
+            return outs, embedds, pred_loss
+        elif mode == 'embedds':
+            _, embedds = self.backbone(x)
+            return embedds
+        else:
+            _, _ = self.backbone(x)
+            return self.loss_net(self.backbone.get_features())
+            

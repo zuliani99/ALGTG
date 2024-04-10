@@ -236,8 +236,6 @@ mbox = {
 }
 
 
-#def build_ssd(loss_net, phase, voc_cfg, size=300, num_classes=21) -> SSD:
-#def build_ssd(device, phase, voc_cfg, size=300, num_classes=21) -> SSD:
 def build_ssd(phase, voc_cfg, size=300, num_classes=21) -> SSD:
     if phase != "test" and phase != "train":
         logger.exception("ERROR: Phase: " + phase + " not recognized")
@@ -250,29 +248,29 @@ def build_ssd(phase, voc_cfg, size=300, num_classes=21) -> SSD:
     base_, extras_, head_ = multibox(vgg(base[str(size)], 3),
                                      add_extras(extras[str(size)], 1024),
                                      mbox[str(size)], num_classes)
-    #return SSD(loss_net, phase, size, base_, extras_, head_, num_classes, voc_cfg)
-    return SSD(phase, size, base_, extras_, head_, num_classes, voc_cfg)#.to(device)
+    return SSD(phase, size, base_, extras_, head_, num_classes, voc_cfg)
 
 
 
 class SSD_LL(nn.Module):
-    #def __init__(self, device, phase, voc_config, num_classes=21, ln_p=None) -> None:
     def __init__(self, phase, voc_config, num_classes=21, ln_p=None) -> None:
         super(SSD_LL, self).__init__()
-        self.loss_net = LossNet(ln_p)#.to(device)
-        #self.ssd_net = build_ssd(device, phase, voc_config, num_classes=num_classes)
+        self.loss_net = LossNet(ln_p)
         self.backbone = build_ssd(phase, voc_config, num_classes=num_classes)
         vgg_weights = torch.load('app/models/ssd_pytorch/vgg16_reducedfc.pth')
         self.backbone.vgg.load_state_dict(vgg_weights)
-        # initialize
-        #self.ssd_net.extras.apply(init_weights_apply)
-        #self.ssd_net.loc.apply(init_weights_apply)
-        #self.ssd_net.conf.apply(init_weights_apply)
+
         
-    def forward(self, x):
-        outs, embedds = self.backbone(x)
-        features = self.backbone.get_features()
-        pred_loss = self.loss_net(features)
-        return outs, embedds, pred_loss
+    def forward(self, x, mode='all'):
+        if mode == 'all':
+            outs, embedds = self.backbone(x)
+            pred_loss = self.loss_net(self.backbone.get_features())
+            return outs, embedds, pred_loss
+        elif mode == 'embedds':
+            _, embedds = self.backbone(x)
+            return embedds
+        else:
+            _, _ = self.backbone(x)
+            return self.loss_net(self.backbone.get_features())
 
 
