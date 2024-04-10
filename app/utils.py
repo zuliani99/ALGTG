@@ -1,9 +1,14 @@
 
 import torch
-import torch.nn as nn
-import torch.nn.init as init
 from torch.utils.data import Dataset
 
+import torch
+import torch.nn as nn
+import torch.nn.init as init
+
+from models.ResNet18 import ResNet_LL
+from models.ssd_pytorch.SSD import SSD_LL
+from config import voc_config
 
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
@@ -17,9 +22,10 @@ import random
 from enum import Enum
 from typing import List, Dict, Any, Tuple
 
+
+
 import logging
 logger = logging.getLogger(__name__)
-
 
 
 
@@ -34,103 +40,136 @@ def entropy(tensor: torch.Tensor, dim=1) -> torch.Tensor:
 
     
 
-def plot_loss_curves(methods_results: Dict[str, List[float]], n_lab_obs: List[int], ts_dir: str, \
-    save_plot=True, plot_png_name=None) -> None:
+def plot_loss_curves(methods_results: Dict[str, Dict[str, List[float]]], n_lab_obs: List[int], ts_dir: str, \
+    str_keys: List[str], save_plot=True, plot_png_name=None) -> None:
     
-    _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
-    
-    data = [
-        [(0,0), 'test_loss', 'Total Loss'], [(0,1), 'test_accuracy', 'Accuracy Score'],
-        [(1,0), 'test_loss_ce', 'CE Loss'], [(1,1), 'test_loss_weird', 'Loss Weird']
-    ]
-    
-    for method_str, values in methods_results.items():
-        for (pos1, pos2), key, _ in data:
-            ax[pos1][pos2].plot(n_lab_obs, values[key], label = f'{method_str}')
-            
-    for (pos1, pos2), _, title in data:
-        ax[pos1][pos2].set_title(f'{title} - # Labeled Obs')
-        ax[pos1][pos2].set_xlabel('# Labeled Obs')
-        ax[pos1][pos2].set_ylabel(title)
-        ax[pos1][pos2].grid()
-        ax[pos1][pos2].legend()
-    
-
-    plt.suptitle('Results', fontsize = 30)
-    
-    if save_plot: plt.savefig(f'results/{ts_dir}/{plot_png_name}')
-    else: plt.show()
-    
-    
-    
-def save_train_val_curves(results_info: Dict[str, Any], ts_dir: str, dataset_name: str, al_iter: int, \
-                         cicle_iter: int, flag_LL: bool) -> None:
-
-    res = results_info['results']
-    epochs = range(1, len(res['train_loss']) + 1)
-
-    if flag_LL: _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
-    else: _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
+    if len(str_keys) == 1:
+        # detection
+        plt.figure(figsize = (18,15))
+        for method_str, values in methods_results.items():
+            plt.plot(n_lab_obs, values['test_map'], label = f'{method_str}')
+        plt.title(f'mAP - # Labeled Obs')
+        plt.xlabel('# Labeled Obs')
+        plt.ylabel('mAP')
+        plt.grid()
+        plt.legend()
         
-    minloss_val = min(res['val_loss'])
-    minloss_ep = res['val_loss'].index(minloss_val) + 1
-
-    maxacc_val = max(res['val_accuracy'])
-    maxacc_ep = res['val_accuracy'].index(maxacc_val) + 1
-    
-    if flag_LL:
+    else:
+        # image classification
+        _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
         
         data = [
-            [(0,0), 'train_loss', 'val_loss', minloss_ep, minloss_val, 'Total Loss', 'Min Loss'],
-            [(0,1), 'train_accuracy', 'val_accuracy', maxacc_ep, maxacc_val, 'Accuracy Score', 'Max Accuracy'],
-            [(1,0), 'train_loss_ce', 'val_loss_ce', None, None, 'CE Loss', None],
-            [(1,1), 'train_loss_weird', 'val_loss_weird',  None, None, 'Loss Weird', None]
+            [(0,0), str_keys[0], 'Accuracy Score'], [(0,1), str_keys[1], 'Total Loss'],
+            [(1,0), str_keys[2], 'CE Loss'], [(1,1), str_keys[3], 'Loss Weird']
         ]
         
-        for (pos1, pos2), train_mes, val_mes, pos_mes_ep, pos_mes_val, title, label_line in data:
-            ax[pos1][pos2].plot(epochs, res[train_mes], label = train_mes)
-            ax[pos1][pos2].plot(epochs, res[val_mes], label = val_mes)
-            if not (pos1 == 0 and pos2 ==1): ax[pos1][pos2].set_ylim([0, 5])
-            
-            if pos1 == 0:
-                ax[pos1][pos2].axvline(pos_mes_ep, linestyle='--', color='r', label=label_line)
-                ax[pos1][pos2].axhline(pos_mes_val, linestyle='--', color='r')
-            
-            ax[pos1][pos2].set_title(f'{title} - Epochs')
-            ax[pos1][pos2].set_xlabel('Epochs')
+        for (pos1, pos2), key, _ in data:
+            for method_str, values in methods_results.items():
+                ax[pos1][pos2].plot(n_lab_obs, values[key], label = f'{method_str}')
+                
+        for (pos1, pos2), _, title in data:
+            ax[pos1][pos2].set_title(f'{title} - # Labeled Obs')
+            ax[pos1][pos2].set_xlabel('# Labeled Obs')
             ax[pos1][pos2].set_ylabel(title)
             ax[pos1][pos2].grid()
             ax[pos1][pos2].legend()
         
-        
-    
-    else:        
-        data = [
-            ['train_loss', 'val_loss', minloss_ep, minloss_val, 'Total Loss', 'Min Loss'],
-            ['train_accuracy', 'val_accuracy', maxacc_ep, maxacc_val, 'Accuracy Score', 'Max Accuracy'],
-        ]
-        
-        for pos, (train_mes, val_mes, pos_mes_ep, pos_mes_val, title, label_line) in enumerate(data):
-            ax[pos].plot(epochs, res[train_mes], label = train_mes)
-            ax[pos].plot(epochs, res[val_mes], label = val_mes)
-            if pos == 0: ax[pos].set_ylim([0, 5])
-            ax[pos].axvline(pos_mes_ep, linestyle='--', color='r', label=label_line)
 
-            ax[pos].axhline(pos_mes_val, linestyle='--', color='r')
+        plt.suptitle('Results', fontsize = 30)
+        
+        if save_plot: plt.savefig(f'results/{ts_dir}/{plot_png_name}')
+        else: plt.show()
+    
+    
+    
+def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any], method_name: str, \
+                          ts_dir: str, dataset_name: str, al_iter: int, cicle_iter: int) -> None:
+    #, flag_LL: bool) -> None:
+
+    epochs = range(1, len(results_info[list_dict_keys[0]]) + 1)
+
+    #if flag_LL:
+    _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
+        
+    data = zip([(0,0), (0,1), (1,0), (1,1)], list_dict_keys)
+        
+    for (pos1, pos2), train_mes in data:
+        ax[pos1][pos2].plot(epochs, results_info[train_mes], label = train_mes)
+        #if not (pos1 == 0 and pos2 == 0): ax[pos1][pos2].set_ylim([0, 5])
+            
+        ax[pos1][pos2].set_title(f'{train_mes} - Epochs')
+        ax[pos1][pos2].set_xlabel('Epochs')
+        ax[pos1][pos2].set_ylabel(train_mes)
+        ax[pos1][pos2].grid()
+        ax[pos1][pos2].legend()
+        
+    '''else: 
+        _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
+    
+        data = [ ['train_loss', 'Total Loss'], ['train_accuracy', 'Accuracy Score'] ]
+        
+        for pos, (train_mes, title) in enumerate(data):
+            ax[pos].plot(epochs, results_info[train_mes], label = train_mes)
+            if pos == 0: ax[pos].set_ylim([0, 5])
+
             ax[pos].set_title(f'{title} - Epochs')
             ax[pos].set_xlabel('Epochs')
             ax[pos].set_ylabel(title)
             ax[pos].grid()
-            ax[pos].legend()
+            ax[pos].legend()'''
         
 
-    plt.suptitle(f'Iteration: {al_iter} - {results_info["model_name"]}', fontsize = 30)
-    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{results_info["model_name"]}/train_val_plots/{al_iter}.png')
+    plt.suptitle(f'Iteration: {al_iter} - {method_name}', fontsize = 30)
+    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{method_name}/train_val_plots/{al_iter}.png')
 
 
 
-def write_csv(ts_dir: str, dataset_name: str, head: List[str], values: List[Any]) -> None:
-    res_path = os.path.join('results', ts_dir, dataset_name, 'results.csv')
+def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results: Dict[str, Any], method_name: str,\
+                                   epochs: int, ts_dir: str, dataset_name: str, cicle_iter: int):#, flag_LL: bool):
+
+    #if flag_LL:
+    _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
+        
+    data = zip([(0,0), (0,1), (1,0), (1,1)], list_dict_keys)
+    x = range(1, epochs + 1)
+        
+    for (pos1, pos2), train_mes in data:
+        for iter, results_info in cum_train_results.items():
+            ax[pos1][pos2].plot(x, results_info[train_mes], label = f'{train_mes}_{iter}')
+            #if not (pos1 == 0 and pos2 == 0): ax[pos1][pos2].set_ylim([0, 5])
+                
+            ax[pos1][pos2].set_title(f'{train_mes} - Epochs')
+            ax[pos1][pos2].set_xlabel('Epochs')
+            ax[pos1][pos2].set_ylabel(train_mes)
+            ax[pos1][pos2].grid()
+        ax[pos1][pos2].legend()
+
+    
+    '''else:
+        _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
+        
+        data = [ ['train_loss', 'Total Loss'], ['train_accuracy', 'Accuracy Score'] ]
+        
+        for iter, results_info in cum_train_results.items():
+            
+            for pos, (train_mes, title) in enumerate(data):
+                ax[pos].plot(range(1, epochs + 1), results_info[train_mes], label = f'{train_mes}_{iter}')
+                if pos == 0: ax[pos].set_ylim([0, 5])
+
+                ax[pos].set_title(f'{title} - Epochs')
+                ax[pos].set_xlabel('Epochs')
+                ax[pos].set_ylabel(title)
+                ax[pos].grid()
+                ax[pos].legend()'''
+        
+
+    plt.suptitle(f'Cumulative Train Results - {method_name}', fontsize = 30)
+    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{method_name}/train_val_plots/cumulative_train_results.png')
+
+
+
+def write_csv(task: str, ts_dir: str, dataset_name: str, head: List[str], values: List[Any]) -> None:
+    res_path = os.path.join('results', ts_dir, dataset_name, f'{task}_results.csv')
     
     if (not os.path.exists(res_path)):
         
@@ -157,20 +196,6 @@ def create_method_res_dir(path: str) -> None:
     
 def create_class_dir(base_path: str, iter: int, classes: List[str]) -> None:
     for cls in classes: create_directory(f'{base_path}/new_labeled_images/{iter}/{cls}')
-    
-    
-        
-# weights initiaization
-def init_weights_apply(m: torch.nn.Module) -> None:
-    if isinstance(m, nn.Conv2d):
-        init.kaiming_normal_(m.weight, mode='fan_out')
-        if m.bias is not None: init.constant_(m.bias, 0)
-    elif isinstance(m, nn.Linear):
-        init.normal_(m.weight, std=1e-3)
-        if m.bias is not None: init.constant_(m.bias, 0)
-    elif isinstance(m, nn.BatchNorm2d):
-        init.constant_(m.weight, 1)
-        init.constant_(m.bias, 0)
         
     
     
@@ -194,7 +219,10 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
 
     title = 'Entropy History' if dir == 'history' else 'Entropy Derivatives'
 
-    palette = list(mcolors.TABLEAU_COLORS.values())
+    palette = list(mcolors.CSS4_COLORS.values()) if len(classes) > 10 \
+        else list(mcolors.TABLEAU_COLORS.values())
+    random.shuffle(palette)
+        
     pl_cls_1, pl2_cls_2 = set(), set()
 
     for i, lab in zip(range(len(array)), lab_unlabels):
@@ -205,6 +233,8 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
             axes[0].plot(x, array[i], linestyle="-", color=palette[lab])
     
     axes[0].set_title(f'{title} Classes')
+    axes[0].set_ylabel('Entropy')
+    axes[0].set_xlabel('GTG Iterations')
     axes[0].set_ylabel('Entropy')
     axes[0].set_xlabel('GTG Iterations')
     axes[0].grid()
@@ -228,6 +258,8 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
         
     axes[1].set_ylabel('Entropy')
     axes[1].set_xlabel('GTG Iterations')
+    axes[1].set_ylabel('Entropy')
+    axes[1].set_xlabel('GTG Iterations')
     axes[1].set_title(f'{title} - New_Lab / Unlab')
     axes[1].grid()
     axes[1].legend()
@@ -238,11 +270,11 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
 
 
 
-def plot_accuracy_std_mean(timestamp: str, dataset_name: str) -> None:
-    df = pd.read_csv(f'results/{timestamp}/{dataset_name}/results.csv')
+def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
+    df = pd.read_csv(f'results/{timestamp}/{dataset_name}/{task}_results.csv')
 
     df_grouped = (
-        df[['method', 'lab_obs', 'test_accuracy']].groupby(['method', 'lab_obs']).agg(['mean', 'std', 'count'])
+        df[['method', 'lab_obs', 'test_accuracy' if task == 'clf' else 'test_map']].groupby(['method', 'lab_obs']).agg(['mean', 'std', 'count'])
     )
     df_grouped = df_grouped.droplevel(axis=1, level=0).reset_index()
     
@@ -262,18 +294,19 @@ def plot_accuracy_std_mean(timestamp: str, dataset_name: str) -> None:
         plt.scatter(method_data['lab_obs'], method_data['mean'], marker=shapes[idx], color=plt.gca().lines[-1].get_color(), zorder=5) # type: ignore
 
     plt.xlabel('Labeled Observations')
-    plt.ylabel('Test Accuracy')
+    plt.ylabel('Test Accuracy' if task == 'clf' else 'Test mAP')
     plt.title(f'{dataset_name} results')
     plt.legend()
     plt.grid(True)
     
-    plt.savefig(f'results/{timestamp}/{dataset_name}/mean_std_accuracy_plot.png') 
+    plt.savefig(f'results/{timestamp}/{dataset_name}/mean_std_results.png') 
     
     
 
 class Entropy_Strategy(Enum):
     DER = 0
     H_INT = 1
+    MEAN = 2
     
 
 
@@ -289,19 +322,6 @@ def set_seeds(seed: int = 10001) -> None:
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     
-    
-
-
-def download_tinyimagenet() -> None:
-    if not os.path.exists('datasets/tiny-imagenet-200'):
-        logger.info(' => Downloading Tiny-IMAGENET Dataset')
-        os.system('wget http://cs231n.stanford.edu/tiny-imagenet-200.zip')
-        os.system('unzip tiny-imagenet-200.zip -d datasets')
-        os.remove('tiny-imagenet-200.zip')
-        logger.info(' DONE\n')
-    else:
-        logger.info('Tiny-IMAGENET Dataset already downloaded')
-
 
 
 def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor, torch.Tensor], classes: List[str], time_stamp: str, \
@@ -341,7 +361,7 @@ def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor
     
     
     
-def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor], iter: int, method: str, ds_name: str, idxs_new_labels: List[int], 
+def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor], iter: str, method: str, ds_name: str, idxs_new_labels: List[int], 
                           classes: List[str], time_stamp: str, samp_iter: int, d_labels: Dict[str, int], gtg_result_prediction = None):
     
     tsne = TSNE().fit_transform(np.vstack((lab['embedds'].cpu().numpy(), unlab['embedds'].cpu().numpy())))
@@ -369,6 +389,7 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
                         s=17, color='red', ax=axes[0], style=pred_new_lab, 
                         markers=['X', 'o'] if len(np.unique(pred_new_lab)) == 2 else ['o'])
     else:
+        
         sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', s=17, ax=axes[0], markers=['o'])
         sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=17, ax=axes[0], markers=['o'])
         sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labeled', 
@@ -400,7 +421,44 @@ def count_class_observation(classes: List[str], dataset: Dataset, topk_idx_obs=N
     keys_d_labels = list(d_labels.keys())
     for l in labels: d_labels[keys_d_labels[l]] += 1
     return d_labels
+
+
+def cycle(iterable):
+    while True:
+        for x in iterable: yield x
+        
+           
+# weights initiaization
+def init_weights_apply(m: torch.nn.Module) -> None:
+    if isinstance(m, nn.Conv2d):
+        init.kaiming_normal_(m.weight, mode='fan_out')
+        if m.bias is not None: init.constant_(m.bias, 0)
+    elif isinstance(m, nn.Linear):
+        init.normal_(m.weight, std=1e-3)
+        if m.bias is not None: init.constant_(m.bias, 0)
+    elif isinstance(m, nn.BatchNorm2d):
+        init.constant_(m.weight, 1)
+        init.constant_(m.bias, 0)
     
+    
+def get_ssd_model(n_classes: int, device: torch.device) -> SSD_LL:
+    loss_net_params = dict(
+        feature_sizes=[512, 1024, 512, 256, 256, 256],
+        num_channels=[512, 1024, 512, 256, 256, 256],
+        task='detection'
+    )
+    #ssd_ll = SSD_LL(device, 'train', voc_config, num_classes=n_classes, ln_p=loss_net_params).to(device)
+    ssd_ll = SSD_LL('train', voc_config, num_classes=n_classes, ln_p=loss_net_params).to(device)
+    #ssd_ll.apply(init_weights_apply)
+    return ssd_ll
+
+
+def get_resnet_model(image_size: int, n_classes: int, n_channels: int, device: torch.device) -> ResNet_LL:
+    #resnet_ll = ResNet_LL(device, image_size, n_classes=n_classes,  n_channels=n_channels).to(device)
+    resnet_ll = ResNet_LL(image_size, n_classes=n_classes,  n_channels=n_channels).to(device)
+    #resnet_ll.apply(init_weights_apply)
+    return resnet_ll
+
     
     
 '''def download_coco_dataset() -> None:

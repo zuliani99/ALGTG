@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=AL_multi    # Job name
-#SBATCH --mail-type=END          # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-type=NONE          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=875532@stud.unive.it     # Where to send mail	
 #SBATCH --nodes=1
 #SBATCH --ntasks=2
@@ -22,4 +22,4 @@ export PYTHONWARNINGS='ignore:semaphore_tracker:UserWarning'
 
 conda activate al_env
 
-python3 app/main.py -d cifar10 -s mixed -i 1 #2
+python3 app/main.py -d voc -s mixed -s mixed -i 1 -ts threshold -t 0.5

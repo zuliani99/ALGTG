@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader, Subset
 from torch.distributions import Categorical
 import pdb
 
-from strategies.Strategies import Strategies
+from ActiveLearner import ActiveLearner
 
 from typing import Dict, Any, List, Tuple
 
@@ -14,12 +14,12 @@ logger = logging.getLogger(__name__)
 
 
 
-class BADGE(Strategies):
+class BADGE(ActiveLearner):
     
-    def __init__(self, al_params: Dict[str, Any], training_params: Dict[str, Any], LL: bool) -> None:
-        self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
-
-        super().__init__(al_params, training_params, LL)
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], LL=False) -> None:
+        self.method_name = self.__class__.__name__
+                
+        super().__init__(ct_p, t_p, al_p, LL)
                 
     
     
@@ -57,13 +57,13 @@ class BADGE(Strategies):
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
                         
         self.unlab_train_dl = DataLoader(
-            sample_unlab_subset, batch_size=self.batch_size,
+            sample_unlab_subset, batch_size=self.t_p['batch_size'],
             shuffle=False, pin_memory=True
         )
             
         logger.info(' => Getting the unlabeled embeddings')
         self.embedds_dict = {
-            'embedds': torch.empty((0, self.model.linear.in_features), dtype=torch.float32, device=self.device),
+            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
             'idxs': torch.empty(0, dtype=torch.int8)
         }
         self.get_embeddings(self.unlab_train_dl, self.embedds_dict)

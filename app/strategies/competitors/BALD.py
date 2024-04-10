@@ -1,9 +1,9 @@
 
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
-from strategies.Strategies import Strategies, Subset
+from ActiveLearner import ActiveLearner
 from utils import entropy
 
 from typing import Dict, Any, List, Tuple
@@ -13,12 +13,12 @@ logger = logging.getLogger(__name__)
 
 
 
-class BALD(Strategies):
+class BALD(ActiveLearner):
     
-    def __init__(self, al_params: Dict[str, Any], training_params: Dict[str, Any], LL: bool) -> None:
-        self.method_name = f'{self.__class__.__name__}_LL' if LL else self.__class__.__name__
-
-        super().__init__(al_params, training_params, LL)
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], LL=False) -> None:
+        self.method_name = self.__class__.__name__
+        
+        super().__init__(ct_p, t_p, al_p, LL)
         
         
         
@@ -66,7 +66,7 @@ class BALD(Strategies):
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
                         
         self.unlab_train_dl = DataLoader(
-            sample_unlab_subset, batch_size=self.batch_size,
+            sample_unlab_subset, batch_size=self.t_p['batch_size'],
             shuffle=False, pin_memory=True
         )
             
