@@ -227,11 +227,11 @@ class ActiveLearner():
         logger.info(' DONE\n')
         
         iter_train_results, iter_test_results = {}, {}
-        for idx, metric in enumerate(train_recv): iter_train_results[train_res_keys[idx]] = metric
+        for idx, metrics in enumerate(train_recv): iter_train_results[train_res_keys[idx]] = metrics
             
-        for idx, metric in enumerate(test_recv): 
-            iter_test_results[test_res_keys[idx]] = metric
-            results_format['test'][test_res_keys[idx]].append(metric)
+        for idx, metrics in enumerate(test_recv): 
+            iter_test_results[test_res_keys[idx]] = metrics
+            results_format['test'][test_res_keys[idx]].append(metrics)
         
         logger.info(f'TESTING RESULTS -> {iter_test_results}')
         

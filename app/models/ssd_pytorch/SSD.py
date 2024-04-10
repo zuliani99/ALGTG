@@ -77,9 +77,7 @@ class SSD(nn.Module):
     def set_device_priors(self, gpu_id: torch.device): 
         self.device = gpu_id
         self.priors.to(self.device)
-        
-    def get_embedding_dim(self) -> int:
-        return 0
+            
 
     def forward(self, x):
         """Applies network layers and ops on input image(s) x.
@@ -149,6 +147,9 @@ class SSD(nn.Module):
 
     def get_features(self):
         return self.features #[512, 1024, 512, 256, 256, 256]
+    
+    def get_embedding_dim(self) -> int:
+        return 0
 
     def load_weights(self, base_file):
         _, ext = os.path.splitext(base_file)

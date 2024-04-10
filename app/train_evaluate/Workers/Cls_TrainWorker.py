@@ -25,10 +25,13 @@ class Cls_TrainWorker():
 
         self.model: ResNet_LL = params['ct_p']['Model']
         
-        self.epochs = params['t_p']['epochs']
-        
         self.dataset_name: str = params['ct_p']['dataset_name']
         self.method_name: str = params['method_name']
+        
+        self.epochs = params['t_p']['epochs']
+        self.ds_t_p = params['t_p']['ds_params'][self.dataset_name]
+        
+        
         
         self.train_dl: DataLoader = params['train_dl']
         self.test_dl: DataLoader = params['test_dl']
@@ -49,7 +52,7 @@ class Cls_TrainWorker():
 
 
     def init_opt_sched(self):
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.01, momentum=0.9, weight_decay=5e-4)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.ds_t_p['lr'], momentum=self.ds_t_p['mom'], weight_decay=self.ds_t_p['w_d'])
         self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[160], gamma=0.1)
     
     
@@ -68,7 +71,7 @@ class Cls_TrainWorker():
     def compute_losses(self, weight: float, pred_loss: torch.Tensor, outputs: torch.Tensor, \
                        labels: torch.Tensor, tot_loss_ce: float, tot_pred_loss: float) -> Tuple[torch.Tensor, float, float]:
         
-        loss_ce = self.loss_fn['backbone'](outputs, labels.long())
+        loss_ce = self.loss_fn['backbone'](outputs, labels)
         backbone_loss = torch.mean(loss_ce)
         loss = backbone_loss
         if weight:    
@@ -131,10 +134,7 @@ class Cls_TrainWorker():
             train_loss /= len(self.train_dl)
             train_loss_ce /= len(self.train_dl)
             train_loss_pred /= len(self.train_dl)
-            
-            
-            logger.info(f'GPU: {self.device} ||| Epoch {epoch} | train_accuracy: {round(train_accuracy, 5)} - train_loss: {round(train_loss, 5)} - train_loss_ce: {round(train_loss_ce, 5)} - train_loss_pred: {round(train_loss_pred, 5)}')
-            
+                        
             
             #for pos, metric in zip(range(4), [train_loss, train_loss_ce, train_loss_pred, train_accuracy]):
             for pos, metric in zip(range(results.shape[0]), [train_accuracy, train_loss, train_loss_ce, train_loss_pred]):

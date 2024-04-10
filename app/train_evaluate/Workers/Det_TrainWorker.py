@@ -166,7 +166,7 @@ class Det_TrainWorker():
         self.model.eval()
 
         # evaluation
-        num_images = len(self.test_dl.dataset)
+        num_images = len(self.test_dl.dataset) # type: ignore
         
         # all detections are collected into:
         all_boxes: List[List[np.ndarray | None]] = [[ None for _ in range(num_images)] for _ in range(self.dataset.n_classes)]

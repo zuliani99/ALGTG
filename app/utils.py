@@ -2,8 +2,6 @@
 import torch
 from torch.utils.data import Dataset
 
-
-
 import torch
 import torch.nn as nn
 import torch.nn.init as init
@@ -11,7 +9,6 @@ import torch.nn.init as init
 from models.ResNet18 import ResNet_LL
 from models.ssd_pytorch.SSD import SSD_LL
 from config import voc_config
-
 
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
@@ -26,14 +23,8 @@ from enum import Enum
 from typing import List, Dict, Any, Tuple
 
 
-from datasets_creation.Classification import Cls_Datasets
-from datasets_creation.Detection import Det_Datasets
-
-#from models import get_resnet_model, get_ssd_model
-
 
 import logging
-
 logger = logging.getLogger(__name__)
 
 
@@ -49,32 +40,45 @@ def entropy(tensor: torch.Tensor, dim=1) -> torch.Tensor:
 
     
 
-def plot_loss_curves(methods_results: Dict[str, List[float]], n_lab_obs: List[int], ts_dir: str, \
-    save_plot=True, plot_png_name=None) -> None:
+def plot_loss_curves(methods_results: Dict[str, Dict[str, List[float]]], n_lab_obs: List[int], ts_dir: str, \
+    str_keys: List[str], save_plot=True, plot_png_name=None) -> None:
     
-    _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
-    
-    data = [
-        [(0,0), 'test_loss', 'Total Loss'], [(0,1), 'test_accuracy', 'Accuracy Score'],
-        [(1,0), 'test_loss_ce', 'CE Loss'], [(1,1), 'test_loss_weird', 'Loss Weird']
-    ]
-    
-    for method_str, values in methods_results.items():
-        for (pos1, pos2), key, _ in data:
-            ax[pos1][pos2].plot(n_lab_obs, values[key], label = f'{method_str}')
-            
-    for (pos1, pos2), _, title in data:
-        ax[pos1][pos2].set_title(f'{title} - # Labeled Obs')
-        ax[pos1][pos2].set_xlabel('# Labeled Obs')
-        ax[pos1][pos2].set_ylabel(title)
-        ax[pos1][pos2].grid()
-        ax[pos1][pos2].legend()
-    
+    if len(str_keys) == 1:
+        # detection
+        plt.figure(figsize = (18,15))
+        for method_str, values in methods_results.items():
+            plt.plot(n_lab_obs, values['test_map'], label = f'{method_str}')
+        plt.title(f'mAP - # Labeled Obs')
+        plt.xlabel('# Labeled Obs')
+        plt.ylabel('mAP')
+        plt.grid()
+        plt.legend()
+        
+    else:
+        # image classification
+        _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
+        
+        data = [
+            [(0,0), str_keys[0], 'Accuracy Score'], [(0,1), str_keys[1], 'Total Loss'],
+            [(1,0), str_keys[2], 'CE Loss'], [(1,1), str_keys[3], 'Loss Weird']
+        ]
+        
+        for method_str, values in methods_results.items():
+            for (pos1, pos2), key, _ in data:
+                ax[pos1][pos2].plot(n_lab_obs, values[key], label = f'{method_str}')
+                
+        for (pos1, pos2), _, title in data:
+            ax[pos1][pos2].set_title(f'{title} - # Labeled Obs')
+            ax[pos1][pos2].set_xlabel('# Labeled Obs')
+            ax[pos1][pos2].set_ylabel(title)
+            ax[pos1][pos2].grid()
+            ax[pos1][pos2].legend()
+        
 
-    plt.suptitle('Results', fontsize = 30)
-    
-    if save_plot: plt.savefig(f'results/{ts_dir}/{plot_png_name}')
-    else: plt.show()
+        plt.suptitle('Results', fontsize = 30)
+        
+        if save_plot: plt.savefig(f'results/{ts_dir}/{plot_png_name}')
+        else: plt.show()
     
     
     
@@ -215,7 +219,10 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
 
     title = 'Entropy History' if dir == 'history' else 'Entropy Derivatives'
 
-    palette = list(mcolors.TABLEAU_COLORS.values())
+    palette = list(mcolors.CSS4_COLORS.values()) if len(classes) > 10 \
+        else list(mcolors.TABLEAU_COLORS.values())
+    random.shuffle(palette)
+        
     pl_cls_1, pl2_cls_2 = set(), set()
 
     for i, lab in zip(range(len(array)), lab_unlabels):
@@ -259,11 +266,11 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
 
 
 
-def plot_accuracy_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
+def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
     df = pd.read_csv(f'results/{timestamp}/{dataset_name}/{task}_results.csv')
 
     df_grouped = (
-        df[['method', 'lab_obs', 'test_accuracy']].groupby(['method', 'lab_obs']).agg(['mean', 'std', 'count'])
+        df[['method', 'lab_obs', 'test_accuracy' if task == 'clf' else 'test_map']].groupby(['method', 'lab_obs']).agg(['mean', 'std', 'count'])
     )
     df_grouped = df_grouped.droplevel(axis=1, level=0).reset_index()
     
@@ -283,12 +290,12 @@ def plot_accuracy_std_mean(task: str, timestamp: str, dataset_name: str) -> None
         plt.scatter(method_data['lab_obs'], method_data['mean'], marker=shapes[idx], color=plt.gca().lines[-1].get_color(), zorder=5) # type: ignore
 
     plt.xlabel('Labeled Observations')
-    plt.ylabel('Test Accuracy')
+    plt.ylabel('Test Accuracy' if task == 'clf' else 'Test mAP')
     plt.title(f'{dataset_name} results')
     plt.legend()
     plt.grid(True)
     
-    plt.savefig(f'results/{timestamp}/{dataset_name}/mean_std_accuracy_plot.png') 
+    plt.savefig(f'results/{timestamp}/{dataset_name}/mean_std_results.png') 
     
     
 
@@ -415,20 +422,7 @@ def cycle(iterable):
     while True:
         for x in iterable: yield x
         
-        
-def get_dataset(task, dataset_name: str, 
-                init_lab_obs: int) -> Cls_Datasets | Det_Datasets:
-    if task == 'clf': return Cls_Datasets(dataset_name, init_lab_obs=init_lab_obs)
-    else: return Det_Datasets(dataset_name, init_lab_obs=init_lab_obs)
-
-
-def get_model(image_size: int, n_classes: int, n_channels: int, 
-              device: torch.device, task: str) -> ResNet_LL | SSD_LL:
-    if task == 'clf': return get_resnet_model(image_size, n_classes, n_channels, device)
-    else: return get_ssd_model(n_classes, device)
-    
-    
-    
+           
 # weights initiaization
 def init_weights_apply(m: torch.nn.Module) -> None:
     if isinstance(m, nn.Conv2d):

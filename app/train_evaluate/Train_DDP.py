@@ -8,7 +8,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 
-from utils import get_model
+from init import get_model
 from datasets_creation.Detection import detection_collate
 from .Workers.Cls_TrainWorker import Cls_TrainWorker
 from .Workers.Det_TrainWorker import Det_TrainWorker
@@ -83,7 +83,7 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     if ct_p['task'] == 'detection':  
         # determine the number of iterations by -> iterations = epochs * (len(splitted_train_ds) // batch_size)
         #                                               x     =  300   * (len(train_ds)/world_size) / batch_size)
-        t_p['epoch_size'] = len(params['train_dl'].dataset) // t_p['batch_size']
+        t_p['epoch_size'] = len(params['train_dl'].dataset) // t_p['batch_size'] # type: ignore
         t_p['max_iter'] = t_p['epochs'] * t_p['epoch_size']
         
         train_test = Det_TrainWorker(rank, params, world_size)

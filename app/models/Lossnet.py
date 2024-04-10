@@ -39,6 +39,7 @@ class LossPredLoss(nn.Module):
         loss = F.margin_ranking_loss(pred_lossi, pred_lossj, final_target, margin=self.margin)
                         
         return 2 * loss
+        
     
 '''class LossPredLoss(nn.Module):
     def __init__(self,device: torch.device, margin=1):
@@ -82,6 +83,8 @@ class LossNet(nn.Module):
         num_channels = dict_params['num_channels'] if 'num_channels' in dict_params else [64, 128, 256, 512]
         interm_dim = dict_params['interm_dim'] if 'interm_dim' in dict_params else 128
         task = dict_params['task'] if 'task' in dict_params else 'clf'
+        
+        print(task)
 
         self.GAP = []
         for feature_size in feature_sizes:

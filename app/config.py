@@ -128,17 +128,29 @@ cls_datasets = {
 
 al_params = {
     'init_lab_obs': 1000,
-    'al_iters': 2,#10, 
+    'al_iters': 3,#10, 
     'unlab_sample_dim': 10000, 
     'n_top_k_obs': 1000,
 }
     
 
 cls_config = {
-    'epochs': 200,#10
+    'epochs': 10,#200,
     'batch_size': 128,
-    'results_dict': { 'train': {'train_accuracy': [], 'train_loss': [] , 'train_loss_ce': [], 'train_pred_loss': []},
-                     'test': {'test_accuracy': [], 'test_loss': [] , 'test_loss_ce': [], 'test_pred_loss': []}}
+    'results_dict': { 'train': {'train_accuracy': [], 'train_loss': [], 'train_loss_ce': [], 'train_pred_loss': []},
+                     'test': {'test_accuracy': [], 'test_loss': [], 'test_loss_ce': [], 'test_pred_loss': []}},
+    'ds_params': {
+        'cifar10': {
+            'lr': 0.1,
+            'mom': 0.9,
+            'w_d': 5e-4
+        },
+        'cifar100': {
+            'lr': 0.001,
+            'mom': 0.9,
+            'w_d': 5e-4
+        }
+    }
 }
 
 

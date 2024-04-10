@@ -24,7 +24,7 @@ class Entropy(ActiveLearner):
         
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset,
-            batch_size=self.ct_p['batch_size'], shuffle=False, pin_memory=True
+            batch_size=self.t_p['batch_size'], shuffle=False, pin_memory=True
         )
                 
         logger.info(' => Evaluating unlabeled observations')

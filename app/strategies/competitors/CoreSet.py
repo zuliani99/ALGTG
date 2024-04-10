@@ -45,7 +45,7 @@ class CoreSet(ActiveLearner):
             
         # set the entire batch size to the dimension of the sampled unlabeled set
         self.unlab_train_dl = DataLoader(
-            sample_unlab_subset, batch_size=self.ct_p['batch_size'],
+            sample_unlab_subset, batch_size=self.t_p['batch_size'],
             shuffle=False, pin_memory=True,
         )
             

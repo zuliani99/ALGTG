@@ -1,12 +1,12 @@
 
-from torch.utils.data import Dataset, ConcatDataset
+from torch.utils.data import Dataset, ConcatDataset, Subset
 from torchvision import datasets
 import torch
 
 from typing import List, Tuple
 
-#from utils import download_tinyimagenet
 import os
+from utils import count_class_observation
 from config import cls_datasets 
 
 import logging
@@ -53,11 +53,13 @@ class Cls_Datasets():
         shuffled_indices = torch.randperm(train_size)
         # each time should be a new shuffle, thus a new train-validation, labeled-unlabeled split
 
-        logger.info(f' Last 5 shuffled train observations: {shuffled_indices[-5:]}')
-
         # indices for the labeled and unlabeled sets
         self.labeled_indices: List[int] = shuffled_indices[:init_lab_obs].tolist()
         self.unlabeled_indices: List[int] = shuffled_indices[init_lab_obs:].tolist()
+        
+        logger.info(f' Initial subset of labeled observations composed with: {count_class_observation(
+            self.classes, Subset(self.transformed_trainset, self.labeled_indices)
+        )}')
 
     
 
