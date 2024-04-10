@@ -7,7 +7,7 @@ from init import get_dataset, get_model
 from utils import create_directory, create_ts_dir, \
     plot_loss_curves, plot_res_std_mean, set_seeds, Entropy_Strategy as ES
 
-from strategies.baselines.LearningLossStrategy import LearningLossStrategy
+from strategies.baselines.LearningLoss import LearningLoss
 from strategies.baselines.Random import Random
 from strategies.baselines.Entropy import Entropy
 from strategies.baselines.LearningLoss import LearningLoss
