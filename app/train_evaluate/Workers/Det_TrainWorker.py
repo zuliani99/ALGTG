@@ -218,7 +218,7 @@ class Det_TrainWorker():
         
         torch.cuda.empty_cache()
 
-        return torch.tensor((mAP), device=self.device)
+        return torch.tensor([mAP], device=self.device)
     
 
 
