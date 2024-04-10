@@ -235,6 +235,8 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
     axes[0].set_title(f'{title} Classes')
     axes[0].set_ylabel('Entropy')
     axes[0].set_xlabel('GTG Iterations')
+    axes[0].set_ylabel('Entropy')
+    axes[0].set_xlabel('GTG Iterations')
     axes[0].grid()
     axes[0].legend()
     
@@ -254,6 +256,8 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
                 pl2_cls_2.add(label)
             else: axes[1].plot(x, array[i], linestyle=style, color=color)
         
+    axes[1].set_ylabel('Entropy')
+    axes[1].set_xlabel('GTG Iterations')
     axes[1].set_ylabel('Entropy')
     axes[1].set_xlabel('GTG Iterations')
     axes[1].set_title(f'{title} - New_Lab / Unlab')

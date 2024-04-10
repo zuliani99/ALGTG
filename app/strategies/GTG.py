@@ -71,6 +71,7 @@ class GTG(ActiveLearner):
         
         # compute the affinity matrix
         A = self.get_A_rbfk(concat_embedds, to_cpu=True) if self.rbf_aff else self.get_A_fn[self.A_function](concat_embedds)
+        A = self.get_A_rbfk(concat_embedds, to_cpu=True) if self.rbf_aff else self.get_A_fn[self.A_function](concat_embedds)
 
         initial_A = torch.clone(A)
         
@@ -103,6 +104,7 @@ class GTG(ActiveLearner):
         logger.info(f' Cosine Similarity between the initial matrix and the thresholded one: {mat_cos_sim(initial_A.flatten(), A.flatten()).item()}')
 
         self.A = A
+        self.A = A
         
         # plot the TSNE fo the original and modified affinity matrix
         plot_tsne_A(
@@ -119,7 +121,10 @@ class GTG(ActiveLearner):
 
 
     def get_A_rbfk(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
+    def get_A_rbfk(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         
+        device = 'cpu' if to_cpu else self.device
+        A_matrix = self.get_A_fn[self.A_function](concat_embedds, to_cpu)
         device = 'cpu' if to_cpu else self.device
         A_matrix = self.get_A_fn[self.A_function](concat_embedds, to_cpu)
         
@@ -149,13 +154,20 @@ class GTG(ActiveLearner):
     
     
     def get_A_e_d(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
+    def get_A_e_d(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         
+        A = torch.cdist(concat_embedds, concat_embedds).to('cpu' if to_cpu else self.device)
         A = torch.cdist(concat_embedds, concat_embedds).to('cpu' if to_cpu else self.device)
         
         return A
 
 
 
+    def get_A_cos_sim(self, concat_embedds: torch.Tensor, to_cpu = True) -> torch.Tensor:
+        
+        device = 'cpu' if to_cpu else self.device
+        
+        normalized_embedding = F.normalize(concat_embedds, dim=-1).to(device)
     def get_A_cos_sim(self, concat_embedds: torch.Tensor, to_cpu = True) -> torch.Tensor:
         
         device = 'cpu' if to_cpu else self.device
@@ -173,7 +185,9 @@ class GTG(ActiveLearner):
         
         
     def get_A_corr(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
+    def get_A_corr(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         
+        A = F.relu(torch.corrcoef(concat_embedds).to('cpu' if to_cpu else self.device))
         A = F.relu(torch.corrcoef(concat_embedds).to('cpu' if to_cpu else self.device))
         
         return A
@@ -237,7 +251,9 @@ class GTG(ActiveLearner):
                         
             err = torch.norm(self.X - X_old)
             i += 1
-            
+        
+        del X_old
+        torch.cuda.empty_cache()
 
 
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
