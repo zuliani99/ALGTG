@@ -6,10 +6,6 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 
-from models.ResNet18 import ResNet_LL
-from models.ssd_pytorch.SSD import SSD_LL
-from config import voc_config
-
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from sklearn.manifold import TSNE
@@ -103,21 +99,6 @@ def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any
         ax[pos1][pos2].grid()
         ax[pos1][pos2].legend()
         
-    '''else: 
-        _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
-    
-        data = [ ['train_loss', 'Total Loss'], ['train_accuracy', 'Accuracy Score'] ]
-        
-        for pos, (train_mes, title) in enumerate(data):
-            ax[pos].plot(epochs, results_info[train_mes], label = train_mes)
-            if pos == 0: ax[pos].set_ylim([0, 5])
-
-            ax[pos].set_title(f'{title} - Epochs')
-            ax[pos].set_xlabel('Epochs')
-            ax[pos].set_ylabel(title)
-            ax[pos].grid()
-            ax[pos].legend()'''
-        
 
     plt.suptitle(f'Iteration: {al_iter} - {method_name}', fontsize = 30)
     plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{method_name}/train_val_plots/{al_iter}.png')
@@ -135,33 +116,13 @@ def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results:
         
     for (pos1, pos2), train_mes in data:
         for iter, results_info in cum_train_results.items():
-            ax[pos1][pos2].plot(x, results_info[train_mes], label = f'{train_mes}_{iter}')
-            #if not (pos1 == 0 and pos2 == 0): ax[pos1][pos2].set_ylim([0, 5])
-                
-            ax[pos1][pos2].set_title(f'{train_mes} - Epochs')
-            ax[pos1][pos2].set_xlabel('Epochs')
-            ax[pos1][pos2].set_ylabel(train_mes)
-            ax[pos1][pos2].grid()
+            ax[pos1][pos2].plot(x, results_info[train_mes], label = f'{train_mes}_{iter}')                
+        ax[pos1][pos2].set_title(f'{train_mes} - Epochs')
+        ax[pos1][pos2].set_xlabel('Epochs')
+        ax[pos1][pos2].set_ylabel(train_mes)
+        ax[pos1][pos2].grid()
         ax[pos1][pos2].legend()
 
-    
-    '''else:
-        _, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (18,8))
-        
-        data = [ ['train_loss', 'Total Loss'], ['train_accuracy', 'Accuracy Score'] ]
-        
-        for iter, results_info in cum_train_results.items():
-            
-            for pos, (train_mes, title) in enumerate(data):
-                ax[pos].plot(range(1, epochs + 1), results_info[train_mes], label = f'{train_mes}_{iter}')
-                if pos == 0: ax[pos].set_ylim([0, 5])
-
-                ax[pos].set_title(f'{title} - Epochs')
-                ax[pos].set_xlabel('Epochs')
-                ax[pos].set_ylabel(title)
-                ax[pos].grid()
-                ax[pos].legend()'''
-        
 
     plt.suptitle(f'Cumulative Train Results - {method_name}', fontsize = 30)
     plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{method_name}/train_val_plots/cumulative_train_results.png')
@@ -440,24 +401,6 @@ def init_weights_apply(m: torch.nn.Module) -> None:
         init.constant_(m.weight, 1)
         init.constant_(m.bias, 0)
     
-    
-def get_ssd_model(n_classes: int, device: torch.device) -> SSD_LL:
-    loss_net_params = dict(
-        feature_sizes=[512, 1024, 512, 256, 256, 256],
-        num_channels=[512, 1024, 512, 256, 256, 256],
-        task='detection'
-    )
-    #ssd_ll = SSD_LL(device, 'train', voc_config, num_classes=n_classes, ln_p=loss_net_params).to(device)
-    ssd_ll = SSD_LL('train', voc_config, num_classes=n_classes, ln_p=loss_net_params).to(device)
-    #ssd_ll.apply(init_weights_apply)
-    return ssd_ll
-
-
-def get_resnet_model(image_size: int, n_classes: int, n_channels: int, device: torch.device) -> ResNet_LL:
-    #resnet_ll = ResNet_LL(device, image_size, n_classes=n_classes,  n_channels=n_channels).to(device)
-    resnet_ll = ResNet_LL(image_size, n_classes=n_classes,  n_channels=n_channels).to(device)
-    #resnet_ll.apply(init_weights_apply)
-    return resnet_ll
 
     
     

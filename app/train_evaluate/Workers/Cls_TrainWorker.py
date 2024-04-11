@@ -1,11 +1,13 @@
 
 import torch
 
-from utils import accuracy_score, init_weights_apply
+from utils import accuracy_score
 from models.ResNet18 import ResNet_LL
 from models.Lossnet import LossPredLoss
 
 from torch.utils.data import DataLoader
+from torch.nn.parallel import DistributedDataParallel as DDP
+
 
 from typing import Tuple, Dict, Any
 
@@ -23,15 +25,13 @@ class Cls_TrainWorker():
         self.world_size: int = world_size
         self.wandb_run = params['wandb_p'] if 'wandb_p' in params else None
 
-        self.model: ResNet_LL = params['ct_p']['Model']
+        self.model: ResNet_LL | DDP = params['ct_p']['Model_train']
         
         self.dataset_name: str = params['ct_p']['dataset_name']
         self.method_name: str = params['method_name']
         
         self.epochs = params['t_p']['epochs']
         self.ds_t_p = params['t_p']['ds_params'][self.dataset_name]
-        
-        
         
         self.train_dl: DataLoader = params['train_dl']
         self.test_dl: DataLoader = params['test_dl']
@@ -43,12 +43,11 @@ class Cls_TrainWorker():
                 
         self.score_fn = accuracy_score
         
-        self.best_check_filename = f'app/checkpoints/{self.dataset_name}'
-        self.init_check_filename = f'{self.best_check_filename}_init_checkpoint.pth.tar'
-        
-        self.model.apply(init_weights_apply)
-        
-        self.init_opt_sched()
+        self.best_check_filename = f'app/checkpoints/{self.dataset_name}'        
+        self.init_check_filename = f'{self.best_check_filename}_init.pth.tar'
+        logger.info(' => Loading Initial Checkpoint')
+        self.__load_checkpoint(self.init_check_filename)
+        logger.info(' DONE')
 
 
     def init_opt_sched(self):
@@ -77,13 +76,13 @@ class Cls_TrainWorker():
             loss_weird = self.loss_fn['module'](pred_loss, loss_ce)
             loss = backbone + loss_weird
 
-            tot_loss_ce += backbone.cpu().item()
-            tot_pred_loss += loss_weird.cpu().item()
+            tot_loss_ce += backbone.item()
+            tot_pred_loss += loss_weird.item()
             
             return loss, tot_loss_ce, tot_pred_loss
         else:            
-            tot_loss_ce += backbone.cpu().item()
-            return backbone, tot_loss_ce, tot_pred_loss               
+            tot_loss_ce += backbone.item()
+            return backbone, tot_loss_ce, tot_pred_loss    
         
     
     
@@ -95,22 +94,22 @@ class Cls_TrainWorker():
         results = torch.zeros((4, self.epochs), device=self.device)
         
         if self.iter > 1: self.__load_checkpoint(check_best_path)
-        
+            
         self.model.train()
-    
+        
         for epoch in range(self.epochs):
-
+            
             train_loss, train_loss_ce, train_loss_pred, train_accuracy = .0, .0, .0, .0
             
-            #if self.LL and epoch == 121: weight = 0
-            if epoch == 121: weight = 0
-            
+            if self.LL and epoch == 121: weight = 0
+                        
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore            
                         
             for _, images, labels in self.train_dl:                
-                                    
-                images, labels = images.to(self.device, non_blocking=True), labels.to(self.device, non_blocking=True)
                 
+                images = images.to(self.device, non_blocking=True)
+                labels = labels.to(self.device, non_blocking=True)
+                    
                 self.optimizer.zero_grad()
                 
                 outputs, _, pred_loss = self.model(images)
@@ -134,7 +133,6 @@ class Cls_TrainWorker():
             train_loss_pred /= len(self.train_dl)
                         
             
-            #for pos, metric in zip(range(4), [train_loss, train_loss_ce, train_loss_pred, train_accuracy]):
             for pos, metric in zip(range(results.shape[0]), [train_accuracy, train_loss, train_loss_ce, train_loss_pred]):
                 results[pos][epoch] = metric
                 
@@ -152,40 +150,41 @@ class Cls_TrainWorker():
             
             self.__save_checkpoint(check_best_path)
                 
-        
-        
         # load best checkpoint
         self.__load_checkpoint(check_best_path)
+        #self.check_best_path = check_best_path
         
         return results
 
 
 
     def test(self) -> torch.Tensor:
-        tot_loss, tot_loss_ce, tot_pred_loss, tot_accuracy = .0, .0, .0, .0
+        test_accuracy, test_loss, test_loss_ce, test_pred_loss = .0, .0, .0, .0
         
-        self.model.eval()
+        self.model.eval()        
 
-        with torch.no_grad(): # Allow inference mode
+        with torch.inference_mode():
             for _, images, labels in self.test_dl:
                 
-                images, labels = images.to(self.device, non_blocking=True), labels.to(self.device, non_blocking=True)
+                images = images.to(self.device, non_blocking=True)
+                labels = labels.to(self.device, non_blocking=True)
+                    
                 outputs, _, pred_loss = self.model(images)
 
-                loss, tot_loss_ce, tot_pred_loss = self.compute_losses(
-                        1, pred_loss, outputs, labels, tot_loss_ce, tot_pred_loss
+                loss, test_loss_ce, test_pred_loss = self.compute_losses(
+                        weight=1, pred_loss=pred_loss, outputs=outputs, labels=labels, 
+                        tot_loss_ce=test_loss_ce, tot_pred_loss=test_pred_loss
                     )
                 
-                tot_accuracy += self.score_fn(outputs, labels)
-                tot_loss += loss.item()
+                test_accuracy += self.score_fn(outputs, labels)
+                test_loss += loss.item()
 
-
-            tot_accuracy /= len(self.test_dl)
-            tot_loss /= len(self.test_dl)
-            tot_loss_ce /= len(self.test_dl)
-            tot_pred_loss /= len(self.test_dl)
+            test_accuracy /= len(self.test_dl)
+            test_loss /= len(self.test_dl)
+            test_loss_ce /= len(self.test_dl)
+            test_pred_loss /= len(self.test_dl)
             
-        return torch.tensor((tot_accuracy, tot_loss, tot_loss_ce, tot_pred_loss), device=self.device)
+        return torch.tensor((test_accuracy, test_loss, test_loss_ce, test_pred_loss), device=self.device)
 
         
         

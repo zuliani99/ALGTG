@@ -4,7 +4,7 @@ import torch
 import torch.distributed as dist
 
 from init import get_dataset, get_model
-from utils import create_directory, create_ts_dir, \
+from utils import create_directory, create_ts_dir, init_weights_apply, \
     plot_loss_curves, plot_res_std_mean, set_seeds, Entropy_Strategy as ES
 
 from strategies.baselines.LearningLoss import LearningLoss
@@ -32,7 +32,7 @@ def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'fmnist', 'tinyimagenet', 'voc', 'coco'],
                         required=True, help='Possible datasets to choose')
-    parser.add_argument('-i', '--iterations', type=int, nargs=1, required=True, help='Number or iterations of AL benchmark for each dataset')
+    parser.add_argument('-tr', '--trials', type=int, nargs=1, required=True, help='Number or trials of AL benchmark for each dataset')
     parser.add_argument('-s', '--strategy', type=str, nargs=1, choices=['uncertanity', 'diversity', 'mixed'], 
                         required=True, help='Possible query strategy types to choose')
     parser.add_argument('-ts', '--threshold_strategy', type=str, nargs=1, choices=['threshold', 'mean'], 
@@ -54,15 +54,15 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
     n_lab_obs = [al_p['init_lab_obs'] + (iter * al_p['n_top_k_obs']) for iter in range(al_p['al_iters'])]
     
     methods = [
-        Random(ct_p=ct_p, t_p=t_p, al_p=al_p),
-        Entropy(ct_p=ct_p, t_p=t_p, al_p=al_p),
-        CoreSet(ct_p=ct_p, t_p=t_p, al_p=al_p),
+        Random(ct_p=ct_p, t_p=t_p, al_p=al_p),#, LL=True),
+        Entropy(ct_p=ct_p, t_p=t_p, al_p=al_p),#, LL=True),
+        #CoreSet(ct_p=ct_p, t_p=t_p, al_p=al_p),
         LearningLoss(ct_p=ct_p, t_p=t_p, al_p=al_p, LL=True),
         
         GTG(ct_p=ct_p, t_p=t_p, al_p=al_p, 
             gtg_p={**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN}, LL=True), 
-        GTG(ct_p=ct_p, t_p=t_p, al_p=al_p, 
-            gtg_p={**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT}, LL=True),
+        #GTG(ct_p=ct_p, t_p=t_p, al_p=al_p, 
+        #    gtg_p={**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT}, LL=True),
     ]
     
     for method in methods:
@@ -77,7 +77,7 @@ def main() -> None:
     args = get_args()
     choosen_datasets = args.datasets
     wandb = args.wandb
-    trials = args.iterations[0]
+    trials = args.trials[0]
     strategy_type = args.strategy[0]
     treshold_strategy = args.threshold_strategy[0]
     treshold = args.threshold[0]
@@ -133,6 +133,9 @@ def main() -> None:
             
             Dataset = get_dataset(task, dataset_name, init_lab_obs = al_params['init_lab_obs'])
             Model = get_model(Dataset.image_size, Dataset.n_classes, Dataset.n_channels, device, task)
+            
+            Model.apply(init_weights_apply)
+            torch.save(dict(state_dict = Model.state_dict()), f'app/checkpoints/{dataset_name}_init.pth.tar')
             
             logger.info('\n')
             

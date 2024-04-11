@@ -2,12 +2,13 @@
 import torch
 
 from torch.distributed import destroy_process_group, init_process_group
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 
+from utils import set_seeds
 from init import get_model
 from datasets_creation.Detection import detection_collate
 from .Workers.Cls_TrainWorker import Cls_TrainWorker
@@ -35,6 +36,7 @@ def clear_process() -> None: destroy_process_group()
 
 
 def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connection.Connection) -> None:
+    set_seeds()
     
     initialize_preocess(rank, world_size)
     
@@ -42,12 +44,15 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     t_p = params['t_p']
     num_workers = int(os.environ['SLURM_CPUS_PER_TASK'])
     
-    #moved_model = get_model(ct_p['Dataset'].image_size, ct_p['Dataset'].n_classes, ct_p['Dataset'].n_channels, torch.device(rank), ct_p['task']).to(rank)
-    moved_model = get_model(ct_p['Dataset'].image_size, ct_p['Dataset'].n_classes, ct_p['Dataset'].n_channels, torch.device(rank), ct_p['task'])#.to(rank)
+    moved_model = get_model(
+        image_size=ct_p['Dataset'].image_size, 
+        n_classes=ct_p['Dataset'].n_classes, 
+        n_channels=ct_p['Dataset'].n_channels, 
+        device=torch.device(params['ct_p']['device']), 
+        task=ct_p['task']
+    )
     moved_model = DDP(moved_model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
-    ct_p['Model'] = moved_model
-    
-    train_ds = Subset(ct_p['Dataset'].transformed_trainset, ct_p['Dataset'].labeled_indices)    
+    ct_p['Model_train'] = moved_model
     
     dict_dl = dict(
         batch_size=t_p['batch_size'],
@@ -66,8 +71,8 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     
     
     params['train_dl'] = DataLoader(
-        train_ds,
-        sampler=DistributedSampler(train_ds, num_replicas=world_size,
+        params['labeled_subset'],
+        sampler=DistributedSampler(params['labeled_subset'], num_replicas=world_size,
                                    rank=rank, shuffle=True, seed=100001),
         **dict_dl
     )
@@ -121,24 +126,32 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     
     
 def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
+    set_seeds()
+    
     ct_p = params['ct_p']
     t_p = params['t_p']
     
-    train_ds = Subset(ct_p['Dataset'].transformed_trainset, ct_p['Dataset'].labeled_indices)
+    ct_p['Model_train'] = get_model(
+        image_size=ct_p['Dataset'].image_size, 
+        n_classes=ct_p['Dataset'].n_classes, 
+        n_channels=ct_p['Dataset'].n_channels, 
+        device=torch.device(params['ct_p']['device']), 
+        task=ct_p['task']
+    )
+    
     dict_dl = dict(batch_size=t_p['batch_size'], pin_memory=True)
     
     if ct_p['task'] == 'detection': 
         dict_dl['collate_fn'] = detection_collate
         
-        # determine the number of iterations by -> iterations = epochs * (len(train_ds) // batch_size)        
-        t_p['epoch_size'] = len(train_ds) // t_p['batch_size']
+        t_p['epoch_size'] = len(params['labeled_subset']) // t_p['batch_size']
         t_p['max_iter'] = t_p['epochs'] * t_p['epoch_size']
         
         TrainWorker = Det_TrainWorker
     
     else: TrainWorker = Cls_TrainWorker
     
-    params['train_dl'] = DataLoader(train_ds, shuffle=True, **dict_dl)
+    params['train_dl'] = DataLoader(params['labeled_subset'], shuffle=True, **dict_dl)
     params['test_dl'] = DataLoader(ct_p['Dataset'].test_ds, shuffle=False, **dict_dl)
     
     train_test = TrainWorker(params['ct_p']['device'], params)

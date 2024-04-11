@@ -45,9 +45,9 @@ class ActiveLearner():
 
         self.train_results: Dict[str, Any] = {}
         
+        self.labeled_subset = Subset(self.dataset.transformed_trainset, self.labeled_indices)
         self.lab_train_dl = DataLoader(
-            Subset(self.dataset.transformed_trainset, self.labeled_indices),
-            batch_size=self.t_p['batch_size'], shuffle=False, pin_memory=True
+            self.labeled_subset, batch_size=self.t_p['batch_size'], shuffle=False, pin_memory=True
         )
         
         self.world_size: int = torch.cuda.device_count()
@@ -62,7 +62,7 @@ class ActiveLearner():
         
     
     def save_labeled_images(self, new_labeled_idxs: List[int]) -> None:
-        logger.info(f' => Iteration {self.iter} - Saving the new labeled images for further visual analysis...')
+        logger.info(f' => Iteration {self.iter} Method {self.method_name} - Saving the new labeled images for further visual analysis...')
         create_class_dir(self.path, self.iter, self.dataset.classes)
         for idx, img, gt in Subset(self.dataset.non_transformed_trainset, new_labeled_idxs):
             if self.ct_p['task'] != 'clf': 
@@ -114,15 +114,15 @@ class ActiveLearner():
             for idxs, images, labels in dataloader:
 
                 if 'embedds' in dict_to_modify:
-                    _, embed, _ = self.model(images.to(self.device))
+                    embed = self.model(images.to(self.device), mode='embedds')
                     dict_to_modify['embedds'] = torch.cat((dict_to_modify['embedds'], embed.squeeze()), dim=0)
                     
                 if 'probs' in dict_to_modify:
-                    outs, _, _  = self.model(images.to(self.device))
+                    outs = self.model(images.to(self.device), mode='probs')
                     dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], outs.squeeze().cpu()), dim=0)
                     
                 if 'pred_loss' in dict_to_modify:
-                    _, _, pred_loss = self.model(images.to(self.device))
+                    pred_loss = self.model(images.to(self.device), mode='pred_loss')
                     dict_to_modify['pred_loss'] = torch.cat((dict_to_modify['pred_loss'], pred_loss.squeeze().cpu()), dim=0)
                     
                 if 'labels' in dict_to_modify:
@@ -181,18 +181,19 @@ class ActiveLearner():
         test_res_keys = list(results_format['test'].keys())
         train_res_keys = list(results_format['train'].keys())
         
-        params = { 'ct_p': self.ct_p, 't_p': self.t_p, 'method_name': self.method_name, 'iter': iter, 'LL': self.LL}
+        params = { 'ct_p': self.ct_p, 't_p': self.t_p, 'method_name': self.method_name, 'iter': iter, 'LL': self.LL, 'labeled_subset': self.labeled_subset}
         
         # wandb dictionary hyperparameters
         hps = dict( **self.ct_p, **self.t_p, **self.al_p, method_name=self.method_name, iter=iter, LL=self.LL)
         del hps['Dataset']
         hps['Model'] = hps['Model'].__class__.__name__
         
-        # Pipe for the itra-process communication of the results
-        parent_conn, child_conn = mp.Pipe()
         
         # if we are using multiple gpus
         if self.world_size > 1:
+            # Pipe for the itra-process communication of the results
+            parent_conn, child_conn = mp.Pipe()
+            
             logger.info(' => RUNNING DISTRIBUTED TRAINING')
             
             if (self.ct_p['wandb_logs']):
@@ -265,10 +266,12 @@ class ActiveLearner():
             raise Exception('NON EMPTY INDICES INTERSECTION')
 
         # generate the new labeled DataLoader
+        self.labeled_subset = Subset(self.dataset.transformed_trainset, self.labeled_indices)
         self.lab_train_dl = DataLoader(
-            Subset(self.dataset.transformed_trainset, self.labeled_indices),
-            batch_size=self.t_p['batch_size'], shuffle=False, pin_memory=True
+            self.labeled_subset, batch_size=self.t_p['batch_size'], shuffle=False, pin_memory=True
         )
+        
+        logger.info(f' New labeled_indices lenght: {len(self.labeled_indices)} - new unlabeled_indices lenght: {len(self.unlabeled_indices)}')
         
         logger.info(' DONE\n')
 

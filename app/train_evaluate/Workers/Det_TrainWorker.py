@@ -33,17 +33,12 @@ class Det_TrainWorker():
         self.world_size: int = world_size
         self.wandb_run = params['wandb_p'] if 'wandb_p' in params else None
         
-        self.model: SSD_LL = params['ct_p']['Model']
+        self.model: SSD_LL = params['ct_p']['Model_train']
         
         self.method_name: str = params['method_name']
         
         self.train_dl: DataLoader = params['train_dl']
         self.test_dl: DataLoader = params['test_dl']
-        
-        self.model.apply(init_weights_apply)
-        
-        self.init_opt_sched()
-
 
         self.loss_fn = dict(
             backbone = MultiBoxLoss(self.dataset.n_classes, 0.5, True, 0, True, 3, 0.5, False, self.device),
@@ -51,11 +46,13 @@ class Det_TrainWorker():
         )
 
         self.best_check_filename = f'app/checkpoints/{self.ct_p['dataset_name']}'
-        self.init_check_filename = f'{self.best_check_filename}_init_checkpoint.pth.tar'
+        self.init_check_filename = f'{self.best_check_filename}_init.pth.tar'
         
         # set device for priors
         if self.world_size > 1: self.model.module.backbone.set_device_priors(self.device) 
         else: self.model.backbone.set_device_priors(self.device)
+        
+        self.__load_checkpoint(self.init_check_filename)
     
     
     def init_opt_sched(self):

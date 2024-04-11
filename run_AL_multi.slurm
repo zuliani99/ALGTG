@@ -22,4 +22,4 @@ export PYTHONWARNINGS='ignore:semaphore_tracker:UserWarning'
 
 conda activate al_env
 
-python3 app/main.py -d voc -s mixed -s mixed -i 1 -ts threshold -t 0.5
+python3 app/main.py -d voc -s mixed -s mixed -tr 1 -ts threshold -t 0.5

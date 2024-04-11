@@ -42,7 +42,7 @@ class LossPredLoss(nn.Module):
 
 
 # Loss Prediction Network
-'''class LossNet(nn.Module):
+class LossNet(nn.Module):
     def __init__(self, dict_params = {}):
         super(LossNet, self).__init__()
 
@@ -73,9 +73,9 @@ class LossPredLoss(nn.Module):
             outs.append(out)
 
         out = self.linear(torch.cat(outs, 1))
-        return out'''
+        return out
         
-class LossNet(nn.Module):
+'''class LossNet(nn.Module):
     def __init__(self, feature_sizes=[32, 16, 8, 4], num_channels=[64, 128, 256, 512], interm_dim=128, task='clf'):
         super(LossNet, self).__init__()
         
@@ -109,4 +109,4 @@ class LossNet(nn.Module):
         out4 = F.relu(self.FC4(out4))
 
         out = self.linear(torch.cat((out1, out2, out3, out4), 1))
-        return out
+        return out'''

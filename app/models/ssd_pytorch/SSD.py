@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-#from AL_GTG.app.utils import init_weights_apply
+#from app.utils import init_weights_apply
 from models.Lossnet import LossNet
 
 from .ssd_layers import *
@@ -259,6 +259,9 @@ class SSD_LL(nn.Module):
         self.backbone = build_ssd(phase, voc_config, num_classes=num_classes)
         vgg_weights = torch.load('app/models/ssd_pytorch/vgg16_reducedfc.pth')
         self.backbone.vgg.load_state_dict(vgg_weights)
+        
+        #self.loss_net.apply(init_weights_apply)
+        #self.backbone.apply(init_weights_apply)
 
         
     def forward(self, x, mode='all'):

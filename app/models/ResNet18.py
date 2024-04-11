@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Tuple
+#from app.utils import init_weights_apply
 from models.Lossnet import LossNet 
 
 
@@ -97,15 +98,21 @@ class ResNet_LL(nn.Module):
         self.loss_net = LossNet()
         self.backbone = ResNet18(image_size, n_classes=n_classes, n_channels=n_channels)
         
+        
     def forward(self, x, mode='all'):
         if mode == 'all':
             outs, embedds = self.backbone(x)
-            pred_loss = self.loss_net(self.backbone.get_features())
+            features = self.backbone.get_features()
+            pred_loss = self.loss_net(features)
             return outs, embedds, pred_loss
+        elif mode == 'probs':
+            outs, _ = self.backbone(x)
+            return outs
         elif mode == 'embedds':
             _, embedds = self.backbone(x)
             return embedds
         else:
             _, _ = self.backbone(x)
-            return self.loss_net(self.backbone.get_features())
+            features = self.backbone.get_features()
+            return self.loss_net(features)
             

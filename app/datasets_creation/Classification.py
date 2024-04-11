@@ -61,7 +61,7 @@ class Cls_Datasets():
             self.classes, Subset(self.transformed_trainset, self.labeled_indices)
         )}')
 
-    
+
 
 
 class Cls_Dataset(Dataset):
@@ -113,5 +113,3 @@ class Cls_Dataset(Dataset):
                 
         image, label = self.ds[index]
         return index, image, label
-
-    
