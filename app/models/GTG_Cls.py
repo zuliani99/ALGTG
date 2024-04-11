@@ -13,7 +13,7 @@ from typing import Dict, Any, List, Tuple
 
 
 class GTG_Module(nn.Module):
-    def __init__(self, gtg_p, n_top_k_obs, n_classes, init_lab_obs, device):
+    def __init__(self, gtg_p, n_top_k_obs, n_classes, init_lab_obs, device, phase='train'):
         super(GTG_Module).__init__()
 
         self.get_A_fn = {
@@ -31,6 +31,7 @@ class GTG_Module(nn.Module):
         self.threshold_strategy: str = gtg_p['threshold_strategy']
         self.threshold: float = gtg_p['threshold']
         
+        self.phase = phase
         self.n_top_k_obs = n_top_k_obs
         self.n_classes = n_classes
         self.init_lab_obs = init_lab_obs
@@ -42,6 +43,9 @@ class GTG_Module(nn.Module):
         
         
         self.device = device
+        
+    def change_pahse(self):
+        self.phase = 'test' if self.pahse == 'train' else 'train'
         
     
     def get_A_treshold(self, A: torch.Tensor) -> Any:
@@ -262,8 +266,10 @@ class GTG_Module(nn.Module):
     
     def forward(self, embedds, labels):
         
-        y_true, mask = self.preprocess_inputs(embedds, labels)
-        
+        if self.phase == 'train':
+            y_true, mask = self.preprocess_inputs(embedds, labels)
+        else:
+            y_true, mask = embedds, None
         # for now it takes only as input the embedding of the resnet
         out1 = F.relu(self.l1(y_true))
         out2 = F.relu(self.l2(out1))
