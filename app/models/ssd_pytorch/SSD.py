@@ -260,8 +260,6 @@ class SSD_LL(nn.Module):
         vgg_weights = torch.load('app/models/ssd_pytorch/vgg16_reducedfc.pth')
         self.backbone.vgg.load_state_dict(vgg_weights)
         
-        #self.loss_net.apply(init_weights_apply)
-        #self.backbone.apply(init_weights_apply)
 
         
     def forward(self, x, mode='all'):
@@ -269,11 +267,15 @@ class SSD_LL(nn.Module):
             outs, embedds = self.backbone(x)
             pred_loss = self.loss_net(self.backbone.get_features())
             return outs, embedds, pred_loss
+        elif mode == 'probs':
+            outs, _ = self.backbone(x)
+            return outs
         elif mode == 'embedds':
             _, embedds = self.backbone(x)
             return embedds
-        else:
+        elif mode == 'pred_loss':
             _, _ = self.backbone(x)
             return self.loss_net(self.backbone.get_features())
-
+        else: 
+            raise AttributeError('You have specified wrong output to return for SSD_LL')
 

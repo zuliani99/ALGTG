@@ -66,7 +66,7 @@ def detection_collate(batch):
 
 
 
-class Det_Datasets():
+class Det_Dataset():
     def __init__(self, dataset_name: str, init_lab_obs: int) -> None:
 
         self.transformed_trainset, self.non_transformed_trainset, self.test_ds = get_detection_dataset(dataset_name, 'datasets/voc')

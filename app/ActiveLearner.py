@@ -3,7 +3,7 @@ import wandb
 
 from models.ResNet18 import ResNet_LL
 from datasets_creation.Classification import Cls_Datasets
-from datasets_creation.Detection import Det_Datasets
+from datasets_creation.Detection import Det_Dataset
 from models.ssd_pytorch.SSD import SSD_LL
 from train_evaluate.Train_DDP import train, train_ddp
 from utils import count_class_observation, print_cumulative_train_results, set_seeds,\
@@ -36,7 +36,7 @@ class ActiveLearner():
         self.model: SSD_LL | ResNet_LL = self.ct_p['Model']
         self.device: torch.device = self.ct_p['device']
         
-        self.dataset: Cls_Datasets | Det_Datasets = self.ct_p['Dataset']
+        self.dataset: Cls_Datasets | Det_Dataset = self.ct_p['Dataset']
         
         self.best_check_filename: str = f'app/checkpoints/{self.ct_p['dataset_name']}'
         
@@ -124,6 +124,11 @@ class ActiveLearner():
                 if 'pred_loss' in dict_to_modify:
                     pred_loss = self.model(images.to(self.device), mode='pred_loss')
                     dict_to_modify['pred_loss'] = torch.cat((dict_to_modify['pred_loss'], pred_loss.squeeze().cpu()), dim=0)
+                    
+                if 'pred_gtg' in dict_to_modify:
+                    pred_gtg = self.model(images.to(self.device), mode='pred_gtg')
+                    dict_to_modify['pred_loss'] = torch.cat((dict_to_modify['pred_gtg'], pred_gtg.squeeze().cpu()), dim=0)
+
                     
                 if 'labels' in dict_to_modify:
                     dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)

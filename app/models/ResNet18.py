@@ -102,8 +102,7 @@ class ResNet_LL(nn.Module):
     def forward(self, x, mode='all'):
         if mode == 'all':
             outs, embedds = self.backbone(x)
-            features = self.backbone.get_features()
-            pred_loss = self.loss_net(features)
+            pred_loss = self.loss_net(self.backbone.get_features())
             return outs, embedds, pred_loss
         elif mode == 'probs':
             outs, _ = self.backbone(x)
@@ -111,8 +110,10 @@ class ResNet_LL(nn.Module):
         elif mode == 'embedds':
             _, embedds = self.backbone(x)
             return embedds
-        else:
+        elif mode == 'pred_loss':
             _, _ = self.backbone(x)
-            features = self.backbone.get_features()
-            return self.loss_net(features)
+            return self.loss_net(self.backbone.get_features())
+        else: 
+            raise AttributeError('You have specified wrong output to return for ResNet_LL')
+
             

@@ -7,7 +7,7 @@ from models.ssd_pytorch.SSD import SSD_LL
 from models.ssd_pytorch.detect_eval import do_python_eval, write_voc_results_file
 from models.ssd_pytorch.ssd_layers.modules.multibox_loss import MultiBoxLoss
 
-from datasets_creation.Detection import Det_Datasets
+from datasets_creation.Detection import Det_Dataset
 from torch.utils.data import DataLoader
 
 from typing import Dict, Any, List
@@ -27,7 +27,7 @@ class Det_TrainWorker():
         self.iter: int = params['iter']
         self.ct_p, self.t_p = params['ct_p'], params['t_p']
         self.epoch_size: int = self.t_p['epoch_size']
-        self.dataset: Det_Datasets = self.ct_p['Dataset']
+        self.dataset: Det_Dataset = self.ct_p['Dataset']
         
         self.LL = params['LL']
         self.world_size: int = world_size

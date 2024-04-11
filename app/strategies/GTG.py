@@ -103,7 +103,6 @@ class GTG(ActiveLearner):
         logger.info(f' Cosine Similarity between the initial matrix and the thresholded one: {mat_cos_sim(initial_A.flatten(), A.flatten()).item()}')
 
         self.A = A
-        self.A = A
         
         # plot the TSNE fo the original and modified affinity matrix
         plot_tsne_A(
@@ -123,9 +122,7 @@ class GTG(ActiveLearner):
         
         device = 'cpu' if to_cpu else self.device
         A_matrix = self.get_A_fn[self.A_function](concat_embedds, to_cpu)
-        device = 'cpu' if to_cpu else self.device
-        A_matrix = self.get_A_fn[self.A_function](concat_embedds, to_cpu)
-        
+
         if self.A_function == 'e_d':
             # if euclidean distance is choosen we take the 7th smallest observation which is the 7th closest one (ascending order)
             seventh_neigh = concat_embedds[torch.argsort(A_matrix, dim=1)[:, 6]]            
