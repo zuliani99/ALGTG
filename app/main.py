@@ -54,15 +54,15 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
     n_lab_obs = [al_p['init_lab_obs'] + (iter * al_p['n_top_k_obs']) for iter in range(al_p['al_iters'])]
     
     methods = [
-        Random(ct_p=ct_p, t_p=t_p, al_p=al_p),#, LL=True),
-        Entropy(ct_p=ct_p, t_p=t_p, al_p=al_p),#, LL=True),
+        Random(ct_p=ct_p, t_p=t_p, al_p=al_p, LL=True),
+        Entropy(ct_p=ct_p, t_p=t_p, al_p=al_p, LL=True),
         #CoreSet(ct_p=ct_p, t_p=t_p, al_p=al_p),
         LearningLoss(ct_p=ct_p, t_p=t_p, al_p=al_p, LL=True),
         
         GTG(ct_p=ct_p, t_p=t_p, al_p=al_p, 
             gtg_p={**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN}, LL=True), 
-        #GTG(ct_p=ct_p, t_p=t_p, al_p=al_p, 
-        #    gtg_p={**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT}, LL=True),
+        GTG(ct_p=ct_p, t_p=t_p, al_p=al_p, 
+            gtg_p={**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT}, LL=True),
     ]
     
     for method in methods:

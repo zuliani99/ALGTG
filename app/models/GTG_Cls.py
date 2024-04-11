@@ -6,14 +6,16 @@ import torch.nn.functional as F
 from ResNet18 import ResNet18
 from utils import Entropy_Strategy, entropy
 
+from typing import Any, List
+
+
 import logging
 logger = logging.getLogger(__name__)
 
-from typing import Dict, Any, List, Tuple
 
 
 class GTG_Module(nn.Module):
-    def __init__(self, gtg_p, n_top_k_obs, n_classes, init_lab_obs, device, phase='train'):
+    def __init__(self, gtg_p, phase='train'):
         super(GTG_Module).__init__()
 
         self.get_A_fn = {
@@ -31,10 +33,13 @@ class GTG_Module(nn.Module):
         self.threshold_strategy: str = gtg_p['threshold_strategy']
         self.threshold: float = gtg_p['threshold']
         
-        self.phase = phase
-        self.n_top_k_obs = n_top_k_obs
-        self.n_classes = n_classes
-        self.init_lab_obs = init_lab_obs
+        self.n_top_k_obs: int = gtg_p['n_top_k_obs']
+        self.n_classes: int = gtg_p['n_classes']
+        self.init_lab_obs: int = gtg_p['init_lab_obs']
+        self.device: int = gtg_p['device']
+        
+        self.phase: str = phase
+        
         
         self.l1 = nn.Linear(512, 256)
         self.l2 = nn.Linear(256, 128)
@@ -42,7 +47,6 @@ class GTG_Module(nn.Module):
         self.l4 = nn.Linear(64, 1)
         
         
-        self.device = device
         
     def change_pahse(self):
         self.phase = 'test' if self.pahse == 'train' else 'train'
@@ -109,9 +113,7 @@ class GTG_Module(nn.Module):
     
     def get_A(self) -> None:
 
-        concat_embedds = torch.cat(
-            (self.labeled_obs['embedds'], self.unlabeled_obs['embedds'])
-        ).to(self.device)
+        concat_embedds = torch.cat((self.labeled_obs['embedds'], self.unlabeled_obs['embedds'])).to(self.device)
         
         # compute the affinity matrix
         A = self.get_A_rbfk(concat_embedds, to_cpu=True) if self.rbf_aff else self.get_A_fn[self.A_function](concat_embedds)
@@ -164,10 +166,8 @@ class GTG_Module(nn.Module):
 
     def get_X(self) -> None:
                 
-        self.X: torch.Tensor = torch.zeros(
-            (self.batch_size, self.n_classes), dtype=torch.float32, device=self.device
-        )
-
+        self.X: torch.Tensor = torch.zeros((self.batch_size, self.n_classes), dtype=torch.float32, device=self.device)
+        
         for idx, label in enumerate(self.labeled_obs['labels']): self.X[idx][int(label.item())] = 1.
         
         for idx in range(len(self.init_lab_obs), self.batch_size):
@@ -175,12 +175,10 @@ class GTG_Module(nn.Module):
          
         
     def check_increasing_sum(self, old_rowsum_X):
-        
         rowsum_X = torch.sum(self.X).item()
         if rowsum_X < old_rowsum_X: # it has to be increasing or at least equal
             logger.exception('Sum of the vector on the denominator is lower than the previous step')
             raise Exception('Sum of the vector on the denominator is lower than the previous step')
-        
         return rowsum_X
     
     
@@ -197,9 +195,7 @@ class GTG_Module(nn.Module):
             X_old = torch.clone(self.X)
             
             self.X *= torch.mm(self.A, self.X)
-            
             old_rowsum_X = self.check_increasing_sum(old_rowsum_X)
-            
             self.X /= torch.sum(self.X, dim=1, keepdim=True)            
         
             iter_entropy = entropy(self.X).to(self.device) # there are both labeled and sample unlabeled
@@ -234,13 +230,8 @@ class GTG_Module(nn.Module):
         mask = torch.zeros(self.batch_size, device = self.device)
         mask[labeled_indices] = 1.
         
-        self.labeled_obs = dict(
-            embedds = embedds[labeled_indices], labels = labels[labeled_indices]
-        )
-        
-        self.unlabeled_obs = dict(
-            embedds = embedds[unlabeled_indices], labels = labels[unlabeled_indices]
-        )
+        self.labeled_obs = dict(embedds = embedds[labeled_indices], labels = labels[labeled_indices])
+        self.unlabeled_obs = dict(embedds = embedds[unlabeled_indices], labels = labels[unlabeled_indices])
         
         self.graph_trasduction_game()
         
@@ -257,8 +248,7 @@ class GTG_Module(nn.Module):
         elif self.ent_strategy is Entropy_Strategy.H_INT:
             # computing the area of the entropis history using trapezoid formula 
             quantity_result = torch.trapezoid(self.unlab_entropy_hist, dim=1)
-        else:
-            raise AttributeError(' Invlaid GTG Strategy')
+        else: raise AttributeError(' Invlaid GTG Strategy')
     
         return quantity_result, mask
     
@@ -282,10 +272,15 @@ class GTG_Module(nn.Module):
     
     
 class Class_GTG(nn.Module):
-    def __init__(self, gtg_p, n_top_k_obs, init_lab_obs, device, image_size: int, n_classes=10, n_channels=3) -> None:
+    def __init__(self, gtg_module_params, resnet_params) -> None:
+    
         super(Class_GTG, self).__init__()
-        self.gtg = GTG_Module(gtg_p, n_top_k_obs, n_classes, init_lab_obs, device)
-        self.backbone = ResNet18(image_size, n_classes=n_classes, n_channels=n_channels)
+        self.gtg = GTG_Module(gtg_module_params)
+        self.backbone = ResNet18(
+            image_size=resnet_params['image_size'],
+            n_classes=resnet_params['n_classes'],
+            n_channels=resnet_params['n_channels']
+        )
         
     def forward(self, images, labels, mode='all'):
         if mode == 'all':
