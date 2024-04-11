@@ -13,7 +13,7 @@ from typing import Dict, Any, List, Tuple
 
 
 class GTG_Module(nn.Module):
-    def __init__(self, gtg_p, n_top_k_obs, n_classes, device):
+    def __init__(self, gtg_p, n_top_k_obs, n_classes, init_lab_obs, device):
         super(GTG_Module).__init__()
 
         self.get_A_fn = {
@@ -32,9 +32,17 @@ class GTG_Module(nn.Module):
         self.threshold: float = gtg_p['threshold']
         
         self.n_top_k_obs = n_top_k_obs
-        self.device = device
         self.n_classes = n_classes
-    
+        self.init_lab_obs = init_lab_obs
+        
+        self.l1 = nn.Linear(512, 256)
+        self.l2 = nn.Linear(256, 128)
+        self.l3 = nn.Linear(128, 64)
+        self.l4 = nn.Linear(64, 1)
+        
+        
+        self.device = device
+        
     
     def get_A_treshold(self, A: torch.Tensor) -> Any:
         if self.threshold_strategy == 'mean': return torch.mean(A)
@@ -223,13 +231,11 @@ class GTG_Module(nn.Module):
         mask[labeled_indices] = 1.
         
         self.labeled_obs = dict(
-            embedds = embedds[labeled_indices],
-            labels = labels[labeled_indices]
+            embedds = embedds[labeled_indices], labels = labels[labeled_indices]
         )
         
         self.unlabeled_obs = dict(
-            embedds = embedds[unlabeled_indices],
-            labels = labels[unlabeled_indices]
+            embedds = embedds[unlabeled_indices], labels = labels[unlabeled_indices]
         )
         
         self.graph_trasduction_game()
@@ -258,13 +264,11 @@ class GTG_Module(nn.Module):
         
         y_true, mask = self.preprocess_inputs(embedds, labels)
         
-        ###########################
-        # define this
-        x = self.l1(y_true)
-        x = self.l2(x)
-        x = self.l3(x)
-        y_pred = self.l4(x)
-        ###########################
+        # for now it takes only as input the embedding of the resnet
+        out1 = F.relu(self.l1(y_true))
+        out2 = F.relu(self.l2(out1))
+        out3 = F.relu(self.l3(out2))
+        y_pred = self.l4(out3)
         
         return y_pred, y_true, mask
     
@@ -272,17 +276,12 @@ class GTG_Module(nn.Module):
     
     
 class Class_GTG(nn.Module):
-    def __init__(self, gtg_p, n_top_k_obs,  image_size: int, n_classes=10,  n_channels=3) -> None:
+    def __init__(self, gtg_p, n_top_k_obs, init_lab_obs, device, image_size: int, n_classes=10, n_channels=3) -> None:
         super(Class_GTG, self).__init__()
-        self.gtg = GTG_Module(gtg_p, n_top_k_obs)
+        self.gtg = GTG_Module(gtg_p, n_top_k_obs, n_classes, init_lab_obs, device)
         self.backbone = ResNet18(image_size, n_classes=n_classes, n_channels=n_channels)
         
     def forward(self, images, labels, mode='all'):
-        #outs, embedds = self.backbone(images)
-        #features = self.backbone.get_features()
-        #y_pred, y_true, mask = self.gtg(embedds, labels)
-        
-        #return outs, embedds, nn.MSELoss(y_pred, y_true), mask 
         if mode == 'all':
             outs, embedds = self.backbone(images)
             y_pred, y_true, mask = self.gtg(embedds, labels)
