@@ -117,7 +117,7 @@ class GTG_Module(nn.Module):
         concat_embedds = torch.cat((self.labeled_obs['embedds'], self.unlabeled_obs['embedds'])).to(self.device)
         
         # compute the affinity matrix
-        A = self.get_A_rbfk(concat_embedds, to_cpu=True) if self.rbf_aff else self.get_A_fn[self.A_function](concat_embedds)
+        A = self.get_A_rbfk(concat_embedds) if self.rbf_aff else self.get_A_fn[self.A_function](concat_embedds)
 
         initial_A = torch.clone(A)
         
@@ -171,7 +171,7 @@ class GTG_Module(nn.Module):
         
         for idx, label in enumerate(self.labeled_obs['labels']): self.X[idx][int(label.item())] = 1.
         
-        for idx in range(len(self.init_lab_obs), self.batch_size):
+        for idx in range(self.init_lab_obs, self.batch_size):
             for label in range(self.n_classes): self.X[idx][label] = 1. / self.n_classes
          
         
@@ -227,7 +227,7 @@ class GTG_Module(nn.Module):
         labeled_indices: List[int] = shuffled_indices[:self.init_lab_obs].tolist()
         unlabeled_indices: List[int] = shuffled_indices[self.init_lab_obs:].tolist()
         
-        self.unlab_entropy_hist = torch.zeros((unlabeled_indices, self.gtg_max_iter), device=self.device)
+        self.unlab_entropy_hist = torch.zeros((len(unlabeled_indices), self.gtg_max_iter), device=self.device)
         mask = torch.zeros(self.batch_size, device = self.device)
         mask[labeled_indices] = 1.
         
