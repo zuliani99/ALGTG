@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ResNet18 import ResNet18
+from models import ResNet18
 from utils import Entropy_Strategy, entropy
 
 from typing import Any, List

@@ -1,6 +1,6 @@
 
 import torch
-from app.models.GTG_Cls import Class_GTG
+from models.GTG_Cls import Class_GTG
 from models.ResNet18 import ResNet_LL
 from models.ssd_pytorch.SSD import SSD_LL
 from datasets_creation.Classification import Cls_Datasets

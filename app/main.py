@@ -7,7 +7,6 @@ from init import get_dataset, get_model
 from utils import create_directory, create_ts_dir, init_weights_apply, \
     plot_loss_curves, plot_res_std_mean, set_seeds, Entropy_Strategy as ES
 
-from strategies.baselines.LearningLoss import LearningLoss
 from strategies.baselines.Random import Random
 from strategies.baselines.Entropy import Entropy
 from strategies.baselines.LearningLoss import LearningLoss
@@ -54,9 +53,9 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
     n_lab_obs = [al_p['init_lab_obs'] + (iter * al_p['n_top_k_obs']) for iter in range(al_p['al_iters'])]
     
     methods = [
-        Random(ct_p=ct_p, t_p=t_p, al_p=al_p, LL=True),
-        Entropy(ct_p=ct_p, t_p=t_p, al_p=al_p, LL=True),
-        #CoreSet(ct_p=ct_p, t_p=t_p, al_p=al_p),
+        Random(ct_p=ct_p, t_p=t_p, al_p=al_p),#, LL=True),
+        Entropy(ct_p=ct_p, t_p=t_p, al_p=al_p),#, LL=False),
+        CoreSet(ct_p=ct_p, t_p=t_p, al_p=al_p),
         LearningLoss(ct_p=ct_p, t_p=t_p, al_p=al_p, LL=True),
         
         GTG(ct_p=ct_p, t_p=t_p, al_p=al_p, 
