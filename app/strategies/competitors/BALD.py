@@ -2,6 +2,7 @@
 import torch
 from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
+import torch.distributed as dist
 
 from ActiveLearner import ActiveLearner
 from utils import entropy
@@ -24,7 +25,12 @@ class BALD(ActiveLearner):
         
     def evaluate_unlabeled_train(self, n_drop=5) -> Tuple[torch.Tensor, torch.Tensor]:
         
-        checkpoint = torch.load(f'{self.best_check_filename}/best_{self.strategy_name}_cuda:0.pth.tar', map_location=self.device)
+        if dist.is_available():
+            if self.world_size > 1: device = 'cuda:0'
+            else: device = 'cuda' 
+        else: device = 'cpu'
+
+        checkpoint: Dict = torch.load(f'{self.best_check_filename}/best_{self.strategy_name}_{device}.pth.tar', map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
 
         self.model.train()
@@ -38,7 +44,7 @@ class BALD(ActiveLearner):
                     
                     idxs, images = idxs.to(self.device), images.to(self.device)
                     
-                    outputs, _, _, _ = self.model(images)
+                    outputs = self.model(images, mode='probs')
                                                          
                     prob_dist_drop[drop][idx_dl * idxs.shape[0] : (idx_dl + 1) * idxs.shape[0]] += F.softmax(outputs, dim=1)
 

@@ -76,9 +76,11 @@ def get_strategies_object(methods: List[str], list_gtg_p: List[Dict[str, Any]], 
         gtg = method.split('_')
         if 'gtg' in gtg:
             if gtg[0] == 'gtg':
+                # test all the gtg configurations
                 for gtg_p in list_gtg_p:
                     strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_LL']}, t_p, al_p, gtg_p))
             else:
+                # test all the gtg configurations
                 for gtg_p in list_gtg_p:
                     strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_GTG']}, t_p, al_p, gtg_p))
         elif method == 'll':
@@ -95,11 +97,14 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
 
     results = { }
     n_lab_obs = [al_p['init_lab_obs'] + (iter * al_p['n_top_k_obs']) for iter in range(al_p['al_iters'])]
+    
+    # different gtg configurations that we want to test
     list_gtg_p = [
         {**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN},
         {**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT}
     ]
     
+    # get the strategis object to run them
     strategies = get_strategies_object(methods, list_gtg_p, Masters, ct_p, t_p, al_p)
     
     for strategy in strategies:
@@ -109,19 +114,16 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
     return results, n_lab_obs
 
 
-
+# to create a single master model for each type
 def get_masters(methods: List[str], task: str, BBone: ResNet | SSD,
                 ll_module_params: Dict[str, Any], gtg_module_params: Dict[str, Any]) -> Dict[str, Master_Model]:
     LL_Mod, GTG_Mod, M_None = None, None, None
     ll, only_bb = False, False
     for method in methods:
         method_module = method.split('_')[-1]
-        if method_module == 'll':
-            if not ll:
-                LL_Mod = get_module(task, ll_module_params)
-                ll = True
-    
-            else: continue
+        if method_module == 'll' and not ll:
+            LL_Mod = get_module(task, ll_module_params)
+            ll = True
         elif method_module == 'gtg':
             GTG_Mod = get_module(task, gtg_module_params)
         elif not only_bb:
@@ -197,15 +199,19 @@ def main() -> None:
             
             create_ts_dir(timestamp, dataset_name, str(trial))
             
+            # create gtg dictionary parameters
             gtg_module_params = dict(
-                **gtg_params, n_top_k_obs=al_params['n_top_k_obs'], n_classes=Dataset.n_classes, init_lab_obs=al_params['init_lab_obs'], device=device
+                **gtg_params, n_top_k_obs=al_params['n_top_k_obs'], 
+                n_classes=Dataset.n_classes, 
+                init_lab_obs=al_params['init_lab_obs'], device=device
             )
+            # create learnin loss dictionary parameters
             ll_module_params = get_ll_module_params(task)
             
-            Dataset = get_dataset(task, dataset_name, init_lab_obs = al_params['init_lab_obs'])
-            BBone = get_backbone(Dataset.image_size, Dataset.n_classes, Dataset.n_channels, task) # same for all
+            Dataset = get_dataset(task, dataset_name, init_lab_obs = al_params['init_lab_obs']) # get the dataset
+            BBone = get_backbone(Dataset.image_size, Dataset.n_classes, Dataset.n_channels, task) # the backbone is the same for all
             
-              
+            # obtain the master models
             Masters = get_masters(methods, task, BBone, ll_module_params, gtg_module_params)
                         
             # save the checkpoint 

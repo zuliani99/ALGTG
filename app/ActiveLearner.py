@@ -1,11 +1,9 @@
 
-from app.models.BBone_Module import Master_Model
 import wandb
 
-#from app.models.backbones.ResNet18 import ResNet_LL
+from models.BBone_Module import Master_Model
 from datasets_creation.Classification import Cls_Datasets
 from datasets_creation.Detection import Det_Dataset
-#from models.ssd_pytorch.SSD import SSD_LL
 from train_evaluate.Train_DDP import train, train_ddp
 from utils import count_class_observation, print_cumulative_train_results, set_seeds,\
     create_class_dir, create_method_res_dir, plot_new_labeled_tsne, save_train_val_curves, write_csv
@@ -123,9 +121,13 @@ class ActiveLearner():
                     outs = self.model(images.to(self.device), mode='probs')
                     dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], outs.squeeze().cpu()), dim=0)
                     
+                # could be both LL (1 output) and GTG (2 outputs)
                 if 'module_out' in dict_to_modify:
                     module_out = self.model(images.to(self.device), mode='module_out')
-                    dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out.squeeze()), dim=0)
+                    if self.model.module.name == 'GTG':
+                        dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out[0].cpu().squeeze()), dim=0)
+                    else:
+                        dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out.cpu().squeeze()), dim=0)
                     
                                         
                 if 'labels' in dict_to_modify:

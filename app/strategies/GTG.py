@@ -26,13 +26,13 @@ class GTG(ActiveLearner):
                 
         logger.info(' => Evaluating unlabeled observations')
         embeds_dict = {
-            'pred_gtg': torch.empty(0, dtype=torch.float32),
+            'module_out': torch.empty(0, dtype=torch.float32),
             'idxs': torch.empty(0, dtype=torch.int8)
         }
         self.get_embeddings(self.unlab_train_dl, embeds_dict)
         
         logger.info(f' => Extracting the Top-k unlabeled observations')
-        overall_topk = torch.topk(embeds_dict['pred_gtg'], n_top_k_obs)
+        overall_topk = torch.topk(embeds_dict['module_out'], n_top_k_obs)
         logger.info(' DONE\n')
         
         return overall_topk.indices.tolist(), [int(embeds_dict['idxs'][id].item()) for id in overall_topk.indices.tolist()]

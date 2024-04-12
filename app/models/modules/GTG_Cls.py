@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 class GTG_Module(nn.Module):
     def __init__(self, gtg_p, phase='train'):
         super(GTG_Module).__init__()
+        
+        self.name = 'GTG'
 
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,

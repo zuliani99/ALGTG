@@ -45,19 +45,10 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     t_p = params['t_p']
     num_workers = int(os.environ['SLURM_CPUS_PER_TASK'])
     
-    
-    ###########################################
-    '''moved_model = get_model(
-        image_size=ct_p['Dataset'].image_size, 
-        n_classes=ct_p['Dataset'].n_classes, 
-        n_channels=ct_p['Dataset'].n_channels, 
-        device=torch.device(params['ct_p']['device']), 
-        task=ct_p['task']
-    )'''
+    # deep copy the model (it is in the RAM) and then move it to the realive gpu
     moved_model = copy.deepcopy(ct_p['Master_Model']).to(rank)
     moved_model = DDP(moved_model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
     ct_p['Model_train'] = moved_model
-    ###########################################
     
     dict_dl = dict(
         batch_size=t_p['batch_size'],
@@ -136,16 +127,8 @@ def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
     ct_p = params['ct_p']
     t_p = params['t_p']
     
-    #################################
-    '''ct_p['Model_train'] = get_model(
-        image_size=ct_p['Dataset'].image_size, 
-        n_classes=ct_p['Dataset'].n_classes, 
-        n_channels=ct_p['Dataset'].n_channels, 
-        device=torch.device(params['ct_p']['device']), 
-        task=ct_p['task']
-    )'''
+    # deep copy the model (it is in the RAM) and then move it to the realive gpu
     ct_p['Master_Model'] =  copy.deepcopy(ct_p['Master_Model']).to(params['ct_p']['device'])
-    #################################
     
     dict_dl = dict(batch_size=t_p['batch_size'], pin_memory=True)
     
