@@ -43,13 +43,13 @@ class LossPredLoss(nn.Module):
 
 # Loss Prediction Network
 class LossNet(nn.Module):
-    def __init__(self, dict_params = {}):
+    def __init__(self, LL_params):
         super(LossNet, self).__init__()
 
-        feature_sizes = dict_params['feature_sizes'] if 'feature_sizes' in dict_params else [32, 16, 8, 4] 
-        num_channels = dict_params['num_channels'] if 'num_channels' in dict_params else [64, 128, 256, 512]
-        interm_dim = dict_params['interm_dim'] if 'interm_dim' in dict_params else 128
-        task = dict_params['task'] if 'task' in dict_params else 'clf'
+        feature_sizes = LL_params['feature_sizes']# if 'feature_sizes' in dict_params else [32, 16, 8, 4] 
+        num_channels = LL_params['num_channels']# if 'num_channels' in dict_params else [64, 128, 256, 512]
+        interm_dim = LL_params['interm_dim']# if 'interm_dim' in dict_params else 128
+        task = LL_params['task']# if 'task' in dict_params else 'clf'
         
         self.GAP = []
         for feature_size in feature_sizes:
@@ -75,38 +75,3 @@ class LossNet(nn.Module):
         out = self.linear(torch.cat(outs, 1))
         return out
         
-'''class LossNet(nn.Module):
-    def __init__(self, feature_sizes=[32, 16, 8, 4], num_channels=[64, 128, 256, 512], interm_dim=128, task='clf'):
-        super(LossNet, self).__init__()
-        
-        self.GAP1 = nn.AvgPool2d(feature_sizes[0]) if task == 'clf' else nn.AdaptiveAvgPool2d((1, 1))
-        self.GAP2 = nn.AvgPool2d(feature_sizes[1]) if task == 'clf' else nn.AdaptiveAvgPool2d((1, 1))
-        self.GAP3 = nn.AvgPool2d(feature_sizes[2]) if task == 'clf' else nn.AdaptiveAvgPool2d((1, 1))
-        self.GAP4 = nn.AvgPool2d(feature_sizes[3]) if task == 'clf' else nn.AdaptiveAvgPool2d((1, 1))
-
-        self.FC1 = nn.Linear(num_channels[0], interm_dim)
-        self.FC2 = nn.Linear(num_channels[1], interm_dim)
-        self.FC3 = nn.Linear(num_channels[2], interm_dim)
-        self.FC4 = nn.Linear(num_channels[3], interm_dim)
-
-        self.linear = nn.Linear(4 * interm_dim, 1)
-    
-    def forward(self, features):
-        out1 = self.GAP1(features[0])
-        out1 = out1.view(out1.size(0), -1)
-        out1 = F.relu(self.FC1(out1))
-
-        out2 = self.GAP2(features[1])
-        out2 = out2.view(out2.size(0), -1)
-        out2 = F.relu(self.FC2(out2))
-
-        out3 = self.GAP3(features[2])
-        out3 = out3.view(out3.size(0), -1)
-        out3 = F.relu(self.FC3(out3))
-
-        out4 = self.GAP4(features[3])
-        out4 = out4.view(out4.size(0), -1)
-        out4 = F.relu(self.FC4(out4))
-
-        out = self.linear(torch.cat((out1, out2, out3, out4), 1))
-        return out'''

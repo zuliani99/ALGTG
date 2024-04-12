@@ -1,9 +1,9 @@
 
 import torch
 
+from app.models.BBone_Module import Master_Model
+from app.models.modules.LossNet import LossPredLoss
 from utils import accuracy_score
-from models.ResNet18 import ResNet_LL
-from models.Lossnet import LossPredLoss
 
 from torch.utils.data import DataLoader
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -25,10 +25,10 @@ class Cls_TrainWorker():
         self.world_size: int = world_size
         self.wandb_run = params['wandb_p'] if 'wandb_p' in params else None
 
-        self.model: ResNet_LL | DDP = params['ct_p']['Model_train']
+        self.model: Master_Model | DDP = params['ct_p']['Master_Model']
         
         self.dataset_name: str = params['ct_p']['dataset_name']
-        self.method_name: str = params['method_name']
+        self.strategy_name: str = params['strategy_name']
         
         self.epochs = params['t_p']['epochs']
         self.ds_t_p = params['t_p']['ds_params'][self.dataset_name]
@@ -36,15 +36,13 @@ class Cls_TrainWorker():
         self.train_dl: DataLoader = params['train_dl']
         self.test_dl: DataLoader = params['test_dl']
         
-        self.loss_fn = dict(
-            backbone = torch.nn.CrossEntropyLoss(reduction='none').to(self.device),
-            module = LossPredLoss(self.device).to(self.device)
-        )
+        self.backbone_loss_fn = torch.nn.CrossEntropyLoss(reduction='none').to(self.device)
+        self.ll_loss_fn = LossPredLoss(self.device).to(self.device)
                 
         self.score_fn = accuracy_score
         
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'        
-        self.init_check_filename = f'{self.best_check_filename}_init.pth.tar'
+        self.init_check_filename = f'{self.best_check_filename}/{self.model.module.name if self.world_size > 1 else self.model.name} if _init.pth.tar'
         logger.info(' => Loading Initial Checkpoint')
         self.__load_checkpoint(self.init_check_filename)
         logger.info(' DONE')
@@ -67,22 +65,34 @@ class Cls_TrainWorker():
 
 
 
-    def compute_losses(self, weight: float, pred_loss: torch.Tensor, outputs: torch.Tensor, \
+    def compute_losses(self, weight: float, module_out: torch.Tensor, outputs: torch.Tensor, \
                        labels: torch.Tensor, tot_loss_ce: float, tot_pred_loss: float) -> Tuple[torch.Tensor, float, float]:
                 
-        loss_ce = self.loss_fn['backbone'](outputs, labels)
+        loss_ce = self.backbone_loss_fn(outputs, labels)
         backbone = torch.mean(loss_ce)
-        if self.LL and weight:
-            loss_weird = self.loss_fn['module'](pred_loss, loss_ce)
-            loss = backbone + loss_weird
-
+        
+        if module_out == None or not weight:
             tot_loss_ce += backbone.item()
-            tot_pred_loss += loss_weird.item()
+            return backbone, tot_loss_ce, tot_pred_loss
+        
+        elif len(module_out) == 2:
+            quantity_loss, mask = module_out
+            loss = loss_ce * mask + quantity_loss
+            
+            tot_loss_ce += (loss_ce * mask).item()
+            tot_pred_loss += quantity_loss.item()
             
             return loss, tot_loss_ce, tot_pred_loss
-        else:            
-            tot_loss_ce += backbone.item()
-            return backbone, tot_loss_ce, tot_pred_loss    
+        else:
+            if self.LL and weight:
+                loss_weird = self.ll_loss_fn(module_out, loss_ce)
+                loss = backbone + loss_weird
+
+                tot_loss_ce += backbone.item()
+                tot_pred_loss += loss_weird.item()
+                
+                return loss, tot_loss_ce, tot_pred_loss
+   
         
     
     
@@ -90,7 +100,7 @@ class Cls_TrainWorker():
     def train(self) -> torch.Tensor:
                 
         weight = 1.
-        check_best_path = f'{self.best_check_filename}/best_{self.method_name}_{self.device}.pth.tar'
+        check_best_path = f'{self.best_check_filename}/best_{self.strategy_name}_{self.device}.pth.tar'
         results = torch.zeros((4, self.epochs), device=self.device)
         
         if self.iter > 1: self.__load_checkpoint(check_best_path)
@@ -112,10 +122,10 @@ class Cls_TrainWorker():
                     
                 self.optimizer.zero_grad()
                 
-                outputs, _, pred_loss = self.model(images)
+                outputs, _, module_out = self.model(images)
                 
                 loss, train_loss_ce, train_loss_pred  = self.compute_losses(
-                        weight=weight, pred_loss=pred_loss, outputs=outputs, labels=labels,
+                        weight=weight, module_out=module_out, outputs=outputs, labels=labels,
                         tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred
                     )
                                 

@@ -21,4 +21,4 @@
 
 conda activate al_env
 
-python3 app/main.py -d cifar10 -tr 1 -s mixed -ts threshold -t 0.5
+python3 app/main.py -m random gtg_offline gtg_online -d cifar10 -tr 1 -s mixed -ts threshold -t 0.5

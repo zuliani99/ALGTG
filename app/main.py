@@ -3,18 +3,25 @@
 import torch
 import torch.distributed as dist
 
-from init import get_dataset, get_model
-from utils import create_directory, create_ts_dir, init_weights_apply, \
-    plot_loss_curves, plot_res_std_mean, set_seeds, Entropy_Strategy as ES
+from app.models.BBone_Module import Master_Model
+from app.models.backbones.ResNet18 import ResNet
+from app.models.backbones.ssd_pytorch.SSD import SSD
+from init import get_backbone, get_dataset, get_ll_module_params, get_module
+from utils import create_directory, create_ts_dir, plot_loss_curves, \
+    plot_res_std_mean, set_seeds, Entropy_Strategy as ES
 
 from strategies.baselines.LearningLoss import LearningLoss
 from strategies.baselines.Random import Random
 from strategies.baselines.Entropy import Entropy
 from strategies.baselines.LearningLoss import LearningLoss
 from strategies.competitors.CoreSet import CoreSet
+from strategies.competitors.BADGE import BADGE
+from strategies.competitors.BALD import BALD
+from strategies.competitors.CDAL import CDAL
+from strategies.competitors.K_Means import K_Means
+from strategies.competitors.LeastConfidence import LeastConfidence
 from strategies.GTG import GTG
-
-    
+from strategies.GTG_LL import GTG_LL
     
 from config import cls_config, al_params, det_config
 from datetime import datetime
@@ -23,6 +30,7 @@ import time
 from typing import Dict, Any, List, Tuple
 
 import os
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -30,15 +38,20 @@ logger = logging.getLogger(__name__)
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--datasets', type=str, nargs='+', choices=[
+            'random', 'entropy', 'coreset', 'badge', 'bald', 'cdal', 'kmeans', 'leastconfidence',
+            'll', 'gtg_ll', 'lq_gtg'
+        ],
+        required=True, help='Possible models to choose')
     parser.add_argument('-d', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'fmnist', 'tinyimagenet', 'voc', 'coco'],
                         required=True, help='Possible datasets to choose')
     parser.add_argument('-tr', '--trials', type=int, nargs=1, required=True, help='Number or trials of AL benchmark for each dataset')
     parser.add_argument('-s', '--strategy', type=str, nargs=1, choices=['uncertanity', 'diversity', 'mixed'], 
-                        required=True, help='Possible query strategy types to choose')
+                        required=True, help='Possible query strategy types to choose for our method')
     parser.add_argument('-ts', '--threshold_strategy', type=str, nargs=1, choices=['threshold', 'mean'], 
-                        required=True, help='Possible query strategy types to choose')
+                        required=True, help='Possible query strategy types to choose for our method')
     parser.add_argument('-t', '--threshold', type=float, nargs=1, required=False, 
-                        help='Affinity Matrix Threshold, when threshold_strategy = mean, this is ingnored')
+                        help='Affinity Matrix Threshold for our method, when threshold_strategy = mean, this is ingnored')
     parser.add_argument('--wandb', action='store_true', 
                         help='Log benchmark stats into Weights & Biases web app service')
                         
@@ -47,34 +60,87 @@ def get_args() -> argparse.Namespace:
     return args
 
 
+dict_strategies = dict(
+    random = Random, entropy = Entropy, coreset = CoreSet, bald = BALD, badge = BADGE, # -> BB
+    kmeans = K_Means, leastconfidence = LeastConfidence, cdal = CDAL, # -> BB
+    
+    ll = LearningLoss, gtg_ll = GTG_LL, # -> BB + LL
+    lq_gtg = GTG # -> BB + GTG
+)
 
-def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any]) -> Tuple[Dict[str, Dict[str, List[float]]], List[int]]:
+
+def get_strategies_object(methods: List[str], list_gtg_p: List[Dict[str, Any]], Masters: Dict[str, Master_Model], 
+                          ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any]) -> List[Any]:
+    strategies = []
+    for method in methods:
+        gtg = method.split('_')
+        if 'gtg' in gtg:
+            if gtg[0] == 'gtg':
+                for gtg_p in list_gtg_p:
+                    strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_LL']}, t_p, al_p, gtg_p))
+            else:
+                for gtg_p in list_gtg_p:
+                    strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_GTG']}, t_p, al_p, gtg_p))
+        elif method == 'll':
+            strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_LL']}, t_p, al_p))
+        else:
+            strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_None']}, t_p, al_p))
+    
+    return strategies
+    
+
+
+def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any],
+                   Masters: Dict[str, Master_Model], methods: List[str]) -> Tuple[Dict[str, Dict[str, List[float]]], List[int]]:
 
     results = { }
     n_lab_obs = [al_p['init_lab_obs'] + (iter * al_p['n_top_k_obs']) for iter in range(al_p['al_iters'])]
-    
-    methods = [
-        Random(ct_p=ct_p, t_p=t_p, al_p=al_p, LL=True),
-        Entropy(ct_p=ct_p, t_p=t_p, al_p=al_p, LL=True),
-        #CoreSet(ct_p=ct_p, t_p=t_p, al_p=al_p),
-        LearningLoss(ct_p=ct_p, t_p=t_p, al_p=al_p, LL=True),
-        
-        GTG(ct_p=ct_p, t_p=t_p, al_p=al_p, 
-            gtg_p={**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN}, LL=True), 
-        GTG(ct_p=ct_p, t_p=t_p, al_p=al_p, 
-            gtg_p={**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT}, LL=True),
+    list_gtg_p = [
+        {**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN},
+        {**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT}
     ]
     
-    for method in methods:
-        logger.info(f'-------------------------- {method.method_name} --------------------------\n')
-        results[method.method_name] = method.run()
+    strategies = get_strategies_object(methods, list_gtg_p, Masters, ct_p, t_p, al_p)
+    
+    for strategy in strategies:
+        logger.info(f'-------------------------- {strategy.strategy_name} --------------------------\n')
+        results[strategy.strategy_name] = strategy.run()
+    
     return results, n_lab_obs
+
+
+
+def get_masters(methods: List[str], task: str, BBone: ResNet | SSD,
+                ll_module_params: Dict[str, Any], gtg_module_params: Dict[str, Any]) -> Dict[str, Master_Model]:
+    LL_Mod, GTG_Mod, M_None = None, None, None
+    ll, only_bb = False, False
+    for method in methods:
+        method_module = method.split('_')[-1]
+        if method_module == 'll':
+            if not ll:
+                LL_Mod = get_module(task, ll_module_params)
+                ll = True
+    
+            else: continue
+        elif method_module == 'gtg':
+            GTG_Mod = get_module(task, gtg_module_params)
+        elif not only_bb:
+            M_None = Master_Model(BBone, None)
+            only_bb = True
+            
+    Masters = { }
+    if M_None != None: Masters['M_None'] = M_None
+    if GTG_Mod != None: Masters['M_GTG'] = Master_Model(BBone, GTG_Mod)
+    if LL_Mod != None: Masters['M_LL'] = Master_Model(BBone, LL_Mod)
+    
+    return Masters                  
 
 
 
 def main() -> None:
     
     args = get_args()
+    methods = args.methods
     choosen_datasets = args.datasets
     wandb = args.wandb
     trials = args.trials[0]
@@ -131,16 +197,25 @@ def main() -> None:
             
             create_ts_dir(timestamp, dataset_name, str(trial))
             
-            Dataset = get_dataset(task, dataset_name, init_lab_obs = al_params['init_lab_obs'])
-            Model = get_model(Dataset.image_size, Dataset.n_classes, Dataset.n_channels, device, task)
+            gtg_module_params = dict(
+                **gtg_params, n_top_k_obs=al_params['n_top_k_obs'], n_classes=Dataset.n_classes, init_lab_obs=al_params['init_lab_obs'], device=device
+            )
+            ll_module_params = get_ll_module_params(task)
             
-            Model.apply(init_weights_apply)
-            torch.save(dict(state_dict = Model.state_dict()), f'app/checkpoints/{dataset_name}_init.pth.tar')
+            Dataset = get_dataset(task, dataset_name, init_lab_obs = al_params['init_lab_obs'])
+            BBone = get_backbone(Dataset.image_size, Dataset.n_classes, Dataset.n_channels, task) # same for all
+            
+              
+            Masters = get_masters(methods, task, BBone, ll_module_params, gtg_module_params)
+                        
+            # save the checkpoint 
+            for master in Masters.values():
+                torch.save(dict(state_dict = master.state_dict()), f'app/checkpoints/{dataset_name}/{master.name}_init.pth.tar')
             
             logger.info('\n')
             
             common_training_params = {
-                'Dataset': Dataset, 'Model': Model,
+                'Dataset': Dataset,
                 'device': device, 'timestamp': timestamp,
                 'dataset_name': dataset_name,
                 'trial': trial, 'task': task,
@@ -154,6 +229,8 @@ def main() -> None:
                 t_p = task_params,
                 al_p = al_params,
                 gtg_p = gtg_params,
+                masters = Masters,
+                methods = methods
             )
             
             plot_loss_curves(results, n_lab_obs, timestamp,

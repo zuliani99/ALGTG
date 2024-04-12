@@ -7,10 +7,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Tuple
-#from app.utils import init_weights_apply
-from models.Lossnet import LossNet 
-
-
 
 
 class BasicBlock(nn.Module):
@@ -89,31 +85,3 @@ class ResNet(nn.Module):
     
 def ResNet18(image_size: int, n_classes=10, n_channels=3) -> ResNet:
     return ResNet(image_size, BasicBlock, [2,2,2,2], n_channels, n_classes) # type: ignore
-
-
-
-class ResNet_LL(nn.Module):
-    def __init__(self, image_size: int, n_classes=10,  n_channels=3) -> None:
-        super(ResNet_LL, self).__init__()
-        self.loss_net = LossNet()
-        self.backbone = ResNet18(image_size, n_classes=n_classes, n_channels=n_channels)
-        
-        
-    def forward(self, x, mode='all'):
-        if mode == 'all':
-            outs, embedds = self.backbone(x)
-            pred_loss = self.loss_net(self.backbone.get_features())
-            return outs, embedds, pred_loss
-        elif mode == 'probs':
-            outs, _ = self.backbone(x)
-            return outs
-        elif mode == 'embedds':
-            _, embedds = self.backbone(x)
-            return embedds
-        elif mode == 'pred_loss':
-            _, _ = self.backbone(x)
-            return self.loss_net(self.backbone.get_features())
-        else: 
-            raise AttributeError('You have specified wrong output to return for ResNet_LL')
-
-            

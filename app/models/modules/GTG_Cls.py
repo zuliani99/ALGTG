@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ResNet18 import ResNet18
 from utils import Entropy_Strategy, entropy
 
 from typing import Any, List
@@ -154,7 +153,7 @@ class GTG_Module(nn.Module):
         '''plot_tsne_A(
             (initial_A, A),
             (self.lab_embedds_dict['labels'], self.unlabeled_labels), self.dataset.classes,
-            self.ct_p['timestamp'], self.ct_p['dataset_name'], self.ct_p['trial'], self.method_name, self.A_function, self.strategy_type, self.iter
+            self.ct_p['timestamp'], self.ct_p['dataset_name'], self.ct_p['trial'], self.strategy_name, self.A_function, self.strategy_type, self.iter
         )'''
         
         del A
@@ -266,36 +265,4 @@ class GTG_Module(nn.Module):
         out3 = F.relu(self.l3(out2))
         y_pred = self.l4(out3)
         
-        return y_pred, y_true, mask
-    
-    
-    
-    
-class Class_GTG(nn.Module):
-    def __init__(self, gtg_module_params, resnet_params) -> None:
-    
-        super(Class_GTG, self).__init__()
-        self.gtg = GTG_Module(gtg_module_params)
-        self.backbone = ResNet18(
-            image_size=resnet_params['image_size'],
-            n_classes=resnet_params['n_classes'],
-            n_channels=resnet_params['n_channels']
-        )
-        
-    def forward(self, images, labels, mode='all'):
-        if mode == 'all':
-            outs, embedds = self.backbone(images)
-            y_pred, y_true, mask = self.gtg(embedds, labels)
-            return outs, embedds, nn.MSELoss(y_pred, y_true), mask 
-        elif mode == 'probs':
-            outs, _ = self.backbone(images)
-            return outs
-        elif mode == 'embedds':
-            _, embedds = self.backbone(images)
-            return embedds
-        elif mode == 'pred_GTG':
-            outs, embedds = self.backbone(images)
-            self.gtg(embedds, labels)
-        else: 
-            raise AttributeError('You have specified wrong output to return for ResNet_LL')
-    
+        return nn.MSELoss(y_pred, y_true), mask

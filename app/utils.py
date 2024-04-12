@@ -78,7 +78,7 @@ def plot_loss_curves(methods_results: Dict[str, Dict[str, List[float]]], n_lab_o
     
     
     
-def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any], method_name: str, \
+def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any], strategy_name: str, \
                           ts_dir: str, dataset_name: str, al_iter: int, cicle_iter: int) -> None:
     #, flag_LL: bool) -> None:
 
@@ -100,12 +100,12 @@ def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any
         ax[pos1][pos2].legend()
         
 
-    plt.suptitle(f'Iteration: {al_iter} - {method_name}', fontsize = 30)
-    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{method_name}/train_val_plots/{al_iter}.png')
+    plt.suptitle(f'Iteration: {al_iter} - {strategy_name}', fontsize = 30)
+    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{strategy_name}/train_val_plots/{al_iter}.png')
 
 
 
-def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results: Dict[str, Any], method_name: str,\
+def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results: Dict[str, Any], strategy_name: str,\
                                    epochs: int, ts_dir: str, dataset_name: str, cicle_iter: int):#, flag_LL: bool):
 
     #if flag_LL:
@@ -124,8 +124,8 @@ def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results:
         ax[pos1][pos2].legend()
 
 
-    plt.suptitle(f'Cumulative Train Results - {method_name}', fontsize = 30)
-    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{method_name}/train_val_plots/cumulative_train_results.png')
+    plt.suptitle(f'Cumulative Train Results - {strategy_name}', fontsize = 30)
+    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{strategy_name}/train_val_plots/cumulative_train_results.png')
 
 
 

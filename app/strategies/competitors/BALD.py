@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class BALD(ActiveLearner):
     
     def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], LL=False) -> None:
-        self.method_name = self.__class__.__name__
+        self.strategy_name = self.__class__.__name__
         
         super().__init__(ct_p, t_p, al_p, LL)
         
@@ -24,7 +24,7 @@ class BALD(ActiveLearner):
         
     def evaluate_unlabeled_train(self, n_drop=5) -> Tuple[torch.Tensor, torch.Tensor]:
         
-        checkpoint = torch.load(f'{self.best_check_filename}/best_{self.method_name}_cuda:0.pth.tar', map_location=self.device)
+        checkpoint = torch.load(f'{self.best_check_filename}/best_{self.strategy_name}_cuda:0.pth.tar', map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
 
         self.model.train()
