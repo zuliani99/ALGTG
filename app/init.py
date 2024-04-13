@@ -1,11 +1,9 @@
 
 import torch
-#from app.models.GTG_Cls import Class_GTG
-#from models.ssd_pytorch.SSD import SSD_LL
 
-from app.models.modules.GTG_Cls import GTG_Module
-from app.models.modules.LossNet import LossNet
-from app.utils import init_weights_apply
+from models.modules.GTG_Cls import GTG_Module
+from models.modules.LossNet import LossNet
+from utils import init_weights_apply
 from models.backbones.ssd_pytorch.SSD import SSD, build_ssd
 from models.backbones.ResNet18 import ResNet, ResNet18
 
@@ -36,13 +34,13 @@ def get_backbone(image_size: int, n_classes: int, n_channels: int, task: str) ->
         return ssd_net
     
 
-def get_module(module: str, module_params: Dict[str, Any]) -> LossNet | GTG_Module:
+def get_module(module: str, module_params: Dict[str, Any], embedding_dim: int) -> LossNet | GTG_Module:
     if module == 'LL': 
         ll = LossNet(module_params)
         ll.apply(init_weights_apply)
         return ll
     else:
-        gtg = GTG_Module(module_params)
+        gtg = GTG_Module(module_params, embedding_dim)
         gtg.apply(init_weights_apply)
         return gtg
 

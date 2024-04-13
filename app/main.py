@@ -3,9 +3,9 @@
 import torch
 import torch.distributed as dist
 
-from app.models.BBone_Module import Master_Model
-from app.models.backbones.ResNet18 import ResNet
-from app.models.backbones.ssd_pytorch.SSD import SSD
+from models.BBone_Module import Master_Model
+from models.backbones.ResNet18 import ResNet
+from models.backbones.ssd_pytorch.SSD import SSD
 from init import get_backbone, get_dataset, get_ll_module_params, get_module
 from utils import create_directory, create_ts_dir, plot_loss_curves, \
     plot_res_std_mean, set_seeds, Entropy_Strategy as ES
@@ -38,12 +38,12 @@ logger = logging.getLogger(__name__)
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--datasets', type=str, nargs='+', choices=[
+    parser.add_argument('-m', '--methods', type=str, nargs='+', choices=[
             'random', 'entropy', 'coreset', 'badge', 'bald', 'cdal', 'kmeans', 'leastconfidence',
             'll', 'gtg_ll', 'lq_gtg'
         ],
-        required=True, help='Possible models to choose')
-    parser.add_argument('-d', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'fmnist', 'tinyimagenet', 'voc', 'coco'],
+        required=True, help='Possible methods to choose')
+    parser.add_argument('-ds', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'fmnist', 'tinyimagenet', 'voc', 'coco'],
                         required=True, help='Possible datasets to choose')
     parser.add_argument('-tr', '--trials', type=int, nargs=1, required=True, help='Number or trials of AL benchmark for each dataset')
     parser.add_argument('-s', '--strategy', type=str, nargs=1, choices=['uncertanity', 'diversity', 'mixed'], 
@@ -82,7 +82,10 @@ def get_strategies_object(methods: List[str], list_gtg_p: List[Dict[str, Any]], 
             else:
                 # test all the gtg configurations
                 for gtg_p in list_gtg_p:
-                    strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_GTG']}, t_p, al_p, gtg_p))
+                    strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_GTG']}, t_p, al_p, dict(
+                        rbf_aff=gtg_p['rbf_aff'], A_function=gtg_p['A_function'], ent_strategy=gtg_p['ent_strategy'], 
+                        embedding_dim=Masters['M_GTG'].backbone.get_embedding_dim()
+                    )))
         elif method == 'll':
             strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_LL']}, t_p, al_p))
         else:
@@ -115,17 +118,17 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
 
 
 # to create a single master model for each type
-def get_masters(methods: List[str], task: str, BBone: ResNet | SSD,
+def get_masters(methods: List[str], BBone: ResNet | SSD,
                 ll_module_params: Dict[str, Any], gtg_module_params: Dict[str, Any]) -> Dict[str, Master_Model]:
     LL_Mod, GTG_Mod, M_None = None, None, None
     ll, only_bb = False, False
     for method in methods:
         method_module = method.split('_')[-1]
         if method_module == 'll' and not ll:
-            LL_Mod = get_module(task, ll_module_params)
+            LL_Mod = get_module('LL', ll_module_params, BBone.get_embedding_dim())
             ll = True
         elif method_module == 'gtg':
-            GTG_Mod = get_module(task, gtg_module_params)
+            GTG_Mod = get_module('GTG', gtg_module_params, BBone.get_embedding_dim())
         elif not only_bb:
             M_None = Master_Model(BBone, None)
             only_bb = True
@@ -190,6 +193,8 @@ def main() -> None:
         
         if dataset_name in ['cifar10', 'cifar100', 'fmnist', 'tinyimagenet']: task = 'clf'
         else: task = 'detection'
+        
+        task_params = cls_config if task == 'clf' else det_config
 
         logger.info(f'----------------------- RUNNING ACTIVE LEARNING BENCHMARK ON {dataset_name} -----------------------\n')
 
@@ -199,20 +204,23 @@ def main() -> None:
             
             create_ts_dir(timestamp, dataset_name, str(trial))
             
+            Dataset = get_dataset(task, dataset_name, init_lab_obs = al_params['init_lab_obs']) # get the dataset
+            
             # create gtg dictionary parameters
             gtg_module_params = dict(
                 **gtg_params, n_top_k_obs=al_params['n_top_k_obs'], 
                 n_classes=Dataset.n_classes, 
-                init_lab_obs=al_params['init_lab_obs'], device=device
+                init_lab_obs=al_params['init_lab_obs'], 
+                #batch_size=task_params['batch_size'],
+                device=device
             )
             # create learnin loss dictionary parameters
             ll_module_params = get_ll_module_params(task)
             
-            Dataset = get_dataset(task, dataset_name, init_lab_obs = al_params['init_lab_obs']) # get the dataset
             BBone = get_backbone(Dataset.image_size, Dataset.n_classes, Dataset.n_channels, task) # the backbone is the same for all
             
             # obtain the master models
-            Masters = get_masters(methods, task, BBone, ll_module_params, gtg_module_params)
+            Masters = get_masters(methods, BBone, ll_module_params, gtg_module_params)
                         
             # save the checkpoint 
             for master in Masters.values():
@@ -228,14 +236,12 @@ def main() -> None:
                 'wandb_logs': wandb
             }
 
-            task_params = cls_config if task == 'clf' else det_config
-
             results, n_lab_obs = run_strategies(
                 ct_p = common_training_params, 
                 t_p = task_params,
                 al_p = al_params,
                 gtg_p = gtg_params,
-                masters = Masters,
+                Masters = Masters,
                 methods = methods
             )
             

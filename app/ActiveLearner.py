@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class ActiveLearner():
-    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], LL) -> None:
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], strategy_name: str, LL: bool) -> None:
         
         self.LL = LL
         self.iter = 1
@@ -49,6 +49,8 @@ class ActiveLearner():
         self.lab_train_dl = DataLoader(
             self.labeled_subset, batch_size=self.t_p['batch_size'], shuffle=False, pin_memory=True
         )
+
+        self.strategy_name = f'{self.model.name}_{strategy_name}' # define strategy name    
         
         self.world_size: int = torch.cuda.device_count()
         
@@ -96,7 +98,6 @@ class ActiveLearner():
             return Subset(self.dataset.non_transformed_trainset, self.unlabeled_indices)
     
     
-    #TODO: CHANGE THIS FUNCTION ONCE WE ARE IN DECTECTION TASK
     def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, Any]) -> None:
         
         if dist.is_available():
@@ -124,11 +125,13 @@ class ActiveLearner():
                 # could be both LL (1 output) and GTG (2 outputs)
                 if 'module_out' in dict_to_modify:
                     module_out = self.model(images.to(self.device), mode='module_out')
-                    if self.model.module.name == 'GTG':
-                        dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out[0].cpu().squeeze()), dim=0)
+                    if self.model.added_module != None:
+                        if self.model.added_module.name == 'GTG':
+                            dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out[0].cpu().squeeze()), dim=0)
+                        else:
+                            dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out.cpu().squeeze()), dim=0)
                     else:
-                        dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out.cpu().squeeze()), dim=0)
-                    
+                        raise AttributeError("Can't get the module_out if there is no additional module specified")    
                                         
                 if 'labels' in dict_to_modify:
                     dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)
@@ -138,7 +141,6 @@ class ActiveLearner():
     
     
     
-    #TODO: CHANGE THIS FUNCTION ONCE WE ARE IN DECTECTION TASK
     def save_tsne(self, samp_unlab_subset: Subset, idxs_new_labels: List[int], \
                   d_labels: Dict[str, int], al_iter: str, gtg_result_prediction = None) -> None:
         # plot the tsne graph for each iteration
@@ -305,7 +307,7 @@ class ActiveLearner():
             logger.info(' START QUERY PROCESS\n')
             
             # run method query strategy
-            idxs_new_labels, topk_idx_obs = self.query(samp_unlab_subset, self.al_p['n_top_k_obs'])
+            idxs_new_labels, topk_idx_obs = self.query(samp_unlab_subset, self.al_p['n_top_k_obs']) # type: ignore
             
             d_labels = count_class_observation(self.dataset.classes, self.dataset.transformed_trainset, topk_idx_obs)
             logger.info(f' Number of observations per class added to the labeled set:\n {d_labels}\n')
@@ -313,7 +315,7 @@ class ActiveLearner():
             # Saving the tsne embeddings plot
             if self.strategy_name.split('_')[0] == 'GTG':
                 # if we are performing GTG plot also the GTG predictions in the TSNE plot 
-                self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction)
+                self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction) # type: ignore
             
             else: self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter))
 

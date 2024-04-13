@@ -41,17 +41,17 @@ class GTG_LL(ActiveLearner):
 
             #self.strategy_name =  f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}'
             
-            self.strategy_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_treshold}_LL' if self.LL \
+            strategy_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_treshold}_LL' if self.LL \
                 else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_treshold}'
         
         else:
             
-            self.strategy_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_LL' if self.LL \
+            strategy_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_LL' if self.LL \
                 else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}'
             #self.strategy_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}'
                 
 
-        super().__init__(ct_p, t_p, al_p, LL)
+        super().__init__(ct_p, t_p, al_p, strategy_name, LL)
         
         create_directory(self.path + '/gtg_entropies_plots')
         

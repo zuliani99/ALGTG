@@ -1,5 +1,6 @@
 
 import torch
+torch.autograd.set_detect_anomaly(True) # type: ignore
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -14,10 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 class GTG_Module(nn.Module):
-    def __init__(self, gtg_p, phase='train'):
-        super(GTG_Module).__init__()
+    def __init__(self, gtg_p, embedding_dim, phase='train'):
+        super(GTG_Module, self).__init__()
         
-        self.name = 'GTG'
 
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,
@@ -25,9 +25,11 @@ class GTG_Module(nn.Module):
             'e_d': self.get_A_e_d,
         }
 
-        self.A_function: str = gtg_p['A_function']
-        self.ent_strategy: Entropy_Strategy = gtg_p['ent_strategy']
-        self.rbf_aff: bool = gtg_p['rbf_aff']
+        self.A_function: str | None = None
+        self.ent_strategy: Entropy_Strategy | None = None
+        self.rbf_aff: bool | None = None
+        self.embedding_dim: int | None = None 
+        
         self.gtg_tol: float = gtg_p['gtg_tol']
         self.gtg_max_iter: int = gtg_p['gtg_max_iter']
         self.strategy_type: str = gtg_p['strategy_type']
@@ -36,21 +38,32 @@ class GTG_Module(nn.Module):
         
         self.n_top_k_obs: int = gtg_p['n_top_k_obs']
         self.n_classes: int = gtg_p['n_classes']
-        self.init_lab_obs: int = gtg_p['init_lab_obs']
         self.device: int = gtg_p['device']
         
         self.phase: str = phase
         
+    
+        self.FC = []
+        dim_ll = embedding_dim
+        for i in range(5):
+            self.FC.append(nn.Linear(dim_ll, embedding_dim // (2**(i+1))))
+            dim_ll = embedding_dim // (2**(i+1))
+        self.FC.append(nn.Linear(dim_ll, 1))
+        self.FC = nn.ModuleList(self.FC)
         
-        self.l1 = nn.Linear(512, 256)
-        self.l2 = nn.Linear(256, 128)
-        self.l3 = nn.Linear(128, 64)
-        self.l4 = nn.Linear(64, 1)
+        self.mse_loss = nn.MSELoss()
+    
+    
+    
+    def define_additional_parameters(self, remaining_param):
+        self.rbf_aff= remaining_param['rbf_aff']
+        self.A_function = remaining_param['A_function']
+        self.ent_strategy = remaining_param['ent_strategy']
+        self.embedding_dim = remaining_param['embedding_dim']
         
         
-        
-    def change_pahse(self):
-        self.phase = 'test' if self.pahse == 'train' else 'train'
+    def change_pahse(self, new_phase):
+        self.phase = new_phase
         
     
     def get_A_treshold(self, A: torch.Tensor) -> Any:
@@ -60,7 +73,7 @@ class GTG_Module(nn.Module):
     
     def get_A_rbfk(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         
-        A_matrix = self.get_A_fn[self.A_function](concat_embedds)
+        A_matrix = self.get_A_fn[self.A_function](concat_embedds) # type: ignore
 
         if self.A_function == 'e_d':
             # if euclidean distance is choosen we take the 7th smallest observation which is the 7th closest one (ascending order)
@@ -70,7 +83,7 @@ class GTG_Module(nn.Module):
             seventh_neigh = concat_embedds[torch.argsort(A_matrix, dim=1, descending=True)[:, 6]]
             
         sigmas = torch.unsqueeze(torch.tensor([
-            self.get_A_fn[self.A_function](torch.cat((
+            self.get_A_fn[self.A_function](torch.cat(( # type: ignore
                 torch.unsqueeze(concat_embedds[i], dim=0), torch.unsqueeze(seventh_neigh[i], dim=0)
             )))[0,1].item()
             for i in range(concat_embedds.shape[0]) 
@@ -117,7 +130,10 @@ class GTG_Module(nn.Module):
         concat_embedds = torch.cat((self.labeled_obs['embedds'], self.unlabeled_obs['embedds'])).to(self.device)
         
         # compute the affinity matrix
-        A = self.get_A_rbfk(concat_embedds) if self.rbf_aff else self.get_A_fn[self.A_function](concat_embedds)
+        if self.A_function != None:
+            A = self.get_A_rbfk(concat_embedds) if self.rbf_aff else self.get_A_fn[self.A_function](concat_embedds)
+        else:
+            raise AttributeError('A Fucntion is None')
 
         initial_A = torch.clone(A)
         
@@ -134,20 +150,19 @@ class GTG_Module(nn.Module):
             A = 1 - A
         elif self.strategy_type == 'mixed':    
             # set the unlabeled submatrix as distance matrix and not similarity matrix
-            n_lab_obs = len(self.labeled_indices)
             
             if self.A_function == 'e_d':
-                A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL to similarity
+                A[:self.n_lab_obs, :self.n_lab_obs] = 1 - A[:self.n_lab_obs, :self.n_lab_obs] #LL to similarity
                 
             else:
-                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #UU to distance
+                A[self.n_lab_obs:, self.n_lab_obs:] = 1 - A[self.n_lab_obs:, self.n_lab_obs:] #UU to distance
                 
-                A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #UL to distance
-                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #LU to distance
+                A[:self.n_lab_obs, :self.n_lab_obs] = 1 - A[:self.n_lab_obs, :self.n_lab_obs] #UL to distance
+                A[self.n_lab_obs:, self.n_lab_obs:] = 1 - A[self.n_lab_obs:, self.n_lab_obs:] #LU to distance
         
 
-        mat_cos_sim = nn.CosineSimilarity(dim=0)
-        logger.info(f' Cosine Similarity between the initial matrix and the thresholded one: {mat_cos_sim(initial_A.flatten(), A.flatten()).item()}')
+        #mat_cos_sim = nn.CosineSimilarity(dim=0)
+        #logger.info(f' Cosine Similarity between the initial matrix and the thresholded one: {mat_cos_sim(initial_A.flatten(), A.flatten()).item()}')
 
         self.A = A
         
@@ -167,11 +182,11 @@ class GTG_Module(nn.Module):
 
     def get_X(self) -> None:
                 
-        self.X: torch.Tensor = torch.zeros((self.batch_size, self.n_classes), dtype=torch.float32, device=self.device)
+        self.X: torch.Tensor = torch.zeros((self.batch_size, self.n_classes), dtype=torch.float32, device=self.device, requires_grad=True)
         
         for idx, label in enumerate(self.labeled_obs['labels']): self.X[idx][int(label.item())] = 1.
         
-        for idx in range(self.init_lab_obs, self.batch_size):
+        for idx in range(self.n_lab_obs, self.batch_size):
             for label in range(self.n_classes): self.X[idx][label] = 1. / self.n_classes
          
         
@@ -204,30 +219,34 @@ class GTG_Module(nn.Module):
             
             try:
                 # they should have the same dimension
-                assert len(self.unlab_entropy_hist[:, i]) == len(iter_entropy[len(self.labeled_indices):])
+                assert len(self.unlab_entropy_hist[:, i]) == len(iter_entropy[self.n_lab_obs:])
                 # Update only the unlabeled observations
-                self.unlab_entropy_hist[:, i] = iter_entropy[len(self.labeled_indices):]
+                self.unlab_entropy_hist[:, i] = iter_entropy[self.n_lab_obs:]
             except AssertionError as err:
                 logger.exception('Should have the same dimension')
                 raise err
                         
             err = torch.norm(self.X - X_old)
             i += 1
-        
-        del X_old
-        torch.cuda.empty_cache()
+            
+            #del old_rowsum_X
+            #del X_old
+            #del iter_entropy
+            #torch.cuda.empty_cache()
         
         
     
     def preprocess_inputs(self, embedds, labels):
         self.batch_size = len(embedds)
+        self.n_lab_obs = (self.batch_size * 100) // 10 # we set the 10% of the batch as labeeld observations
         
         shuffled_indices = torch.randperm(self.batch_size)
 
-        labeled_indices: List[int] = shuffled_indices[:self.init_lab_obs].tolist()
-        unlabeled_indices: List[int] = shuffled_indices[self.init_lab_obs:].tolist()
-        
+        labeled_indices: List[int] = shuffled_indices[:self.n_lab_obs].tolist()
+        unlabeled_indices: List[int] = shuffled_indices[self.n_lab_obs:].tolist()
+                
         self.unlab_entropy_hist = torch.zeros((len(unlabeled_indices), self.gtg_max_iter), device=self.device)
+        
         mask = torch.zeros(self.batch_size, device = self.device)
         mask[labeled_indices] = 1.
         
@@ -249,22 +268,28 @@ class GTG_Module(nn.Module):
         elif self.ent_strategy is Entropy_Strategy.H_INT:
             # computing the area of the entropis history using trapezoid formula 
             quantity_result = torch.trapezoid(self.unlab_entropy_hist, dim=1)
+            
         else: raise AttributeError(' Invlaid GTG Strategy')
-    
+            
         return quantity_result, mask
     
-        
+    
+    def get_y_pred(self, embedds):
+        # for now it takes only as input the embedding of the resnet
+        out = torch.clone(embedds) # [batch_size x embedding_dim]
+        for i in range(len(self.FC)-1): out = F.relu(self.FC[i](out), inplace=False)
+        return self.FC[-1](out)
+    
     
     def forward(self, embedds, labels):
         
+        y_pred = self.get_y_pred(embedds)
+        
         if self.phase == 'train':
             y_true, mask = self.preprocess_inputs(embedds, labels)
+            y_true = y_true.squeeze()
+            
+            return self.mse_loss(y_pred, y_true), mask if mask == None else mask.bool()
         else:
-            y_true, mask = embedds, None
-        # for now it takes only as input the embedding of the resnet
-        out1 = F.relu(self.l1(y_true))
-        out2 = F.relu(self.l2(out1))
-        out3 = F.relu(self.l3(out2))
-        y_pred = self.l4(out3)
+            return y_pred, None        
         
-        return nn.MSELoss(y_pred, y_true), mask

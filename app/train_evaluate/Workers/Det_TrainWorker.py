@@ -47,7 +47,7 @@ class Det_TrainWorker():
         self.ll_loss_fn = LossPredLoss(self.device).to(self.device)
 
         self.best_check_filename = f'app/checkpoints/{self.ct_p['dataset_name']}'
-        self.init_check_filename = f'{self.best_check_filename}/{self.model.module.name if self.world_size > 1 else self.model.name} if _init.pth.tar'
+        self.init_check_filename = f'{self.best_check_filename}/{self.model.module.name if self.world_size > 1 else self.model.name}_init.pth.tar'
         
         # set device for priors
         if self.world_size > 1: self.model.module.backbone.set_device_priors(self.device) 
@@ -73,7 +73,7 @@ class Det_TrainWorker():
         
         
     def compute_losses(self, module_out: torch.Tensor, outputs: torch.Tensor, \
-                       labels: torch.Tensor) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor], float]:
+                       labels: List[torch.Tensor]) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
                 
         loss_l, loss_c, N = self.backbone_loss_fn(outputs, labels)
         target_loss = loss_l + loss_c
@@ -82,8 +82,7 @@ class Det_TrainWorker():
         loss_c = torch.mean(loss_c)
         
         if module_out == None:
-            tot_loss_ce += original_loss.item()
-            return original_loss, (loss_l, loss_c), 0.
+            return original_loss, (loss_l, loss_c), torch.tensor(0.)
         
         elif len(module_out) == 2:
             quantity_loss, mask = module_out
@@ -148,7 +147,7 @@ class Det_TrainWorker():
             
             self.optimizer.zero_grad()
             
-            outputs, _, module_out = self.model(images)
+            outputs, _, module_out = self.model(images, labels)
             
             loss, (loss_l, loss_c), module_loss = self.compute_losses(
                 module_out=module_out, outputs=outputs, labels=labels
@@ -200,7 +199,7 @@ class Det_TrainWorker():
             for i in range(num_images):
                 im, _, h, w = self.test_dl.dataset.pull_item(i) # type: ignore
                 x = im.unsqueeze(0).to(self.device, non_blocking=True)
-                detection, _, _ = self.model(x)
+                detection, _, _ = self.model(x, None) ############################## -> None as labels 
                 
                 # skip j = 0, because it's the background class
                 for j in range(1, detection.size(1)):

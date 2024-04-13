@@ -12,11 +12,12 @@ logger = logging.getLogger(__name__)
 
 class GTG(ActiveLearner):
     
-    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any]) -> None:
-        self.strategy_name = self.__class__.__name__
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], remaining_param) -> None:
+        super().__init__(ct_p, t_p, al_p, self.__class__.__name__, False)
         
-        super().__init__(ct_p, t_p, al_p, False)
-                
+        if self.model.added_module != None:
+            self.model.added_module.define_additional_parameters(remaining_param)
+        
                 
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
         self.unlab_train_dl = DataLoader(

@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=AL_SING    # Job name
-#SBATCH --mail-type=END          # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-type=NONE          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=875532@stud.unive.it     # Where to send mail	
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -21,4 +21,5 @@
 
 conda activate al_env
 
-python3 app/main.py -m random gtg_offline gtg_online -d cifar10 -tr 1 -s mixed -ts threshold -t 0.5
+#python3 app/main.py -m random gtg_ll lq_gtg -ds cifar10 -tr 1 -s mixed -ts threshold -t 0.5
+python3 app/main.py -m lq_gtg -ds cifar10 -tr 1 -s mixed -ts threshold -t 0.5
