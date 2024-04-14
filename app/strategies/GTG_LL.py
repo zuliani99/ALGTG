@@ -32,25 +32,14 @@ class GTG_LL(ActiveLearner):
         self.strategy_type: str = gtg_p['strategy_type']
         self.threshold_strategy: str = gtg_p['threshold_strategy']
         self.threshold: float = gtg_p['threshold']
-        
-        self.LL = LL
-                
+                        
         str_rbf = 'rbf_' if self.rbf_aff else ''
         if self.threshold_strategy != None:
-            str_treshold = f'{self.threshold_strategy}_{self.threshold}' if self.threshold_strategy != 'mean' else 'mean'
-
-            #self.strategy_name =  f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}_{str_treshold}'
-            
-            strategy_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_treshold}_LL' if self.LL \
-                else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_treshold}'
-        
+            str_treshold = f'{self.threshold_strategy}_{self.threshold}' if self.threshold_strategy != 'mean' else 'mean'            
+            strategy_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_treshold}'
         else:
-            
-            strategy_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_LL' if self.LL \
-                else f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}'
-            #self.strategy_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_diag}'
+            strategy_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}'
                 
-
         super().__init__(ct_p, t_p, al_p, strategy_name, LL)
         
         create_directory(self.path + '/gtg_entropies_plots')

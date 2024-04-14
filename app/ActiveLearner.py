@@ -124,7 +124,6 @@ class ActiveLearner():
                 # could be both LL (1 output) and GTG (2 outputs)
                 if 'module_out' in dict_to_modify:
                     if self.model.added_module != None:
-                        #if self.model.added_module.name == 'GTG':
                         if self.model.added_module.__class__.__name__ == 'GTG_Module':
                             module_out = self.model(images.to(self.device), labels.to(self.device), mode='module_out')
                             dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out[0].cpu().squeeze()), dim=0)

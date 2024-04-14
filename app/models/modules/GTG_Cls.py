@@ -20,11 +20,11 @@ class Custom_MLP(nn.Module):
         self.layers = []
         dim_ll = embedding_dim
         for i in range(5):
-            self.layers.append(nn.Linear(dim_ll, embedding_dim // (2**(i+1))))
-            self.layers.append(nn.BatchNorm1d(embedding_dim // (2**(i+1))))
+            self.layers.append(nn.Linear(in_features = dim_ll, out_features = embedding_dim // (2**(i+1))))
+            self.layers.append(nn.BatchNorm1d(num_features = embedding_dim // (2**(i+1))))
             self.layers.append(nn.ReLU())
             dim_ll = embedding_dim // (2**(i+1))
-        self.layers.append(nn.Linear(dim_ll, 1))
+        self.layers.append(nn.Linear(in_features = dim_ll, out_features = 1))
         self.layers = nn.ModuleList(self.layers)
         
         self.apply(init_weights_apply)
@@ -172,7 +172,7 @@ class GTG_Module(nn.Module):
          
         #self.X.requires_grad_(True)
                  
-                 
+    @torch.no_grad()
     def check_increasing_sum(self, old_rowsum_X: int) -> int: # self.X
         rowsum_X = torch.sum(self.X).item() # self.X
         if rowsum_X < old_rowsum_X: # it has to be increasing or at least equal
@@ -181,7 +181,7 @@ class GTG_Module(nn.Module):
         return int(rowsum_X)
 
         
-        
+    @torch.no_grad()
     def graph_trasduction_game(self, embedding: torch.Tensor) -> None:
         
         self.get_A(embedding)
@@ -262,9 +262,10 @@ class GTG_Module(nn.Module):
         y_pred = self.mlp(embedds).squeeze()
         
         if self.phase == 'train':
-            y_true, mask = self.preprocess_inputs(embedds.detach().clone(), labels)
+            #y_true, mask = self.preprocess_inputs(embedds.detach().clone(), labels)
+            y_true, mask = self.preprocess_inputs(embedds, labels)
             
-            return self.mse_loss(y_pred, y_true.detach()), mask if mask == None else mask.bool()
+            return self.mse_loss(y_pred, y_true), mask if mask == None else mask.bool()
         else:
             return y_pred, None        
         

@@ -7,6 +7,10 @@ from models.backbones.ssd_pytorch.SSD import SSD
 from models.modules.GTG_Cls import GTG_Module
 from models.modules.LossNet import LossNet
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 class Master_Model(nn.Module):
     def __init__(self, backbone: SSD | ResNet, added_module: LossNet | GTG_Module | None, dataset_name: str) -> None:
         super(Master_Model, self).__init__()
@@ -17,13 +21,17 @@ class Master_Model(nn.Module):
         else: 
             self.name = f'{self.backbone.__class__.__name__}'
             
+        # backbone and additional module have initialized their respecive layers, so I can save the initial checkpoint
+        
+        logger.info(f' => Saving Initial {self.name} checkpoint')
         torch.save(dict(state_dict = self.state_dict()), f'app/checkpoints/{dataset_name}/{self.name}_init.pth.tar')
-            
+        logger.info(' DONE\n')
+        
         
     def forward(self, x, labels=None, mode='all'):
         if mode == 'all':
             outs, embedds = self.backbone(x)
-
+            if torch.any(torch.isnan(embedds)): print(embedds)
             assert not torch.any(torch.isnan(embedds)), 'embedding is nan'
             assert torch.std(embedds) > 0, 'std is zero or negative'
             

@@ -12,11 +12,20 @@ logger = logging.getLogger(__name__)
 
 class GTG(ActiveLearner):
     
-    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], remaining_param) -> None:
-        super().__init__(ct_p, t_p, al_p, self.__class__.__name__, False)
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p) -> None:
+        
+        str_rbf = 'rbf_' if gtg_p['rbf_aff'] else ''
+        if gtg_p['threshold_strategy'] != None:
+            str_treshold = f'{gtg_p['threshold_strategy']}_{gtg_p['threshold']}' if gtg_p['threshold_strategy'] != 'mean' else 'mean'            
+            strategy_name = f'{self.__class__.__name__}_{gtg_p['strategy_type']}_{str_rbf}{gtg_p['A_function']}_{gtg_p['ent_strategy'].name}_{str_treshold}'
+        else:
+            strategy_name = f'{self.__class__.__name__}_{gtg_p['strategy_type']}_{str_rbf}{gtg_p['A_function']}_{gtg_p['ent_strategy'].name}'
+                
+        
+        super().__init__(ct_p, t_p, al_p, strategy_name, False)
         
         if self.model.added_module != None:
-            self.model.added_module.define_additional_parameters(remaining_param)
+            self.model.added_module.define_additional_parameters(gtg_p)
         
                 
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:

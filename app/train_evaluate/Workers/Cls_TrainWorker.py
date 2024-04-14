@@ -85,7 +85,7 @@ class Cls_TrainWorker():
             quantity_loss, mask = module_out
             labeled_loss = torch.mean(loss_ce[mask])
             loss = labeled_loss + quantity_loss
-            #logger.info(f' labeled_loss -> {labeled_loss.item()}\tquantity_loss -> {quantity_loss.item()}')
+            logger.info(f' labeled_loss -> {labeled_loss.item()}\tquantity_loss -> {quantity_loss.item()}')
             
             tot_loss_ce += labeled_loss.item()
             tot_pred_loss += quantity_loss.item()
@@ -158,13 +158,12 @@ class Cls_TrainWorker():
                 })        
         
 
-            #MultiStepLR
+            # MultiStepLR
             self.lr_scheduler.step()
             
+            # Save checkpoint
             self.__save_checkpoint(self.check_best_path)
-                
-        # load best checkpoint
-        #self.__load_checkpoint(self.check_best_path)
+
         
         return results
 
@@ -173,7 +172,8 @@ class Cls_TrainWorker():
     def test(self) -> torch.Tensor:
         test_accuracy, test_loss, test_loss_ce, test_pred_loss = .0, .0, .0, .0
         
-        if self.model.added_module != None: self.model.added_module.change_pahse('test')
+        if self.model.added_module != None and self.model.added_module.__class__.__name__ == 'GTG_Module': 
+            self.model.added_module.change_pahse('test')
         self.model.eval()    
 
         with torch.inference_mode():

@@ -22,4 +22,5 @@
 conda activate al_env
 
 #python3 app/main.py -m random gtg_ll lq_gtg -ds cifar10 -tr 1 -s mixed -ts threshold -t 0.5
+#python3 app/main.py -m lq_gtg -ds cifar10 -tr 1 -s mixed -ts mean -t 0.5 -plb 0.1
 python3 app/main.py -m lq_gtg -ds cifar10 -tr 1 -s mixed -ts mean -t 0.5 -plb 0.1

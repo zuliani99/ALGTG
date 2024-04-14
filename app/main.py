@@ -50,7 +50,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('-s', '--strategy', type=str, nargs=1, choices=['uncertanity', 'diversity', 'mixed'], 
                         required=True, help='Possible query strategy types to choose for our method')
     parser.add_argument('-ts', '--threshold_strategy', type=str, nargs=1, choices=['threshold', 'mean'], 
-                        required=True, help='Possible query strategy types to choose for our method')
+                        required=False, help='Possible query strategy types to choose for our method')
     parser.add_argument('-t', '--threshold', type=float, nargs=1, required=False, 
                         help='Affinity Matrix Threshold for our method, when threshold_strategy = mean, this is ingnored')
     parser.add_argument('-plb', '--perc_labeled_batch', type=float, nargs=1, required=False, 
@@ -85,9 +85,7 @@ def get_strategies_object(methods: List[str], list_gtg_p: List[Dict[str, Any]], 
             else:
                 # test all the gtg configurations
                 for gtg_p in list_gtg_p:
-                    strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_GTG']}, t_p, al_p, dict(
-                        rbf_aff=gtg_p['rbf_aff'], A_function=gtg_p['A_function'], ent_strategy=gtg_p['ent_strategy']
-                    )))
+                    strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_GTG']}, t_p, al_p, gtg_p))
         elif method == 'll':
             strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_LL']}, t_p, al_p))
         else:
@@ -161,11 +159,11 @@ def main() -> None:
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     create_directory(f'results/{timestamp}')
     
-    logging.basicConfig(filename=f'results/{timestamp}/AL_DDP.log',
-                    filemode='a',
-                    format='%(asctime)s - %(levelname)s: %(message)s',
-                    datefmt='%H:%M:%S',
-                    level=logging.INFO)
+    logging.basicConfig(filename = f'results/{timestamp}/AL_DDP.log',
+                    filemode = 'a',
+                    format = '%(asctime)s - %(levelname)s: %(message)s',
+                    datefmt = '%H:%M:%S',
+                    level = logging.INFO)
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
@@ -215,11 +213,11 @@ def main() -> None:
             
             # create gtg dictionary parameters
             gtg_module_params = dict(
-                **gtg_params, n_top_k_obs=al_params['n_top_k_obs'], 
-                n_classes=Dataset.n_classes, 
-                init_lab_obs=al_params['init_lab_obs'], 
-                embedding_dim=BBone.get_embedding_dim(),
-                device=device, 
+                **gtg_params, n_top_k_obs = al_params['n_top_k_obs'], 
+                n_classes = Dataset.n_classes, 
+                init_lab_obs = al_params['init_lab_obs'], 
+                embedding_dim = BBone.get_embedding_dim(),
+                device = device, 
             )
             # create learnin loss dictionary parameters
             ll_module_params = get_ll_module_params(task)
