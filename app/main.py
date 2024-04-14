@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import torch
+torch.autograd.set_detect_anomaly(True) # type: ignore
 import torch.distributed as dist
 
 from models.BBone_Module import Master_Model
@@ -52,6 +53,8 @@ def get_args() -> argparse.Namespace:
                         required=True, help='Possible query strategy types to choose for our method')
     parser.add_argument('-t', '--threshold', type=float, nargs=1, required=False, 
                         help='Affinity Matrix Threshold for our method, when threshold_strategy = mean, this is ingnored')
+    parser.add_argument('-plb', '--perc_labeled_batch', type=float, nargs=1, required=False, 
+                        help='Number of labeled observations to mantain in each batch during out method')
     parser.add_argument('--wandb', action='store_true', 
                         help='Log benchmark stats into Weights & Biases web app service')
                         
@@ -83,8 +86,7 @@ def get_strategies_object(methods: List[str], list_gtg_p: List[Dict[str, Any]], 
                 # test all the gtg configurations
                 for gtg_p in list_gtg_p:
                     strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_GTG']}, t_p, al_p, dict(
-                        rbf_aff=gtg_p['rbf_aff'], A_function=gtg_p['A_function'], ent_strategy=gtg_p['ent_strategy'], 
-                        embedding_dim=Masters['M_GTG'].backbone.get_embedding_dim()
+                        rbf_aff=gtg_p['rbf_aff'], A_function=gtg_p['A_function'], ent_strategy=gtg_p['ent_strategy']
                     )))
         elif method == 'll':
             strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_LL']}, t_p, al_p))
@@ -119,24 +121,25 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
 
 # to create a single master model for each type
 def get_masters(methods: List[str], BBone: ResNet | SSD,
-                ll_module_params: Dict[str, Any], gtg_module_params: Dict[str, Any]) -> Dict[str, Master_Model]:
+                ll_module_params: Dict[str, Any], gtg_module_params: Dict[str, Any],
+                dataset_name: str) -> Dict[str, Master_Model]:
     LL_Mod, GTG_Mod, M_None = None, None, None
     ll, only_bb = False, False
     for method in methods:
         method_module = method.split('_')[-1]
         if method_module == 'll' and not ll:
-            LL_Mod = get_module('LL', ll_module_params, BBone.get_embedding_dim())
+            LL_Mod = get_module('LL', ll_module_params)
             ll = True
         elif method_module == 'gtg':
-            GTG_Mod = get_module('GTG', gtg_module_params, BBone.get_embedding_dim())
+            GTG_Mod = get_module('GTG', gtg_module_params)
         elif not only_bb:
-            M_None = Master_Model(BBone, None)
+            M_None = Master_Model(BBone, None, dataset_name)
             only_bb = True
             
     Masters = { }
     if M_None != None: Masters['M_None'] = M_None
-    if GTG_Mod != None: Masters['M_GTG'] = Master_Model(BBone, GTG_Mod)
-    if LL_Mod != None: Masters['M_LL'] = Master_Model(BBone, LL_Mod)
+    if GTG_Mod != None: Masters['M_GTG'] = Master_Model(BBone, GTG_Mod, dataset_name)
+    if LL_Mod != None: Masters['M_LL'] = Master_Model(BBone, LL_Mod, dataset_name)
     
     return Masters                  
 
@@ -148,6 +151,7 @@ def main() -> None:
     methods = args.methods
     choosen_datasets = args.datasets
     wandb = args.wandb
+    perc_labeled_batch = args.perc_labeled_batch[0]
     trials = args.trials[0]
     strategy_type = args.strategy[0]
     treshold_strategy = args.threshold_strategy[0]
@@ -185,7 +189,8 @@ def main() -> None:
         'gtg_max_iter': 30,
         'strategy_type': strategy_type,
         'threshold_strategy': treshold_strategy,
-        'threshold': treshold
+        'threshold': treshold,
+        'perc_labeled_batch': perc_labeled_batch
     }
     
         
@@ -206,33 +211,28 @@ def main() -> None:
             
             Dataset = get_dataset(task, dataset_name, init_lab_obs = al_params['init_lab_obs']) # get the dataset
             
+            BBone = get_backbone(Dataset.image_size, Dataset.n_classes, Dataset.n_channels, task) # the backbone is the same for all
+            
             # create gtg dictionary parameters
             gtg_module_params = dict(
                 **gtg_params, n_top_k_obs=al_params['n_top_k_obs'], 
                 n_classes=Dataset.n_classes, 
                 init_lab_obs=al_params['init_lab_obs'], 
-                #batch_size=task_params['batch_size'],
-                device=device
+                embedding_dim=BBone.get_embedding_dim(),
+                device=device, 
             )
             # create learnin loss dictionary parameters
             ll_module_params = get_ll_module_params(task)
             
-            BBone = get_backbone(Dataset.image_size, Dataset.n_classes, Dataset.n_channels, task) # the backbone is the same for all
             
             # obtain the master models
-            Masters = get_masters(methods, BBone, ll_module_params, gtg_module_params)
+            Masters = get_masters(methods, BBone, ll_module_params, gtg_module_params, dataset_name)
                         
-            # save the checkpoint 
-            for master in Masters.values():
-                torch.save(dict(state_dict = master.state_dict()), f'app/checkpoints/{dataset_name}/{master.name}_init.pth.tar')
-            
             logger.info('\n')
             
             common_training_params = {
-                'Dataset': Dataset,
-                'device': device, 'timestamp': timestamp,
-                'dataset_name': dataset_name,
-                'trial': trial, 'task': task,
+                'Dataset': Dataset, 'device': device, 'timestamp': timestamp,
+                'dataset_name': dataset_name, 'trial': trial, 'task': task,
                 'wandb_logs': wandb
             }
 

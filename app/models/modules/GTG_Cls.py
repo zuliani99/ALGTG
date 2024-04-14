@@ -1,23 +1,44 @@
 
 import torch
-torch.autograd.set_detect_anomaly(True) # type: ignore
 import torch.nn as nn
 import torch.nn.functional as F
 
+from utils import init_weights_apply
 from utils import Entropy_Strategy, entropy
 
-from typing import Any, List
+from typing import Any, List, Dict, Tuple
 
 
 import logging
 logger = logging.getLogger(__name__)
 
 
+class Custom_MLP(nn.Module):
+    def __init__(self, embedding_dim: int):
+        super(Custom_MLP, self).__init__()
+        
+        self.layers = []
+        dim_ll = embedding_dim
+        for i in range(5):
+            self.layers.append(nn.Linear(dim_ll, embedding_dim // (2**(i+1))))
+            self.layers.append(nn.BatchNorm1d(embedding_dim // (2**(i+1))))
+            self.layers.append(nn.ReLU())
+            dim_ll = embedding_dim // (2**(i+1))
+        self.layers.append(nn.Linear(dim_ll, 1))
+        self.layers = nn.ModuleList(self.layers)
+        
+        self.apply(init_weights_apply)
+        
+        
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        for layer in self.layers: x = layer(x)
+        return x
+
+
 
 class GTG_Module(nn.Module):
-    def __init__(self, gtg_p, embedding_dim, phase='train'):
+    def __init__(self, gtg_p, phase='train'):
         super(GTG_Module, self).__init__()
-        
 
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,
@@ -28,41 +49,31 @@ class GTG_Module(nn.Module):
         self.A_function: str | None = None
         self.ent_strategy: Entropy_Strategy | None = None
         self.rbf_aff: bool | None = None
-        self.embedding_dim: int | None = None 
         
         self.gtg_tol: float = gtg_p['gtg_tol']
         self.gtg_max_iter: int = gtg_p['gtg_max_iter']
         self.strategy_type: str = gtg_p['strategy_type']
         self.threshold_strategy: str = gtg_p['threshold_strategy']
         self.threshold: float = gtg_p['threshold']
+        self.perc_labeled_batch: int = gtg_p['perc_labeled_batch']
         
         self.n_top_k_obs: int = gtg_p['n_top_k_obs']
         self.n_classes: int = gtg_p['n_classes']
         self.device: int = gtg_p['device']
-        
         self.phase: str = phase
         
-    
-        self.FC = []
-        dim_ll = embedding_dim
-        for i in range(5):
-            self.FC.append(nn.Linear(dim_ll, embedding_dim // (2**(i+1))))
-            dim_ll = embedding_dim // (2**(i+1))
-        self.FC.append(nn.Linear(dim_ll, 1))
-        self.FC = nn.ModuleList(self.FC)
-        
-        self.mse_loss = nn.MSELoss()
+        self.mlp = Custom_MLP(gtg_p['embedding_dim'])
+        self.mse_loss = nn.MSELoss()        
     
     
     
-    def define_additional_parameters(self, remaining_param):
+    def define_additional_parameters(self, remaining_param: Dict[str, Any]) -> None:
         self.rbf_aff= remaining_param['rbf_aff']
         self.A_function = remaining_param['A_function']
         self.ent_strategy = remaining_param['ent_strategy']
-        self.embedding_dim = remaining_param['embedding_dim']
         
         
-    def change_pahse(self, new_phase):
+    def change_pahse(self, new_phase: str) -> None:
         self.phase = new_phase
         
     
@@ -89,34 +100,20 @@ class GTG_Module(nn.Module):
             for i in range(concat_embedds.shape[0]) 
         ], device=self.device), dim=0)
         
-        A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(self.device)
-        
-                
-        del A_matrix
-        del sigmas
-        torch.cuda.empty_cache()
-        
+        A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(self.device)    
         return A
-    
     
         
     def get_A_e_d(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         A = torch.cdist(concat_embedds, concat_embedds).to(self.device)
         return A
-
-
+    
 
     def get_A_cos_sim(self, concat_embedds: torch.Tensor) -> torch.Tensor:        
         normalized_embedding = F.normalize(concat_embedds, dim=-1).to(self.device)
-        
         A = F.relu(torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device))
         A.fill_diagonal_(1.)
-
-        del normalized_embedding
-        torch.cuda.empty_cache()
-        
         return A
-        
         
         
     def get_A_corr(self, concat_embedds: torch.Tensor) -> torch.Tensor:
@@ -124,27 +121,23 @@ class GTG_Module(nn.Module):
         return A
     
     
-    
-    def get_A(self) -> None:
+    def get_A(self, embedding: torch.Tensor) -> None:
 
-        concat_embedds = torch.cat((self.labeled_obs['embedds'], self.unlabeled_obs['embedds'])).to(self.device)
-        
         # compute the affinity matrix
         if self.A_function != None:
-            A = self.get_A_rbfk(concat_embedds) if self.rbf_aff else self.get_A_fn[self.A_function](concat_embedds)
-        else:
-            raise AttributeError('A Fucntion is None')
+            A = self.get_A_rbfk(embedding) if self.rbf_aff else self.get_A_fn[self.A_function](embedding)
+        else: raise AttributeError('A Fucntion is None')
 
-        initial_A = torch.clone(A)
-        
+        ############################################################################################
+        # SEEMS LIKE THAT WITH THE THRESHOLD THE MATRIX A WILL CONTAIN NEGATIVE VALUES
+        # OR THE EMBEDDING WILL CONTAIN NAN VALUES
         # remove weak connections with the choosen threshold strategy and value
-        logger.info(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
-        A = torch.where(
+        '''A = torch.where(
             A < self.get_A_treshold(A) if self.A_function != 'e_d' else A > self.get_A_treshold(A),
             0 if self.A_function != 'e_d' else 1, A
-        )
-        
-        
+        )'''
+        ############################################################################################
+
         if self.strategy_type == 'diversity':
             # set the whole matrix as a distance matrix and not similarity matrix
             A = 1 - A
@@ -152,114 +145,103 @@ class GTG_Module(nn.Module):
             # set the unlabeled submatrix as distance matrix and not similarity matrix
             
             if self.A_function == 'e_d':
-                A[:self.n_lab_obs, :self.n_lab_obs] = 1 - A[:self.n_lab_obs, :self.n_lab_obs] #LL to similarity
-                
+                for i in self.labeled_indices:  # -> insert the similarity for the labeled observations
+                    for j in self.labeled_indices:
+                        A[i,j] = 1 - A[i,j]
+                        A[j,i] = 1 - A[j,i]
             else:
-                A[self.n_lab_obs:, self.n_lab_obs:] = 1 - A[self.n_lab_obs:, self.n_lab_obs:] #UU to distance
-                
-                A[:self.n_lab_obs, :self.n_lab_obs] = 1 - A[:self.n_lab_obs, :self.n_lab_obs] #UL to distance
-                A[self.n_lab_obs:, self.n_lab_obs:] = 1 - A[self.n_lab_obs:, self.n_lab_obs:] #LU to distance
-        
-
-        #mat_cos_sim = nn.CosineSimilarity(dim=0)
-        #logger.info(f' Cosine Similarity between the initial matrix and the thresholded one: {mat_cos_sim(initial_A.flatten(), A.flatten()).item()}')
-
+                A = 1 - A # -> all distance matrix
+                for i in self.labeled_indices:  # -> reinsert the similarity for the labeled observations
+                    for j in self.labeled_indices:
+                        A[i,j] = 1 - A[i,j]
+                        A[j,i] = 1 - A[j,i]                        
+                    
         self.A = A
-        
-        # plot the TSNE fo the original and modified affinity matrix
-        '''plot_tsne_A(
-            (initial_A, A),
-            (self.lab_embedds_dict['labels'], self.unlabeled_labels), self.dataset.classes,
-            self.ct_p['timestamp'], self.ct_p['dataset_name'], self.ct_p['trial'], self.strategy_name, self.A_function, self.strategy_type, self.iter
-        )'''
-        
-        del A
-        del initial_A
-        del concat_embedds
-        torch.cuda.empty_cache()
         
         
 
     def get_X(self) -> None:
                 
-        self.X: torch.Tensor = torch.zeros((self.batch_size, self.n_classes), dtype=torch.float32, device=self.device, requires_grad=True)
+        self.X: torch.Tensor = torch.zeros((self.batch_size, self.n_classes), dtype=torch.float32, device=self.device)
         
-        for idx, label in enumerate(self.labeled_obs['labels']): self.X[idx][int(label.item())] = 1.
+        for idx, label in zip(self.labeled_indices, self.lab_labels):
+            self.X[idx][int(label.item())] = 1.
         
-        for idx in range(self.n_lab_obs, self.batch_size):
+        for idx in self.unlabeled_indices:
             for label in range(self.n_classes): self.X[idx][label] = 1. / self.n_classes
          
-        
-    def check_increasing_sum(self, old_rowsum_X):
-        rowsum_X = torch.sum(self.X).item()
+        #self.X.requires_grad_(True)
+                 
+                 
+    def check_increasing_sum(self, old_rowsum_X: int) -> int: # self.X
+        rowsum_X = torch.sum(self.X).item() # self.X
         if rowsum_X < old_rowsum_X: # it has to be increasing or at least equal
             logger.exception('Sum of the vector on the denominator is lower than the previous step')
             raise Exception('Sum of the vector on the denominator is lower than the previous step')
-        return rowsum_X
-    
-    
-    def graph_trasduction_game(self) -> None:
+        return int(rowsum_X)
+
         
-        self.get_A()
+        
+    def graph_trasduction_game(self, embedding: torch.Tensor) -> None:
+        
+        self.get_A(embedding)
         self.get_X()
-        
+
+        assert torch.all(self.X >= 0), 'Negative values in self.X'
+        if not torch.all(self.A >= 0): print(embedding, self.A)
+        assert torch.all(self.A >= 0), 'Negative values in self.A'
+
         err = float('Inf')
         i = 0
         old_rowsum_X = 0
         
+        
         while err > self.gtg_tol and i < self.gtg_max_iter:
             X_old = torch.clone(self.X)
             
-            self.X *= torch.mm(self.A, self.X)
+            A_X = torch.mm(self.A, self.X)
+            assert torch.all(A_X >= 0), 'Negative values in A_X'
+            
+            self.X = self.X * A_X
+            assert torch.all(self.X >= 0), 'Negative values in self.X'
             old_rowsum_X = self.check_increasing_sum(old_rowsum_X)
-            self.X /= torch.sum(self.X, dim=1, keepdim=True)            
-        
+            
+            X_sum = torch.sum(self.X, dim=1, keepdim=True)
+            assert torch.all(X_sum > 0), 'Negative or zero values in X_sum'
+            
+            self.X = self.X / X_sum 
+            assert torch.all(self.X >= 0), 'Negative values in self.X'
+            
             iter_entropy = entropy(self.X).to(self.device) # there are both labeled and sample unlabeled
-            # I have to map only the sample_unlabeled to the correct position
+            assert torch.all(iter_entropy >= 0), 'Negative values in iter_entropy'
+
+            self.unlab_entropy_hist[:, i] = iter_entropy
             
-            try:
-                # they should have the same dimension
-                assert len(self.unlab_entropy_hist[:, i]) == len(iter_entropy[self.n_lab_obs:])
-                # Update only the unlabeled observations
-                self.unlab_entropy_hist[:, i] = iter_entropy[self.n_lab_obs:]
-            except AssertionError as err:
-                logger.exception('Should have the same dimension')
-                raise err
-                        
-            err = torch.norm(self.X - X_old)
             i += 1
+            err = torch.norm(self.X - X_old)
             
-            #del old_rowsum_X
-            #del X_old
-            #del iter_entropy
-            #torch.cuda.empty_cache()
         
         
-    
-    def preprocess_inputs(self, embedds, labels):
-        self.batch_size = len(embedds)
-        self.n_lab_obs = (self.batch_size * 100) // 10 # we set the 10% of the batch as labeeld observations
+    # List[torch.Tensor] -> detection
+    def preprocess_inputs(self, embedding: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+                
+        self.batch_size = len(embedding)
+        self.n_lab_obs = int(self.batch_size * self.perc_labeled_batch) 
         
         shuffled_indices = torch.randperm(self.batch_size)
 
-        labeled_indices: List[int] = shuffled_indices[:self.n_lab_obs].tolist()
-        unlabeled_indices: List[int] = shuffled_indices[self.n_lab_obs:].tolist()
+        self.labeled_indices: List[int] = shuffled_indices[:self.n_lab_obs].tolist()
+        self.unlabeled_indices: List[int] = shuffled_indices[self.n_lab_obs:].tolist()
+                        
+        self.unlab_entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)
+        
+        mask = torch.zeros(self.batch_size, device=self.device)
+        mask[self.labeled_indices] = 1.
+        
+        self.lab_labels = labels[self.labeled_indices]
+        self.unlab_labels = labels[self.unlabeled_indices]
                 
-        self.unlab_entropy_hist = torch.zeros((len(unlabeled_indices), self.gtg_max_iter), device=self.device)
-        
-        mask = torch.zeros(self.batch_size, device = self.device)
-        mask[labeled_indices] = 1.
-        
-        self.labeled_obs = dict(embedds = embedds[labeled_indices], labels = labels[labeled_indices])
-        self.unlabeled_obs = dict(embedds = embedds[unlabeled_indices], labels = labels[unlabeled_indices])
-        
-        self.graph_trasduction_game()
-        
-        del self.A
-        del self.X
-        del self.labeled_obs
-        del self.unlabeled_obs
-        torch.cuda.empty_cache()   
+        self.graph_trasduction_game(embedding)
         
         if self.ent_strategy is Entropy_Strategy.MEAN:
             # computing the mean of the entropis history
@@ -274,22 +256,77 @@ class GTG_Module(nn.Module):
         return quantity_result, mask
     
     
-    def get_y_pred(self, embedds):
-        # for now it takes only as input the embedding of the resnet
-        out = torch.clone(embedds) # [batch_size x embedding_dim]
-        for i in range(len(self.FC)-1): out = F.relu(self.FC[i](out), inplace=False)
-        return self.FC[-1](out)
     
-    
-    def forward(self, embedds, labels):
-        
-        y_pred = self.get_y_pred(embedds)
+    def forward(self, embedds: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor | None]:
+
+        y_pred = self.mlp(embedds).squeeze()
         
         if self.phase == 'train':
-            y_true, mask = self.preprocess_inputs(embedds, labels)
-            y_true = y_true.squeeze()
+            y_true, mask = self.preprocess_inputs(embedds.detach().clone(), labels)
             
-            return self.mse_loss(y_pred, y_true), mask if mask == None else mask.bool()
+            return self.mse_loss(y_pred, y_true.detach()), mask if mask == None else mask.bool()
         else:
             return y_pred, None        
         
+        
+        
+        
+        
+        
+        
+    '''def graph_trasduction_game(self, embedding) -> None:
+        
+        self.get_A(embedding)
+        self.A.register_hook(lambda t: print(f'hook self.A :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
+        self.get_X()
+        
+        assert torch.all(self.A >= 0), 'negative value in self.A'
+        assert torch.all(self.X >= 0), 'negative value in self.X'
+        
+        err = float('Inf')
+        i = 0
+        old_rowsum_X = 0
+        
+        #X_while = torch.clone(self.X)#.detach()
+        unlab_entropy_hist_while = torch.clone(self.unlab_entropy_hist)
+        
+        while err > self.gtg_tol and i < self.gtg_max_iter:
+            X_old = torch.clone(self.X)#.detach()
+            assert torch.all(X_old >= 0), 'negative value in X_old'
+            
+            
+            mm_A_X = torch.matmul(self.A, self.X)
+            mm_A_X.register_hook(lambda t: print(f'hook mm_A_X :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
+            assert torch.all(mm_A_X >= 0), 'negative value in the mm_A_X'
+            
+            mult_X_A_X = torch.mul(self.X, mm_A_X)#self.X * mm_A_X
+            mult_X_A_X.register_hook(lambda t: print(f'hook mult_X_A_X :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
+            assert torch.all(mult_X_A_X >= 0), 'negative value in the mult_X_A_X'
+            
+            #self.X *= torch.mm(self.A, self.X)
+            
+            old_rowsum_X = self.check_increasing_sum(mult_X_A_X.detach(), old_rowsum_X)
+            
+            sum_X_A_X = torch.sum(mult_X_A_X, dim=1, keepdim=True)
+            sum_X_A_X.register_hook(lambda t: print(f'hook sum_X_A_X :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
+            assert torch.all(sum_X_A_X > 0), 'negative or zero value in the sum_X_A_X'
+            
+            
+            div_sum_X_A_X = mult_X_A_X / sum_X_A_X
+            div_sum_X_A_X.register_hook(lambda t: print(f'hook div_sum_X_A_X :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
+            assert torch.all(div_sum_X_A_X >= 0), 'nagative value in the div_sum_X_A_X'
+            
+            #self.X /= torch.sum(self.X, dim=1, keepdim=True)    
+            #print('div_sum_X_A_X', div_sum_X_A_X)        
+        
+            iter_entropy = entropy(div_sum_X_A_X).to(self.device)
+            assert torch.all(iter_entropy >= 0), 'nagative value in the iter_entropy'
+
+            #self.unlab_entropy_hist[:, i] = iter_entropy
+            unlab_entropy_hist_while[:, i] = iter_entropy
+            
+            i += 1
+            err = torch.norm(div_sum_X_A_X.detach() - X_old)            
+            self.X = div_sum_X_A_X
+            
+        self.unlab_entropy_hist = unlab_entropy_hist_while'''

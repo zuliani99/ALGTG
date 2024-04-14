@@ -1,9 +1,6 @@
 
-import torch
-
 from models.modules.GTG_Cls import GTG_Module
 from models.modules.LossNet import LossNet
-from utils import init_weights_apply
 from models.backbones.ssd_pytorch.SSD import SSD, build_ssd
 from models.backbones.ResNet18 import ResNet, ResNet18
 
@@ -20,29 +17,13 @@ def get_dataset(task, dataset_name: str, init_lab_obs: int) -> Cls_Datasets | De
 
     
 def get_backbone(image_size: int, n_classes: int, n_channels: int, task: str) -> ResNet | SSD:
-    if task == 'clf': 
-        resnet = ResNet18(image_size, n_classes=n_classes,  n_channels=n_channels)
-        resnet.apply(init_weights_apply)
-        return resnet
-    else: 
-        ssd_net = build_ssd('train', voc_config, num_classes=n_classes)
-        vgg_weights = torch.load('app/models/ssd_pytorch/vgg16_reducedfc.pth')
-        ssd_net.vgg.load_state_dict(vgg_weights)
-        ssd_net.extras.apply(init_weights_apply)
-        ssd_net.loc.apply(init_weights_apply)
-        ssd_net.conf.apply(init_weights_apply)
-        return ssd_net
+    if task == 'clf': return ResNet18(image_size, n_classes=n_classes,  n_channels=n_channels)
+    else: return build_ssd('train', voc_config, num_classes=n_classes)
     
 
-def get_module(module: str, module_params: Dict[str, Any], embedding_dim: int) -> LossNet | GTG_Module:
-    if module == 'LL': 
-        ll = LossNet(module_params)
-        ll.apply(init_weights_apply)
-        return ll
-    else:
-        gtg = GTG_Module(module_params, embedding_dim)
-        gtg.apply(init_weights_apply)
-        return gtg
+def get_module(module: str, module_params: Dict[str, Any]) -> LossNet | GTG_Module:
+    if module == 'LL': return LossNet(module_params)
+    else: return GTG_Module(module_params)
 
 
 def get_ll_module_params(task: str) -> Dict[str, int | str | List[int]]:

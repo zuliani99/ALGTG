@@ -48,6 +48,15 @@ class Det_TrainWorker():
 
         self.best_check_filename = f'app/checkpoints/{self.ct_p['dataset_name']}'
         self.init_check_filename = f'{self.best_check_filename}/{self.model.module.name if self.world_size > 1 else self.model.name}_init.pth.tar'
+        self.check_best_path = f'{self.best_check_filename}/best_{self.strategy_name}_{self.device}.pth.tar'
+        
+        if self.iter > 1: 
+            self.__load_checkpoint(self.check_best_path)
+            logger.info(' => Continuing Training the Best Model from the Previous Iteration')
+        else:
+            self.__load_checkpoint(self.init_check_filename)
+            logger.info(' => Loading Initial Checkpoint')
+        logger.info(' DONE')
         
         # set device for priors
         if self.world_size > 1: self.model.module.backbone.set_device_priors(self.device) 
@@ -108,10 +117,8 @@ class Det_TrainWorker():
         
         epoch, step_index = 0, 0
                 
-        check_best_path = f'{self.best_check_filename}/best_{self.strategy_name}_{self.device}.pth.tar'
         results = torch.zeros((4, self.t_p['epochs']), device=self.device)
         
-        if self.iter > 1: self.__load_checkpoint(check_best_path)
         if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore
         
         batch_iterator = iter(cycle(self.train_dl))
@@ -120,7 +127,7 @@ class Det_TrainWorker():
             # reset epoch loss counters
             if iteration != 0 and (iteration % self.epoch_size == 0):
                 
-                self.__save_checkpoint(check_best_path)
+                self.__save_checkpoint(self.check_best_path)
                 self.scheduler.step()
                     
                 logger.info(f'GPU: {self.device} ||| Epoch {epoch} | Iteration {iteration} -> train_loss: {train_loss / self.epoch_size}\tloc_loss: {loc_loss \
@@ -172,7 +179,7 @@ class Det_TrainWorker():
                     "train_pred_loss": module_loss.item(),
                 })
             
-        self.__load_checkpoint(check_best_path)
+        self.__load_checkpoint(self.check_best_path)
 
         return results
 

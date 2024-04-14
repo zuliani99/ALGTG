@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
+from utils import init_weights_apply
 
 import logging
 logger = logging.getLogger(__name__)
@@ -63,6 +64,8 @@ class LossNet(nn.Module):
         self.FC = nn.ModuleList(self.FC)
 
         self.linear = nn.Linear(len(num_channels) * interm_dim, 1)
+        
+        self.apply(init_weights_apply)
 
     def forward(self, features):
         outs = []

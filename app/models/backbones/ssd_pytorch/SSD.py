@@ -9,6 +9,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from utils import init_weights_apply
+
 from .ssd_layers import *
 
 import logging
@@ -35,10 +37,8 @@ class SSD(nn.Module):
         head: "multibox head" consists of loc and conf conv layers
     """
 
-    #def __init__(self, loss_net, phase, size, base, extras, head, num_classes, voc_cfg):
     def __init__(self, phase, size, base, extras, head, num_classes, voc_cfg):
         super(SSD, self).__init__()
-        #self.loss_net: LossNet = loss_net
         self.phase = phase
         self.num_classes = num_classes
         self.priorbox = PriorBox(voc_cfg)
@@ -53,16 +53,20 @@ class SSD(nn.Module):
 
         self.loc = nn.ModuleList(head[0])
         self.conf = nn.ModuleList(head[1])
+        
+        vgg_weights = torch.load('./vgg16_reducedfc.pth')
+        self.vgg.load_state_dict(vgg_weights)
+        self.extras.apply(init_weights_apply)
+        self.loc.apply(init_weights_apply)
+        self.conf.apply(init_weights_apply)
 
         if phase == 'test':
             self.softmax = nn.Softmax(dim=-1)
-            #self.detect = Detect(num_classes, 0, 200, 0.01, 0.45)
             self.detect = Detect()
             
     def change_phase(self):
         if self.phase == 'train':
             self.softmax = nn.Softmax(dim=-1)
-            #self.detect = Detect(num_classes, 0, 200, 0.01, 0.45)
             self.detect = Detect()
             self.phase = 'test'
         else:

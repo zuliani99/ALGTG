@@ -40,11 +40,17 @@ class Cls_TrainWorker():
         self.ll_loss_fn = LossPredLoss(self.device).to(self.device)
                 
         self.score_fn = accuracy_score
-        
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'        
         self.init_check_filename = f'{self.best_check_filename}/{self.model.module.name if self.world_size > 1 else self.model.name}_init.pth.tar'
-        logger.info(' => Loading Initial Checkpoint')
-        self.__load_checkpoint(self.init_check_filename)
+        self.check_best_path = f'{self.best_check_filename}/best_{self.strategy_name}_{self.device}.pth.tar'
+        
+        
+        if self.iter > 1: 
+            self.__load_checkpoint(self.check_best_path)
+            logger.info(' => Continuing Training the Best Model from the Previous Iteration')
+        else:
+            self.__load_checkpoint(self.init_check_filename)
+            logger.info(' => Loading Initial Checkpoint')
         logger.info(' DONE')
 
 
@@ -79,6 +85,7 @@ class Cls_TrainWorker():
             quantity_loss, mask = module_out
             labeled_loss = torch.mean(loss_ce[mask])
             loss = labeled_loss + quantity_loss
+            #logger.info(f' labeled_loss -> {labeled_loss.item()}\tquantity_loss -> {quantity_loss.item()}')
             
             tot_loss_ce += labeled_loss.item()
             tot_pred_loss += quantity_loss.item()
@@ -96,30 +103,25 @@ class Cls_TrainWorker():
         
     
     
-    
     def train(self) -> torch.Tensor:
                 
         weight = 1.
-        check_best_path = f'{self.best_check_filename}/best_{self.strategy_name}_{self.device}.pth.tar'
         results = torch.zeros((4, self.epochs), device=self.device)
-        
-        if self.iter > 1: self.__load_checkpoint(check_best_path)
             
         self.model.train()
         
         for epoch in range(self.epochs):
-            
+                        
             train_loss, train_loss_ce, train_loss_pred, train_accuracy = .0, .0, .0, .0
             
             if self.LL and epoch == 121: weight = 0
                         
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore            
                         
-            for _, images, labels in self.train_dl:                
-                
-                #images = images.to(self.device, non_blocking=True)
-                images = images.requires_grad_(True).to(self.device, non_blocking=True)
-                labels = labels.to(self.device, non_blocking=True).long()
+            for _, images, labels in self.train_dl:            
+                                
+                images = images.to(self.device, non_blocking=True)
+                labels = labels.to(self.device, non_blocking=True)
                     
                 self.optimizer.zero_grad()
                 
@@ -130,7 +132,7 @@ class Cls_TrainWorker():
                         tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred
                     )
                                 
-                loss.backward()# if module_out == None or len(module_out) == 1 else loss.backward(retain_graph=True)
+                loss.backward()
 
                 self.optimizer.step()
                 
@@ -159,11 +161,10 @@ class Cls_TrainWorker():
             #MultiStepLR
             self.lr_scheduler.step()
             
-            self.__save_checkpoint(check_best_path)
+            self.__save_checkpoint(self.check_best_path)
                 
         # load best checkpoint
-        self.__load_checkpoint(check_best_path)
-        #self.check_best_path = check_best_path
+        #self.__load_checkpoint(self.check_best_path)
         
         return results
 

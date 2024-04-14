@@ -8,6 +8,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Tuple
 
+from utils import init_weights_apply
+
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -49,6 +51,9 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
         self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
         self.linear = nn.Linear(512 * block.expansion, n_classes)
+        
+        self.apply(init_weights_apply)
+        
 
     def _make_layer(self, block: BasicBlock, planes: int, num_blocks: int, stride: int) -> nn.Sequential:
         strides = [stride] + [1]*(num_blocks-1)

@@ -37,9 +37,7 @@ class ActiveLearner():
         self.model = self.model.to(self.device)
         
         self.dataset: Cls_Datasets | Det_Dataset = self.ct_p['Dataset']
-        
-        self.best_check_filename: str = f'app/checkpoints/{self.ct_p['dataset_name']}'
-        
+                
         self.labeled_indices: List[int] = copy.deepcopy(self.dataset.labeled_indices)
         self.unlabeled_indices: List[int] = copy.deepcopy(self.dataset.unlabeled_indices)
 
@@ -51,6 +49,7 @@ class ActiveLearner():
         )
 
         self.strategy_name = f'{self.model.name}_{strategy_name}' # define strategy name    
+        self.best_check_filename: str = f'app/checkpoints/{self.ct_p['dataset_name']}/best_{self.strategy_name}'
         
         self.world_size: int = torch.cuda.device_count()
         
@@ -105,7 +104,7 @@ class ActiveLearner():
             else: device = 'cuda' 
         else: device = 'cpu'
 
-        checkpoint: Dict = torch.load(f'{self.best_check_filename}/best_{self.strategy_name}_{device}.pth.tar', map_location=self.device)
+        checkpoint: Dict = torch.load(f'{self.best_check_filename}_{device}.pth.tar', map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
         
         self.model.eval()
@@ -124,11 +123,13 @@ class ActiveLearner():
                     
                 # could be both LL (1 output) and GTG (2 outputs)
                 if 'module_out' in dict_to_modify:
-                    module_out = self.model(images.to(self.device), mode='module_out')
                     if self.model.added_module != None:
-                        if self.model.added_module.name == 'GTG':
+                        #if self.model.added_module.name == 'GTG':
+                        if self.model.added_module.__class__.__name__ == 'GTG_Module':
+                            module_out = self.model(images.to(self.device), labels.to(self.device), mode='module_out')
                             dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out[0].cpu().squeeze()), dim=0)
                         else:
+                            module_out = self.model(images.to(self.device), mode='module_out')
                             dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out.cpu().squeeze()), dim=0)
                     else:
                         raise AttributeError("Can't get the module_out if there is no additional module specified")    
