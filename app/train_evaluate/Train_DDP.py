@@ -1,4 +1,5 @@
 
+import copy
 import torch
 
 from torch.distributed import destroy_process_group, init_process_group
@@ -8,8 +9,8 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 
+from models.BBone_Module import Master_Model
 from utils import set_seeds
-from init import get_model
 from datasets_creation.Detection import detection_collate
 from .Workers.Cls_TrainWorker import Cls_TrainWorker
 from .Workers.Det_TrainWorker import Det_TrainWorker
@@ -44,14 +45,11 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     t_p = params['t_p']
     num_workers = int(os.environ['SLURM_CPUS_PER_TASK'])
     
-    moved_model = get_model(
-        image_size=ct_p['Dataset'].image_size, 
-        n_classes=ct_p['Dataset'].n_classes, 
-        n_channels=ct_p['Dataset'].n_channels, 
-        device=torch.device(params['ct_p']['device']), 
-        task=ct_p['task']
-    )
-    moved_model = DDP(moved_model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
+    # deep copy the model (it is in the RAM) and then move it to the realive gpu
+    moved_model: Master_Model = copy.deepcopy(ct_p['Master_Model']).to(rank)
+    if moved_model.module.name == 'GTG': moved_model.module.device = rank
+    
+    moved_model = DDP(moved_model, device_ids=[rank], output_device=rank, find_unused_parameters=True) # type: ignore
     ct_p['Model_train'] = moved_model
     
     dict_dl = dict(
@@ -131,13 +129,8 @@ def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
     ct_p = params['ct_p']
     t_p = params['t_p']
     
-    ct_p['Model_train'] = get_model(
-        image_size=ct_p['Dataset'].image_size, 
-        n_classes=ct_p['Dataset'].n_classes, 
-        n_channels=ct_p['Dataset'].n_channels, 
-        device=torch.device(params['ct_p']['device']), 
-        task=ct_p['task']
-    )
+    # deep copy the model (it is in the RAM) and then move it to the realive gpu
+    ct_p['Master_Model'] =  copy.deepcopy(ct_p['Master_Model']).to(params['ct_p']['device'])
     
     dict_dl = dict(batch_size=t_p['batch_size'], pin_memory=True)
     

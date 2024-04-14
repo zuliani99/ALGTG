@@ -9,8 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-#from app.utils import init_weights_apply
-from models.Lossnet import LossNet
+from utils import init_weights_apply
 
 from .ssd_layers import *
 
@@ -38,10 +37,8 @@ class SSD(nn.Module):
         head: "multibox head" consists of loc and conf conv layers
     """
 
-    #def __init__(self, loss_net, phase, size, base, extras, head, num_classes, voc_cfg):
     def __init__(self, phase, size, base, extras, head, num_classes, voc_cfg):
         super(SSD, self).__init__()
-        #self.loss_net: LossNet = loss_net
         self.phase = phase
         self.num_classes = num_classes
         self.priorbox = PriorBox(voc_cfg)
@@ -56,16 +53,20 @@ class SSD(nn.Module):
 
         self.loc = nn.ModuleList(head[0])
         self.conf = nn.ModuleList(head[1])
+        
+        vgg_weights = torch.load('./vgg16_reducedfc.pth')
+        self.vgg.load_state_dict(vgg_weights)
+        self.extras.apply(init_weights_apply)
+        self.loc.apply(init_weights_apply)
+        self.conf.apply(init_weights_apply)
 
         if phase == 'test':
             self.softmax = nn.Softmax(dim=-1)
-            #self.detect = Detect(num_classes, 0, 200, 0.01, 0.45)
             self.detect = Detect()
             
     def change_phase(self):
         if self.phase == 'train':
             self.softmax = nn.Softmax(dim=-1)
-            #self.detect = Detect(num_classes, 0, 200, 0.01, 0.45)
             self.detect = Detect()
             self.phase = 'test'
         else:
@@ -249,33 +250,3 @@ def build_ssd(phase, voc_cfg, size=300, num_classes=21) -> SSD:
                                      add_extras(extras[str(size)], 1024),
                                      mbox[str(size)], num_classes)
     return SSD(phase, size, base_, extras_, head_, num_classes, voc_cfg)
-
-
-
-class SSD_LL(nn.Module):
-    def __init__(self, phase, voc_config, num_classes=21, ln_p=None) -> None:
-        super(SSD_LL, self).__init__()
-        self.loss_net = LossNet(ln_p)
-        self.backbone = build_ssd(phase, voc_config, num_classes=num_classes)
-        vgg_weights = torch.load('app/models/ssd_pytorch/vgg16_reducedfc.pth')
-        self.backbone.vgg.load_state_dict(vgg_weights)
-        
-
-        
-    def forward(self, x, mode='all'):
-        if mode == 'all':
-            outs, embedds = self.backbone(x)
-            pred_loss = self.loss_net(self.backbone.get_features())
-            return outs, embedds, pred_loss
-        elif mode == 'probs':
-            outs, _ = self.backbone(x)
-            return outs
-        elif mode == 'embedds':
-            _, embedds = self.backbone(x)
-            return embedds
-        elif mode == 'pred_loss':
-            _, _ = self.backbone(x)
-            return self.loss_net(self.backbone.get_features())
-        else: 
-            raise AttributeError('You have specified wrong output to return for SSD_LL')
-

@@ -12,10 +12,9 @@ logger = logging.getLogger(__name__)
 
 class LearningLoss(ActiveLearner):
     
-    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], LL = False) -> None:
-        self.method_name = self.__class__.__name__
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], LL = True) -> None:
         
-        super().__init__(ct_p, t_p, al_p, LL)
+        super().__init__(ct_p, t_p, al_p, self.__class__.__name__, LL)
                 
                 
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
@@ -26,13 +25,13 @@ class LearningLoss(ActiveLearner):
                 
         logger.info(' => Evaluating unlabeled observations')
         embeds_dict = {
-            'pred_loss': torch.empty(0, dtype=torch.float32),
+            'module_out': torch.empty(0, dtype=torch.float32),
             'idxs': torch.empty(0, dtype=torch.int8)
         }
         self.get_embeddings(self.unlab_train_dl, embeds_dict)
         
         logger.info(f' => Extracting the Top-k unlabeled observations')
-        overall_topk = torch.topk(embeds_dict['pred_loss'], n_top_k_obs)
+        overall_topk = torch.topk(embeds_dict['module_out'], n_top_k_obs)
         logger.info(' DONE\n')
         
         return overall_topk.indices.tolist(), [int(embeds_dict['idxs'][id].item()) for id in overall_topk.indices.tolist()]

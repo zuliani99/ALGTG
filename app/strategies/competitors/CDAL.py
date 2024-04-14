@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 class CDAL(ActiveLearner):
     
     def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], LL=False) -> None:
-        self.method_name = self.__class__.__name__
+        self.strategy_name = self.__class__.__name__
         
-        super().__init__(ct_p, t_p, al_p, LL)
+        super().__init__(ct_p, t_p, al_p, self.__class__.__name__, LL)
         
 
 

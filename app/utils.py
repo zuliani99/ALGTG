@@ -78,7 +78,7 @@ def plot_loss_curves(methods_results: Dict[str, Dict[str, List[float]]], n_lab_o
     
     
     
-def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any], method_name: str, \
+def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any], strategy_name: str, \
                           ts_dir: str, dataset_name: str, al_iter: int, cicle_iter: int) -> None:
     #, flag_LL: bool) -> None:
 
@@ -93,19 +93,19 @@ def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any
         ax[pos1][pos2].plot(epochs, results_info[train_mes], label = train_mes)
         #if not (pos1 == 0 and pos2 == 0): ax[pos1][pos2].set_ylim([0, 5])
             
-        ax[pos1][pos2].set_title(f'{train_mes} - Epochs')
-        ax[pos1][pos2].set_xlabel('Epochs')
-        ax[pos1][pos2].set_ylabel(train_mes)
+        ax[pos1][pos2].set_title(f'{train_mes} - Epochs', fontsize = 15)
+        ax[pos1][pos2].set_xlabel('Epochs', fontsize = 10)
+        ax[pos1][pos2].set_ylabel(train_mes, fontsize = 10)
         ax[pos1][pos2].grid()
         ax[pos1][pos2].legend()
         
 
-    plt.suptitle(f'Iteration: {al_iter} - {method_name}', fontsize = 30)
-    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{method_name}/train_val_plots/{al_iter}.png')
+    plt.suptitle(f'Iteration: {al_iter} - {strategy_name}', fontsize = 30)
+    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{strategy_name}/train_val_plots/{al_iter}.png')
 
 
 
-def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results: Dict[str, Any], method_name: str,\
+def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results: Dict[str, Any], strategy_name: str,\
                                    epochs: int, ts_dir: str, dataset_name: str, cicle_iter: int):#, flag_LL: bool):
 
     #if flag_LL:
@@ -113,19 +113,21 @@ def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results:
         
     data = zip([(0,0), (0,1), (1,0), (1,1)], list_dict_keys)
     x = range(1, epochs + 1)
+    shapes = ['o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v']
         
     for (pos1, pos2), train_mes in data:
-        for iter, results_info in cum_train_results.items():
-            ax[pos1][pos2].plot(x, results_info[train_mes], label = f'{train_mes}_{iter}')                
-        ax[pos1][pos2].set_title(f'{train_mes} - Epochs')
-        ax[pos1][pos2].set_xlabel('Epochs')
-        ax[pos1][pos2].set_ylabel(train_mes)
+        for idx_shape, (iter, results_info) in enumerate(cum_train_results.items()):
+            ax[pos1][pos2].plot(x, results_info[train_mes], label = f'{train_mes}_{iter}')
+            ax[pos1][pos2].scatter(x, results_info[train_mes], marker=shapes[idx_shape])
+        ax[pos1][pos2].set_title(f'{train_mes} - Epochs', fontsize = 15)
+        ax[pos1][pos2].set_xlabel('Epochs', fontsize = 10)
+        ax[pos1][pos2].set_ylabel(train_mes, fontsize = 10)
         ax[pos1][pos2].grid()
         ax[pos1][pos2].legend()
 
 
-    plt.suptitle(f'Cumulative Train Results - {method_name}', fontsize = 30)
-    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{method_name}/train_val_plots/cumulative_train_results.png')
+    plt.suptitle(f'Cumulative Train Results - {strategy_name}', fontsize = 30)
+    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{strategy_name}/train_val_plots/cumulative_train_results.png')
 
 
 
@@ -397,7 +399,7 @@ def init_weights_apply(m: torch.nn.Module) -> None:
     elif isinstance(m, nn.Linear):
         init.normal_(m.weight, std=1e-3)
         if m.bias is not None: init.constant_(m.bias, 0)
-    elif isinstance(m, nn.BatchNorm2d):
+    elif isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.BatchNorm1d):
         init.constant_(m.weight, 1)
         init.constant_(m.bias, 0)
     

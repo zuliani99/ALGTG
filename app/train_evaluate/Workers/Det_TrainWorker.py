@@ -2,19 +2,22 @@
 import pickle
 import torch
 
-from models.Lossnet import LossPredLoss
-from models.ssd_pytorch.SSD import SSD_LL
-from models.ssd_pytorch.detect_eval import do_python_eval, write_voc_results_file
-from models.ssd_pytorch.ssd_layers.modules.multibox_loss import MultiBoxLoss
+from torch.nn.parallel import DistributedDataParallel as DDP
+
+from models.backbones.ssd_pytorch.detect_eval import do_python_eval, write_voc_results_file
+from models.backbones.ssd_pytorch.ssd_layers.modules.multibox_loss import MultiBoxLoss
+from models.modules.LossNet import LossPredLoss
+from models.BBone_Module import Master_Model
+
 
 from datasets_creation.Detection import Det_Dataset
 from torch.utils.data import DataLoader
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 import os
 import numpy as np
 
-from utils import create_directory, cycle, init_weights_apply
+from utils import create_directory, cycle
 
 import logging
 logger = logging.getLogger(__name__)
@@ -33,20 +36,27 @@ class Det_TrainWorker():
         self.world_size: int = world_size
         self.wandb_run = params['wandb_p'] if 'wandb_p' in params else None
         
-        self.model: SSD_LL = params['ct_p']['Model_train']
+        self.model: Master_Model | DDP = params['ct_p']['Master_Model']
         
-        self.method_name: str = params['method_name']
+        self.strategy_name: str = params['strategy_name']
         
         self.train_dl: DataLoader = params['train_dl']
         self.test_dl: DataLoader = params['test_dl']
-
-        self.loss_fn = dict(
-            backbone = MultiBoxLoss(self.dataset.n_classes, 0.5, True, 0, True, 3, 0.5, False, self.device),
-            module = LossPredLoss(self.device).to(self.device)
-        )
+        
+        self.backbone_loss_fn = MultiBoxLoss(self.dataset.n_classes, 0.5, True, 0, True, 3, 0.5, False, self.device)
+        self.ll_loss_fn = LossPredLoss(self.device).to(self.device)
 
         self.best_check_filename = f'app/checkpoints/{self.ct_p['dataset_name']}'
-        self.init_check_filename = f'{self.best_check_filename}_init.pth.tar'
+        self.init_check_filename = f'{self.best_check_filename}/{self.model.module.name if self.world_size > 1 else self.model.name}_init.pth.tar'
+        self.check_best_path = f'{self.best_check_filename}/best_{self.strategy_name}_{self.device}.pth.tar'
+        
+        if self.iter > 1: 
+            self.__load_checkpoint(self.check_best_path)
+            logger.info(' => Continuing Training the Best Model from the Previous Iteration')
+        else:
+            self.__load_checkpoint(self.init_check_filename)
+            logger.info(' => Loading Initial Checkpoint')
+        logger.info(' DONE')
         
         # set device for priors
         if self.world_size > 1: self.model.module.backbone.set_device_priors(self.device) 
@@ -69,6 +79,30 @@ class Det_TrainWorker():
         checkpoint = torch.load(filename, map_location=self.device)
         self.model.module.load_state_dict(checkpoint['state_dict']) if self.world_size > 1 else self.model.load_state_dict(checkpoint['state_dict'])
         self.init_opt_sched()
+        
+        
+    def compute_losses(self, module_out: torch.Tensor, outputs: torch.Tensor, \
+                       labels: List[torch.Tensor]) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
+                
+        loss_l, loss_c, N = self.backbone_loss_fn(outputs, labels)
+        target_loss = loss_l + loss_c
+        original_loss = (loss_l + loss_c).sum() / N
+        loss_l = torch.mean(loss_l)
+        loss_c = torch.mean(loss_c)
+        
+        if module_out == None:
+            return original_loss, (loss_l, loss_c), torch.tensor(0.)
+        
+        elif len(module_out) == 2:
+            quantity_loss, mask = module_out
+            loss = target_loss * mask + quantity_loss
+
+            return loss, (loss_l, loss_c), quantity_loss
+        else:
+            pred_loss = self.ll_loss_fn(module_out, target_loss)
+            loss = original_loss + pred_loss
+                
+            return loss, (loss_l, loss_c), pred_loss
 
     
 
@@ -83,10 +117,8 @@ class Det_TrainWorker():
         
         epoch, step_index = 0, 0
                 
-        check_best_path = f'{self.best_check_filename}/best_{self.method_name}_{self.device}.pth.tar'
         results = torch.zeros((4, self.t_p['epochs']), device=self.device)
         
-        if self.iter > 1: self.__load_checkpoint(check_best_path)
         if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore
         
         batch_iterator = iter(cycle(self.train_dl))
@@ -95,7 +127,7 @@ class Det_TrainWorker():
             # reset epoch loss counters
             if iteration != 0 and (iteration % self.epoch_size == 0):
                 
-                self.__save_checkpoint(check_best_path)
+                self.__save_checkpoint(self.check_best_path)
                 self.scheduler.step()
                     
                 logger.info(f'GPU: {self.device} ||| Epoch {epoch} | Iteration {iteration} -> train_loss: {train_loss / self.epoch_size}\tloc_loss: {loc_loss \
@@ -115,20 +147,19 @@ class Det_TrainWorker():
                 step_index += 1
                 self.adjust_learning_rate(step_index)
 
-            _, images, targets = next(batch_iterator)
+            _, images, labels = next(batch_iterator)
             
             images = images.requires_grad_(True).to(self.device, non_blocking=True)
-            targets = [ann.to(self.device, non_blocking=True) for ann in targets]
+            labels = [ann.to(self.device, non_blocking=True) for ann in labels]
             
             self.optimizer.zero_grad()
             
-            outputs, _, pred_loss = self.model(images)
+            outputs, _, module_out = self.model(images, labels)
             
-            loss_l, loss_c, N = self.loss_fn['backbone'](outputs, targets)
-            loss_original = (loss_l + loss_c).sum() / N
-            
-            module_loss = self.loss_fn['module'](pred_loss, loss_l + loss_c) if self.LL else torch.tensor(0)
-            loss = loss_original + module_loss
+            loss, (loss_l, loss_c), module_loss = self.compute_losses(
+                module_out=module_out, outputs=outputs, labels=labels
+            )
+
             loss.backward()
             
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1., norm_type=2)
@@ -137,19 +168,18 @@ class Det_TrainWorker():
 
             train_loss += loss.item()
             train_pred_loss += module_loss.item()
-            loc_loss += loss_l.mean().item()
-            conf_loss += loss_c.mean().item()
+            loc_loss += loss_l.item()
+            conf_loss += loss_c.item()
             
             if self.wandb_run != None:
                 self.wandb_run.log({
                     "train_loss": loss.item(),
-                    "target_loss": loss_original.item(),
                     "loc_loss": loss_l.mean().item(),
                     "conf_loss": loss_c.mean().item(),
                     "train_pred_loss": module_loss.item(),
                 })
             
-        self.__load_checkpoint(check_best_path)
+        self.__load_checkpoint(self.check_best_path)
 
         return results
 
@@ -167,7 +197,7 @@ class Det_TrainWorker():
         
         # all detections are collected into:
         all_boxes: List[List[np.ndarray | None]] = [[ None for _ in range(num_images)] for _ in range(self.dataset.n_classes)]
-        output_dir = f'results/{self.ct_p['timestamp']}/{self.ct_p['dataset_name']}/{self.ct_p['trial']}/{self.method_name}/test'
+        output_dir = f'results/{self.ct_p['timestamp']}/{self.ct_p['dataset_name']}/{self.ct_p['trial']}/{self.strategy_name}/test'
         create_directory(output_dir)        
         det_file = os.path.join(output_dir, f'detections_{self.device}.pkl')
         
@@ -176,7 +206,7 @@ class Det_TrainWorker():
             for i in range(num_images):
                 im, _, h, w = self.test_dl.dataset.pull_item(i) # type: ignore
                 x = im.unsqueeze(0).to(self.device, non_blocking=True)
-                detection, _, _ = self.model(x)
+                detection, _, _ = self.model(x, None) ############################## -> None as labels 
                 
                 # skip j = 0, because it's the background class
                 for j in range(1, detection.size(1)):

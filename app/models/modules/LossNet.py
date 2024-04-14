@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
+from utils import init_weights_apply
 
 import logging
 logger = logging.getLogger(__name__)
@@ -36,19 +37,20 @@ class LossPredLoss(nn.Module):
         
         loss = F.margin_ranking_loss(pred_lossi, pred_lossj, final_target, margin=self.margin)
                         
-        return 2 * loss        
+        return 2 * loss
+        
     
 
 
 # Loss Prediction Network
 class LossNet(nn.Module):
-    def __init__(self, dict_params = {}):
+    def __init__(self, LL_params):
         super(LossNet, self).__init__()
 
-        feature_sizes = dict_params['feature_sizes'] if 'feature_sizes' in dict_params else [32, 16, 8, 4] 
-        num_channels = dict_params['num_channels'] if 'num_channels' in dict_params else [64, 128, 256, 512]
-        interm_dim = dict_params['interm_dim'] if 'interm_dim' in dict_params else 128
-        task = dict_params['task'] if 'task' in dict_params else 'clf'
+        feature_sizes = LL_params['feature_sizes']# if 'feature_sizes' in dict_params else [32, 16, 8, 4] 
+        num_channels = LL_params['num_channels']# if 'num_channels' in dict_params else [64, 128, 256, 512]
+        interm_dim = LL_params['interm_dim']# if 'interm_dim' in dict_params else 128
+        task = LL_params['task']# if 'task' in dict_params else 'clf'
         
         self.GAP = []
         for feature_size in feature_sizes:
@@ -62,6 +64,8 @@ class LossNet(nn.Module):
         self.FC = nn.ModuleList(self.FC)
 
         self.linear = nn.Linear(len(num_channels) * interm_dim, 1)
+        
+        self.apply(init_weights_apply)
 
     def forward(self, features):
         outs = []
@@ -73,4 +77,4 @@ class LossNet(nn.Module):
 
         out = self.linear(torch.cat(outs, 1))
         return out
-     
+        

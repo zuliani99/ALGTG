@@ -7,10 +7,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Tuple
-#from app.utils import init_weights_apply
-from models.Lossnet import LossNet 
 
-
+from utils import init_weights_apply
 
 
 class BasicBlock(nn.Module):
@@ -53,6 +51,9 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
         self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
         self.linear = nn.Linear(512 * block.expansion, n_classes)
+        
+        self.apply(init_weights_apply)
+        
 
     def _make_layer(self, block: BasicBlock, planes: int, num_blocks: int, stride: int) -> nn.Sequential:
         strides = [stride] + [1]*(num_blocks-1)
@@ -89,31 +90,3 @@ class ResNet(nn.Module):
     
 def ResNet18(image_size: int, n_classes=10, n_channels=3) -> ResNet:
     return ResNet(image_size, BasicBlock, [2,2,2,2], n_channels, n_classes) # type: ignore
-
-
-
-class ResNet_LL(nn.Module):
-    def __init__(self, image_size: int, n_classes=10,  n_channels=3) -> None:
-        super(ResNet_LL, self).__init__()
-        self.loss_net = LossNet()
-        self.backbone = ResNet18(image_size, n_classes=n_classes, n_channels=n_channels)
-        
-        
-    def forward(self, x, mode='all'):
-        if mode == 'all':
-            outs, embedds = self.backbone(x)
-            pred_loss = self.loss_net(self.backbone.get_features())
-            return outs, embedds, pred_loss
-        elif mode == 'probs':
-            outs, _ = self.backbone(x)
-            return outs
-        elif mode == 'embedds':
-            _, embedds = self.backbone(x)
-            return embedds
-        elif mode == 'pred_loss':
-            _, _ = self.backbone(x)
-            return self.loss_net(self.backbone.get_features())
-        else: 
-            raise AttributeError('You have specified wrong output to return for ResNet_LL')
-
-            

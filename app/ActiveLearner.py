@@ -1,10 +1,9 @@
 
 import wandb
 
-from models.ResNet18 import ResNet_LL
+from models.BBone_Module import Master_Model
 from datasets_creation.Classification import Cls_Datasets
 from datasets_creation.Detection import Det_Dataset
-from models.ssd_pytorch.SSD import SSD_LL
 from train_evaluate.Train_DDP import train, train_ddp
 from utils import count_class_observation, print_cumulative_train_results, set_seeds,\
     create_class_dir, create_method_res_dir, plot_new_labeled_tsne, save_train_val_curves, write_csv
@@ -24,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class ActiveLearner():
-    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], LL) -> None:
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], strategy_name: str, LL: bool) -> None:
         
         self.LL = LL
         self.iter = 1
@@ -33,13 +32,12 @@ class ActiveLearner():
         self.ct_p: Dict[str, Any] = ct_p
         self.t_p: Dict[str, Any] = t_p
         
-        self.model: SSD_LL | ResNet_LL = self.ct_p['Model']
         self.device: torch.device = self.ct_p['device']
+        self.model: Master_Model = self.ct_p['Master_Model']
+        self.model = self.model.to(self.device)
         
         self.dataset: Cls_Datasets | Det_Dataset = self.ct_p['Dataset']
-        
-        self.best_check_filename: str = f'app/checkpoints/{self.ct_p['dataset_name']}'
-        
+                
         self.labeled_indices: List[int] = copy.deepcopy(self.dataset.labeled_indices)
         self.unlabeled_indices: List[int] = copy.deepcopy(self.dataset.unlabeled_indices)
 
@@ -49,10 +47,13 @@ class ActiveLearner():
         self.lab_train_dl = DataLoader(
             self.labeled_subset, batch_size=self.t_p['batch_size'], shuffle=False, pin_memory=True
         )
+
+        self.strategy_name = f'{self.model.name}_{strategy_name}' # define strategy name    
+        self.best_check_filename: str = f'app/checkpoints/{self.ct_p['dataset_name']}/best_{self.strategy_name}'
         
         self.world_size: int = torch.cuda.device_count()
         
-        self.path = f'results/{self.ct_p['timestamp']}/{self.ct_p['dataset_name']}/{self.ct_p['trial']}/{self.method_name}'
+        self.path = f'results/{self.ct_p['timestamp']}/{self.ct_p['dataset_name']}/{self.ct_p['trial']}/{self.strategy_name}'
         create_method_res_dir(self.path)
         
         # save initial labeled images
@@ -62,7 +63,7 @@ class ActiveLearner():
         
     
     def save_labeled_images(self, new_labeled_idxs: List[int]) -> None:
-        logger.info(f' => Iteration {self.iter} Method {self.method_name} - Saving the new labeled images for further visual analysis...')
+        logger.info(f' => Iteration {self.iter} Method {self.strategy_name} - Saving the new labeled images for further visual analysis...')
         create_class_dir(self.path, self.iter, self.dataset.classes)
         for idx, img, gt in Subset(self.dataset.non_transformed_trainset, new_labeled_idxs):
             if self.ct_p['task'] != 'clf': 
@@ -96,7 +97,6 @@ class ActiveLearner():
             return Subset(self.dataset.non_transformed_trainset, self.unlabeled_indices)
     
     
-    #TODO: CHANGE THIS FUNCTION ONCE WE ARE IN DECTECTION TASK
     def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, Any]) -> None:
         
         if dist.is_available():
@@ -104,7 +104,7 @@ class ActiveLearner():
             else: device = 'cuda' 
         else: device = 'cpu'
 
-        checkpoint: Dict = torch.load(f'{self.best_check_filename}/best_{self.method_name}_{device}.pth.tar', map_location=self.device)
+        checkpoint: Dict = torch.load(f'{self.best_check_filename}_{device}.pth.tar', map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
         
         self.model.eval()
@@ -121,15 +121,18 @@ class ActiveLearner():
                     outs = self.model(images.to(self.device), mode='probs')
                     dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], outs.squeeze().cpu()), dim=0)
                     
-                if 'pred_loss' in dict_to_modify:
-                    pred_loss = self.model(images.to(self.device), mode='pred_loss')
-                    dict_to_modify['pred_loss'] = torch.cat((dict_to_modify['pred_loss'], pred_loss.squeeze().cpu()), dim=0)
-                    
-                if 'pred_gtg' in dict_to_modify:
-                    pred_gtg = self.model(images.to(self.device), mode='pred_gtg')
-                    dict_to_modify['pred_loss'] = torch.cat((dict_to_modify['pred_gtg'], pred_gtg.squeeze().cpu()), dim=0)
-
-                    
+                # could be both LL (1 output) and GTG (2 outputs)
+                if 'module_out' in dict_to_modify:
+                    if self.model.added_module != None:
+                        if self.model.added_module.__class__.__name__ == 'GTG_Module':
+                            module_out = self.model(images.to(self.device), labels.to(self.device), mode='module_out')
+                            dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out[0].cpu().squeeze()), dim=0)
+                        else:
+                            module_out = self.model(images.to(self.device), mode='module_out')
+                            dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out.cpu().squeeze()), dim=0)
+                    else:
+                        raise AttributeError("Can't get the module_out if there is no additional module specified")    
+                                        
                 if 'labels' in dict_to_modify:
                     dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)
                 if 'idxs' in dict_to_modify:
@@ -138,7 +141,6 @@ class ActiveLearner():
     
     
     
-    #TODO: CHANGE THIS FUNCTION ONCE WE ARE IN DECTECTION TASK
     def save_tsne(self, samp_unlab_subset: Subset, idxs_new_labels: List[int], \
                   d_labels: Dict[str, int], al_iter: str, gtg_result_prediction = None) -> None:
         # plot the tsne graph for each iteration
@@ -167,7 +169,7 @@ class ActiveLearner():
         logger.info(' Plotting...')
         plot_new_labeled_tsne(
             lab_embedds_dict, unlab_embedds_dict,
-            al_iter, self.method_name,
+            al_iter, self.strategy_name,
             self.ct_p['dataset_name'], idxs_new_labels, self.dataset.classes, 
             self.ct_p['timestamp'], self.ct_p['trial'], d_labels,
             gtg_result_prediction
@@ -186,12 +188,12 @@ class ActiveLearner():
         test_res_keys = list(results_format['test'].keys())
         train_res_keys = list(results_format['train'].keys())
         
-        params = { 'ct_p': self.ct_p, 't_p': self.t_p, 'method_name': self.method_name, 'iter': iter, 'LL': self.LL, 'labeled_subset': self.labeled_subset}
+        params = { 'ct_p': self.ct_p, 't_p': self.t_p, 'strategy_name': self.strategy_name, 'iter': iter, 'LL': self.LL, 'labeled_subset': self.labeled_subset }
         
         # wandb dictionary hyperparameters
-        hps = dict( **self.ct_p, **self.t_p, **self.al_p, method_name=self.method_name, iter=iter, LL=self.LL)
+        hps = dict( **self.ct_p, **self.t_p, **self.al_p, strategy_name=self.strategy_name, iter=iter, LL=self.LL)
         del hps['Dataset']
-        hps['Model'] = hps['Model'].__class__.__name__
+        hps['Master_Model'] = hps['Master_Model'].__class__.__name__
         
         
         # if we are using multiple gpus
@@ -215,7 +217,7 @@ class ActiveLearner():
         else:
             logger.info(' => RUNNING TRAINING')
             # add the already created labeeld train dataloader
-            
+                        
             if (self.ct_p['wandb_logs']):
                 logger.info(' => Logging in WandB!!!')
                 params['wandb_p'] = wandb.init(project="AL_GTG", config=hps)
@@ -240,10 +242,10 @@ class ActiveLearner():
             ts_dir = self.ct_p['timestamp'],
             dataset_name = self.ct_p['dataset_name'],
             head = ['method', 'iter', 'lab_obs'] + test_res_keys,
-            values = [self.method_name, self.ct_p['trial'], lab_obs] + list(iter_test_results.values())
+            values = [self.strategy_name, self.ct_p['trial'], lab_obs] + list(iter_test_results.values())
         )
         
-        save_train_val_curves(list(self.t_p['results_dict']['train'].keys()), iter_train_results, self.method_name,
+        save_train_val_curves(list(self.t_p['results_dict']['train'].keys()), iter_train_results, self.strategy_name,
                               self.ct_p['timestamp'], self.ct_p['dataset_name'], iter, self.ct_p['trial'])
 
         return iter_train_results
@@ -305,15 +307,15 @@ class ActiveLearner():
             logger.info(' START QUERY PROCESS\n')
             
             # run method query strategy
-            idxs_new_labels, topk_idx_obs = self.query(samp_unlab_subset, self.al_p['n_top_k_obs'])
+            idxs_new_labels, topk_idx_obs = self.query(samp_unlab_subset, self.al_p['n_top_k_obs']) # type: ignore
             
             d_labels = count_class_observation(self.dataset.classes, self.dataset.transformed_trainset, topk_idx_obs)
             logger.info(f' Number of observations per class added to the labeled set:\n {d_labels}\n')
             
             # Saving the tsne embeddings plot
-            if self.method_name.split('_')[0] == 'GTG':
+            if self.strategy_name.split('_')[0] == 'GTG':
                 # if we are performing GTG plot also the GTG predictions in the TSNE plot 
-                self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction)
+                self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction) # type: ignore
             
             else: self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter))
 
@@ -327,7 +329,7 @@ class ActiveLearner():
         
         # plotting the cumulative train results
         print_cumulative_train_results(list(self.t_p['results_dict']['train'].keys()), 
-                                       self.train_results, self.method_name, epochs,
+                                       self.train_results, self.strategy_name, epochs,
                                        self.ct_p['timestamp'], self.ct_p['dataset_name'], 
                                        self.ct_p['trial'])
         
