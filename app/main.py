@@ -11,7 +11,6 @@ from init import get_backbone, get_dataset, get_ll_module_params, get_module
 from utils import create_directory, create_ts_dir, plot_loss_curves, \
     plot_res_std_mean, set_seeds, Entropy_Strategy as ES
 
-from strategies.baselines.LearningLoss import LearningLoss
 from strategies.baselines.Random import Random
 from strategies.baselines.Entropy import Entropy
 from strategies.baselines.LearningLoss import LearningLoss
