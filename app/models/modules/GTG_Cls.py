@@ -262,7 +262,7 @@ class GTG_Module(nn.Module):
         y_pred = self.mlp(embedds).squeeze()
         
         if self.phase == 'train':
-            #y_true, mask = self.preprocess_inputs(embedds.detach().clone(), labels)
+
             y_true, mask = self.preprocess_inputs(embedds, labels)
             
             return self.mse_loss(y_pred, y_true), mask if mask == None else mask.bool()

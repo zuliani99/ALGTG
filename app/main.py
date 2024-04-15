@@ -43,7 +43,7 @@ def get_args() -> argparse.Namespace:
             'll', 'gtg_ll', 'lq_gtg'
         ],
         required=True, help='Possible methods to choose')
-    parser.add_argument('-ds', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'fmnist', 'tinyimagenet', 'voc', 'coco'],
+    parser.add_argument('-ds', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'svhn', 'tinyimagenet', 'voc', 'coco'],
                         required=True, help='Possible datasets to choose')
     parser.add_argument('-tr', '--trials', type=int, nargs=1, required=True, help='Number or trials of AL benchmark for each dataset')
     parser.add_argument('-s', '--strategy', type=str, nargs=1, choices=['uncertanity', 'diversity', 'mixed'], 
@@ -103,7 +103,9 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
     # different gtg configurations that we want to test
     list_gtg_p = [
         {**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN},
-        {**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT}
+        {**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT},
+        {**gtg_p, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN},
+        {**gtg_p, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT}
     ]
     
     # get the strategis object to run them
@@ -193,7 +195,7 @@ def main() -> None:
         
     for dataset_name in choosen_datasets:
         
-        if dataset_name in ['cifar10', 'cifar100', 'fmnist', 'tinyimagenet']: task = 'clf'
+        if dataset_name in ['cifar10', 'cifar100', 'svhn', 'tinyimagenet']: task = 'clf'
         else: task = 'detection'
         
         task_params = cls_config if task == 'clf' else det_config
