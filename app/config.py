@@ -137,8 +137,8 @@ al_params = {
     
 
 cls_config = {
-    'epochs': 50,#200,
-    'batch_size': 128,
+    'epochs': 200,
+    'batch_size': 1000,#128,
     'results_dict': { 'train': {'train_accuracy': [], 'train_loss': [], 'train_loss_ce': [], 'train_pred_loss': []},
                      'test': {'test_accuracy': [], 'test_loss': [], 'test_loss_ce': [], 'test_pred_loss': []}},
     'ds_params': {

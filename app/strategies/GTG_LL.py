@@ -65,11 +65,9 @@ class GTG_LL(ActiveLearner):
         
         # remove weak connections with the choosen threshold strategy and value
         logger.info(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
-        A = torch.where(
-            A < self.get_A_treshold(A) if self.A_function != 'e_d' else A > self.get_A_treshold(A),
-            0 if self.A_function != 'e_d' else 1, A
-        )
-        
+        if self.A_function != 'e_d': A = torch.where(A < self.get_A_treshold(A), 0, A)
+        else: A = torch.where(A > self.get_A_treshold(A), 1, A)
+
         
         if self.strategy_type == 'diversity':
             # set the whole matrix as a distance matrix and not similarity matrix

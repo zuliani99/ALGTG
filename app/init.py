@@ -8,7 +8,7 @@ from datasets_creation.Classification import Cls_Datasets
 from datasets_creation.Detection import Det_Dataset
 
 from config import voc_config
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 
 
 def get_dataset(task, dataset_name: str, init_lab_obs: int) -> Cls_Datasets | Det_Dataset:
@@ -21,7 +21,7 @@ def get_backbone(image_size: int, n_classes: int, n_channels: int, task: str) ->
     else: return build_ssd('train', voc_config, num_classes=n_classes)
     
 
-def get_module(module: str, module_params: Dict[str, Any]) -> LossNet | GTG_Module:
+def get_module(module: str, module_params: Dict[str, Any] | Tuple[Dict[str, Any], Dict[str, Any]]) -> LossNet | GTG_Module:
     if module == 'LL': return LossNet(module_params)
     else: return GTG_Module(module_params)
 

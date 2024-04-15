@@ -42,9 +42,9 @@ class ResNet(nn.Module):
     def __init__(self, image_size: int, block: BasicBlock, num_blocks: List[int], n_channels=3, n_classes=10) -> None:
         super(ResNet, self).__init__()
         self.in_planes = 64
-        self.image_size = image_size
 
-        self.conv1 = nn.Conv2d(n_channels, 64, kernel_size=3, stride=1, padding=1, bias=False)
+                                                # with so we can take tinyimagenet images in input
+        self.conv1 = nn.Conv2d(n_channels, 64, kernel_size=3, stride=image_size//32, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
@@ -71,7 +71,7 @@ class ResNet(nn.Module):
         out3 = self.layer3(out2)
         out4 = self.layer4(out3)
 
-        out = F.avg_pool2d(out4, int(self.image_size / 8))
+        out = F.avg_pool2d(out4, 4)
         embedds = out.view(out.size(0), -1)
         out = self.linear(embedds)
 
@@ -79,6 +79,8 @@ class ResNet(nn.Module):
         
         return out, embedds
     
+    def get_rich_features_shape(self) -> List[int]:
+        return [64, 128, 256, 512]
     
     def get_features(self) -> List[torch.Tensor]:
         return self.features

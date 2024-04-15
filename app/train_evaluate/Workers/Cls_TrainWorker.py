@@ -133,6 +133,10 @@ class Cls_TrainWorker():
                     )
                                 
                 loss.backward()
+                
+                ### GRADIENT CLIPPING
+                if self.model.added_module != None and self.model.added_module.__class__.__name__ == 'GTG_Module':
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1., norm_type=2)
 
                 self.optimizer.step()
                 

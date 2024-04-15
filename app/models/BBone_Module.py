@@ -35,15 +35,16 @@ class Master_Model(nn.Module):
             assert not torch.any(torch.isnan(embedds)), 'embedding is nan'
             assert torch.std(embedds) > 0, 'std is zero or negative'
             
+            # module out is:
+            # LL -> loss
+            # GTG -> loss, mask
+            
             if self.added_module != None:
                 if self.added_module.__class__.__name__ == 'GTG_Module':
                     self.added_module.change_pahse('train')
-                    module_out = self.added_module(embedds, labels) # intially we take take only the embeddinfg as the last layer before the classification one
+                    module_out = self.added_module(self.backbone.get_features(), embedds, labels)
                 else:
                     module_out = self.added_module(self.backbone.get_features())
-                # module out is:
-                # LL -> loss
-                # GTG -> loss, mask
                 return outs, embedds, module_out
             else:
                 return outs, embedds, None

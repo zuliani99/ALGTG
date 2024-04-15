@@ -104,8 +104,8 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
     list_gtg_p = [
         {**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN},
         {**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT},
-        {**gtg_p, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN},
-        {**gtg_p, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT}
+        #{**gtg_p, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN},
+        #{**gtg_p, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT}
     ]
     
     # get the strategis object to run them
@@ -130,7 +130,7 @@ def get_masters(methods: List[str], BBone: ResNet | SSD,
             LL_Mod = get_module('LL', ll_module_params)
             ll = True
         elif method_module == 'gtg':
-            GTG_Mod = get_module('GTG', gtg_module_params)
+            GTG_Mod = get_module('GTG', (gtg_module_params, ll_module_params))
         elif not only_bb:
             M_None = Master_Model(BBone, None, dataset_name)
             only_bb = True
@@ -217,7 +217,7 @@ def main() -> None:
                 **gtg_params, n_top_k_obs = al_params['n_top_k_obs'], 
                 n_classes = Dataset.n_classes, 
                 init_lab_obs = al_params['init_lab_obs'], 
-                embedding_dim = BBone.get_embedding_dim(),
+                embedding_dim = BBone.get_rich_features_shape(),#BBone.get_embedding_dim(),
                 device = device, 
             )
             # create learnin loss dictionary parameters

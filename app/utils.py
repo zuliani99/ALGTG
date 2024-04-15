@@ -32,7 +32,9 @@ def accuracy_score(outputs: torch.Tensor, labels: torch.Tensor) -> float:
 
 def entropy(tensor: torch.Tensor, dim=1) -> torch.Tensor:
     x = tensor + 1e-20
-    return -torch.sum(x * torch.log2(x), dim=dim)
+    x_log2 = torch.log2(x)
+    x_x_log2 = x * x_log2
+    return -torch.sum(x_x_log2, dim=dim)
 
     
 
@@ -113,12 +115,10 @@ def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results:
         
     data = zip([(0,0), (0,1), (1,0), (1,1)], list_dict_keys)
     x = range(1, epochs + 1)
-    shapes = ['o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v']
         
     for (pos1, pos2), train_mes in data:
-        for idx_shape, (iter, results_info) in enumerate(cum_train_results.items()):
+        for iter, results_info in cum_train_results.items():
             ax[pos1][pos2].plot(x, results_info[train_mes], label = f'{train_mes}_{iter}')
-            ax[pos1][pos2].scatter(x, results_info[train_mes], marker=shapes[idx_shape])
         ax[pos1][pos2].set_title(f'{train_mes} - Epochs', fontsize = 15)
         ax[pos1][pos2].set_xlabel('Epochs', fontsize = 10)
         ax[pos1][pos2].set_ylabel(train_mes, fontsize = 10)
