@@ -58,16 +58,20 @@ class GTG_LL(ActiveLearner):
             (self.lab_embedds_dict['embedds'], self.unlab_embedds_dict['embedds'])
         ).to(self.device)
         
+        del self.unlab_embedds_dict
+        torch.cuda.empty_cache()
+        
         # compute the affinity matrix
         A = self.get_A_rbfk(concat_embedds, to_cpu=True) if self.rbf_aff else self.get_A_fn[self.A_function](concat_embedds)
 
         initial_A = torch.clone(A)
         
-        # remove weak connections with the choosen threshold strategy and value
-        logger.info(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
-        if self.A_function != 'e_d': A = torch.where(A < self.get_A_treshold(A), 0, A)
-        else: A = torch.where(A > self.get_A_treshold(A), 1, A)
-
+        if self.threshold_strategy != None and self.threshold != None:
+            # remove weak connections with the choosen threshold strategy and value
+            logger.info(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
+            if self.A_function != 'e_d': A = torch.where(A < self.get_A_treshold(A), 0, A)
+            else: A = torch.where(A > self.get_A_treshold(A), 1, A)
+        
         
         if self.strategy_type == 'diversity':
             # set the whole matrix as a distance matrix and not similarity matrix
@@ -84,11 +88,8 @@ class GTG_LL(ActiveLearner):
                 
                 A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #UL to distance
                 A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #LU to distance
+
         
-
-        mat_cos_sim = nn.CosineSimilarity(dim=0)
-        logger.info(f' Cosine Similarity between the initial matrix and the thresholded one: {mat_cos_sim(initial_A.flatten(), A.flatten()).item()}')
-
         self.A = A
         
         # plot the TSNE fo the original and modified affinity matrix
@@ -125,7 +126,6 @@ class GTG_LL(ActiveLearner):
         ], device=device), dim=0)
         
         A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(device)
-        
                 
         del A_matrix
         del sigmas
@@ -135,19 +135,13 @@ class GTG_LL(ActiveLearner):
     
     
     
-    
     def get_A_e_d(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
-        
-        A = torch.cdist(concat_embedds, concat_embedds).to('cpu' if to_cpu else self.device)
-        
-        return A
+        return torch.cdist(concat_embedds, concat_embedds).to('cpu' if to_cpu else self.device)
 
 
 
     def get_A_cos_sim(self, concat_embedds: torch.Tensor, to_cpu = True) -> torch.Tensor:
-        
         device = 'cpu' if to_cpu else self.device
-        
         normalized_embedding = F.normalize(concat_embedds, dim=-1).to(device)
         
         A = F.relu(torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(device))
@@ -161,10 +155,7 @@ class GTG_LL(ActiveLearner):
         
         
     def get_A_corr(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
-        
-        A = F.relu(torch.corrcoef(concat_embedds).to('cpu' if to_cpu else self.device))
-        
-        return A
+        return F.relu(torch.corrcoef(concat_embedds).to('cpu' if to_cpu else self.device))
 
         
 
@@ -179,6 +170,9 @@ class GTG_LL(ActiveLearner):
         
         for idx in range(len(self.labeled_indices), len(self.labeled_indices) + self.len_unlab_sample):
             for label in range(self.dataset.n_classes): self.X[idx][label] = 1. / self.dataset.n_classes
+        
+        del self.lab_embedds_dict
+        torch.cuda.empty_cache()
         
         
         
@@ -257,10 +251,8 @@ class GTG_LL(ActiveLearner):
         self.unlabeled_idxs = next(iter(self.unlab_train_dl))[0]
         self.unlabeled_labels = next(iter(self.unlab_train_dl))[2]
             
-            
         # I save the entropy history in order to be able to plot it
         self.unlab_entropy_hist = torch.zeros((self.len_unlab_sample, self.gtg_max_iter), device=self.device)
-        
             
         logger.info(' => Execution of the Graph Trasduction Game')
         self.graph_trasduction_game()
@@ -275,8 +267,6 @@ class GTG_LL(ActiveLearner):
         
         del self.A
         del self.X
-        del self.lab_embedds_dict
-        del self.unlab_embedds_dict
         torch.cuda.empty_cache()         
         
                             
@@ -292,7 +282,7 @@ class GTG_LL(ActiveLearner):
             area = torch.trapezoid(self.unlab_entropy_hist, dim=1)
             overall_topk = torch.topk(area, k=n_top_k_obs, largest=True)
         
-        elif self.ent_strategy is Entropy_Strategy.DER:
+            '''elif self.ent_strategy is Entropy_Strategy.DER:
             # compute the pairwise differences to obtaion the entropy derivatives
             self.unlab_entropy_der = -torch.diff(self.unlab_entropy_hist, dim=1)
             
@@ -333,7 +323,7 @@ class GTG_LL(ActiveLearner):
             )
         
             del self.unlab_entropy_der
-            torch.cuda.empty_cache()
+            torch.cuda.empty_cache()'''
         
         else: 
             logger.exception('Unrecognized derivates computation strategy')

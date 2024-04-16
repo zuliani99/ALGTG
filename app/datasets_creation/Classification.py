@@ -71,10 +71,10 @@ class Cls_Dataset(Dataset):
             # train
             if dataset_name == 'tinyimagenet':
                 download_tinyimagenet()
-                self.ds = ConcatDataset([
-                    datasets.ImageFolder('/datasets/tiny-imagenet-200/train', transform=cls_datasets[dataset_name]['transforms']['train']), 
-                    datasets.ImageFolder('/datasets/tiny-imagenet-200/val', transform=cls_datasets[dataset_name]['transforms']['train'])
-                ])
+                #self.ds = ConcatDataset([
+                self.ds = datasets.ImageFolder('./datasets/tiny-imagenet-200/train', transform=cls_datasets[dataset_name]['transforms']['train'])#, 
+                #    datasets.ImageFolder('./datasets/tiny-imagenet-200/val', transform=cls_datasets[dataset_name]['transforms']['train'])
+                #])
             elif dataset_name == 'svhn':
                 self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', split='train', download=True,
                     transform=cls_datasets[dataset_name]['transforms']['train']
@@ -90,11 +90,11 @@ class Cls_Dataset(Dataset):
                 download_tinyimagenet()
                 if bool_train:
                     self.ds = ConcatDataset([
-                        datasets.ImageFolder('/datasets/tiny-imagenet-200/train', transform=cls_datasets[dataset_name]['transforms']['test']), 
-                        datasets.ImageFolder('/datasets/tiny-imagenet-200/val', transform=cls_datasets[dataset_name]['transforms']['test'])
+                        datasets.ImageFolder('./datasets/tiny-imagenet-200/train', transform=cls_datasets[dataset_name]['transforms']['test']), 
+                        datasets.ImageFolder('./datasets/tiny-imagenet-200/val', transform=cls_datasets[dataset_name]['transforms']['test'])
                     ])
                 else:
-                    self.ds: Dataset = datasets.ImageFolder('/datasets/tiny-imagenet-200/test', transform=cls_datasets[dataset_name]['transforms']['test'])
+                    self.ds: Dataset = datasets.ImageFolder('./datasets/tiny-imagenet-200/test', transform=cls_datasets[dataset_name]['transforms']['test'])
             elif dataset_name == 'svhn':
                 self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', split='train' if bool_train else 'test', download=True,
                     transform=cls_datasets[dataset_name]['transforms']['test']

@@ -43,14 +43,14 @@ def get_args() -> argparse.Namespace:
             'll', 'gtg_ll', 'lq_gtg'
         ],
         required=True, help='Possible methods to choose')
-    parser.add_argument('-ds', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'svhn', 'tinyimagenet', 'voc', 'coco'],
+    parser.add_argument('-ds', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'svhn', 'caltech256', 'tinyimagenet', 'voc', 'coco'],
                         required=True, help='Possible datasets to choose')
     parser.add_argument('-tr', '--trials', type=int, nargs=1, required=True, help='Number or trials of AL benchmark for each dataset')
     parser.add_argument('-s', '--strategy', type=str, nargs=1, choices=['uncertanity', 'diversity', 'mixed'], 
-                        required=True, help='Possible query strategy types to choose for our method')
-    parser.add_argument('-ts', '--threshold_strategy', type=str, nargs=1, choices=['threshold', 'mean'], 
                         required=False, help='Possible query strategy types to choose for our method')
-    parser.add_argument('-t', '--threshold', type=float, nargs=1, required=False, 
+    parser.add_argument('-ts', '--threshold_strategies', type=str, nargs='+', choices=['threshold', 'mean'], 
+                        required=False, help='Possible query strategy types to choose for our method')
+    parser.add_argument('-t', '--thresholds', type=float, nargs='+', required=False, 
                         help='Affinity Matrix Threshold for our method, when threshold_strategy = mean, this is ingnored')
     parser.add_argument('-plb', '--perc_labeled_batch', type=float, nargs=1, required=False, 
                         help='Number of labeled observations to mantain in each batch during out method')
@@ -98,15 +98,30 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
                    Masters: Dict[str, Master_Model], methods: List[str]) -> Tuple[Dict[str, Dict[str, List[float]]], List[int]]:
 
     results = { }
+    list_gtg_p = [ ]
     n_lab_obs = [al_p['init_lab_obs'] + (iter * al_p['n_top_k_obs']) for iter in range(al_p['al_iters'])]
     
     # different gtg configurations that we want to test
-    list_gtg_p = [
-        {**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN},
-        {**gtg_p, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT},
-        #{**gtg_p, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN},
-        #{**gtg_p, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT}
-    ]
+    t_s = gtg_p['threshold_strategies']
+    thres = gtg_p['thresholds']
+    
+    del gtg_p['threshold_strategies']
+    del gtg_p['thresholds']
+    
+    if t_s != None:
+        for ts in t_s:
+            if ts == 'mean':
+                list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
+                list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT})
+            else:
+                for t in thres:
+                    list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
+                    list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT})
+    else:
+        list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
+        list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT})
+            
+        
     
     # get the strategis object to run them
     strategies = get_strategies_object(methods, list_gtg_p, Masters, ct_p, t_p, al_p)
@@ -147,14 +162,22 @@ def get_masters(methods: List[str], BBone: ResNet | SSD,
 def main() -> None:
     
     args = get_args()
+    
     methods = args.methods
     choosen_datasets = args.datasets
+
+    threshold_strategies = args.threshold_strategies if args.threshold_strategies != None else None
+    thresholds = args.thresholds if args.thresholds != None else None
+    
     wandb = args.wandb
+    
     perc_labeled_batch = args.perc_labeled_batch[0]
     trials = args.trials[0]
     strategy_type = args.strategy[0]
-    treshold_strategy = args.threshold_strategy[0]
-    treshold = args.threshold[0]
+    
+    
+    if threshold_strategies != None and 'mean' not in threshold_strategies and thresholds == None:
+        raise AttributeError('Please select a thresholds value')
 
     
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
@@ -185,17 +208,18 @@ def main() -> None:
         
     gtg_params = {
         'gtg_tol': 0.001,
-        'gtg_max_iter': 30,
+        'gtg_max_iter': 10,
         'strategy_type': strategy_type,
-        'threshold_strategy': treshold_strategy,
-        'threshold': treshold,
-        'perc_labeled_batch': perc_labeled_batch
+        'perc_labeled_batch': perc_labeled_batch,
+        
+        'threshold_strategies': threshold_strategies,
+        'thresholds': thresholds
     }
     
         
     for dataset_name in choosen_datasets:
         
-        if dataset_name in ['cifar10', 'cifar100', 'svhn', 'tinyimagenet']: task = 'clf'
+        if dataset_name in ['cifar10', 'cifar100', 'svhn', 'caltech256', 'tinyimagenet']: task = 'clf'
         else: task = 'detection'
         
         task_params = cls_config if task == 'clf' else det_config
@@ -217,7 +241,7 @@ def main() -> None:
                 **gtg_params, n_top_k_obs = al_params['n_top_k_obs'], 
                 n_classes = Dataset.n_classes, 
                 init_lab_obs = al_params['init_lab_obs'], 
-                embedding_dim = BBone.get_rich_features_shape(),#BBone.get_embedding_dim(),
+                embedding_dim = BBone.get_rich_features_shape(),
                 device = device, 
             )
             # create learnin loss dictionary parameters

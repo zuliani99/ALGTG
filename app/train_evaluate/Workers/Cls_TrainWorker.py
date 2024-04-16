@@ -83,6 +83,11 @@ class Cls_TrainWorker():
         
         elif len(module_out) == 2:
             quantity_loss, mask = module_out
+            
+            ###################################
+            #quantity_loss = weigth * quantity_loss
+            ###################################
+            
             labeled_loss = torch.mean(loss_ce[mask])
             loss = labeled_loss + quantity_loss
             logger.info(f' labeled_loss -> {labeled_loss.item()}\tquantity_loss -> {quantity_loss.item()}')
@@ -127,7 +132,7 @@ class Cls_TrainWorker():
                 
                 outputs, _, module_out = self.model(images, labels)
                 
-                loss, train_loss_ce, train_loss_pred  = self.compute_losses(
+                loss, train_loss_ce, train_loss_pred = self.compute_losses(
                         weight=weight, module_out=module_out, outputs=outputs, labels=labels,
                         tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred
                     )
@@ -135,8 +140,8 @@ class Cls_TrainWorker():
                 loss.backward()
                 
                 ### GRADIENT CLIPPING
-                if self.model.added_module != None and self.model.added_module.__class__.__name__ == 'GTG_Module':
-                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1., norm_type=2)
+                #if self.model.added_module != None and self.model.added_module.__class__.__name__ == 'GTG_Module':
+                #    torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1., norm_type=2)
 
                 self.optimizer.step()
                 

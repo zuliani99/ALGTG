@@ -13,9 +13,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-'''class Custom_MLP(nn.Module):
+'''class Custom_Module(nn.Module):
     def __init__(self, embedding_dim: int):
-        super(Custom_MLP, self).__init__()
+        super(Custom_Module, self).__init__()
         
         self.layers = []
         dim_ll = embedding_dim
@@ -34,48 +34,44 @@ logger = logging.getLogger(__name__)
         for layer in self.layers: x = layer(x)
         return x'''
         
-class Custom_CNN(nn.Module):
+class Custom_Module(nn.Module):
     def __init__(self, params: Dict[str, Any]):
-        super(Custom_CNN, self).__init__()
+        super(Custom_Module, self).__init__()
         
         # same parameters of loss net
         feature_sizes = params['feature_sizes']
         num_channels = params['num_channels']
         interm_dim = params['interm_dim']
 
-        self.conv2d = []
-        self.batchnorm2d = []
-        #self.batchnorm1d = []
-        self.linears = []
-        
-        for n_c, e_d in zip(num_channels, feature_sizes):
-            self.conv2d.append(nn.Conv2d(n_c, n_c // (e_d // 2), kernel_size=3, stride=2, padding=1))
-            self.batchnorm2d.append(nn.BatchNorm2d(n_c // (e_d // 2)))
-            self.linears.append(nn.Linear(num_channels[0]*(feature_sizes[0]//2), interm_dim))
-            #self.batchnorm1d.append(nn.BatchNorm1d(interm_dim))
-            
-        self.conv2d = nn.ModuleList(self.conv2d)
-        self.linears = nn.ModuleList(self.linears)
-        self.batchnorm2d = nn.ModuleList(self.batchnorm2d)
-        #self.batchnorm1d = nn.ModuleList(self.batchnorm1d)
+        self.module_list, self.sequentials_1, self.sequentials_2 = [], [], []
 
+        for n_c, e_d in zip(num_channels, feature_sizes):
+            self.sequentials_1.append(nn.Sequential(
+                nn.Conv2d(n_c, n_c // (e_d // 2), kernel_size=3, stride=2, padding=1),
+                nn.BatchNorm2d(n_c // (e_d // 2)),
+            ))
+            self.sequentials_2.append(nn.Sequential(
+                nn.Linear(n_c * (e_d // 2), interm_dim),
+                nn.ReLU(),
+                #nn.BatchNorm1d(interm_dim)
+            )),
+
+        self.sequentials_1 = nn.ModuleList(self.sequentials_1)
+        self.sequentials_2 = nn.ModuleList(self.sequentials_2)
         self.linear = nn.Linear(interm_dim * len(num_channels), 1)
-        
+
         self.apply(init_weights_apply)
-        
+
 
     def forward(self, features):
         outs = []
         for i in range(len(features)):
-            #print('custom cnn, features', features[i].get_device())
-            out = self.conv2d[i](features[i])
-            out = self.batchnorm2d[i](out)
+            out = self.sequentials_1[i](features[i])
             out = out.view(out.size(0), -1)
-            out = F.relu(self.linears[i](out))
-            #out = self.batchnorm1d[i](out)
+            out = self.sequentials_2[i](out)
             outs.append(out)
 
-        out = self.linear(torch.cat(outs, 1))
+        out = F.relu(self.linear(torch.cat(outs, 1)))
         return out
 
 
@@ -91,16 +87,10 @@ class GTG_Module(nn.Module):
             'corr': self.get_A_corr,
             'e_d': self.get_A_e_d,
         }
-
-        self.A_function: str | None = None
-        self.ent_strategy: Entropy_Strategy | None = None
-        self.rbf_aff: bool | None = None
         
         self.gtg_tol: float = gtg_p['gtg_tol']
         self.gtg_max_iter: int = gtg_p['gtg_max_iter']
         self.strategy_type: str = gtg_p['strategy_type']
-        self.threshold_strategy: str = gtg_p['threshold_strategy']
-        self.threshold: float = gtg_p['threshold']
         self.perc_labeled_batch: int = gtg_p['perc_labeled_batch']
         
         self.n_top_k_obs: int = gtg_p['n_top_k_obs']
@@ -108,17 +98,18 @@ class GTG_Module(nn.Module):
         self.device: int = gtg_p['device']
         self.phase: str = phase
         
-        self.c_cnn = Custom_CNN(ll_p).to(self.device)
-        #print('model is in ', next(self.mlp .parameters()).device)
-        #self.mse_loss = nn.MSELoss()
-        self.l1loss = nn.L1Loss()
+        self.c_cnn = Custom_Module(ll_p).to(self.device)
+        self.mse_loss = nn.MSELoss().to(self.device)
+        self.l1loss = nn.L1Loss().to(self.device)
     
     
     
     def define_additional_parameters(self, remaining_param: Dict[str, Any]) -> None:
-        self.rbf_aff= remaining_param['rbf_aff']
-        self.A_function = remaining_param['A_function']
-        self.ent_strategy = remaining_param['ent_strategy']
+        self.rbf_aff: bool = remaining_param['rbf_aff']
+        self.A_function: str = remaining_param['A_function']
+        self.ent_strategy: Entropy_Strategy = remaining_param['ent_strategy']
+        self.threshold_strategy: str = remaining_param['threshold_strategy']
+        self.threshold: float = remaining_param['threshold']
         
         
     def change_pahse(self, new_phase: str) -> None:
@@ -179,15 +170,10 @@ class GTG_Module(nn.Module):
             A = self.get_A_rbfk(embedding) if self.rbf_aff else self.get_A_fn[self.A_function](embedding)
         else: raise AttributeError('A Fucntion is None')
 
-
-        ############################################################################################
-        # SEEMS LIKE THAT WITH THE THRESHOLD THE MATRIX A WILL CONTAIN NEGATIVE VALUES
-        # OR THE EMBEDDING WILL CONTAIN NAN VALUES
-        # remove weak connections with the choosen threshold strategy and value
-        logger.info(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
-        if self.A_function != 'e_d': A = torch.where(A < self.get_A_treshold(A), 0, A)
-        else: A = torch.where(A > self.get_A_treshold(A), 1, A)
-        ############################################################################################
+        if self.threshold_strategy != None and self.threshold != None:
+            logger.info(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
+            if self.A_function != 'e_d': A = torch.where(A < self.get_A_treshold(A), 0, A)
+            else: A = torch.where(A > self.get_A_treshold(A), 1, A)
 
         if self.strategy_type == 'diversity':
             # set the whole matrix as a distance matrix and not similarity matrix
@@ -208,7 +194,6 @@ class GTG_Module(nn.Module):
                         A[j,i] = 1 - A[j,i]                        
                     
         self.A = A
-        #print('self.A', A)
         
 
     def get_X(self) -> None:
@@ -218,7 +203,7 @@ class GTG_Module(nn.Module):
         for idx in self.unlabeled_indices:
             for label in range(self.n_classes): self.X[idx][label] = 1. / self.n_classes
         
-        self.X.requires_grad_(True)
+        #self.X.requires_grad_(True)
                  
                  
     @torch.no_grad()
@@ -275,7 +260,6 @@ class GTG_Module(nn.Module):
     def graph_trasduction_game(self, embedding) -> None:
         
         self.get_A(embedding)
-        #print('self.A', self.A.grad_fn)
         self.A.register_hook(lambda t: print(f'hook self.A :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
         self.get_X()
         
@@ -296,20 +280,22 @@ class GTG_Module(nn.Module):
             mm_A_X.register_hook(lambda t: print(f'hook mm_A_X :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
             assert torch.all(mm_A_X >= 0), 'Negative values in mm_A_X'
             
-            mult_X_A_X = torch.mul(self.X, mm_A_X)
+            mult_X_A_X = self.X * mm_A_X #torch.mul(self.X, mm_A_X)
             mult_X_A_X.register_hook(lambda t: print(f'hook mult_X_A_X :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
             assert torch.all(mult_X_A_X >= 0), 'Negative values in mult_X_A_X'
                         
             old_rowsum_X = self.check_increasing_sum(mult_X_A_X, old_rowsum_X)
             
-            sum_X_A_X = torch.sum(mult_X_A_X, dim=1, keepdim=True)
+            mult_X_A_X = X_old + mult_X_A_X
+            
+            sum_X_A_X = torch.sum(mult_X_A_X, dim=1, keepdim=True) + 1e-8
             sum_X_A_X.register_hook(lambda t: print(f'hook sum_X_A_X :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
             assert torch.all(sum_X_A_X > 0), 'Negative or zero values in sum_X_A_X'
             
             div_sum_X_A_X = mult_X_A_X / sum_X_A_X
             div_sum_X_A_X.register_hook(lambda t: print(f'hook div_sum_X_A_X :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
-            assert torch.all(div_sum_X_A_X >= 0), 'Nagative values in div_sum_X_A_X'     
-        
+            assert torch.all(div_sum_X_A_X >= 0), 'Nagative values in div_sum_X_A_X'    
+            
             iter_entropy = entropy(div_sum_X_A_X).to(self.device)
             assert torch.all(iter_entropy >= 0), 'Nagative values in iter_entropy'
 
@@ -328,15 +314,12 @@ class GTG_Module(nn.Module):
     # List[torch.Tensor] -> detection
     def preprocess_inputs(self, embedding: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         
-        #print('embedding', embedding.grad_fn)
-        
         self.batch_size = len(embedding)
         self.n_lab_obs = int(self.batch_size * self.perc_labeled_batch) 
         
         shuffled_indices = torch.randperm(self.batch_size)
 
         self.labeled_indices: List[int] = shuffled_indices[:self.n_lab_obs].tolist()
-        #print(self.labeled_indices)
         self.unlabeled_indices: List[int] = shuffled_indices[self.n_lab_obs:].tolist()
                         
         self.unlab_entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device, requires_grad=True)        
@@ -352,32 +335,31 @@ class GTG_Module(nn.Module):
         if self.ent_strategy is Entropy_Strategy.MEAN:
             # computing the mean of the entropis history
             quantity_result = torch.mean(self.unlab_entropy_hist, dim=1)
-            #quantity_result.register_hook(lambda t: print(f'hook quantity_result :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
+            quantity_result.register_hook(lambda t: print(f'hook quantity_result :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
             
         elif self.ent_strategy is Entropy_Strategy.H_INT:
             # computing the area of the entropis history using trapezoid formula 
             quantity_result = torch.trapezoid(self.unlab_entropy_hist, dim=1)
-            #quantity_result.register_hook(lambda t: print(f'hook quantity_result :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
+            quantity_result.register_hook(lambda t: print(f'hook quantity_result :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
             
-        else: raise AttributeError(' Invlaid GTG Strategy')
+        else:
+            logger.exception(' Invlaid GTG Strategy') 
+            raise AttributeError(' Invlaid GTG Strategy')
             
         return quantity_result, mask
     
     
     
     def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor | None]:
-        features = [feature.to(self.device) for feature in features]
-        #for feature in features: 
-            #print('forward', feature.get_device())
         
         y_pred = self.c_cnn(features).squeeze()
-        
-        #y_pred.register_hook(lambda t: print(f'hook y_pred :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
+        #print('y_pred', y_pred)
+        y_pred.register_hook(lambda t: print(f'hook y_pred :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
         
         if self.phase == 'train':
             
             y_true, mask = self.preprocess_inputs(embedds, labels)
-            
+            logger.info(f'{y_pred} - {y_true}')
             #return self.mse_loss(y_pred, y_true), mask if mask == None else mask.bool()
             return self.l1loss(y_pred, y_true), mask if mask == None else mask.bool()
         else:

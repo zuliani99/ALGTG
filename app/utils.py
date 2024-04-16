@@ -266,10 +266,15 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
     
     
 
-class Entropy_Strategy(Enum):
+'''class Entropy_Strategy(Enum):
     DER = 0
     H_INT = 1
-    MEAN = 2
+    MEAN = 2'''
+    
+class Entropy_Strategy(Enum):
+    #DER = 0
+    H_INT = 0
+    MEAN = 1
     
 
 
