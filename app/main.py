@@ -29,7 +29,6 @@ import argparse
 import time
 from typing import Dict, Any, List, Tuple
 
-import os
 
 import logging
 logger = logging.getLogger(__name__)
@@ -52,6 +51,8 @@ def get_args() -> argparse.Namespace:
                         required=False, help='Possible query strategy types to choose for our method')
     parser.add_argument('-t', '--thresholds', type=float, nargs='+', required=False, 
                         help='Affinity Matrix Threshold for our method, when threshold_strategy = mean, this is ingnored')
+    parser.add_argument('--no_none_strategy', action='store_true', 
+                        help='Exclude the threshold application on the Affinity matrix')
     parser.add_argument('-plb', '--perc_labeled_batch', type=float, nargs=1, required=False, 
                         help='Number of labeled observations to mantain in each batch during out method')
     parser.add_argument('--wandb', action='store_true', 
@@ -75,16 +76,11 @@ def get_strategies_object(methods: List[str], list_gtg_p: List[Dict[str, Any]], 
                           ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any]) -> List[Any]:
     strategies = []
     for method in methods:
-        gtg = method.split('_')
-        if 'gtg' in gtg:
-            if gtg[0] == 'gtg':
-                # test all the gtg configurations
-                for gtg_p in list_gtg_p:
-                    strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_LL']}, t_p, al_p, gtg_p))
-            else:
-                # test all the gtg configurations
-                for gtg_p in list_gtg_p:
-                    strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_GTG']}, t_p, al_p, gtg_p))
+        if 'gtg' in method.split('_'):
+            for gtg_p in list_gtg_p:
+                strategies.append(dict_strategies[method](
+                    {**ct_p, 'Master_Model': Masters['M_LL'] if method.split('_')[0] == 'gtg' else Masters['M_GTG']}, t_p, al_p, gtg_p
+                ))
         elif method == 'll':
             strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_LL']}, t_p, al_p))
         else:
@@ -104,31 +100,43 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
     # different gtg configurations that we want to test
     t_s = gtg_p['threshold_strategies']
     thres = gtg_p['thresholds']
+    nn_s = gtg_p['no_none_strategy']
     
     del gtg_p['threshold_strategies']
     del gtg_p['thresholds']
+    del gtg_p['no_none_strategy']
     
     if t_s != None:
         for ts in t_s:
             if ts == 'mean':
                 list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
                 list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT})
+                list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
+                list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT})
             else:
                 for t in thres:
                     list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
                     list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT})
-    else:
+                    list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
+                    list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT})
+    elif not nn_s:
         list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
         list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT})
+        list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
+        list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT})
+    else:
+        logger.exception('No affinity matrix modification specified')
+        raise AttributeError('No affinity matrix modification specified')
             
-        
-    
     # get the strategis object to run them
     strategies = get_strategies_object(methods, list_gtg_p, Masters, ct_p, t_p, al_p)
     
+    ##########################################################################################################
+    # START THE ACTIVE LEARNING PROECSS
     for strategy in strategies:
         logger.info(f'-------------------------- {strategy.strategy_name} --------------------------\n')
         results[strategy.strategy_name] = strategy.run()
+    ##########################################################################################################
     
     return results, n_lab_obs
 
@@ -137,8 +145,10 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
 def get_masters(methods: List[str], BBone: ResNet | SSD,
                 ll_module_params: Dict[str, Any], gtg_module_params: Dict[str, Any],
                 dataset_name: str) -> Dict[str, Master_Model]:
+    
     LL_Mod, GTG_Mod, M_None = None, None, None
     ll, only_bb = False, False
+    
     for method in methods:
         method_module = method.split('_')[-1]
         if method_module == 'll' and not ll:
@@ -149,6 +159,7 @@ def get_masters(methods: List[str], BBone: ResNet | SSD,
         elif not only_bb:
             M_None = Master_Model(BBone, None, dataset_name)
             only_bb = True
+        else: continue
             
     Masters = { }
     if M_None != None: Masters['M_None'] = M_None
@@ -170,10 +181,12 @@ def main() -> None:
     thresholds = args.thresholds if args.thresholds != None else None
     
     wandb = args.wandb
+    no_none_strategy = args.no_none_strategy
     
-    perc_labeled_batch = args.perc_labeled_batch[0]
+    perc_labeled_batch = args.perc_labeled_batch[0] if args.perc_labeled_batch[0] != None else None
+    strategy_type = args.strategy[0] if args.strategy[0] != None else None
     trials = args.trials[0]
-    strategy_type = args.strategy[0]
+    
     
     
     if threshold_strategies != None and 'mean' not in threshold_strategies and thresholds == None:
@@ -208,11 +221,12 @@ def main() -> None:
         
     gtg_params = {
         'gtg_tol': 0.001,
-        'gtg_max_iter': 10,
+        'gtg_max_iter': 30,
         'strategy_type': strategy_type,
         'perc_labeled_batch': perc_labeled_batch,
         
         'threshold_strategies': threshold_strategies,
+        'no_none_strategy': no_none_strategy,
         'thresholds': thresholds
     }
     
@@ -260,12 +274,8 @@ def main() -> None:
             }
 
             results, n_lab_obs = run_strategies(
-                ct_p = common_training_params, 
-                t_p = task_params,
-                al_p = al_params,
-                gtg_p = gtg_params,
-                Masters = Masters,
-                methods = methods
+                ct_p = common_training_params, t_p = task_params, al_p = al_params,
+                gtg_p = gtg_params, Masters = Masters, methods = methods
             )
             
             plot_loss_curves(results, n_lab_obs, timestamp,
@@ -276,8 +286,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    os.environ["MASTER_ADDR"] = "ppv-gpu1"
-    os.environ["MASTER_PORT"] = "16217"
     
     start = time.time()
     main()

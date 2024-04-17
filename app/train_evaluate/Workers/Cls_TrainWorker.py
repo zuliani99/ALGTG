@@ -55,7 +55,7 @@ class Cls_TrainWorker():
 
 
     def init_opt_sched(self):
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.ds_t_p['lr'], momentum=self.ds_t_p['mom'], weight_decay=self.ds_t_p['w_d'])
+        self.optimizer = self.ds_t_p['optimizer'](self.model.parameters(), **self.ds_t_p['optim_p'])
         self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[160], gamma=0.1)
     
     
@@ -83,10 +83,6 @@ class Cls_TrainWorker():
         
         elif len(module_out) == 2:
             quantity_loss, mask = module_out
-            
-            ###################################
-            #quantity_loss = weigth * quantity_loss
-            ###################################
             
             labeled_loss = torch.mean(loss_ce[mask])
             loss = labeled_loss + quantity_loss

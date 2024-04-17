@@ -18,16 +18,16 @@ cls_datasets = {
                         v2.RandomCrop(32, padding=4),
                         v2.RandomHorizontalFlip(),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize((0.49139968, 0.48215841, 0.44653091),
-                                     (0.24703223, 0.24348513, 0.26158784))
+                        v2.Normalize(mean=[0.49139968, 0.48215841, 0.44653091],
+                                     std=[0.24703223, 0.24348513, 0.26158784])
                         
                         
                     ]),
             'test': v2.Compose([
                         v2.ToImage(),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize((0.49139968, 0.48215841, 0.44653091),
-                                     (0.24703223, 0.24348513, 0.26158784))
+                        v2.Normalize(mean=[0.49139968, 0.48215841, 0.44653091],
+                                     std=[0.24703223, 0.24348513, 0.26158784])
                     ])
         }
     },
@@ -37,42 +37,29 @@ cls_datasets = {
         'n_classes': 100,
         'channels': 3,
         'image_size': 32,
-        'classes' : [
-            'beaver', 'dolphin', 'otter', 'seal', 'whale',
-            'aquarium fish', 'flatfish', 'ray', 'shark', 'trout',
-            'orchids', 'poppies', 'roses', 'sunflowers', 'tulips',
-            'bottles', 'bowls', 'cans', 'cups', 'plates',
-            'apples', 'mushrooms', 'oranges', 'pears', 'sweet peppers',
-            'clock', 'computer keyboard', 'lamp', 'telephone', 'television',
-            'bed', 'chair', 'couch', 'table', 'wardrobe',
-            'bee', 'beetle', 'butterfly', 'caterpillar', 'cockroach',
-            'bear', 'leopard', 'lion', 'tiger', 'wolf',
-            'bridge', 'castle', 'house', 'road', 'skyscraper',
-            'cloud', 'forest', 'mountain', 'plain', 'sea',
-            'camel', 'cattle', 'chimpanzee', 'elephant', 'kangaroo',
-            'fox', 'porcupine', 'possum', 'raccoon', 'skunk',
-            'crab', 'lobster', 'snail', 'spider', 'worm',
-            'baby', 'boy', 'girl', 'man', 'woman',
-            'crocodile', 'dinosaur', 'lizard', 'snake', 'turtle',
-            'hamster', 'mouse', 'rabbit', 'shrew', 'squirrel',
-            'maple', 'oak', 'palm', 'pine', 'willow',
-            'bicycle', 'bus', 'motorcycle', 'pickup truck', 'train',
-            'lawn-mower', 'rocket', 'streetcar', 'tank', 'tractor'
-        ],
+        'classes': ["apple","aquarium_fish","baby","bear","beaver","bed","bee","beetle","bicycle","bottle","bowl","boy","bridge",
+                    "bus","butterfly","camel","can","castle","caterpillar","cattle","chair","chimpanzee","clock","cloud","cockroach",
+                    "couch","crab","crocodile","cup","dinosaur","dolphin","elephant","flatfish","forest","fox","girl","hamster","house",
+                    "kangaroo","keyboard","lamp","lawn_mower","leopard","lion","lizard","lobster","man","maple_tree","motorcycle","mountain",
+                    "mouse","mushroom","oak_tree","orange","orchid","otter","palm_tree","pear","pickup_truck","pine_tree","plain","plate",
+                    "poppy","porcupine","possum","rabbit","raccoon","ray","road","rocket","rose","sea","seal","shark","shrew","skunk",
+                    "skyscraper","snail","snake","spider","squirrel","streetcar","sunflower","sweet_pepper","table","tank","telephone",
+                    "television","tiger","tractor","train","trout","tulip","turtle","wardrobe","whale","willow_tree","wolf","woman","worm"],
         'transforms': {
             'train': v2.Compose([
                         v2.ToImage(),
                         v2.RandomCrop(32, padding=4),
                         v2.RandomHorizontalFlip(),
+                        v2.RandomRotation(degrees=(0,15)),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize((0.50707516, 0.48654887, 0.44091784),
-                                     (0.26733429, 0.25643846, 0.27615047))
+                        v2.Normalize(mean=[0.50707516, 0.48654887, 0.44091784],
+                                     std=[0.26733429, 0.25643846, 0.27615047])
                     ]),
             'test': v2.Compose([
                         v2.ToImage(),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize((0.50707516, 0.48654887, 0.44091784),
-                                     (0.26733429, 0.25643846, 0.27615047))
+                        v2.Normalize(mean=[0.50707516, 0.48654887, 0.44091784],
+                                     std=[0.26733429, 0.25643846, 0.27615047])
                     ])
         }
     },
@@ -89,14 +76,14 @@ cls_datasets = {
                         v2.RandomCrop(32, padding=4),
                         v2.RandomHorizontalFlip(),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize((0.4376821 , 0.4437697 , 0.47280442),
-                                     (0.19803012, 0.20101562, 0.19703614))
+                        v2.Normalize(mean=[0.4376821 , 0.4437697 , 0.47280442],
+                                     std=[0.19803012, 0.20101562, 0.19703614])
                     ]),
             'test': v2.Compose([
                         v2.ToImage(),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize((0.4376821 , 0.4437697 , 0.47280442),
-                                     (0.19803012, 0.20101562, 0.19703614))
+                        v2.Normalize(mean=[0.4376821 , 0.4437697 , 0.47280442],
+                                     std=[0.19803012, 0.20101562, 0.19703614])
                     ])
         }
     },
@@ -121,14 +108,14 @@ cls_datasets = {
                         v2.RandomCrop(64, padding=8),
                         v2.RandomHorizontalFlip(),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize((0.48042979, 0.44819701, 0.39755623),
-                                     (0.27643974, 0.26888656, 0.28166852))
+                        v2.Normalize(mean=[0.48042979, 0.44819701, 0.39755623],
+                                     std=[0.27643974, 0.26888656, 0.28166852])
                     ]),
             'test': v2.Compose([
                         v2.ToImage(),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize((0.48042979, 0.44819701, 0.39755623),
-                                     (0.27643974, 0.26888656, 0.28166852))
+                        v2.Normalize(mean=[0.48042979, 0.44819701, 0.39755623],
+                                     std=[0.27643974, 0.26888656, 0.28166852])
                     ])
         }
     }
@@ -140,7 +127,7 @@ cls_datasets = {
 
 al_params = {
     'init_lab_obs': 1000,
-    'al_iters': 3,#10, 
+    'al_iters': 10, 
     'unlab_sample_dim': 10000, 
     'n_top_k_obs': 1000,
 }
@@ -153,29 +140,44 @@ cls_config = {
                      'test': {'test_accuracy': [], 'test_loss': [], 'test_loss_ce': [], 'test_pred_loss': []}},
     'ds_params': {
         'cifar10': {
-            'lr': 0.1,
-            'mom': 0.9,
-            'w_d': 5e-4
+            'optimizer': torch.optim.SGD,
+            'optim_p': {
+                'lr': 0.1,
+                'momentum': 0.9,
+                'weight_decay': 5e-4
+            }
         },
         'cifar100': {
-            'lr': 0.001,
-            'mom': 0.9,
-            'w_d': 5e-4
+            'optimizer': torch.optim.SGD,
+            'optim_p': {
+                'lr': 0.1, 
+                'momentum': 0.9,
+                'weight_decay': 5e-4   
+            }
         },
         'svhn': {
-            'lr': 0.01,
-            'mom': 0.9,
-            'w_d': 5e-4
+            'optimizer': torch.optim.SGD,
+            'optim_p': {
+                'lr': 0.01,
+                'momentum': 0.9,
+                'weight_decay': 5e-4
+            }
         },
         'caltech256': {
-            'lr': 0.001,
-            'mom': 0.9,
-            'w_d': 5e-4
+            'optimizer': torch.optim.SGD,
+            'optim_p': {
+                'lr': 0.001,
+                'momentum': 0.9,
+                'weight_decay': 5e-4
+            }
         },
         'tinyimagenet': {
-            'lr': 0.001,
-            'mom': 0.9,
-            'w_d': 5e-4
+            'optimizer': torch.optim.SGD,
+            'optim_p': {
+                'lr': 0.001,
+                'momentum': 0.9,
+                'weight_decay': 5e-4
+            }
         }
     }
 }

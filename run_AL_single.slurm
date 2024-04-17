@@ -1,12 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=AL_SING    # Job name
-#SBATCH --mail-type=NONE          # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-type=END          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=875532@stud.unive.it     # Where to send mail	
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
-#SBATCH --gres-flags=enforce-binding
 #SBATCH --mem=128gb                     # Job memory request
 #SBATCH --time=48:00:00               # Time limit hrs:min:sec
 #SBATCH --output=empty_log.log   # Standard output and error log
@@ -15,12 +14,9 @@
 #SBATCH --gpus-per-task=1      # number of GPUs per process
 
 
-#export MASTER_PORT=$(expr 10000 + $(echo -n $SLURM_JOBID | tail -c 4))
-#export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
-#echo "MASTER_ADDR:MASTER_PORT="${MASTER_ADDR}:${MASTER_PORT}
-
 conda activate al_env
 
 #python3 app/main.py -m random gtg_ll lq_gtg -ds cifar10 -tr 1 -s mixed -ts threshold -t 0.5
 #python3 app/main.py -m lq_gtg -ds cifar10 -tr 1 -s mixed -ts mean -t 0.5 -plb 0.1
-python3 app/main.py -m lq_gtg -ds cifar10 -tr 1 -s mixed -plb 0.1
+#python3 app/main.py -m lq_gtg -ds cifar10 -tr 1 -s mixed -plb 0.1
+python3 app/main.py -m ll gtg_ll -ds cifar100 -tr 1 -s mixed -ts threshold mean -t 0.5 -plb 0.1

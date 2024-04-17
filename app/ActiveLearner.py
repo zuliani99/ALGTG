@@ -17,6 +17,7 @@ import numpy as np
 
 from typing import List, Dict, Any
 import copy
+import os
 
 import logging
 logger = logging.getLogger(__name__)
@@ -198,6 +199,10 @@ class ActiveLearner():
         
         # if we are using multiple gpus
         if self.world_size > 1:
+            
+            os.environ["MASTER_ADDR"] = "ppv-gpu1"
+            os.environ["MASTER_PORT"] = "16217"
+            
             # Pipe for the itra-process communication of the results
             parent_conn, child_conn = mp.Pipe()
             

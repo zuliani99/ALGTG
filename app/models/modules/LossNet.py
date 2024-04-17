@@ -47,10 +47,10 @@ class LossNet(nn.Module):
     def __init__(self, LL_params):
         super(LossNet, self).__init__()
 
-        feature_sizes = LL_params['feature_sizes']# if 'feature_sizes' in dict_params else [32, 16, 8, 4] 
-        num_channels = LL_params['num_channels']# if 'num_channels' in dict_params else [64, 128, 256, 512]
-        interm_dim = LL_params['interm_dim']# if 'interm_dim' in dict_params else 128
-        task = LL_params['task']# if 'task' in dict_params else 'clf'
+        feature_sizes = LL_params['feature_sizes']
+        num_channels = LL_params['num_channels']
+        interm_dim = LL_params['interm_dim']
+        task = LL_params['task']
         
         self.GAP = []
         for feature_size in feature_sizes:

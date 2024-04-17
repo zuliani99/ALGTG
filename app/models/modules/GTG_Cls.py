@@ -350,7 +350,7 @@ class GTG_Module(nn.Module):
     
     
     
-    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor | None]:
+    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor | None = None, labels: torch.Tensor | None = None) -> Tuple[torch.Tensor, torch.Tensor | None]:
         
         y_pred = self.c_cnn(features).squeeze()
         #print('y_pred', y_pred)
@@ -358,7 +358,7 @@ class GTG_Module(nn.Module):
         
         if self.phase == 'train':
             
-            y_true, mask = self.preprocess_inputs(embedds, labels)
+            y_true, mask = self.preprocess_inputs(embedds, labels) # type: ignore
             logger.info(f'{y_pred} - {y_true}')
             #return self.mse_loss(y_pred, y_true), mask if mask == None else mask.bool()
             return self.l1loss(y_pred, y_true), mask if mask == None else mask.bool()
