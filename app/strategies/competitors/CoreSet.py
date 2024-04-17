@@ -17,8 +17,6 @@ class CoreSet(ActiveLearner):
         super().__init__(ct_p, t_p, al_p, self.__class__.__name__, LL)
         
     
-
-    
     def furthest_first(self, n_top_k_obs: int) -> List[int]:
         unlabeled_size = self.unlab_embedds_dict['embedds'].size(0)
         if self.lab_embedds_dict['embedds'].size(0) == 0:
@@ -43,8 +41,12 @@ class CoreSet(ActiveLearner):
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
             
         # set the entire batch size to the dimension of the sampled unlabeled set
-        self.unlab_train_dl = DataLoader(
+        unlab_train_dl = DataLoader(
             sample_unlab_subset, batch_size=self.t_p['batch_size'],
+            shuffle=False, pin_memory=True,
+        )
+        lab_train_dl = DataLoader(
+            self.labeled_subset, batch_size=self.t_p['batch_size'],
             shuffle=False, pin_memory=True,
         )
             
@@ -56,9 +58,11 @@ class CoreSet(ActiveLearner):
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
             'idxs': torch.empty(0, dtype=torch.int8)
         }
+        
+        self.load_best_checkpoint()
             
-        self.get_embeddings(self.lab_train_dl, self.lab_embedds_dict)
-        self.get_embeddings(self.unlab_train_dl, self.unlab_embedds_dict)
+        self.get_embeddings(lab_train_dl, self.lab_embedds_dict)
+        self.get_embeddings(unlab_train_dl, self.unlab_embedds_dict)
         logger.info(' DONE\n')
                         
         logger.info(' => Top K extraction')

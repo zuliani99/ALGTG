@@ -21,7 +21,7 @@ class LeastConfidence(ActiveLearner):
 
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
                                 
-        self.unlab_train_dl = DataLoader(
+        unlab_train_dl = DataLoader(
             sample_unlab_subset, batch_size=self.t_p['batch_size'],
             shuffle=False, pin_memory=True
         )
@@ -31,7 +31,10 @@ class LeastConfidence(ActiveLearner):
             'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32), 
             'idxs': torch.empty(0, dtype=torch.int8)
         }
-        self.get_embeddings(self.unlab_train_dl, self.embedds_dict)
+        
+        self.load_best_checkpoint()
+        
+        self.get_embeddings(unlab_train_dl, self.embedds_dict)
         unlab_probs = F.softmax(self.embedds_dict['probs'], dim=1)
         logger.info(' DONE\n')
             

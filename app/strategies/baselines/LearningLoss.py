@@ -28,6 +28,9 @@ class LearningLoss(ActiveLearner):
             'module_out': torch.empty(0, dtype=torch.float32),
             'idxs': torch.empty(0, dtype=torch.int8)
         }
+        
+        self.load_best_checkpoint()
+        
         self.get_embeddings(self.unlab_train_dl, embeds_dict)
         
         logger.info(f' => Extracting the Top-k unlabeled observations')

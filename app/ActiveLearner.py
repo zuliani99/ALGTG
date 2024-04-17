@@ -95,8 +95,7 @@ class ActiveLearner():
             return Subset(self.dataset.non_transformed_trainset, self.unlabeled_indices)
     
     
-    def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, Any]) -> None:
-        
+    def load_best_checkpoint(self):
         if dist.is_available():
             if self.world_size > 1: device = 'cuda:0'
             else: device = 'cuda' 
@@ -104,6 +103,9 @@ class ActiveLearner():
 
         checkpoint: Dict = torch.load(f'{self.best_check_filename}_{device}.pth.tar', map_location=self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
+    
+    
+    def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, Any]) -> None:
         
         self.model.eval()
 

@@ -230,8 +230,12 @@ class GTG_LL(ActiveLearner):
         self.len_unlab_sample = len(sample_unlab_subset)
 
         # we have the batch size which is equal to the number of sampled observation from the unlabeled set                    
-        self.unlab_train_dl = DataLoader(                           # set shuffle to false since I do not have interest on shufflind the dataloader, since I have only to get the embeddings
+        unlab_train_dl = DataLoader(                           # set shuffle to false since I do not have interest on shufflind the dataloader, since I have only to get the embeddings
             sample_unlab_subset, batch_size=self.len_unlab_sample,  # thus there is no needs on shuffling the unlabeled dataloader
+            shuffle=False, pin_memory=True
+        )
+        lab_train_dl = DataLoader(
+            self.labeled_subset, batch_size=self.t_p['batch_size'],  # thus there is no needs on shuffling the unlabeled dataloader
             shuffle=False, pin_memory=True
         )
                 
@@ -241,15 +245,17 @@ class GTG_LL(ActiveLearner):
             'labels': torch.empty(0, dtype=torch.int8)
         }
         self.unlab_embedds_dict = {'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device)}
-            
-        self.get_embeddings(self.lab_train_dl, self.lab_embedds_dict)
-        self.get_embeddings(self.unlab_train_dl, self.unlab_embedds_dict)
+        
+        self.load_best_checkpoint()
+        
+        self.get_embeddings(lab_train_dl, self.lab_embedds_dict)
+        self.get_embeddings(unlab_train_dl, self.unlab_embedds_dict)
         logger.info(' DONE\n')
             
         # I can take the indices and labels from the dataloader, without using the get_embeddings function so no cuda memory is used in this case
         # I have a single batch
-        self.unlabeled_idxs = next(iter(self.unlab_train_dl))[0]
-        self.unlabeled_labels = next(iter(self.unlab_train_dl))[2]
+        self.unlabeled_idxs = next(iter(unlab_train_dl))[0]
+        self.unlabeled_labels = next(iter(unlab_train_dl))[2]
             
         # I save the entropy history in order to be able to plot it
         self.unlab_entropy_hist = torch.zeros((self.len_unlab_sample, self.gtg_max_iter), device=self.device)

@@ -45,7 +45,7 @@ class K_Means(ActiveLearner):
     
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
                         
-        self.unlab_train_dl = DataLoader(
+        unlab_train_dl = DataLoader(
             sample_unlab_subset, batch_size=self.t_p['batch_size'],
             shuffle=False, pin_memory=True
         )
@@ -55,7 +55,10 @@ class K_Means(ActiveLearner):
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
             'idxs': torch.empty(0, dtype=torch.int8)
         }
-        self.get_embeddings(self.unlab_train_dl, self.embedds_dict)
+        
+        self.load_best_checkpoint()
+        
+        self.get_embeddings(unlab_train_dl, self.embedds_dict)
         logger.info(' DONE\n')
             
         logger.info(' => Top K extraction using k-means')

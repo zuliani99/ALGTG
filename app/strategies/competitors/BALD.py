@@ -24,13 +24,7 @@ class BALD(ActiveLearner):
         
     def evaluate_unlabeled_train(self, n_drop=5) -> Tuple[torch.Tensor, torch.Tensor]:
         
-        if dist.is_available():
-            if self.world_size > 1: device = 'cuda:0'
-            else: device = 'cuda' 
-        else: device = 'cpu'
-
-        checkpoint: Dict = torch.load(f'{self.best_check_filename}/best_{self.strategy_name}_{device}.pth.tar', map_location=self.device)
-        self.model.load_state_dict(checkpoint['state_dict'])
+        self.load_best_checkpoint()
 
         self.model.train()
         

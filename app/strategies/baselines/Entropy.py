@@ -31,6 +31,9 @@ class Entropy(ActiveLearner):
             'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32),
             'idxs': torch.empty(0, dtype=torch.int8)
         }
+        
+        self.load_best_checkpoint()
+        
         self.get_embeddings(self.unlab_train_dl, embeds_dict)
         prob_dist = F.softmax(embeds_dict['probs'], dim=1)
         logger.info(' DONE\n')

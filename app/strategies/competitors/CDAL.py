@@ -42,16 +42,23 @@ class CDAL(ActiveLearner):
 
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
                                 
-        self.unlab_train_dl = DataLoader(
+        unlab_train_dl = DataLoader(
             sample_unlab_subset, batch_size=self.t_p['batch_size'],
+            shuffle=False, pin_memory=True
+        )
+        lab_train_dl = DataLoader(
+            self.labeled_subset, batch_size=self.t_p['batch_size'],
             shuffle=False, pin_memory=True
         )
             
         logger.info(' => Getting the labeled and unlabeled probebilities')
         lab_embedds_dict = {'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32)}
         unlab_embedds_dict = {'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32)}
-        self.get_embeddings(self.lab_train_dl, lab_embedds_dict)
-        self.get_embeddings(self.unlab_train_dl, unlab_embedds_dict)
+        
+        self.load_best_checkpoint()
+        
+        self.get_embeddings(lab_train_dl, lab_embedds_dict)
+        self.get_embeddings(unlab_train_dl, unlab_embedds_dict)
         
         lab_probs = F.softmax(lab_embedds_dict['probs'], dim=1)
         unlab_probs = F.softmax(unlab_embedds_dict['probs'], dim=1)
