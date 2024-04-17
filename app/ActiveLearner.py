@@ -45,9 +45,6 @@ class ActiveLearner():
         self.train_results: Dict[str, Any] = {}
         
         self.labeled_subset = Subset(self.dataset.transformed_trainset, self.labeled_indices)
-        self.lab_train_dl = DataLoader(
-            self.labeled_subset, batch_size=self.t_p['batch_size'], shuffle=False, pin_memory=True
-        )
 
         self.strategy_name = f'{self.model.name}_{strategy_name}' # define strategy name    
         self.best_check_filename: str = f'app/checkpoints/{self.ct_p['dataset_name']}/best_{self.strategy_name}'
@@ -148,9 +145,8 @@ class ActiveLearner():
         
         logger.info(' => Saving the TSNE embeddings plot with labeled, unlabeled and new labeled observations')
         
-        unlab_train_dl = DataLoader(
-            samp_unlab_subset, batch_size=self.t_p['batch_size'], shuffle=False, pin_memory=True
-        )
+        unlab_train_dl = DataLoader(samp_unlab_subset, batch_size=self.t_p['batch_size'], shuffle=False, pin_memory=True)
+        lab_train_dl = DataLoader(self.labeled_subset, batch_size=self.t_p['batch_size'], shuffle=False, pin_memory=True)
         
         lab_embedds_dict = {
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
@@ -162,7 +158,7 @@ class ActiveLearner():
         }
             
         logger.info(' Getting the embeddings...')
-        self.get_embeddings(self.lab_train_dl, lab_embedds_dict)
+        self.get_embeddings(lab_train_dl, lab_embedds_dict)
         self.get_embeddings(unlab_train_dl, unlab_embedds_dict)
         
         
@@ -263,7 +259,7 @@ class ActiveLearner():
         self.save_labeled_images(overall_topk)
         
         # Update the labeeld and unlabeled training set
-        logger.info(' => Modifing the Subsets and Dataloader')
+        logger.info(' => Modifing the Subsets')
         # extend with the overall_topk
         self.labeled_indices.extend(overall_topk)
         
@@ -279,9 +275,9 @@ class ActiveLearner():
 
         # generate the new labeled DataLoader
         self.labeled_subset = Subset(self.dataset.transformed_trainset, self.labeled_indices)
-        self.lab_train_dl = DataLoader(
-            self.labeled_subset, batch_size=self.t_p['batch_size'], shuffle=False, pin_memory=True
-        )
+        #self.lab_train_dl = DataLoader(
+        #    self.labeled_subset, batch_size=self.t_p['batch_size'], shuffle=False, pin_memory=True
+        #)
         
         logger.info(f' New labeled_indices lenght: {len(self.labeled_indices)} - new unlabeled_indices lenght: {len(self.unlabeled_indices)}')
         

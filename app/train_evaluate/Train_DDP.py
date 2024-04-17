@@ -47,7 +47,6 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     
     # deep copy the model (it is in the RAM) and then move it to the realive gpu
     moved_model: Master_Model = copy.deepcopy(ct_p['Master_Model']).to(rank)
-    if moved_model.module.name == 'GTG': moved_model.module.device = rank
     
     moved_model = DDP(moved_model, device_ids=[rank], output_device=rank, find_unused_parameters=True) # type: ignore
     ct_p['Model_train'] = moved_model
@@ -130,7 +129,7 @@ def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
     t_p = params['t_p']
     
     # deep copy the model (it is in the RAM) and then move it to the realive gpu
-    ct_p['Master_Model'] =  copy.deepcopy(ct_p['Master_Model']).to(params['ct_p']['device'])
+    ct_p['Master_Model'] = copy.deepcopy(ct_p['Master_Model']).to(params['ct_p']['device'])
     
     dict_dl = dict(batch_size=t_p['batch_size'], pin_memory=True)
     
