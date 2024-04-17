@@ -3,7 +3,7 @@ from torch.utils.data import Dataset, Subset
 from torchvision import datasets
 import torch
 
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 import os
 
 from utils import count_class_observation
@@ -23,6 +23,38 @@ def download_tinyimagenet() -> None:
         logger.info(' DONE\n')
     else:
         logger.info('Tiny-IMAGENET Dataset already downloaded')
+        
+        
+def create_val_img_folder(dataset_dir):
+    val_dir = os.path.join(dataset_dir, 'val')
+    img_dir = os.path.join(val_dir, 'images')
+
+    fp = open(os.path.join(val_dir, 'val_annotations.txt'), 'r')
+    data = fp.readlines()
+    val_img_dict = {}
+    for line in data:
+        words = line.split('\t')
+        val_img_dict[words[0]] = words[1]
+    fp.close()
+
+    # Create folder if not present and move images into proper folders
+    for img, folder in val_img_dict.items():
+        newpath = (os.path.join(img_dir, folder))
+        if not os.path.exists(newpath):
+            os.makedirs(newpath)
+        if os.path.exists(os.path.join(img_dir, img)):
+            os.rename(os.path.join(img_dir, img), os.path.join(newpath, img))
+
+
+def get_class_name(dataset_dir) -> Dict[str, str]:
+    class_to_name = dict()
+    fp = open(os.path.join(dataset_dir, 'words.txt'), 'r')
+    data = fp.readlines()
+    for line in data:
+        words = line.strip('\n').split('\t')
+        class_to_name[words[0]] = words[1].split(',')[0]
+    fp.close()
+    return class_to_name
 
 
 
@@ -38,8 +70,7 @@ class Cls_Datasets():
         self.n_classes: int = cls_datasets[dataset_name]['n_classes']
         self.n_channels: int = cls_datasets[dataset_name]['channels']
         self.dataset_id: int = cls_datasets[dataset_name]['id']
-        self.image_size: int = cls_datasets[dataset_name]['image_size']
-        self.classes: List[str] = cls_datasets[dataset_name]['classes']
+        self.classes: List[str] = cls_datasets[dataset_name]['classes'] if dataset_name != 'tinyimagenet' else list(get_class_name('./datasets/tiny-imagenet-200').values())
     
         self.get_initial_subsets(init_lab_obs)
     
@@ -87,7 +118,8 @@ class Cls_Dataset(Dataset):
             # validation or test
             if dataset_name == 'tinyimagenet':
                 download_tinyimagenet()
-                self.ds = datasets.ImageFolder(f'./datasets/tiny-imagenet-200/{'train' if bool_train else 'test'}', 
+                if not bool_train: create_val_img_folder('./datasets/tiny-imagenet-200')
+                self.ds = datasets.ImageFolder(f'./datasets/tiny-imagenet-200/{'train' if bool_train else 'val'}', 
                     transform=cls_datasets[dataset_name]['transforms']['test']
                 )
             elif dataset_name == 'svhn':

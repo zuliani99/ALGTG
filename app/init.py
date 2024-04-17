@@ -16,8 +16,8 @@ def get_dataset(task, dataset_name: str, init_lab_obs: int) -> Cls_Datasets | De
     else: return Det_Dataset(dataset_name, init_lab_obs=init_lab_obs)
 
     
-def get_backbone(image_size: int, n_classes: int, n_channels: int, task: str) -> ResNet | SSD:
-    if task == 'clf': return ResNet18(image_size, n_classes=n_classes,  n_channels=n_channels)
+def get_backbone(n_classes: int, n_channels: int, task: str) -> ResNet | SSD:
+    if task == 'clf': return ResNet18(n_classes=n_classes,  n_channels=n_channels)
     else: return build_ssd('train', voc_config, num_classes=n_classes)
     
 

@@ -248,7 +248,7 @@ def main() -> None:
             
             Dataset = get_dataset(task, dataset_name, init_lab_obs = al_params['init_lab_obs']) # get the dataset
             
-            BBone = get_backbone(Dataset.image_size, Dataset.n_classes, Dataset.n_channels, task) # the backbone is the same for all
+            BBone = get_backbone(Dataset.n_classes, Dataset.n_channels, task) # the backbone is the same for all
             
             # create gtg dictionary parameters
             gtg_module_params = dict(

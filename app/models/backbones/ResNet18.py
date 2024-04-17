@@ -15,42 +15,56 @@ from utils import init_weights_apply
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, in_planes: int, planes: int, stride=1) -> None:
-        super(BasicBlock, self).__init__()
-        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
+    def __init__(self, in_channels, out_channels, stride=1):
+        super().__init__()
 
+        #residual function
+        self.residual_function = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels * BasicBlock.expansion, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(out_channels * BasicBlock.expansion)
+        )
+
+        #shortcut
         self.shortcut = nn.Sequential()
-        if stride != 1 or in_planes != self.expansion*planes:
+
+        #the shortcut output dimension is not the same with residual function
+        #use 1*1 convolution to match the dimension
+        if stride != 1 or in_channels != BasicBlock.expansion * out_channels:
             self.shortcut = nn.Sequential(
-                nn.Conv2d(in_planes, self.expansion*planes, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(self.expansion*planes)
+                nn.Conv2d(in_channels, out_channels * BasicBlock.expansion, kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(out_channels * BasicBlock.expansion)
             )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = F.relu(self.bn1(self.conv1(x)))
-        out = self.bn2(self.conv2(out))
-        out += self.shortcut(x)
-        out = F.relu(out)
-        return out
+    def forward(self, x):
+        return nn.ReLU(inplace=True)(self.residual_function(x) + self.shortcut(x))
+
     
 
 class ResNet(nn.Module):
-    def __init__(self, image_size: int, block: BasicBlock, num_blocks: List[int], n_channels=3, n_classes=10) -> None:
-        super(ResNet, self).__init__()
-        self.in_planes = 64
+        
+    def __init__(self, block: BasicBlock, num_block: List[int], n_channels=3, num_classes=10):
+        super().__init__()
 
-        self.conv1 = nn.Conv2d(n_channels, 64, kernel_size=3, stride=image_size // 32, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
-        self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
-        self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
-        self.linear = nn.Linear(512 * block.expansion, n_classes)
+        self.in_channels = 64
+
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(n_channels, 64, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True))
+        #we use a different inputsize than the original paper
+        #so conv2_x's stride is 1
+        self.conv2_x = self._make_layer(block, 64, num_block[0], 1)
+        self.conv3_x = self._make_layer(block, 128, num_block[1], 2)
+        self.conv4_x = self._make_layer(block, 256, num_block[2], 2)
+        self.conv5_x = self._make_layer(block, 512, num_block[3], 2)
+        self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
         
         self.apply(init_weights_apply)
+        
 
     def _make_layer(self, block: BasicBlock, planes: int, num_blocks: int, stride: int) -> nn.Sequential:
         strides = [stride] + [1]*(num_blocks-1)
@@ -61,19 +75,21 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        out = F.relu(self.bn1(self.conv1(x)))
         
-        out1 = self.layer1(out)
-        out2 = self.layer2(out1)
-        out3 = self.layer3(out2)
-        out4 = self.layer4(out3)
+        out = self.conv1(x)
+        
+        out1 = self.conv2_x(out)
+        out2 = self.conv3_x(out1)
+        out3 = self.conv4_x(out2)
+        out4 = self.conv5_x(out3)
         
         self.features = [out1, out2, out3, out4]
         
-        out = F.avg_pool2d(out4, 4)
-        embedds = out.view(out.size(0), -1)
+        out = self.avg_pool(out4)
         
-        out = self.linear(embedds)
+        embedds = out.view(out.size(0), -1)
+        out = self.fc(embedds)
+
         return out, embedds
     
     def get_rich_features_shape(self) -> List[int]:
@@ -86,5 +102,5 @@ class ResNet(nn.Module):
         return self.linear.in_features
 
 
-def ResNet18(image_size: int, n_classes=10, n_channels=3) -> ResNet:
-    return ResNet(image_size, BasicBlock, [2,2,2,2], n_channels, n_classes) # type: ignore
+def ResNet18(n_classes=10, n_channels=3) -> ResNet:
+    return ResNet(BasicBlock, [2,2,2,2], n_channels, n_classes) # type: ignore
