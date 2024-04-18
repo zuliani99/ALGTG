@@ -3,6 +3,7 @@ from models.modules.GTG_Cls import GTG_Module
 from models.modules.LossNet import LossNet
 from models.backbones.ssd_pytorch.SSD import SSD, build_ssd
 from models.backbones.ResNet18 import ResNet, ResNet18
+from models.backbones.VGG import VGG, VGG16_bn
 
 from datasets_creation.Classification import Cls_Datasets
 from datasets_creation.Detection import Det_Dataset
@@ -11,13 +12,16 @@ from config import voc_config
 from typing import Dict, Any, List, Tuple
 
 
-def get_dataset(task, dataset_name: str, init_lab_obs: int) -> Cls_Datasets | Det_Dataset:
+
+def get_dataset(task: str, dataset_name: str, init_lab_obs: int) -> Cls_Datasets | Det_Dataset:
     if task == 'clf': return Cls_Datasets(dataset_name, init_lab_obs=init_lab_obs)
     else: return Det_Dataset(dataset_name, init_lab_obs=init_lab_obs)
 
     
-def get_backbone(n_classes: int, n_channels: int, task: str) -> ResNet | SSD:
-    if task == 'clf': return ResNet18(n_classes=n_classes,  n_channels=n_channels)
+def get_backbone(n_classes: int, n_channels: int, task: str, bbone: str) -> ResNet | VGG | SSD:
+    if task == 'clf': 
+        if bbone == 'resnet': return ResNet18(n_classes=n_classes,  n_channels=n_channels)
+        else: return VGG16_bn(n_classes=n_classes,  n_channels=n_channels)
     else: return build_ssd('train', voc_config, num_classes=n_classes)
     
 

@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 
 import torch
+
 torch.autograd.set_detect_anomaly(True) # type: ignore
 import torch.distributed as dist
 
 from models.BBone_Module import Master_Model
 from models.backbones.ResNet18 import ResNet
 from models.backbones.ssd_pytorch.SSD import SSD
+from models.backbones.VGG import VGG
+
 from init import get_backbone, get_dataset, get_ll_module_params, get_module
 from utils import create_directory, create_ts_dir, plot_loss_curves, \
     plot_res_std_mean, set_seeds, Entropy_Strategy as ES
@@ -42,6 +45,7 @@ def get_args() -> argparse.Namespace:
             'll', 'gtg_ll', 'lq_gtg'
         ],
         required=True, help='Possible methods to choose')
+    parser.add_argument('-bb', '--bbone', type=str, nargs=1, choices=['resnet18', 'vgg16', 'ssd'], required=True, help='Possible backbone to choose')
     parser.add_argument('-ds', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'svhn', 'caltech256', 'tinyimagenet', 'voc', 'coco'],
                         required=True, help='Possible datasets to choose')
     parser.add_argument('-tr', '--trials', type=int, nargs=1, required=True, help='Number or trials of AL benchmark for each dataset')
@@ -57,7 +61,6 @@ def get_args() -> argparse.Namespace:
                         help='Number of labeled observations to mantain in each batch during out method')
     parser.add_argument('--wandb', action='store_true', 
                         help='Log benchmark stats into Weights & Biases web app service')
-                        
 
     args = parser.parse_args()
     return args
@@ -79,7 +82,8 @@ def get_strategies_object(methods: List[str], list_gtg_p: List[Dict[str, Any]], 
         if 'gtg' in method.split('_'):
             for gtg_p in list_gtg_p:
                 strategies.append(dict_strategies[method](
-                    {**ct_p, 'Master_Model': Masters['M_LL'] if method.split('_')[0] == 'gtg' else Masters['M_GTG']}, t_p, al_p, gtg_p
+                    {**ct_p, 'Master_Model': Masters['M_LL'] if method.split('_')[0] == 'gtg' else Masters['M_GTG']},
+                    t_p, al_p, gtg_p
                 ))
         elif method == 'll':
             strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_LL']}, t_p, al_p))
@@ -145,7 +149,7 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
 
 
 # to create a single master model for each type
-def get_masters(methods: List[str], BBone: ResNet | SSD,
+def get_masters(methods: List[str], BBone: ResNet | SSD | VGG,
                 ll_module_params: Dict[str, Any], gtg_module_params: Dict[str, Any],
                 dataset_name: str) -> Dict[str, Master_Model]:
     
@@ -179,6 +183,7 @@ def main() -> None:
     
     methods = args.methods
     choosen_datasets = args.datasets
+    bbone = args.bbone
 
     threshold_strategies = args.threshold_strategies if args.threshold_strategies != None else None
     thresholds = args.thresholds if args.thresholds != None else None
@@ -251,7 +256,7 @@ def main() -> None:
             
             Dataset = get_dataset(task, dataset_name, init_lab_obs = al_params['init_lab_obs']) # get the dataset
             
-            BBone = get_backbone(Dataset.n_classes, Dataset.n_channels, task) # the backbone is the same for all
+            BBone = get_backbone(Dataset.n_classes, Dataset.n_channels, task, bbone) # the backbone is the same for all
             
             # create gtg dictionary parameters
             gtg_module_params = dict(

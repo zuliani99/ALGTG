@@ -4,6 +4,8 @@ import torch.nn as nn
 
 from models.backbones.ResNet18 import ResNet
 from models.backbones.ssd_pytorch.SSD import SSD
+from models.backbones.VGG import VGG
+
 from models.modules.GTG_Cls import GTG_Module
 from models.modules.LossNet import LossNet
 
@@ -12,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class Master_Model(nn.Module):
-    def __init__(self, backbone: SSD | ResNet, added_module: LossNet | GTG_Module | None, dataset_name: str) -> None:
+    def __init__(self, backbone: SSD | ResNet | VGG, added_module: LossNet | GTG_Module | None, dataset_name: str) -> None:
         
         super(Master_Model, self).__init__()
         

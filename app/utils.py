@@ -204,7 +204,8 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
     axes[0].legend()
     
     
-    for array, color, style, label in [(unlabeled, 'lightblue', '--', 'unlabeled'), (new_labeled, None, '-', new_labeled_lab)]:
+    for array, color, style, label in [(unlabeled, 'lightblue', '--', 'unlabeled'),
+                                       (new_labeled, None, '-', new_labeled_lab)]:
         if style == '-':
             labels_array = label
         
@@ -237,7 +238,9 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
     df = pd.read_csv(f'results/{timestamp}/{dataset_name}/{task}_results.csv')
 
     df_grouped = (
-        df[['method', 'lab_obs', 'test_accuracy' if task == 'clf' else 'test_map']].groupby(['method', 'lab_obs']).agg(['mean', 'std', 'count'])
+        df[
+            ['method', 'lab_obs', 'test_accuracy' if task == 'clf' else 'test_map']
+        ].groupby(['method', 'lab_obs']).agg(['mean', 'std', 'count'])
     )
     df_grouped = df_grouped.droplevel(axis=1, level=0).reset_index()
     
@@ -252,9 +255,11 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
     plt.figure(figsize=(14, 10))
     for idx, method in enumerate(methods):
         method_data = df_grouped[df_grouped['method'] == method]
-        plt.plot(method_data['lab_obs'], method_data['mean'], label=method, linestyle = 'dashed' if method in ['Random_LL', 'Random'] else 'solid')
+        plt.plot(method_data['lab_obs'], method_data['mean'], label=method, 
+                 linestyle = 'dashed' if method in ['Random_LL', 'Random'] else 'solid')
         plt.fill_between(method_data['lab_obs'], method_data['ci_lower'], method_data['ci_upper'], alpha=0.3)
-        plt.scatter(method_data['lab_obs'], method_data['mean'], marker=shapes[idx], color=plt.gca().lines[-1].get_color(), zorder=5) # type: ignore
+        plt.scatter(method_data['lab_obs'], method_data['mean'], marker=shapes[idx], 
+                    color=plt.gca().lines[-1].get_color(), zorder=5) # type: ignore
 
     plt.xlabel('Labeled Observations')
     plt.ylabel('Test Accuracy' if task == 'clf' else 'Test mAP')
@@ -292,8 +297,9 @@ def set_seeds(seed: int = 10001) -> None:
     
 
 
-def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor, torch.Tensor], classes: List[str], time_stamp: str, \
-                ds_name: str, samp_iter: int, method: str, affinity: str, strategy: str, iter: int) -> None:
+def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor, torch.Tensor],
+                classes: List[str], time_stamp: str, ds_name: str, samp_iter: int, method: str,
+                affinity: str, strategy: str, iter: int) -> None:
     
     A_1, A_2 = A
     
@@ -329,8 +335,10 @@ def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor
     
     
     
-def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor], iter: str, method: str, ds_name: str, idxs_new_labels: List[int], 
-                          classes: List[str], time_stamp: str, samp_iter: int, d_labels: Dict[str, int], gtg_result_prediction = None):
+def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor],
+                          iter: str, method: str, ds_name: str, idxs_new_labels: List[int], 
+                          classes: List[str], time_stamp: str, samp_iter: int, d_labels: Dict[str, int],
+                          gtg_result_prediction = None):
     
     tsne = TSNE().fit_transform(np.vstack((lab['embedds'].cpu().numpy(), unlab['embedds'].cpu().numpy())))
     tsne_lab, tsne_unlab = tsne[:len(lab['embedds']), :], tsne[len(lab['embedds']):, :]
