@@ -2,9 +2,12 @@
 from torch.utils.data import Dataset, Subset
 from torchvision import datasets
 import torch
+import numpy as np
 
 from typing import List, Tuple, Dict
 import os
+
+from torchvision.transforms import v2
 
 from utils import count_class_observation
 from config import cls_datasets 
@@ -23,6 +26,7 @@ def download_tinyimagenet() -> None:
         logger.info(' DONE\n')
     else:
         logger.info('Tiny-IMAGENET Dataset already downloaded')
+        
         
         
 def create_val_img_folder(dataset_dir):
@@ -46,6 +50,7 @@ def create_val_img_folder(dataset_dir):
             os.rename(os.path.join(img_dir, img), os.path.join(newpath, img))
 
 
+
 def get_class_name(dataset_dir) -> Dict[str, str]:
     class_to_name = dict()
     fp = open(os.path.join(dataset_dir, 'words.txt'), 'r')
@@ -55,6 +60,27 @@ def get_class_name(dataset_dir) -> Dict[str, str]:
         class_to_name[words[0]] = words[1].split(',')[0]
     fp.close()
     return class_to_name
+
+
+
+def init_caltech256():
+    if len(cls_datasets['caltech256']['train_idxs']) == 0 and len(cls_datasets['caltech256']['test_idxs']) == 0:
+        rand_perm = torch.randperm(cls_datasets['caltech256']['n_images'])
+        cls_datasets['caltech256']['train_idxs'] = rand_perm[:10000].tolist()
+        cls_datasets['caltech256']['test_idxs'] = rand_perm[:10000].tolist()
+                
+        train_data = Subset(datasets.Caltech256('./datasets/caltech256/'), cls_datasets['caltech256']['train_idxs'])
+                
+        x = np.concatenate([np.asarray(train_data[i][0]) for i in range(len(train_data))])
+                
+        mean = np.mean(x, axis=(0, 1)) / 255
+        std = np.std(x, axis=(0, 1)) / 255
+                
+        cls_datasets['caltech256']['transforms']['train'].append(v2.Normalize(mean=mean, std=std))
+        cls_datasets['caltech256']['transforms']['train'] = v2.Compose( cls_datasets['caltech256']['transforms']['train'])
+                
+        cls_datasets['caltech256']['transforms']['test'].append(v2.Normalize(mean=mean, std=std))
+        cls_datasets['caltech256']['transforms']['test'] = v2.Compose( cls_datasets['caltech256']['transforms']['test'])
 
 
 
@@ -70,7 +96,8 @@ class Cls_Datasets():
         self.n_classes: int = cls_datasets[dataset_name]['n_classes']
         self.n_channels: int = cls_datasets[dataset_name]['channels']
         self.dataset_id: int = cls_datasets[dataset_name]['id']
-        self.classes: List[str] = cls_datasets[dataset_name]['classes'] if dataset_name != 'tinyimagenet' else list(get_class_name('./datasets/tiny-imagenet-200').values())
+        self.classes: List[str] = cls_datasets[dataset_name]['classes'] if dataset_name != 'tinyimagenet' \
+            else list(get_class_name('./datasets/tiny-imagenet-200').values())
     
         self.get_initial_subsets(init_lab_obs)
     
@@ -106,11 +133,19 @@ class Cls_Dataset(Dataset):
                     transform=cls_datasets[dataset_name]['transforms']['train']
                 )
             elif dataset_name == 'svhn':
-                self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', split='train', download=True,
+                self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', 
+                    split='train', download=True,
                     transform=cls_datasets[dataset_name]['transforms']['train']
                 )
+            elif dataset_name == 'caltech256':
+                init_caltech256()
+                self.ds = Subset(cls_datasets[dataset_name]['transforms']['train_idxs'],
+                                 cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',
+                    transform=cls_datasets[dataset_name]['transforms']['train'])
+                )
             else:
-                self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True,
+                self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',
+                                                                        train=bool_train, download=True,
                     transform=cls_datasets[dataset_name]['transforms']['train']
                 )    
             
@@ -123,11 +158,19 @@ class Cls_Dataset(Dataset):
                     transform=cls_datasets[dataset_name]['transforms']['test']
                 )
             elif dataset_name == 'svhn':
-                self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', split='train' if bool_train else 'test', download=True,
+                self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', split='train' 
+                                                                        if bool_train else 'test', download=True,
                     transform=cls_datasets[dataset_name]['transforms']['test']
                 )
+            elif dataset_name == 'caltech256':
+                init_caltech256()
+                self.ds = Subset(cls_datasets[dataset_name]['transforms']['train_idxs' if bool_train else 'test_idxs'], 
+                                 cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',
+                    transform=cls_datasets[dataset_name]['transforms']['test'])
+                )
             else:
-                self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', train=bool_train, download=True,
+                self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',
+                                                                        train=bool_train, download=True,
                     transform=cls_datasets[dataset_name]['transforms']['test']
                 )           
         

@@ -106,6 +106,10 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
     del gtg_p['thresholds']
     del gtg_p['no_none_strategy']
     
+    if t_s == None and nn_s: 
+        logger.exception('No affinity matrix modification specified')
+        raise AttributeError('No affinity matrix modification specified')
+    
     if t_s != None:
         for ts in t_s:
             if ts == 'mean':
@@ -119,14 +123,13 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
                     list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT})
                     list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
                     list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT})
-    elif not nn_s:
+    
+    if not nn_s:
         list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
         list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT})
         list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
         list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT})
-    else:
-        logger.exception('No affinity matrix modification specified')
-        raise AttributeError('No affinity matrix modification specified')
+        
             
     # get the strategis object to run them
     strategies = get_strategies_object(methods, list_gtg_p, Masters, ct_p, t_p, al_p)
@@ -183,8 +186,8 @@ def main() -> None:
     wandb = args.wandb
     no_none_strategy = args.no_none_strategy
     
-    perc_labeled_batch = args.perc_labeled_batch[0] if args.perc_labeled_batch[0] != None else None
-    strategy_type = args.strategy[0] if args.strategy[0] != None else None
+    perc_labeled_batch = args.perc_labeled_batch[0] if args.perc_labeled_batch != None else None
+    strategy_type = args.strategy[0] if args.strategy != None else None
     trials = args.trials[0]
     
     

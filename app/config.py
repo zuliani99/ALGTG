@@ -106,6 +106,28 @@ cls_datasets = {
                                      std=[0.27643974, 0.26888656, 0.28166852])
                     ])
         }
+    },
+    'caltech256': {
+        'id': 5,
+        'n_classes': 256,
+        'channels': 3,
+        'train_idxs': [],
+        'test_idxs': [],
+        'n_images': 30607,
+        'classes':[],
+        'transforms': {
+            'train': [
+                        v2.ToImage(),
+                        v2.RandomCrop(64, padding=8),
+                        v2.RandomHorizontalFlip(),
+                        v2.RandomRotation(degrees=(0,20)),
+                        v2.ToDtype(torch.float32, scale=True),
+                    ],
+            'train': [
+                        v2.ToImage(),
+                        v2.ToDtype(torch.float32, scale=True),
+                    ],
+        }   
     }
 }
 
