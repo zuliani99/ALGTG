@@ -93,6 +93,8 @@ class Cls_TrainWorker():
             
             return loss, tot_loss_ce, tot_pred_loss
         else:
+            #module_out = module_out.view(module_out.size(0)) # added
+            #loss_weird = LossPredLoss(module_out, loss_ce, self.device)
             loss_weird = self.ll_loss_fn(module_out, loss_ce)
             loss = backbone + loss_weird
 
@@ -148,8 +150,8 @@ class Cls_TrainWorker():
             train_accuracy /= len(self.train_dl)
             train_loss /= len(self.train_dl)
             train_loss_ce /= len(self.train_dl)
-            train_loss_pred /= len(self.train_dl)
-                        
+            train_loss_pred /= len(self.train_dl)                        
+            
             
             for pos, metric in zip(range(results.shape[0]), [train_accuracy, train_loss, train_loss_ce, train_loss_pred]):
                 results[pos][epoch] = metric

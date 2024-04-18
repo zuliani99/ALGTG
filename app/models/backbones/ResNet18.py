@@ -61,7 +61,7 @@ class ResNet(nn.Module):
         self.conv4_x = self._make_layer(block, 256, num_block[2], 2)
         self.conv5_x = self._make_layer(block, 512, num_block[3], 2)
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        self.linear = nn.Linear(512 * block.expansion, num_classes)
         
         self.apply(init_weights_apply)
         
@@ -70,8 +70,8 @@ class ResNet(nn.Module):
         strides = [stride] + [1]*(num_blocks-1)
         layers = []
         for stride in strides:
-            layers.append(block(self.in_planes, planes, stride))
-            self.in_planes = planes * block.expansion
+            layers.append(block(self.in_channels, planes, stride))
+            self.in_channels = planes * block.expansion
         return nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -88,7 +88,7 @@ class ResNet(nn.Module):
         out = self.avg_pool(out4)
         
         embedds = out.view(out.size(0), -1)
-        out = self.fc(embedds)
+        out = self.linear(embedds)
 
         return out, embedds
     
