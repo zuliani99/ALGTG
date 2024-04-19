@@ -323,12 +323,12 @@ def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor
         
         sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', s=17, ax=axes[idx][0])
         sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=17, ax=axes[idx][0])
-        axes[idx][0].set_title(f'{name} Affnity Matrix')
+        axes[idx][0].set_title(f'{name} Affinity Matrix')
         axes[idx][0].legend()
         
         sns.scatterplot(x=x, y=y, hue=[classes[l] for l in label], s=17, ax=axes[idx][1])
         axes[idx][1].set_title(f'{name} Affnity Matrix Classes')
-        axes[idx][1].legend()
+        if len(classes) <= 10: axes[idx][1].legend()
 
     plt.suptitle(f'Affinity Matrix TSNE Plots - Iteration {iter}', fontsize=30)
     

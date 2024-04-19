@@ -185,7 +185,7 @@ class Cls_Datasets():
         self.dataset_id: int = cls_datasets[dataset_name]['id']
  
         if dataset_name == 'tinyimagenet':
-            cls_datasets[dataset_name]['classes'] = os.listdir('./datasets/tiny-imagenet-200')
+            cls_datasets[dataset_name]['classes'] = os.listdir('./datasets/tiny-imagenet-200/train')
             
         self.classes: List[str] = cls_datasets[dataset_name]['classes']
         

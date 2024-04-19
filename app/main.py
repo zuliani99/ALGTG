@@ -106,10 +106,6 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
     thres = gtg_p['thresholds']
     nn_s = gtg_p['no_none_strategy']
     
-    del gtg_p['threshold_strategies']
-    del gtg_p['thresholds']
-    del gtg_p['no_none_strategy']
-    
     if t_s == None and nn_s: 
         logger.exception('No affinity matrix modification specified')
         raise AttributeError('No affinity matrix modification specified')
