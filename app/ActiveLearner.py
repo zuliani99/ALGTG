@@ -38,6 +38,8 @@ class ActiveLearner():
         self.model = self.model.to(self.device)
         
         self.dataset: Cls_Datasets | Det_Dataset = self.ct_p['Dataset']
+        
+        self.ds_t_p = self.t_p[self.ct_p['dataset_name']]
                 
         self.labeled_indices: List[int] = copy.deepcopy(self.dataset.labeled_indices)
         self.unlabeled_indices: List[int] = copy.deepcopy(self.dataset.unlabeled_indices)
@@ -147,8 +149,8 @@ class ActiveLearner():
         
         logger.info(' => Saving the TSNE embeddings plot with labeled, unlabeled and new labeled observations')
         
-        unlab_train_dl = DataLoader(samp_unlab_subset, batch_size=self.t_p['batch_size'], shuffle=False, pin_memory=True)
-        lab_train_dl = DataLoader(self.labeled_subset, batch_size=self.t_p['batch_size'], shuffle=False, pin_memory=True)
+        unlab_train_dl = DataLoader(samp_unlab_subset, batch_size=self.ds_t_p['batch_size'], shuffle=False, pin_memory=True)
+        lab_train_dl = DataLoader(self.labeled_subset, batch_size=self.ds_t_p['batch_size'], shuffle=False, pin_memory=True)
         
         lab_embedds_dict = {
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
@@ -278,7 +280,7 @@ class ActiveLearner():
         # generate the new labeled DataLoader
         self.labeled_subset = Subset(self.dataset.transformed_trainset, self.labeled_indices)
         #self.lab_train_dl = DataLoader(
-        #    self.labeled_subset, batch_size=self.t_p['batch_size'], shuffle=False, pin_memory=True
+        #    self.labeled_subset, batch_size=self.ds_t_p['batch_size'], shuffle=False, pin_memory=True
         #)
         
         logger.info(f' New labeled_indices lenght: {len(self.labeled_indices)} - new unlabeled_indices lenght: {len(self.unlabeled_indices)}')

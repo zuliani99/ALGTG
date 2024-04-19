@@ -43,6 +43,7 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     
     ct_p = params['ct_p']
     t_p = params['t_p']
+    batch_size = t_p[ct_p['dataset_name']]['batch_size']
     num_workers = int(os.environ['SLURM_CPUS_PER_TASK'])
     
     # deep copy the model (it is in the RAM) and then move it to the realive gpu
@@ -52,7 +53,7 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     ct_p['Model_train'] = moved_model
     
     dict_dl = dict(
-        batch_size=t_p['batch_size'],
+        batch_size=batch_size,
         shuffle=False, 
         pin_memory=True, 
         persistent_workers=True, 
@@ -85,7 +86,7 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     if ct_p['task'] == 'detection':  
         # determine the number of iterations by -> iterations = epochs * (len(splitted_train_ds) // batch_size)
         #                                               x     =  300   * (len(train_ds)/world_size) / batch_size)
-        t_p['epoch_size'] = len(params['train_dl'].dataset) // t_p['batch_size'] # type: ignore
+        t_p['epoch_size'] = len(params['train_dl'].dataset) // batch_size # type: ignore
         t_p['max_iter'] = t_p['epochs'] * t_p['epoch_size']
         
         train_test = Det_TrainWorker(rank, params, world_size)
@@ -127,16 +128,17 @@ def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
     
     ct_p = params['ct_p']
     t_p = params['t_p']
+    batch_size = t_p[ct_p['dataset_name']]['batch_size']
     
     # deep copy the model (it is in the RAM) and then move it to the realive gpu
     ct_p['Master_Model'] = copy.deepcopy(ct_p['Master_Model']).to(params['ct_p']['device'])
     
-    dict_dl = dict(batch_size=t_p['batch_size'], pin_memory=True)
+    dict_dl = dict(batch_size=batch_size, pin_memory=True)
     
     if ct_p['task'] == 'detection': 
         dict_dl['collate_fn'] = detection_collate
         
-        t_p['epoch_size'] = len(params['labeled_subset']) // t_p['batch_size']
+        t_p['epoch_size'] = len(params['labeled_subset']) // batch_size
         t_p['max_iter'] = t_p['epochs'] * t_p['epoch_size']
         
         TrainWorker = Det_TrainWorker

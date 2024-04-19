@@ -189,7 +189,7 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
     pl_cls_1, pl2_cls_2 = set(), set()
 
     for i, lab in zip(range(len(array)), lab_unlabels):
-        if lab not in pl_cls_1:
+        if lab not in pl_cls_1 and len(classes) <= 10 :
             axes[0].plot(x, array[i], linestyle="-", label=classes[lab], color=palette[lab])
             pl_cls_1.add(lab)
         else:
@@ -215,7 +215,7 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
                 color = palette[labels_array[i]]
                 label = classes[labels_array[i]]
                         
-            if label not in pl2_cls_2:
+            if label not in pl2_cls_2 and len(classes) <= 10:
                 axes[1].plot(x, array[i], linestyle=style, label=label, color=color)
                 pl2_cls_2.add(label)
             else: axes[1].plot(x, array[i], linestyle=style, color=color)
@@ -251,15 +251,18 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
     methods = df_grouped['method'].unique()
     shapes = ['o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v']
 
+    palette = list(mcolors.CSS4_COLORS.values()) if len(methods) > 10 \
+        else list(mcolors.TABLEAU_COLORS.values())
+    random.shuffle(palette)
+
     # Plot each method
     plt.figure(figsize=(14, 10))
     for idx, method in enumerate(methods):
         method_data = df_grouped[df_grouped['method'] == method]
         plt.plot(method_data['lab_obs'], method_data['mean'], label=method, 
-                 linestyle = 'dashed' if method in ['Random_LL', 'Random'] else 'solid')
-        plt.fill_between(method_data['lab_obs'], method_data['ci_lower'], method_data['ci_upper'], alpha=0.3)
-        plt.scatter(method_data['lab_obs'], method_data['mean'], marker=shapes[idx], 
-                    color=plt.gca().lines[-1].get_color(), zorder=5) # type: ignore
+                 linestyle = 'dashed' if method in ['Random_LL', 'Random'] else 'solid', color=palette[idx])
+        plt.fill_between(method_data['lab_obs'], method_data['ci_lower'], method_data['ci_upper'], alpha=0.3, color=palette[idx])
+        plt.scatter(method_data['lab_obs'], method_data['mean'], marker=shapes[idx], color=palette[idx], zorder=5)
 
     plt.xlabel('Labeled Observations')
     plt.ylabel('Test Accuracy' if task == 'clf' else 'Test mAP')
@@ -375,8 +378,12 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
     axes[0].set_title('TSNE -- labeled - unlabeled - new_labeled')
     axes[0].legend()
     
-    sns.scatterplot(x=np.hstack((x_lab, x_unlab)), y=np.hstack((y_lab, y_unlab)), 
+    if len(classes) <= 10:
+        sns.scatterplot(x=np.hstack((x_lab, x_unlab)), y=np.hstack((y_lab, y_unlab)), 
                     hue=[classes[l] for l in np.hstack((lab['labels'], unlab['labels']))], s=17, ax=axes[1])
+    else:
+        sns.scatterplot(x=np.hstack((x_lab, x_unlab)), y=np.hstack((y_lab, y_unlab)), s=17, ax=axes[1])
+        
     axes[1].set_title('TSNE - classes')
     axes[1].legend()
     

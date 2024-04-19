@@ -183,7 +183,7 @@ def main() -> None:
     
     methods = args.methods
     choosen_datasets = args.datasets
-    bbone = args.bbone
+    bbone = args.bbone[0]
 
     threshold_strategies = args.threshold_strategies if args.threshold_strategies != None else None
     thresholds = args.thresholds if args.thresholds != None else None
@@ -253,11 +253,11 @@ def main() -> None:
             logger.info(f'----------------------- SAMPLE ITERATION {trial + 1} / {trials} -----------------------\n')
             
             create_ts_dir(timestamp, dataset_name, str(trial))
-            
+
             Dataset = get_dataset(task, dataset_name, init_lab_obs = al_params['init_lab_obs']) # get the dataset
             
             BBone = get_backbone(Dataset.n_classes, Dataset.n_channels, task, bbone) # the backbone is the same for all
-            
+
             # create gtg dictionary parameters
             gtg_module_params = dict(
                 **gtg_params, n_top_k_obs = al_params['n_top_k_obs'], 

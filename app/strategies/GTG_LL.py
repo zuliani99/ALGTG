@@ -235,7 +235,7 @@ class GTG_LL(ActiveLearner):
             shuffle=False, pin_memory=True
         )
         lab_train_dl = DataLoader(
-            self.labeled_subset, batch_size=self.t_p['batch_size'],  # thus there is no needs on shuffling the unlabeled dataloader
+            self.labeled_subset, batch_size=self.ds_t_p['batch_size'],  # thus there is no needs on shuffling the unlabeled dataloader
             shuffle=False, pin_memory=True
         )
                 

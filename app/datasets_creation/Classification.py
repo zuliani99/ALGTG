@@ -6,6 +6,7 @@ import numpy as np
 
 from typing import List, Tuple, Dict
 import os
+import shutil
 
 from torchvision.transforms import v2
 
@@ -51,7 +52,7 @@ def create_val_img_folder(dataset_dir):
 
 
 
-def get_class_name(dataset_dir) -> Dict[str, str]:
+'''def get_class_name_timagenet(dataset_dir) -> Dict[str, str]:
     class_to_name = dict()
     fp = open(os.path.join(dataset_dir, 'words.txt'), 'r')
     data = fp.readlines()
@@ -60,28 +61,75 @@ def get_class_name(dataset_dir) -> Dict[str, str]:
         class_to_name[words[0]] = words[1].split(',')[0]
     fp.close()
     return class_to_name
+'''
 
+def preprocess_caltech256(caltech256_path):
+    n_images = 0
+    for dir_name in os.listdir(caltech256_path):
+        new_dir_name = dir_name.split('.')[-1]
+        os.rename(os.path.join(caltech256_path, dir_name), os.path.join(caltech256_path, new_dir_name))
+        for file_name in os.listdir(os.path.join(caltech256_path, new_dir_name)):
+            n_images += 1
+            new_file_name = file_name.split('_')[-1]
+            os.rename(os.path.join(caltech256_path, new_dir_name, file_name),
+                      os.path.join(caltech256_path, new_dir_name, new_file_name))
+    return n_images
+
+
+def download_caltech256():
+    if not os.path.exists('./datasets/caltech256'):
+        os.makedirs('./datasets/caltech256', exist_ok=True)
+        logger.info(' => Downloading Caltech256 Dataset')
+        # downlaod dataset
+        os.system('wget -P ./datasets/caltech256 https://data.caltech.edu/records/nyy15-4j048/files/256_ObjectCategories.tar')
+        # extract and remove it
+        os.system('tar -xopf ./datasets/caltech256/256_ObjectCategories.tar -C ./datasets/caltech256')
+        os.remove('./datasets/caltech256/256_ObjectCategories.tar')
+        # remove non-images
+        os.remove(os.path.join('./datasets/caltech256/256_ObjectCategories', '198.spider/RENAME2'))
+        shutil.rmtree(os.path.join('./datasets/caltech256/256_ObjectCategories', '056.dog/greg'))
+        # we don't need the class with noise
+        shutil.rmtree(os.path.join('./datasets/caltech256/256_ObjectCategories', '257.clutter'))
+        logger.info(' DONE\n')
+    
+    else:
+        logger.info('Caltech256 already downloaded')
+        
+    return preprocess_caltech256('./datasets/caltech256/256_ObjectCategories')
 
 
 def init_caltech256():
     if len(cls_datasets['caltech256']['train_idxs']) == 0 and len(cls_datasets['caltech256']['test_idxs']) == 0:
+                
+        cls_datasets['caltech256']['n_images'] = download_caltech256()
+        print(cls_datasets['caltech256']['n_images'])
+        
+        logger.info(' => Computing mean and std for a random train test split...')
+        
         rand_perm = torch.randperm(cls_datasets['caltech256']['n_images'])
-        cls_datasets['caltech256']['train_idxs'] = rand_perm[:10000].tolist()
+        # we set 10000 test observations
+        cls_datasets['caltech256']['train_idxs'] = rand_perm[10000:].tolist()
         cls_datasets['caltech256']['test_idxs'] = rand_perm[:10000].tolist()
                 
-        train_data = Subset(datasets.Caltech256('./datasets/caltech256/'), cls_datasets['caltech256']['train_idxs'])
+        train_data = datasets.ImageFolder('./datasets/caltech256/256_ObjectCategories', transform=v2.Compose([v2.Resize((64,64))]))
+        
+        images = []
+        for i in cls_datasets['caltech256']['train_idxs']:
+            if len(np.asarray(train_data[i][0]).shape) == 3: images.append(np.asarray(train_data[i][0]))
+            else: images.append(np.repeat(np.asarray(train_data[i][0])[:, :, np.newaxis], 3, axis=2))
                 
-        x = np.concatenate([np.asarray(train_data[i][0]) for i in range(len(train_data))])
+        images = np.concatenate(images)
                 
-        mean = np.mean(x, axis=(0, 1)) / 255
-        std = np.std(x, axis=(0, 1)) / 255
+        mean = np.mean(images, axis=(0, 1)) / 255 
+        std = np.std(images, axis=(0, 1)) / 255
                 
         cls_datasets['caltech256']['transforms']['train'].append(v2.Normalize(mean=mean, std=std))
-        cls_datasets['caltech256']['transforms']['train'] = v2.Compose( cls_datasets['caltech256']['transforms']['train'])
+        cls_datasets['caltech256']['transforms']['train'] = v2.Compose(cls_datasets['caltech256']['transforms']['train'])
                 
         cls_datasets['caltech256']['transforms']['test'].append(v2.Normalize(mean=mean, std=std))
-        cls_datasets['caltech256']['transforms']['test'] = v2.Compose( cls_datasets['caltech256']['transforms']['test'])
+        cls_datasets['caltech256']['transforms']['test'] = v2.Compose(cls_datasets['caltech256']['transforms']['test'])
 
+        logger.info(' DONE\n')
 
 
 class Cls_Datasets():
@@ -96,8 +144,14 @@ class Cls_Datasets():
         self.n_classes: int = cls_datasets[dataset_name]['n_classes']
         self.n_channels: int = cls_datasets[dataset_name]['channels']
         self.dataset_id: int = cls_datasets[dataset_name]['id']
-        self.classes: List[str] = cls_datasets[dataset_name]['classes'] if dataset_name != 'tinyimagenet' \
-            else list(get_class_name('./datasets/tiny-imagenet-200').values())
+        self.classes: List[str] = cls_datasets[dataset_name]['classes']
+        
+        if dataset_name != 'tinyimagenet' and dataset_name != 'caltech256':
+            self.classes: List[str] = cls_datasets[dataset_name]['classes'] 
+        elif dataset_name == 'tinyimagenet':
+            self.classes: List[str] = os.listdir('./datasets/tinyimagenet')
+        else:
+            self.classes: List[str] = os.listdir('./datasets/caltech256/256_ObjectCategories')
     
         self.get_initial_subsets(init_lab_obs)
     
@@ -139,10 +193,10 @@ class Cls_Dataset(Dataset):
                 )
             elif dataset_name == 'caltech256':
                 init_caltech256()
-                self.ds = Subset(cls_datasets[dataset_name]['transforms']['train_idxs'],
-                                 cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',
-                    transform=cls_datasets[dataset_name]['transforms']['train'])
-                )
+                self.ds = Subset(datasets.ImageFolder(f'./datasets/{dataset_name}/256_ObjectCategories',
+                                                      transform=cls_datasets[dataset_name]['transforms']['train']),
+                                    cls_datasets[dataset_name]['train_idxs']
+                                )
             else:
                 self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',
                                                                         train=bool_train, download=True,
@@ -152,7 +206,6 @@ class Cls_Dataset(Dataset):
         else:
             # validation or test
             if dataset_name == 'tinyimagenet':
-                download_tinyimagenet()
                 if not bool_train: create_val_img_folder('./datasets/tiny-imagenet-200')
                 self.ds = datasets.ImageFolder(f'./datasets/tiny-imagenet-200/{'train' if bool_train else 'val'}', 
                     transform=cls_datasets[dataset_name]['transforms']['test']
@@ -163,11 +216,11 @@ class Cls_Dataset(Dataset):
                     transform=cls_datasets[dataset_name]['transforms']['test']
                 )
             elif dataset_name == 'caltech256':
-                init_caltech256()
-                self.ds = Subset(cls_datasets[dataset_name]['transforms']['train_idxs' if bool_train else 'test_idxs'], 
-                                 cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',
-                    transform=cls_datasets[dataset_name]['transforms']['test'])
-                )
+                self.ds = Subset(datasets.ImageFolder(f'./datasets/{dataset_name}/256_ObjectCategories',
+                                                      transform=cls_datasets[dataset_name]['transforms']['test']),
+                                    cls_datasets[dataset_name]['test_idxs']
+                                )
+            
             else:
                 self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',
                                                                         train=bool_train, download=True,

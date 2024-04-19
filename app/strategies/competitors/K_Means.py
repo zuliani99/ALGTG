@@ -46,7 +46,7 @@ class K_Means(ActiveLearner):
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
                         
         unlab_train_dl = DataLoader(
-            sample_unlab_subset, batch_size=self.t_p['batch_size'],
+            sample_unlab_subset, batch_size=self.ds_t_p['batch_size'],
             shuffle=False, pin_memory=True
         )
                             

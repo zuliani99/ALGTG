@@ -31,14 +31,14 @@ class Cls_TrainWorker():
         self.strategy_name: str = params['strategy_name']
         
         self.epochs = params['t_p']['epochs']
-        self.ds_t_p = params['t_p']['ds_params'][self.dataset_name]
+        self.ds_t_p = params['t_p'][self.dataset_name]
         
         self.train_dl: DataLoader = params['train_dl']
         self.test_dl: DataLoader = params['test_dl']
         
         self.backbone_loss_fn = torch.nn.CrossEntropyLoss(reduction='none').to(self.device)
         self.ll_loss_fn = LossPredLoss(self.device).to(self.device)
-                
+
         self.score_fn = accuracy_score
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'        
         self.init_check_filename = f'{self.best_check_filename}/{self.model.module.name if self.world_size > 1 else self.model.name}_init.pth.tar'
@@ -125,7 +125,7 @@ class Cls_TrainWorker():
                                 
                 images = images.to(self.device, non_blocking=True)
                 labels = labels.to(self.device, non_blocking=True)
-                    
+                                    
                 self.optimizer.zero_grad()
                 
                 outputs, _, module_out = self.model(images, labels)

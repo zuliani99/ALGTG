@@ -7,7 +7,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=128gb                     # Job memory request
-#SBATCH --time=48:00:00               # Time limit hrs:min:sec
+#SBATCH --time=168:00:00               # Time limit hrs:min:sec
 #SBATCH --output=empty_log.log   # Standard output and error log
 #SBATCH --gres=gpu:1
 #SBATCH --gpus-per-node=1      # number of GPUs per node
@@ -19,4 +19,4 @@ conda activate al_env
 #python3 app/main.py -m random gtg_ll lq_gtg -ds cifar10 -tr 1 -s mixed -ts threshold -t 0.5
 #python3 app/main.py -m lq_gtg -ds cifar10 -tr 1 -s mixed -ts mean -t 0.5 -plb 0.1
 #python3 app/main.py -m lq_gtg -ds cifar10 -tr 1 -s mixed -plb 0.1
-python3 app/main.py -m gtg_ll -ds cifar10 svhn cifar100 tinyimagenet -tr 1 -s mixed -ts mean threshold -t 0.5
+python3 app/main.py -bb resnet18 -m random -ds caltech256 -tr 1 -s mixed -ts mean threshold -t 0.5

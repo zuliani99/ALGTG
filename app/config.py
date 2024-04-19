@@ -113,18 +113,21 @@ cls_datasets = {
         'channels': 3,
         'train_idxs': [],
         'test_idxs': [],
-        'n_images': 30607,
+        'n_images': 0,
+        'method': datasets.Caltech256,
         'classes':[],
         'transforms': {
             'train': [
                         v2.ToImage(),
+                        v2.Resize((64,64)),
                         v2.RandomCrop(64, padding=8),
                         v2.RandomHorizontalFlip(),
                         v2.RandomRotation(degrees=(0,20)),
                         v2.ToDtype(torch.float32, scale=True),
                     ],
-            'train': [
+            'test': [
                         v2.ToImage(),
+                        v2.Resize((64,64)),
                         v2.ToDtype(torch.float32, scale=True),
                     ],
         }   
@@ -145,51 +148,54 @@ al_params = {
 
 cls_config = {
     'epochs': 200,
-    'batch_size': 128,
     'results_dict': { 'train': {'train_accuracy': [], 'train_loss': [], 'train_loss_ce': [], 'train_pred_loss': []},
                      'test': {'test_accuracy': [], 'test_loss': [], 'test_loss_ce': [], 'test_pred_loss': []}},
-    'ds_params': {
-        'cifar10': {
-            'optimizer': torch.optim.SGD,
-            'optim_p': {
-                'lr': 0.1,
-                'momentum': 0.9,
-                'weight_decay': 5e-4
-            }
-        },
-        'cifar100': {
-            'optimizer': torch.optim.SGD,
-            'optim_p': {
-                'lr': 0.1, 
-                'momentum': 0.9,
-                'weight_decay': 5e-4   
-            }
-        },
-        'svhn': {
-            'optimizer': torch.optim.SGD,
-            'optim_p': {
-                'lr': 0.01,
-                'momentum': 0.9,
-                'weight_decay': 5e-4
-            }
-        },
-        'caltech256': {
-            'optimizer': torch.optim.SGD,
-            'optim_p': {
-                'lr': 0.001,
-                'momentum': 0.9,
-                'weight_decay': 5e-4
-            }
-        },
-        'tinyimagenet': {
-            'optimizer': torch.optim.SGD,
-            'optim_p': {
-                'lr': 0.001,
-                'momentum': 0.9,
-                'weight_decay': 5e-4
-            }
+    'cifar10': {
+        'batch_size': 128,
+        'optimizer': torch.optim.SGD,
+        'optim_p': {
+            'lr': 0.1,
+            'momentum': 0.9,
+            'weight_decay': 5e-4
+        }
+    },
+    'cifar100': {
+        'batch_size': 128,
+        'optimizer': torch.optim.SGD,
+        'optim_p': {
+            'lr': 0.1, 
+            'momentum': 0.9,
+            'weight_decay': 5e-4   
+        }
+    },
+    'svhn': {
+        'batch_size': 128,
+        'optimizer': torch.optim.SGD,
+        'optim_p': {
+            'lr': 0.01,
+            'momentum': 0.9,
+            'weight_decay': 5e-4
+        }
+    },
+    'caltech256': {
+        'batch_size': 64,
+        'optimizer': torch.optim.SGD,
+        'optim_p': {
+            'lr': 0.1,
+            'momentum': 0.9,
+            'weight_decay': 5e-4
+        }
+    },
+    'tinyimagenet': {
+        'batch_size': 128,
+        'optimizer': torch.optim.SGD,
+        'optim_p': {
+            'lr': 0.001,
+            'momentum': 0.9,
+            'weight_decay': 5e-4
         }
     }
+    #}
 }
 
 

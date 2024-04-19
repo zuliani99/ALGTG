@@ -20,7 +20,7 @@ def get_dataset(task: str, dataset_name: str, init_lab_obs: int) -> Cls_Datasets
     
 def get_backbone(n_classes: int, n_channels: int, task: str, bbone: str) -> ResNet | VGG | SSD:
     if task == 'clf': 
-        if bbone == 'resnet': return ResNet18(n_classes=n_classes,  n_channels=n_channels)
+        if bbone == 'resnet18': return ResNet18(n_classes=n_classes, n_channels=n_channels)
         else: return VGG16_bn(n_classes=n_classes,  n_channels=n_channels)
     else: return build_ssd('train', voc_config, num_classes=n_classes)
     
