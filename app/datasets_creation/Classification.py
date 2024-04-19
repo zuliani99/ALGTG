@@ -213,7 +213,7 @@ class Cls_Datasets():
 
 
 class Cls_Dataset(Dataset):
-    def __init__(self, dataset_name: str, bool_train: bool, bool_transform = True) -> None:
+    def __init__(self, dataset_name: str, bool_train: bool, bool_transform: bool) -> None:
         
         if bool_train and bool_transform:
             # train
@@ -232,13 +232,11 @@ class Cls_Dataset(Dataset):
                 self.ds: Dataset = datasets.ImageFolder('./datasets/caltech256/256_ObjectCategories/train',
                     transform=cls_datasets['caltech256']['transforms']['train']
                 )
-                                
             else:
                 self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',
                     train=bool_train, download=True,
                     transform=cls_datasets[dataset_name]['transforms']['train']
                 )    
-            
         else:
             # unlabeled or test dataset
             if dataset_name == 'tinyimagenet':

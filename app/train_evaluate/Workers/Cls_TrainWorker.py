@@ -93,8 +93,6 @@ class Cls_TrainWorker():
             
             return loss, tot_loss_ce, tot_pred_loss
         else:
-            #module_out = module_out.view(module_out.size(0)) # added
-            #loss_weird = LossPredLoss(module_out, loss_ce, self.device)
             loss_weird = self.ll_loss_fn(module_out, loss_ce)
             loss = backbone + loss_weird
 
@@ -103,7 +101,14 @@ class Cls_TrainWorker():
                 
             return loss, tot_loss_ce, tot_pred_loss
    
-        
+    
+    def return_moved_imgs_labs(self, images, labels):
+        if self.world_size > 1:
+            images = images.to(self.device, non_blocking=True)
+            labels = labels.to(self.device, non_blocking=True)
+        else:
+            images, labels = images.to(self.device), labels.to(self.device)
+        return images, labels
     
     
     def train(self) -> torch.Tensor:
@@ -123,8 +128,7 @@ class Cls_TrainWorker():
                         
             for _, images, labels in self.train_dl:            
                                 
-                images = images.to(self.device, non_blocking=True)
-                labels = labels.to(self.device, non_blocking=True)
+                images, labels = self.return_moved_imgs_labs(images, labels)
                                     
                 self.optimizer.zero_grad()
                 
@@ -186,8 +190,7 @@ class Cls_TrainWorker():
         with torch.inference_mode():
             for _, images, labels in self.test_dl:
                 
-                images = images.to(self.device, non_blocking=True)
-                labels = labels.to(self.device, non_blocking=True)
+                images, labels = self.return_moved_imgs_labs(images, labels)
                     
                 outputs, _, module_out = self.model(images, labels)
 

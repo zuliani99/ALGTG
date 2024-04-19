@@ -48,7 +48,7 @@ cls_datasets = {
                         v2.ToImage(),
                         v2.RandomCrop(32, padding=4),
                         v2.RandomHorizontalFlip(),
-                        v2.RandomRotation(degrees=(0,15)),
+                        v2.RandomRotation(degrees=(0,20)),
                         v2.ToDtype(torch.float32, scale=True),
                         v2.Normalize(mean=[0.50707516, 0.48654887, 0.44091784],
                                      std=[0.26733429, 0.25643846, 0.27615047])

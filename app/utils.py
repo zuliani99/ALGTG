@@ -288,7 +288,7 @@ class Entropy_Strategy(Enum):
 def set_seeds(seed: int = 10001) -> None:
     # setting seed and deterministic behaviour of pytorch for reproducibility
     # https://discuss.pytorch.org/t/determinism-in-pytorch-across-multiple-files/156269
-    os.environ['PYTHONHASHSEED'] = str(seed)
+    #os.environ['PYTHONHASHSEED'] = str(seed)
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)

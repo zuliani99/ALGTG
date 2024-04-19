@@ -131,7 +131,8 @@ def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
     batch_size = t_p[ct_p['dataset_name']]['batch_size']
     
     # deep copy the model (it is in the RAM) and then move it to the realive gpu
-    ct_p['Master_Model'] = copy.deepcopy(ct_p['Master_Model']).to(params['ct_p']['device'])
+    #ct_p['Master_Model'] = copy.deepcopy(ct_p['Master_Model']).to(params['ct_p']['device'])
+    ct_p['Master_Model'] = ct_p['Master_Model'].to(params['ct_p']['device'])
     
     dict_dl = dict(batch_size=batch_size, pin_memory=True)
     
