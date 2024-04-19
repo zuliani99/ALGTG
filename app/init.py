@@ -30,7 +30,7 @@ def get_module(module: str, module_params: Dict[str, Any] | Tuple[Dict[str, Any]
     else: return GTG_Module(module_params)
 
 
-def get_ll_module_params(task: str) -> Dict[str, int | str | List[int]]:
+def get_ll_module_params(task: str, image_size: int) -> Dict[str, int | str | List[int]]:
     if task == 'detection':
         return dict(
                     feature_sizes=[512, 1024, 512, 256, 256, 256],
@@ -40,7 +40,7 @@ def get_ll_module_params(task: str) -> Dict[str, int | str | List[int]]:
                 )
     else:
         return dict(
-                    feature_sizes=[32, 16, 8, 4],
+                    feature_sizes=[image_size, image_size // 2, image_size // 4, image_size // 8],
                     num_channels=[64, 128, 256, 512],
                     interm_dim=128,
                     task='cls'

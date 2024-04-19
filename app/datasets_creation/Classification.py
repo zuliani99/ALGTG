@@ -183,6 +183,7 @@ class Cls_Datasets():
         self.n_classes: int = cls_datasets[dataset_name]['n_classes']
         self.n_channels: int = cls_datasets[dataset_name]['channels']
         self.dataset_id: int = cls_datasets[dataset_name]['id']
+        self.image_size: int = cls_datasets[dataset_name]['image_size']
  
         if dataset_name == 'tinyimagenet':
             cls_datasets[dataset_name]['classes'] = os.listdir('./datasets/tiny-imagenet-200/train')

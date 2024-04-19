@@ -10,6 +10,7 @@ cls_datasets = {
         'method': datasets.CIFAR10,
         'n_classes': 10,
         'channels': 3,
+        'image_size': 32,
         'classes': ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck'],
         'transforms': {
             'train': v2.Compose([
@@ -35,6 +36,7 @@ cls_datasets = {
         'method': datasets.CIFAR100,
         'n_classes': 100,
         'channels': 3,
+        'image_size': 32,
         'classes': ["apple","aquarium_fish","baby","bear","beaver","bed","bee","beetle","bicycle","bottle","bowl","boy","bridge",
                     "bus","butterfly","camel","can","castle","caterpillar","cattle","chair","chimpanzee","clock","cloud","cockroach",
                     "couch","crab","crocodile","cup","dinosaur","dolphin","elephant","flatfish","forest","fox","girl","hamster","house",
@@ -65,6 +67,7 @@ cls_datasets = {
         'id': 3,
         'n_classes': 10,
         'method': datasets.SVHN,
+        'image_size': 32,
         'channels': 3,
         'classes': ['0','1','2','3','4','5','6','7','8','9'],
         'transforms': {
@@ -88,6 +91,7 @@ cls_datasets = {
         'id': 4,
         'n_classes': 200,
         'channels': 3,
+        'image_size': 64,
         'classes': [],
         'transforms': {
             'train': v2.Compose([
@@ -111,6 +115,7 @@ cls_datasets = {
         'id': 5,
         'n_classes': 256,
         'channels': 3,
+        'image_size': 64,
         'classes':[],
         'transforms': {
             'train': [

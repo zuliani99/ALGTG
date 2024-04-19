@@ -263,7 +263,7 @@ def main() -> None:
                 device = device, 
             )
             # create learnin loss dictionary parameters
-            ll_module_params = get_ll_module_params(task)
+            ll_module_params = get_ll_module_params(task, Dataset.image_size)
             
             
             # obtain the master models
