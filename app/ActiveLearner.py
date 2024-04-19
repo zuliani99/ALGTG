@@ -149,8 +149,9 @@ class ActiveLearner():
         
         logger.info(' => Saving the TSNE embeddings plot with labeled, unlabeled and new labeled observations')
         
-        unlab_train_dl = DataLoader(samp_unlab_subset, batch_size=self.ds_t_p['batch_size'], shuffle=False, pin_memory=True)
-        lab_train_dl = DataLoader(self.labeled_subset, batch_size=self.ds_t_p['batch_size'], shuffle=False, pin_memory=True)
+        dl_dict = dict(batch_size=self.ds_t_p['batch_size'], shuffle=False)
+        unlab_train_dl = DataLoader(samp_unlab_subset, **dl_dict)
+        lab_train_dl = DataLoader(self.labeled_subset, **dl_dict)
         
         lab_embedds_dict = {
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
@@ -164,7 +165,6 @@ class ActiveLearner():
         logger.info(' Getting the embeddings...')
         self.get_embeddings(lab_train_dl, lab_embedds_dict)
         self.get_embeddings(unlab_train_dl, unlab_embedds_dict)
-        
         
 
         logger.info(' Plotting...')
@@ -189,7 +189,8 @@ class ActiveLearner():
         test_res_keys = list(results_format['test'].keys())
         train_res_keys = list(results_format['train'].keys())
         
-        params = { 'ct_p': self.ct_p, 't_p': self.t_p, 'strategy_name': self.strategy_name, 'iter': iter, 'LL': self.LL, 'labeled_subset': self.labeled_subset }
+        params = { 'ct_p': self.ct_p, 't_p': self.t_p, 'strategy_name': self.strategy_name, 
+                'iter': iter, 'LL': self.LL, 'labeled_subset': self.labeled_subset }
         
         # wandb dictionary hyperparameters
         hps = dict( **self.ct_p, **self.t_p, **self.al_p, strategy_name=self.strategy_name, iter=iter, LL=self.LL)

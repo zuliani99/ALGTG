@@ -77,59 +77,98 @@ def preprocess_caltech256(caltech256_path):
 
 
 def download_caltech256():
-    if not os.path.exists('./datasets/caltech256'):
-        os.makedirs('./datasets/caltech256', exist_ok=True)
-        logger.info(' => Downloading Caltech256 Dataset')
-        # downlaod dataset
-        os.system('wget -P ./datasets/caltech256 https://data.caltech.edu/records/nyy15-4j048/files/256_ObjectCategories.tar')
-        # extract and remove it
-        os.system('tar -xopf ./datasets/caltech256/256_ObjectCategories.tar -C ./datasets/caltech256')
-        os.remove('./datasets/caltech256/256_ObjectCategories.tar')
-        # remove non-images
-        os.remove(os.path.join('./datasets/caltech256/256_ObjectCategories', '198.spider/RENAME2'))
-        shutil.rmtree(os.path.join('./datasets/caltech256/256_ObjectCategories', '056.dog/greg'))
-        # we don't need the class with noise
-        shutil.rmtree(os.path.join('./datasets/caltech256/256_ObjectCategories', '257.clutter'))
-        logger.info(' DONE\n')
-    
-    else:
-        logger.info('Caltech256 already downloaded')
+    os.makedirs('./datasets/caltech256', exist_ok=True)
+    logger.info(' => Downloading Caltech256 Dataset')
+    # downlaod dataset
+    os.system('wget -P ./datasets/caltech256 https://data.caltech.edu/records/nyy15-4j048/files/256_ObjectCategories.tar')
+    # extract and remove it
+    os.system('tar -xopf ./datasets/caltech256/256_ObjectCategories.tar -C ./datasets/caltech256')
+    os.remove('./datasets/caltech256/256_ObjectCategories.tar')
+    # remove non-images
+    os.remove(os.path.join('./datasets/caltech256/256_ObjectCategories', '198.spider/RENAME2'))
+    shutil.rmtree(os.path.join('./datasets/caltech256/256_ObjectCategories', '056.dog/greg'))
+    # we don't need the class with noise
+    shutil.rmtree(os.path.join('./datasets/caltech256/256_ObjectCategories', '257.clutter'))
+    #logger.info(' DONE\n')
         
     return preprocess_caltech256('./datasets/caltech256/256_ObjectCategories')
 
 
+def create_train_test_dir(list_idxs, train_data, split_path, split_types, classes):
+    for idxs, split_type in zip(list_idxs, split_types):
+        for i in idxs:
+            pil_image, label = train_data[i]
+            image_path = os.path.join(split_path, split_type, classes[label])
+            os.makedirs(image_path, exist_ok=True)
+            id = len(os.listdir(image_path)) + 1
+            pil_image.save(os.path.join(split_path, split_type, classes[int(label)], f'{id}.png'), 'PNG')
+
+
+def compute_mean_std(data: Dataset, idxs=None):
+    images = []
+    
+    if idxs != None:
+        for i in idxs:
+            if len(np.asarray(data[i][0]).shape) == 3: images.append(np.asarray(data[i][0]))
+            else: images.append(np.repeat(np.asarray(data[i][0])[:, :, np.newaxis], 3, axis=2))
+    else: 
+        for img, _ in data: images.append(np.asarray(img))
+                    
+    images = np.concatenate(images)
+                
+    mean = np.mean(images, axis=(0, 1)) / 255 
+    std = np.std(images, axis=(0, 1)) / 255
+    
+    return mean, std
+
+
 def init_caltech256():
-    if len(cls_datasets['caltech256']['train_idxs']) == 0 and len(cls_datasets['caltech256']['test_idxs']) == 0:
-                
-        cls_datasets['caltech256']['n_images'] = download_caltech256()
-        print(cls_datasets['caltech256']['n_images'])
+    if os.path.exists('./datasets/caltech256/256_ObjectCategories'): 
         
-        logger.info(' => Computing mean and std for a random train test split...')
+        cls_datasets['caltech256']['classes'] = sorted(os.listdir('./datasets/caltech256/256_ObjectCategories/train'))
+        logger.info(' Caltech256 dataset already obtained and ready!')
         
-        rand_perm = torch.randperm(cls_datasets['caltech256']['n_images'])
-        # we set 10000 test observations
-        cls_datasets['caltech256']['train_idxs'] = rand_perm[10000:].tolist()
-        cls_datasets['caltech256']['test_idxs'] = rand_perm[:10000].tolist()
-                
-        train_data = datasets.ImageFolder('./datasets/caltech256/256_ObjectCategories', transform=v2.Compose([v2.Resize((64,64))]))
-        
-        images = []
-        for i in cls_datasets['caltech256']['train_idxs']:
-            if len(np.asarray(train_data[i][0]).shape) == 3: images.append(np.asarray(train_data[i][0]))
-            else: images.append(np.repeat(np.asarray(train_data[i][0])[:, :, np.newaxis], 3, axis=2))
-                
-        images = np.concatenate(images)
-                
-        mean = np.mean(images, axis=(0, 1)) / 255 
-        std = np.std(images, axis=(0, 1)) / 255
-                
+        mean, std = compute_mean_std(datasets.ImageFolder('./datasets/caltech256/256_ObjectCategories'))
+    
         cls_datasets['caltech256']['transforms']['train'].append(v2.Normalize(mean=mean, std=std))
         cls_datasets['caltech256']['transforms']['train'] = v2.Compose(cls_datasets['caltech256']['transforms']['train'])
-                
+                    
         cls_datasets['caltech256']['transforms']['test'].append(v2.Normalize(mean=mean, std=std))
         cls_datasets['caltech256']['transforms']['test'] = v2.Compose(cls_datasets['caltech256']['transforms']['test'])
+        return 
+    
+    n_images = download_caltech256()
+    classes = sorted(os.listdir('./datasets/caltech256/256_ObjectCategories'))
+    cls_datasets['caltech256']['classes'] = classes    
+        
+    logger.info(' => Generating new train test split datasets...')
+    
+    rand_perm = torch.randperm(n_images)
+        
+    # we set 10000 test observations
+    train_idxs = rand_perm[10000:].tolist()
+    test_idxs = rand_perm[:10000].tolist()
+                
+    train_data = datasets.ImageFolder('./datasets/caltech256/256_ObjectCategories', transform=v2.Compose([v2.Resize((64,64))]))
+        
+    split_path = './datasets/caltech256/256_ObjectCategories_new'
+    os.mkdir(split_path)
+    create_train_test_dir([train_idxs, test_idxs], train_data, split_path, ['train', 'test'], classes)
+        
+    logger.info(' => Computing mean and std for the train test split...')
+    mean, std = compute_mean_std(train_data, train_idxs)
+                
+    cls_datasets['caltech256']['transforms']['train'].append(v2.Normalize(mean=mean, std=std))
+    cls_datasets['caltech256']['transforms']['train'] = v2.Compose(cls_datasets['caltech256']['transforms']['train'])
+                
+    cls_datasets['caltech256']['transforms']['test'].append(v2.Normalize(mean=mean, std=std))
+    cls_datasets['caltech256']['transforms']['test'] = v2.Compose(cls_datasets['caltech256']['transforms']['test'])
 
-        logger.info(' DONE\n')
+    shutil.rmtree('./datasets/caltech256/256_ObjectCategories')
+    os.rename(split_path, './datasets/caltech256/256_ObjectCategories')
+
+    logger.info(' DONE\n')
+
 
 
 class Cls_Datasets():
@@ -144,15 +183,12 @@ class Cls_Datasets():
         self.n_classes: int = cls_datasets[dataset_name]['n_classes']
         self.n_channels: int = cls_datasets[dataset_name]['channels']
         self.dataset_id: int = cls_datasets[dataset_name]['id']
+ 
+        if dataset_name == 'tinyimagenet':
+            cls_datasets[dataset_name]['classes'] = os.listdir('./datasets/tiny-imagenet-200')
+            
         self.classes: List[str] = cls_datasets[dataset_name]['classes']
         
-        if dataset_name != 'tinyimagenet' and dataset_name != 'caltech256':
-            self.classes: List[str] = cls_datasets[dataset_name]['classes'] 
-        elif dataset_name == 'tinyimagenet':
-            self.classes: List[str] = os.listdir('./datasets/tinyimagenet')
-        else:
-            self.classes: List[str] = os.listdir('./datasets/caltech256/256_ObjectCategories')
-    
         self.get_initial_subsets(init_lab_obs)
     
     
@@ -183,47 +219,45 @@ class Cls_Dataset(Dataset):
             # train
             if dataset_name == 'tinyimagenet':
                 download_tinyimagenet()
-                self.ds = datasets.ImageFolder('./datasets/tiny-imagenet-200/train',
-                    transform=cls_datasets[dataset_name]['transforms']['train']
+                self.ds: Dataset = datasets.ImageFolder('./datasets/tiny-imagenet-200/train',
+                    transform=cls_datasets['tinyimagenet']['transforms']['train']
                 )
             elif dataset_name == 'svhn':
-                self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', 
+                self.ds: Dataset = cls_datasets['svhn']['method']('./datasets/svhn', 
                     split='train', download=True,
-                    transform=cls_datasets[dataset_name]['transforms']['train']
+                    transform=cls_datasets['svhn']['transforms']['train']
                 )
             elif dataset_name == 'caltech256':
                 init_caltech256()
-                self.ds = Subset(datasets.ImageFolder(f'./datasets/{dataset_name}/256_ObjectCategories',
-                                                      transform=cls_datasets[dataset_name]['transforms']['train']),
-                                    cls_datasets[dataset_name]['train_idxs']
-                                )
+                self.ds: Dataset = datasets.ImageFolder('./datasets/caltech256/256_ObjectCategories/train',
+                    transform=cls_datasets['caltech256']['transforms']['train']
+                )
+                                
             else:
                 self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',
-                                                                        train=bool_train, download=True,
+                    train=bool_train, download=True,
                     transform=cls_datasets[dataset_name]['transforms']['train']
                 )    
             
         else:
-            # validation or test
+            # unlabeled or test dataset
             if dataset_name == 'tinyimagenet':
                 if not bool_train: create_val_img_folder('./datasets/tiny-imagenet-200')
-                self.ds = datasets.ImageFolder(f'./datasets/tiny-imagenet-200/{'train' if bool_train else 'val'}', 
-                    transform=cls_datasets[dataset_name]['transforms']['test']
+                self.ds: Dataset = datasets.ImageFolder(f'./datasets/tiny-imagenet-200/{'train' if bool_train else 'val'}', 
+                    transform=cls_datasets['tinyimagenet']['transforms']['test']
                 )
             elif dataset_name == 'svhn':
-                self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}', split='train' 
-                                                                        if bool_train else 'test', download=True,
-                    transform=cls_datasets[dataset_name]['transforms']['test']
+                self.ds: Dataset = cls_datasets['svhn']['method']('./datasets/svhn', split='train' 
+                    if bool_train else 'test', download=True,
+                    transform=cls_datasets['svhn']['transforms']['test']
                 )
             elif dataset_name == 'caltech256':
-                self.ds = Subset(datasets.ImageFolder(f'./datasets/{dataset_name}/256_ObjectCategories',
-                                                      transform=cls_datasets[dataset_name]['transforms']['test']),
-                                    cls_datasets[dataset_name]['test_idxs']
-                                )
-            
+                self.ds: Dataset = datasets.ImageFolder(f'./datasets/caltech256/256_ObjectCategories/{'train' if bool_train else 'test'}', 
+                    transform=cls_datasets['caltech256']['transforms']['test']
+                )            
             else:
                 self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',
-                                                                        train=bool_train, download=True,
+                    train=bool_train, download=True,
                     transform=cls_datasets[dataset_name]['transforms']['test']
                 )           
         
@@ -233,6 +267,5 @@ class Cls_Dataset(Dataset):
 
 
     def __getitem__(self, index: int) -> Tuple[int, torch.Tensor, int]:
-                
         image, label = self.ds[index]
         return index, image, label

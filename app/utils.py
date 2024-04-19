@@ -182,7 +182,7 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
 
     title = 'Entropy History' if dir == 'history' else 'Entropy Derivatives'
 
-    palette = list(mcolors.CSS4_COLORS.values()) if len(classes) > 10 \
+    palette = list(mcolors.CSS4_COLORS.values()) if len(classes) >= 10 \
         else list(mcolors.TABLEAU_COLORS.values())
     random.shuffle(palette)
         
@@ -280,7 +280,6 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
     MEAN = 2'''
     
 class Entropy_Strategy(Enum):
-    #DER = 0
     H_INT = 0
     MEAN = 1
     
@@ -374,20 +373,17 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
         sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labeled', 
                         s=17, color='red', ax=axes[0], markers=['o'])
     
-    
     axes[0].set_title('TSNE -- labeled - unlabeled - new_labeled')
     axes[0].legend()
     
-    if len(classes) <= 10:
-        sns.scatterplot(x=np.hstack((x_lab, x_unlab)), y=np.hstack((y_lab, y_unlab)), 
+    sns.scatterplot(x=np.hstack((x_lab, x_unlab)), y=np.hstack((y_lab, y_unlab)), 
                     hue=[classes[l] for l in np.hstack((lab['labels'], unlab['labels']))], s=17, ax=axes[1])
-    else:
-        sns.scatterplot(x=np.hstack((x_lab, x_unlab)), y=np.hstack((y_lab, y_unlab)), s=17, ax=axes[1])
         
     axes[1].set_title('TSNE - classes')
-    axes[1].legend()
     
-    fig.text(0.5, 0.05, f'New Labeled Observations: {d_labels}', ha='center', va='center', fontdict={'size':17})
+    if len(classes) <= 10: 
+        axes[1].legend()
+        fig.text(0.5, 0.05, f'New Labeled Observations: {d_labels}', ha='center', va='center', fontdict={'size':17})
     
     plt.suptitle(f'{ds_name} - {method} - {iter}', fontsize=30)
     plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{iter}.png')

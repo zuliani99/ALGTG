@@ -111,15 +111,10 @@ cls_datasets = {
         'id': 5,
         'n_classes': 256,
         'channels': 3,
-        'train_idxs': [],
-        'test_idxs': [],
-        'n_images': 0,
-        'method': datasets.Caltech256,
         'classes':[],
         'transforms': {
             'train': [
                         v2.ToImage(),
-                        v2.Resize((64,64)),
                         v2.RandomCrop(64, padding=8),
                         v2.RandomHorizontalFlip(),
                         v2.RandomRotation(degrees=(0,20)),
@@ -127,7 +122,6 @@ cls_datasets = {
                     ],
             'test': [
                         v2.ToImage(),
-                        v2.Resize((64,64)),
                         v2.ToDtype(torch.float32, scale=True),
                     ],
         }   
@@ -140,14 +134,14 @@ cls_datasets = {
 
 al_params = {
     'init_lab_obs': 1000,
-    'al_iters': 10, 
+    'al_iters': 5,#10, 
     'unlab_sample_dim': 10000, 
     'n_top_k_obs': 1000,
 }
     
 
 cls_config = {
-    'epochs': 200,
+    'epochs': 10,#200,
     'results_dict': { 'train': {'train_accuracy': [], 'train_loss': [], 'train_loss_ce': [], 'train_pred_loss': []},
                      'test': {'test_accuracy': [], 'test_loss': [], 'test_loss_ce': [], 'test_pred_loss': []}},
     'cifar10': {
