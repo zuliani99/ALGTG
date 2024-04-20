@@ -84,6 +84,7 @@ class Cls_TrainWorker():
         elif len(module_out) == 2:
             quantity_loss, mask = module_out
             
+            quantity_loss = torch.mean(quantity_loss)
             labeled_loss = torch.mean(loss_ce[mask])
             loss = labeled_loss + quantity_loss
             

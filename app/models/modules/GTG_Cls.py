@@ -127,8 +127,8 @@ class GTG_Module(nn.Module):
         self.phase: str = phase
         
         self.c_cnn = Custom_Module(ll_p).to(self.device)
-        self.mse_loss = nn.MSELoss().to(self.device)
-        self.l1loss = nn.L1Loss().to(self.device)
+        self.mse_loss = nn.MSELoss(reduction='none').to(self.device)
+        self.l1loss = nn.L1Loss(reduction='none').to(self.device)
     
     
     
@@ -354,11 +354,14 @@ class GTG_Module(nn.Module):
         
         self.batch_size = len(embedding)
         self.n_lab_obs = int(self.batch_size * self.perc_labeled_batch) 
+        #print(self.batch_size, self.n_lab_obs)
         
         shuffled_indices = torch.randperm(self.batch_size)
+        #print(shuffled_indices)
 
         self.labeled_indices: List[int] = shuffled_indices[:self.n_lab_obs].tolist()
         self.unlabeled_indices: List[int] = shuffled_indices[self.n_lab_obs:].tolist()
+        #print(self.labeled_indices, self.unlabeled_indices)
                         
         self.unlab_entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device, requires_grad=True)        
         
