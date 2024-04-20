@@ -406,5 +406,4 @@ class GTG_Module(nn.Module):
 
         y_true, mask = self.preprocess_inputs(embedds, labels) # type: ignore
         logger.info(f'{y_pred} - {y_true}')
-        #return self.mse_loss(y_pred, y_true), mask.bool()
-        return self.l1loss(y_pred, y_true), mask.bool()
+        return self.mse_loss(y_pred, y_true), mask.bool()
