@@ -51,7 +51,6 @@ class Cls_TrainWorker():
         else:
             self.__load_checkpoint(self.init_check_filename)
             logger.info(' => Loading Initial Checkpoint')
-        logger.info(' DONE')
 
 
     def init_opt_sched(self):

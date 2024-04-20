@@ -86,8 +86,10 @@ class Custom_Module(nn.Module):
 
         self.sequentials_1 = nn.ModuleList(self.sequentials_1)
         self.sequentials_2 = nn.ModuleList(self.sequentials_2)
-        self.linear = nn.Linear(interm_dim * len(num_channels), 1)
-
+        self.linear = nn.Sequential(
+            nn.Linear(interm_dim * len(num_channels), 1), nn.ReLU()
+        )
+        
         self.apply(init_weights_apply)
 
 
@@ -138,10 +140,6 @@ class GTG_Module(nn.Module):
         self.ent_strategy: Entropy_Strategy = remaining_param['ent_strategy']
         self.threshold_strategy: str = remaining_param['threshold_strategy']
         self.threshold: float = remaining_param['threshold']
-        
-        
-    #def change_pahse(self, new_phase: str) -> None:
-    #    self.phase = new_phase
         
     
     def get_A_treshold(self, A: torch.Tensor) -> Any:
@@ -201,7 +199,6 @@ class GTG_Module(nn.Module):
         assert torch.all(A >= 0), 'Negative value in self.A'
 
         if self.threshold_strategy != None and self.threshold != None:
-            #logger.info(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
             if self.A_function != 'e_d': A = torch.where(A < self.get_A_treshold(A), 0, A)
             else: A = torch.where(A > self.get_A_treshold(A), 1, A)
             
@@ -236,9 +233,8 @@ class GTG_Module(nn.Module):
             self.X[idx][int(label.item())] = 1.
         for idx in self.unlabeled_indices:
             for label in range(self.n_classes): self.X[idx][label] = 1. / self.n_classes
-        
-        #self.X.requires_grad_(True)
-                 
+    
+                     
                  
     @torch.no_grad()
     def check_increasing_sum(self, mult_X_A_X: torch.Tensor, old_rowsum_X: int) -> int:
@@ -354,14 +350,11 @@ class GTG_Module(nn.Module):
         
         self.batch_size = len(embedding)
         self.n_lab_obs = int(self.batch_size * self.perc_labeled_batch) 
-        #print(self.batch_size, self.n_lab_obs)
-        
+                
         shuffled_indices = torch.randperm(self.batch_size)
-        #print(shuffled_indices)
 
         self.labeled_indices: List[int] = shuffled_indices[:self.n_lab_obs].tolist()
         self.unlabeled_indices: List[int] = shuffled_indices[self.n_lab_obs:].tolist()
-        #print(self.labeled_indices, self.unlabeled_indices)
                         
         self.unlab_entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device, requires_grad=True)        
         
@@ -394,7 +387,6 @@ class GTG_Module(nn.Module):
     def forward(self, features: List[torch.Tensor], embedds: torch.Tensor | None = None, labels: torch.Tensor | None = None) -> Tuple[torch.Tensor, torch.Tensor | None]:
         #for feature in features: print(feature.grad, feature.grad_fn)
         y_pred = self.c_cnn(features).squeeze()
-        #print('y_pred', y_pred)
         #y_pred.register_hook(lambda t: print(f'hook y_pred :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
         
         '''if self.phase == 'train':
@@ -409,4 +401,7 @@ class GTG_Module(nn.Module):
 
         y_true, mask = self.preprocess_inputs(embedds, labels) # type: ignore
         logger.info(f'{y_pred} - {y_true}')
-        return self.mse_loss(y_pred, y_true), mask.bool()
+        
+        #loss = self.mse_loss(y_pred, y_true) + 5 * self.mse_loss(torch.log(y_pred + 1e-8), torch.log(y_true + 1e-8))
+        loss = self.mse_loss(y_pred, y_true)
+        return loss, mask.bool()
