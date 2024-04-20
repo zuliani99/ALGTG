@@ -13,26 +13,54 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-'''class Custom_Module(nn.Module):
-    def __init__(self, embedding_dim: int):
-        super(Custom_Module, self).__init__()
-        
-        self.layers = []
-        dim_ll = embedding_dim
-        for i in range(5):
-            self.layers.append(nn.Linear(in_features = dim_ll, out_features = embedding_dim // (2**(i+1))))
-            self.layers.append(nn.BatchNorm1d(num_features = embedding_dim // (2**(i+1))))
-            self.layers.append(nn.ReLU())
-            dim_ll = embedding_dim // (2**(i+1))
-        self.layers.append(nn.Linear(in_features = dim_ll, out_features = 1))
-        self.layers = nn.ModuleList(self.layers)
-        
+
+class Custom_MLP(nn.Module):
+    def __init__(self):
+        super(Custom_MLP, self).__init__()
+
+        # same parameters of loss net
+        feature_sizes = [32,16,8,4]#params['feature_sizes']
+        num_channels = [64,128,256,512]#params['num_channels']
+        interm_dim = 128#params['interm_dim']
+
+        self.module_list = []
+        self.sequentials_1 = []
+        self.sequentials_2 = []
+
+        for n_c, e_d in zip(num_channels, feature_sizes):
+            self.sequentials_1.append(nn.Sequential(
+                nn.Linear(n_c * (e_d**2), n_c * (e_d // 2)),
+                nn.ReLU(),
+                nn.BatchNorm1d(n_c * (e_d // 2))
+
+            ))
+            self.sequentials_2.append(nn.Sequential(
+                nn.Linear(n_c * (e_d // 2), interm_dim),
+                nn.ReLU(),
+            )), # type: ignore
+
+        self.sequentials_1 = nn.ModuleList(self.sequentials_1)
+        self.sequentials_2 = nn.ModuleList(self.sequentials_2)
+        self.linear = nn.Sequential(
+            nn.Linear(interm_dim * len(num_channels), 1), nn.ReLU()
+        )
+
         self.apply(init_weights_apply)
-        
-        
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        for layer in self.layers: x = layer(x)
-        return x'''
+
+
+    def forward(self, features):
+        outs = []
+        for i in range(len(features)):
+            feature = features[i].view(features[i].size(0), -1)
+            out = self.sequentials_1[i](feature)
+            out = out.view(out.size(0), -1)
+            out = self.sequentials_2[i](out)
+            outs.append(out)
+
+        out = self.linear(torch.cat(outs, 1))
+        return out
+    
+    
         
 class Custom_Module(nn.Module):
     def __init__(self, params: Dict[str, Any]):
@@ -49,12 +77,12 @@ class Custom_Module(nn.Module):
             self.sequentials_1.append(nn.Sequential(
                 nn.Conv2d(n_c, n_c // (e_d // 2), kernel_size=3, stride=2, padding=1),
                 nn.BatchNorm2d(n_c // (e_d // 2)),
+                nn.ReLU(),
             ))
             self.sequentials_2.append(nn.Sequential(
                 nn.Linear(n_c * (e_d // 2), interm_dim),
                 nn.ReLU(),
-                #nn.BatchNorm1d(interm_dim)
-            )),
+            )), # type: ignore
 
         self.sequentials_1 = nn.ModuleList(self.sequentials_1)
         self.sequentials_2 = nn.ModuleList(self.sequentials_2)
@@ -71,7 +99,7 @@ class Custom_Module(nn.Module):
             out = self.sequentials_2[i](out)
             outs.append(out)
 
-        out = F.relu(self.linear(torch.cat(outs, 1)))
+        out = self.linear(torch.cat(outs, 1))
         return out
 
 
@@ -112,8 +140,8 @@ class GTG_Module(nn.Module):
         self.threshold: float = remaining_param['threshold']
         
         
-    def change_pahse(self, new_phase: str) -> None:
-        self.phase = new_phase
+    #def change_pahse(self, new_phase: str) -> None:
+    #    self.phase = new_phase
         
     
     def get_A_treshold(self, A: torch.Tensor) -> Any:
@@ -169,11 +197,15 @@ class GTG_Module(nn.Module):
         if self.A_function != None:
             A = self.get_A_rbfk(embedding) if self.rbf_aff else self.get_A_fn[self.A_function](embedding)
         else: raise AttributeError('A Fucntion is None')
+        
+        assert torch.all(A >= 0), 'Negative value in self.A'
 
         if self.threshold_strategy != None and self.threshold != None:
             #logger.info(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
             if self.A_function != 'e_d': A = torch.where(A < self.get_A_treshold(A), 0, A)
             else: A = torch.where(A > self.get_A_treshold(A), 1, A)
+            
+        assert torch.all(A >= 0), 'Negative value in self.A'
 
         if self.strategy_type == 'diversity':
             # set the whole matrix as a distance matrix and not similarity matrix
@@ -362,12 +394,17 @@ class GTG_Module(nn.Module):
         #print('y_pred', y_pred)
         #y_pred.register_hook(lambda t: print(f'hook y_pred :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
         
-        if self.phase == 'train':
+        '''if self.phase == 'train':
             
             y_true, mask = self.preprocess_inputs(embedds, labels) # type: ignore
             #logger.info(f'{y_pred} - {y_true}')
             return self.mse_loss(y_pred, y_true), mask if mask == None else mask.bool()
             #return self.l1loss(y_pred, y_true), mask if mask == None else mask.bool()
         else:
-            return y_pred, None        
+            return y_pred, None'''
         
+
+        y_true, mask = self.preprocess_inputs(embedds, labels) # type: ignore
+        logger.info(f'{y_pred} - {y_true}')
+        #return self.mse_loss(y_pred, y_true), mask.bool()
+        return self.l1loss(y_pred, y_true), mask.bool()
