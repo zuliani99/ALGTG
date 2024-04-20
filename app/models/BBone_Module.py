@@ -46,7 +46,8 @@ class Master_Model(nn.Module):
             
             if self.added_module != None:
                 if self.added_module.__class__.__name__ == 'GTG_Module':
-                    self.added_module.change_pahse('train')
+                    #self.added_module.change_pahse('train')
+                    #features = self.backbone.get_features()
                     module_out = self.added_module(self.backbone.get_features(), embedds, labels)
                 else:
                     module_out = self.added_module(self.backbone.get_features())
@@ -61,8 +62,8 @@ class Master_Model(nn.Module):
         elif mode == 'module_out':
             if self.added_module != None:
                 _, _ = self.backbone(x)
-                if self.added_module.__class__.__name__ == 'GTG_Module':
-                    self.added_module.change_pahse('test')
+                #if self.added_module.__class__.__name__ == 'GTG_Module':
+                #    self.added_module.change_pahse('test')
                 return self.added_module(self.backbone.get_features())
             else:
                 raise AttributeError("The Master_Model hasn't got any additional module")

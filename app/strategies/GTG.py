@@ -41,7 +41,8 @@ class GTG(ActiveLearner):
         }
         
         self.load_best_checkpoint()
-        
+        if self.model.added_module != None: self.model.added_module.change_pahse('test')
+        else: raise AttributeError('No GTG Module found')
         self.get_embeddings(self.unlab_train_dl, embeds_dict)
         
         logger.info(f' => Extracting the Top-k unlabeled observations')

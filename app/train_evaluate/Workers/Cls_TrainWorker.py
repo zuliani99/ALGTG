@@ -84,9 +84,9 @@ class Cls_TrainWorker():
         elif len(module_out) == 2:
             quantity_loss, mask = module_out
             
+            quantity_loss = torch.mean(quantity_loss)
             labeled_loss = torch.mean(loss_ce[mask])
             loss = labeled_loss + quantity_loss
-            logger.info(f' labeled_loss -> {labeled_loss.item()}\tquantity_loss -> {quantity_loss.item()}')
             
             tot_loss_ce += labeled_loss.item()
             tot_pred_loss += quantity_loss.item()
@@ -115,6 +115,9 @@ class Cls_TrainWorker():
                 
         weight = 1.
         results = torch.zeros((4, self.epochs), device=self.device)
+        
+        if self.model.added_module != None and self.model.added_module.__class__.__name__ == 'GTG_Module': 
+            self.model.added_module.change_pahse('train')
             
         self.model.train()
         
@@ -159,6 +162,8 @@ class Cls_TrainWorker():
             
             for pos, metric in zip(range(results.shape[0]), [train_accuracy, train_loss, train_loss_ce, train_loss_pred]):
                 results[pos][epoch] = metric
+                
+            logger.info(f' train_loss_ce -> {train_loss_ce}\ttrain_loss_pred -> {train_loss_pred}')
                 
             if self.wandb_run != None:
                 self.wandb_run.log({
