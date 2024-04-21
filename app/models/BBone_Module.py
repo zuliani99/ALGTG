@@ -33,7 +33,7 @@ class Master_Model(nn.Module):
         logger.info(' DONE\n')
         
         
-    def forward(self, x, labels=None, mode='all'):
+    def forward(self, x, labels=None, epoch=0, mode='all'):
         if mode == 'all':
             outs, embedds = self.backbone(x)
             if torch.any(torch.isnan(embedds)): print(embedds)
@@ -45,12 +45,12 @@ class Master_Model(nn.Module):
             # GTG -> loss, mask
             
             if self.added_module != None:
+                features = self.backbone.get_features()
+                if epoch > 120: 
+                    features = [feature.detach() for feature in features]
                 if self.added_module.__class__.__name__ == 'GTG_Module':
-                    #self.added_module.change_pahse('train')
-                    #features = self.backbone.get_features()
-                    module_out = self.added_module(self.backbone.get_features(), embedds, labels)
-                else:
-                    module_out = self.added_module(self.backbone.get_features())
+                    module_out = self.added_module(features, embedds, labels)
+                else: module_out = self.added_module(features)
                 return outs, embedds, module_out
             else:
                 return outs, embedds, None

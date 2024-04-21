@@ -61,7 +61,7 @@ logger = logging.getLogger(__name__)
     
     return loss'''
 
-class LossPredLoss(nn.Module):
+'''class LossPredLoss(nn.Module):
     def __init__(self, device, margin=1.0, reduction='mean'):
         super(LossPredLoss, self).__init__()
 
@@ -90,7 +90,34 @@ class LossPredLoss(nn.Module):
         else:
             NotImplementedError()
 
-        return loss  
+        return loss'''
+    
+    
+class LossPredLoss(nn.Module):
+    def __init__(self, device, margin=1.0, reduction='mean'):
+        super(LossPredLoss, self).__init__()
+
+        self.margin = margin
+        self.device = device
+        self.reduction = reduction 
+        
+    def forward(self, input, target):
+        
+        criterion = nn.BCELoss(reduction='none')
+        input = input.view(input.size(0))
+        input = (input - input.flip(0))[:len(input)//2] # [l_1 - l_2B, l_2 - l_2B-1, ... , l_B - l_B+1], where batch_size = 2B
+        target = (target - target.flip(0))[:len(target)//2]
+        target = target.detach()
+        diff = torch.sigmoid(input)
+        one = torch.sign(torch.clamp(target, min=0)) # 1 operation which is defined by the authors
+        one = one.to(self.device)
+        
+        if self.reduction == 'mean': loss = torch.mean(criterion(diff,one))
+        elif self.reduction == 'none': loss = criterion(diff,one)
+        else: NotImplementedError()
+        
+        return loss
+    
 
 
 # Loss Prediction Network

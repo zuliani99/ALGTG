@@ -44,13 +44,9 @@ class Cls_TrainWorker():
         self.init_check_filename = f'{self.best_check_filename}/{self.model.module.name if self.world_size > 1 else self.model.name}_init.pth.tar'
         self.check_best_path = f'{self.best_check_filename}/best_{self.strategy_name}_{self.device}.pth.tar'
         
-        
-        if self.iter > 1: 
-            self.__load_checkpoint(self.check_best_path)
-            logger.info(' => Continuing Training the Best Model from the Previous Iteration')
-        else:
-            self.__load_checkpoint(self.init_check_filename)
-            logger.info(' => Loading Initial Checkpoint')
+        # RETRAIN FROM SCRATCH THE NETWORK (different from what LL4AL have done)
+        self.__load_checkpoint(self.init_check_filename)
+        logger.info(' => Loading Initial Checkpoint')
 
 
     def init_opt_sched(self):
@@ -76,7 +72,7 @@ class Cls_TrainWorker():
         loss_ce = self.backbone_loss_fn(outputs, labels)
         backbone = torch.mean(loss_ce)
         
-        if module_out == None or not weight:
+        if module_out == None or weight == 0:
             tot_loss_ce += backbone.item()
             return backbone, tot_loss_ce, tot_pred_loss
         
@@ -91,6 +87,7 @@ class Cls_TrainWorker():
             tot_pred_loss += quantity_loss.item()
             
             return loss, tot_loss_ce, tot_pred_loss
+        
         else:
             loss_weird = self.ll_loss_fn(module_out, loss_ce)
             loss = backbone + loss_weird
@@ -115,9 +112,6 @@ class Cls_TrainWorker():
         weight = 1.
         results = torch.zeros((4, self.epochs), device=self.device)
         
-        #if self.model.added_module != None and self.model.added_module.__class__.__name__ == 'GTG_Module': 
-        #    self.model.added_module.change_pahse('train')
-            
         self.model.train()
         
         for epoch in range(self.epochs):
@@ -125,7 +119,6 @@ class Cls_TrainWorker():
             train_loss, train_loss_ce, train_loss_pred, train_accuracy = .0, .0, .0, .0
             
             if self.LL and epoch == 121: weight = 0
-                        
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore            
                         
             for _, images, labels in self.train_dl:            
@@ -142,10 +135,6 @@ class Cls_TrainWorker():
                     )
                                 
                 loss.backward()
-                
-                ### GRADIENT CLIPPING
-                #if self.model.added_module != None and self.model.added_module.__class__.__name__ == 'GTG_Module':
-                #    torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1., norm_type=2)
 
                 self.optimizer.step()
                 
@@ -187,8 +176,6 @@ class Cls_TrainWorker():
     def test(self) -> torch.Tensor:
         test_accuracy, test_loss, test_loss_ce, test_pred_loss = .0, .0, .0, .0
         
-        #if self.model.added_module != None and self.model.added_module.__class__.__name__ == 'GTG_Module': 
-        #    self.model.added_module.change_pahse('test')
         self.model.eval()    
 
         with torch.inference_mode():

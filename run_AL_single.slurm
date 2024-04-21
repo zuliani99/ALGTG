@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=AL_SING    # Job name
+#SBATCH --job-name=AL_fin    # Job name
 #SBATCH --mail-type=END          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=875532@stud.unive.it     # Where to send mail	
 #SBATCH --nodes=1
@@ -16,7 +16,6 @@
 
 conda activate al_env
 
-python3 app/main.py -bb resnet18 -m lq_gtg -ds cifar10 -tr 1 -s mixed -ts threshold -t 0.5 -plb 0.1 --no_none_strategy --wandb
 #python3 app/main.py -m lq_gtg -ds cifar10 -tr 1 -s mixed -ts mean -t 0.5 -plb 0.1 
 #python3 app/main.py -m lq_gtg -ds cifar10 -tr 1 -s mixed -plb 0.1
-#python3 app/main.py -bb resnet18 -m random ll -ds caltech256 tinyimagenet -tr 1
+python3 app/main.py -m random entropy ll gtg gtg_ll -ds cifar10 cifar100 svhn -tr 1 -s mixed -ts mean 

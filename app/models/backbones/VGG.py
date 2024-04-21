@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+from typing import List, Tuple
+
 from utils import init_weights_apply
 
 
@@ -22,16 +24,32 @@ class VGG(nn.Module):
         
         self.apply(init_weights_apply)
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        self.feat = []
+        y = x
+        for i, model in enumerate(self.features):
+            y = model(y)
+            if i in {3,5,10,15}:
+                self.feat.append(y)#(y.view(y.size(0),-1))
+        
         x = self.features(x)
         x = self.avgpool(x)
-        x = torch.flatten(x, 1)
+        embedds = torch.flatten(x, 1)
         x = self.classifier(x)
-        return x
+        return x, embedds
+    
+    def get_embedding_dim(self) -> int:
+        return self.classifier[-1].in_features
+    
+    def get_features(self) -> List[torch.Tensor]:
+        return self.feat
+    
+    def get_rich_features_shape(self) -> List[int]:
+        return [64, 64, 128, 256]
 
 
 
-def make_layers(n_channels: int, cfg, batch_norm=False):
+def make_layers(n_channels: int, cfg, batch_norm=False) -> nn.Sequential:
     layers = []
     for v in cfg:
         if v == 'M':
@@ -57,15 +75,4 @@ cfgs = {
 def _vgg(cfg, batch_norm, n_channels, n_classes):
     return VGG(make_layers(n_channels, cfgs[cfg], batch_norm=batch_norm), n_classes)
 
-
-def VGG11(n_channels, n_classes): return _vgg('A', False, n_channels, n_classes)
-
-# we will use this version
-def VGG11_bn(n_channels, n_classes): return _vgg('A', True, n_channels, n_classes)
-
-def VGG13(n_channels, n_classes): return _vgg('B', False, n_channels, n_classes)
-def VGG13_bn(n_channels, n_classes): return _vgg('B', True, n_channels, n_classes)
-def VGG16(n_channels, n_classes): return _vgg('D', False, n_channels, n_classes)
 def VGG16_bn(n_channels, n_classes): return _vgg('D', True, n_channels, n_classes)
-def VGG19(n_channels, n_classes): return _vgg('E', False, n_channels, n_classes)
-def VGG19_bn(n_channels, n_classes): return _vgg('E', True, n_channels, n_classes)

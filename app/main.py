@@ -45,7 +45,6 @@ def get_args() -> argparse.Namespace:
             'gtg', 'll', 'gtg_ll', 'lq_gtg'
         ],
         required=True, help='Possible methods to choose')
-    parser.add_argument('-bb', '--bbone', type=str, nargs=1, choices=['resnet18', 'vgg16', 'ssd'], required=True, help='Possible backbone to choose')
     parser.add_argument('-ds', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'svhn', 'caltech256', 'tinyimagenet', 'voc', 'coco'],
                         required=True, help='Possible datasets to choose')
     parser.add_argument('-tr', '--trials', type=int, nargs=1, required=True, help='Number or trials of AL benchmark for each dataset')
@@ -74,6 +73,11 @@ dict_strategies = dict(
     lq_gtg = GTG # -> BB + GTG
 )
 
+dict_backbone = dict(
+    cifar10 = 'ResNet', cifar100 = 'ResNet', svhn = 'ResNet', 
+    caltech256 = 'VGG', tinyimagenet = 'ResNet', voc = 'SSD', coco = 'SSD'
+)
+
 
 def get_strategies_object(methods: List[str], list_gtg_p: List[Dict[str, Any]], Masters: Dict[str, Master_Model], 
                           ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any]) -> List[Any]:
@@ -95,6 +99,35 @@ def get_strategies_object(methods: List[str], list_gtg_p: List[Dict[str, Any]], 
             strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_None']}, t_p, al_p))
     
     return strategies
+
+
+# to create a single master model for each type
+def get_masters(methods: List[str], BBone: ResNet | SSD | VGG,
+                ll_module_params: Dict[str, Any], gtg_module_params: Dict[str, Any],
+                dataset_name: str) -> Dict[str, Master_Model]:
+    
+    LL_Mod, GTG_Mod, M_None = None, None, None
+    ll, only_bb = False, False
+    
+    for method in methods:
+        method_module = method.split('_')[-1]
+        if method_module == 'll' and not ll:
+            LL_Mod = get_module('LL', ll_module_params)
+            ll = True
+        elif method_module == 'gtg':
+            GTG_Mod = get_module('GTG', (gtg_module_params, ll_module_params))
+        elif not only_bb:
+            M_None = Master_Model(BBone, None, dataset_name)
+            only_bb = True
+        else: continue
+            
+    Masters = { }
+    # create and save the initial checkpoints of the masters
+    if M_None != None: Masters['M_None'] = M_None
+    if GTG_Mod != None: Masters['M_GTG'] = Master_Model(BBone, GTG_Mod, dataset_name)
+    if LL_Mod != None: Masters['M_LL'] = Master_Model(BBone, LL_Mod, dataset_name)
+    
+    return Masters
     
 
 
@@ -145,35 +178,7 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
         results[strategy.strategy_name] = strategy.run()
     ##########################################################################################################
     
-    return results, n_lab_obs
-
-
-# to create a single master model for each type
-def get_masters(methods: List[str], BBone: ResNet | SSD | VGG,
-                ll_module_params: Dict[str, Any], gtg_module_params: Dict[str, Any],
-                dataset_name: str) -> Dict[str, Master_Model]:
-    
-    LL_Mod, GTG_Mod, M_None = None, None, None
-    ll, only_bb = False, False
-    
-    for method in methods:
-        method_module = method.split('_')[-1]
-        if method_module == 'll' and not ll:
-            LL_Mod = get_module('LL', ll_module_params)
-            ll = True
-        elif method_module == 'gtg':
-            GTG_Mod = get_module('GTG', (gtg_module_params, ll_module_params))
-        elif not only_bb:
-            M_None = Master_Model(BBone, None, dataset_name)
-            only_bb = True
-        else: continue
-            
-    Masters = { }
-    if M_None != None: Masters['M_None'] = M_None
-    if GTG_Mod != None: Masters['M_GTG'] = Master_Model(BBone, GTG_Mod, dataset_name)
-    if LL_Mod != None: Masters['M_LL'] = Master_Model(BBone, LL_Mod, dataset_name)
-    
-    return Masters                  
+    return results, n_lab_obs               
 
 
 
@@ -183,7 +188,6 @@ def main() -> None:
     
     methods = args.methods
     choosen_datasets = args.datasets
-    bbone = args.bbone[0]
 
     threshold_strategies = args.threshold_strategies if args.threshold_strategies != None else None
     thresholds = args.thresholds if args.thresholds != None else None
@@ -194,7 +198,6 @@ def main() -> None:
     perc_labeled_batch = args.perc_labeled_batch[0] if args.perc_labeled_batch != None else None
     strategy_type = args.strategy[0] if args.strategy != None else None
     trials = args.trials[0]
-    
     
     
     if threshold_strategies != None and 'mean' not in threshold_strategies and thresholds == None:
@@ -241,45 +244,45 @@ def main() -> None:
         
     for dataset_name in choosen_datasets:
         
-        if dataset_name in ['cifar10', 'cifar100', 'svhn', 'caltech256', 'tinyimagenet']: task = 'clf'
-        else: task = 'detection'
-        
-        task_params = cls_config if task == 'clf' else det_config
+        if dataset_name in ['cifar10', 'cifar100', 'svhn', 'caltech256', 'tinyimagenet']: 
+            task = 'clf'
+            task_params = cls_config
+        else: 
+            task = 'detection'
+            task_params = det_config
 
         logger.info(f'----------------------- RUNNING ACTIVE LEARNING BENCHMARK ON {dataset_name} -----------------------\n')
+        
+        Dataset = get_dataset(task, dataset_name, init_lab_obs = al_params['init_lab_obs']) # get the dataset
+        BBone = get_backbone(Dataset.n_classes, Dataset.n_channels, dict_backbone[dataset_name]) # the backbone is the same for all
 
+        # create gtg dictionary parameters
+        gtg_module_params = dict(
+            **gtg_params, n_top_k_obs = al_params['n_top_k_obs'], 
+            n_classes = Dataset.n_classes, 
+            init_lab_obs = al_params['init_lab_obs'], 
+            embedding_dim = BBone.get_rich_features_shape(),
+            device = device, 
+        )
+        
+        ll_module_params = get_ll_module_params(task, Dataset.image_size, dataset_name) # create learning loss dictionary parameters
+            
+        Masters = get_masters(methods, BBone, ll_module_params, gtg_module_params, dataset_name) # obtain the master models
+                        
+        logger.info('\n')
+            
+        common_training_params = {
+            'Dataset': Dataset, 'device': device, 'timestamp': timestamp,
+            'dataset_name': dataset_name, 'task': task, # 'trial': trial,
+            'wandb_logs': wandb
+        }
+        
         for trial in range(trials):
+            common_training_params['trial'] = trial
             
             logger.info(f'----------------------- SAMPLE ITERATION {trial + 1} / {trials} -----------------------\n')
             
             create_ts_dir(timestamp, dataset_name, str(trial))
-
-            Dataset = get_dataset(task, dataset_name, init_lab_obs = al_params['init_lab_obs']) # get the dataset
-            
-            BBone = get_backbone(Dataset.n_classes, Dataset.n_channels, task, bbone) # the backbone is the same for all
-
-            # create gtg dictionary parameters
-            gtg_module_params = dict(
-                **gtg_params, n_top_k_obs = al_params['n_top_k_obs'], 
-                n_classes = Dataset.n_classes, 
-                init_lab_obs = al_params['init_lab_obs'], 
-                embedding_dim = BBone.get_rich_features_shape(),
-                device = device, 
-            )
-            # create learnin loss dictionary parameters
-            ll_module_params = get_ll_module_params(task, Dataset.image_size)
-            
-            
-            # obtain the master models
-            Masters = get_masters(methods, BBone, ll_module_params, gtg_module_params, dataset_name)
-                        
-            logger.info('\n')
-            
-            common_training_params = {
-                'Dataset': Dataset, 'device': device, 'timestamp': timestamp,
-                'dataset_name': dataset_name, 'trial': trial, 'task': task,
-                'wandb_logs': wandb
-            }
 
             results, n_lab_obs = run_strategies(
                 ct_p = common_training_params, t_p = task_params, al_p = al_params,

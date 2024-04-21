@@ -15,8 +15,8 @@ cls_datasets = {
         'transforms': {
             'train': v2.Compose([
                         v2.ToImage(),
-                        v2.RandomCrop(32, padding=4),
                         v2.RandomHorizontalFlip(),
+                        v2.RandomCrop(32, padding=4),
                         v2.ToDtype(torch.float32, scale=True),
                         v2.Normalize(mean=[0.49139968, 0.48215841, 0.44653091],
                                      std=[0.24703223, 0.24348513, 0.26158784])
@@ -48,9 +48,8 @@ cls_datasets = {
         'transforms': {
             'train': v2.Compose([
                         v2.ToImage(),
-                        v2.RandomCrop(32, padding=4),
                         v2.RandomHorizontalFlip(),
-                        v2.RandomRotation(degrees=(0,20)),
+                        v2.RandomCrop(32, padding=4),
                         v2.ToDtype(torch.float32, scale=True),
                         v2.Normalize(mean=[0.50707516, 0.48654887, 0.44091784],
                                      std=[0.26733429, 0.25643846, 0.27615047])
@@ -73,8 +72,8 @@ cls_datasets = {
         'transforms': {
             'train': v2.Compose([
                         v2.ToImage(),
-                        v2.RandomCrop(32, padding=4),
                         v2.RandomHorizontalFlip(),
+                        v2.RandomCrop(32, padding=4),
                         v2.ToDtype(torch.float32, scale=True),
                         v2.Normalize(mean=[0.4376821 , 0.4437697 , 0.47280442],
                                      std=[0.19803012, 0.20101562, 0.19703614])
@@ -96,9 +95,9 @@ cls_datasets = {
         'transforms': {
             'train': v2.Compose([
                         v2.ToImage(),
-                        v2.RandomCrop(64, padding=8),
                         v2.RandomHorizontalFlip(),
-                        v2.RandomRotation(degrees=(0,20)),
+                        v2.RandomCrop(32, padding=4),
+                        #v2.RandomHorizontalFlip(),
                         v2.ToDtype(torch.float32, scale=True),
                         v2.Normalize(mean=[0.48042979, 0.44819701, 0.39755623],
                                      std=[0.27643974, 0.26888656, 0.28166852])
@@ -120,9 +119,9 @@ cls_datasets = {
         'transforms': {
             'train': [
                         v2.ToImage(),
-                        v2.RandomCrop(64, padding=8),
                         v2.RandomHorizontalFlip(),
-                        v2.RandomRotation(degrees=(0,20)),
+                        v2.RandomCrop(224, padding=28),
+                        #v2.RandomRotation(degrees=(0,20)),
                         v2.ToDtype(torch.float32, scale=True),
                     ],
             'test': [
@@ -139,7 +138,7 @@ cls_datasets = {
 
 al_params = {
     'init_lab_obs': 1000,
-    'al_iters': 7,#10, 
+    'al_iters': 5,#10, 
     'unlab_sample_dim': 10000, 
     'n_top_k_obs': 1000,
 }
@@ -177,7 +176,7 @@ cls_config = {
         }
     },
     'caltech256': {
-        'batch_size': 64,
+        'batch_size': 32,#64,
         'optimizer': torch.optim.SGD,
         'optim_p': {
             'lr': 0.1,
@@ -194,7 +193,6 @@ cls_config = {
             'weight_decay': 5e-4
         }
     }
-    #}
 }
 
 

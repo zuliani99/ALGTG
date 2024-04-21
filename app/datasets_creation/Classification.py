@@ -79,18 +79,12 @@ def preprocess_caltech256(caltech256_path):
 def download_caltech256():
     os.makedirs('./datasets/caltech256', exist_ok=True)
     logger.info(' => Downloading Caltech256 Dataset')
-    # downlaod dataset
-    os.system('wget -P ./datasets/caltech256 https://data.caltech.edu/records/nyy15-4j048/files/256_ObjectCategories.tar')
-    # extract and remove it
-    os.system('tar -xopf ./datasets/caltech256/256_ObjectCategories.tar -C ./datasets/caltech256')
+    os.system('wget -P ./datasets/caltech256 https://data.caltech.edu/records/nyy15-4j048/files/256_ObjectCategories.tar') # downlaod dataset
+    os.system('tar -xopf ./datasets/caltech256/256_ObjectCategories.tar -C ./datasets/caltech256') # extract and remove it
     os.remove('./datasets/caltech256/256_ObjectCategories.tar')
-    # remove non-images
-    os.remove(os.path.join('./datasets/caltech256/256_ObjectCategories', '198.spider/RENAME2'))
+    os.remove(os.path.join('./datasets/caltech256/256_ObjectCategories', '198.spider/RENAME2')) # remove non-images
     shutil.rmtree(os.path.join('./datasets/caltech256/256_ObjectCategories', '056.dog/greg'))
-    # we don't need the class with noise
-    shutil.rmtree(os.path.join('./datasets/caltech256/256_ObjectCategories', '257.clutter'))
-    #logger.info(' DONE\n')
-        
+    shutil.rmtree(os.path.join('./datasets/caltech256/256_ObjectCategories', '257.clutter')) # we don't need the class with noise
     return preprocess_caltech256('./datasets/caltech256/256_ObjectCategories')
 
 
