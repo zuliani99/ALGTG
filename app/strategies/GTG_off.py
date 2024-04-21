@@ -14,7 +14,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class GTG_LL(ActiveLearner):
+class GTG_off(ActiveLearner):
     
     def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any], LL = True) -> None:
         

@@ -43,6 +43,7 @@ class ActiveLearner():
                 
         self.labeled_indices: List[int] = copy.deepcopy(self.dataset.labeled_indices)
         self.unlabeled_indices: List[int] = copy.deepcopy(self.dataset.unlabeled_indices)
+        self.temp_unlab_pool = []
 
         self.train_results: Dict[str, Any] = {}
         
@@ -87,6 +88,10 @@ class ActiveLearner():
             
             logger.info(f' SEED: {seed} - Last 10 permuted indices are: {rand_perm[-10:]}')
             unlab_perm_subset = Subset(self.dataset.non_transformed_trainset, rand_perm_unlabeled)
+            
+            # removing the whole observation sample fromt the unlabeled indices list
+            for idx in rand_perm_unlabeled: self.unlabeled_indices.remove(idx) # - 10000
+            
             logger.info(f' SEED: {seed} - With dataset indices: {unlab_perm_subset.indices[-10:]}')
             
             #reset the original seed
@@ -258,31 +263,46 @@ class ActiveLearner():
         
         
     
-    def update_sets(self, overall_topk: List[int]) -> None:
+    def update_sets(self, unlab_samp_idxs: List[int], overall_topk: List[int]) -> None:
+    #def update_sets(self, overall_topk: List[int]) -> None:
         
         # save the new labeled images to further visual analysis
         self.save_labeled_images(overall_topk)
         
         # Update the labeeld and unlabeled training set
         logger.info(' => Modifing the Subsets')
+        
+        
+        sample_len = len(unlab_samp_idxs)
+        # the sample have been already removed from the labeled set
+        for idx in overall_topk: unlab_samp_idxs.remove(idx) # - 1000 = 9000
+        self.temp_unlab_pool.extend(unlab_samp_idxs) # + 9000
         # extend with the overall_topk
-        self.labeled_indices.extend(overall_topk)
+        self.labeled_indices.extend(overall_topk) # + 1000
+        
+        
         
         # remove new labeled observations
-        for idx_to_remove in overall_topk: self.unlabeled_indices.remove(idx_to_remove)
+        #for idx_to_remove in overall_topk: self.unlabeled_indices.remove(idx_to_remove)
         
         # sanity check
-        if len(list(set(self.unlabeled_indices) & set(self.labeled_indices))) == 0:
-            logger.info(' Intersection between indices is EMPTY')
+        if len(list(set(self.unlabeled_indices) & set(self.labeled_indices))) == 0 and \
+            len(list(set(self.temp_unlab_pool) & set(self.labeled_indices))) == 0 :
+            logger.info(' Intersection between indices lists are EMPTY')
         else: 
             logger.exception('NON EMPTY INDICES INTERSECTION')
             raise Exception('NON EMPTY INDICES INTERSECTION')
+        
+        
+        if len(self.unlabeled_indices) < sample_len and len(self.temp_unlab_pool) > 0:
+            # reinsert all teh observations from the pool inside the original unlabeled pool
+            self.unlabeled_indices.extend(self.temp_unlab_pool)
+            self.temp_unlab_pool.clear() # empty the temp unlabeled pool list
+        
 
         # generate the new labeled DataLoader
         self.labeled_subset = Subset(self.dataset.transformed_trainset, self.labeled_indices)
-        #self.lab_train_dl = DataLoader(
-        #    self.labeled_subset, batch_size=self.ds_t_p['batch_size'], shuffle=False, pin_memory=True
-        #)
+
         
         logger.info(f' New labeled_indices lenght: {len(self.labeled_indices)} - new unlabeled_indices lenght: {len(self.unlabeled_indices)}')
         
@@ -326,7 +346,7 @@ class ActiveLearner():
             else: self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter))
 
             # modify the datasets and dataloader and plot the tsne
-            self.update_sets(topk_idx_obs)
+            self.update_sets(samp_unlab_subset.indices, topk_idx_obs)
 
             # iter + 1
             self.train_results[str(self.iter)] = self.train_evaluate_save(self.iter * self.al_p['n_top_k_obs'], self.iter, results_format)

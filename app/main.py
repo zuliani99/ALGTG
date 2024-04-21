@@ -24,7 +24,7 @@ from strategies.competitors.CDAL import CDAL
 from strategies.competitors.K_Means import K_Means
 from strategies.competitors.LeastConfidence import LeastConfidence
 from strategies.GTG import GTG
-from strategies.GTG_LL import GTG_LL
+from strategies.GTG_off import GTG_off
     
 from config import cls_config, al_params, det_config
 from datetime import datetime
@@ -42,7 +42,7 @@ def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--methods', type=str, nargs='+', choices=[
             'random', 'entropy', 'coreset', 'badge', 'bald', 'cdal', 'kmeans', 'leastconfidence',
-            'll', 'gtg_ll', 'lq_gtg'
+            'gtg', 'll', 'gtg_ll', 'lq_gtg'
         ],
         required=True, help='Possible methods to choose')
     parser.add_argument('-bb', '--bbone', type=str, nargs=1, choices=['resnet18', 'vgg16', 'ssd'], required=True, help='Possible backbone to choose')
@@ -68,9 +68,9 @@ def get_args() -> argparse.Namespace:
 
 dict_strategies = dict(
     random = Random, entropy = Entropy, coreset = CoreSet, bald = BALD, badge = BADGE, # -> BB
-    kmeans = K_Means, leastconfidence = LeastConfidence, cdal = CDAL, # -> BB
+    kmeans = K_Means, leastconfidence = LeastConfidence, cdal = CDAL, gtg = GTG_off,# -> BB
     
-    ll = LearningLoss, gtg_ll = GTG_LL, # -> BB + LL
+    ll = LearningLoss, gtg_ll = GTG_off, # -> BB + LL
     lq_gtg = GTG # -> BB + GTG
 )
 
@@ -80,11 +80,15 @@ def get_strategies_object(methods: List[str], list_gtg_p: List[Dict[str, Any]], 
     strategies = []
     for method in methods:
         if 'gtg' in method.split('_'):
-            for gtg_p in list_gtg_p:
-                strategies.append(dict_strategies[method](
-                    {**ct_p, 'Master_Model': Masters['M_LL'] if method.split('_')[0] == 'gtg' else Masters['M_GTG']},
-                    t_p, al_p, gtg_p
-                ))
+            if method == 'gtg':
+                for gtg_p in list_gtg_p:
+                    strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_None']}, t_p, al_p, gtg_p))
+            else:
+                for gtg_p in list_gtg_p:
+                    strategies.append(dict_strategies[method](
+                        {**ct_p, 'Master_Model': Masters['M_LL'] if method.split('_')[0] == 'gtg' else Masters['M_GTG']},
+                        t_p, al_p, gtg_p
+                    ))
         elif method == 'll':
             strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_LL']}, t_p, al_p))
         else:
@@ -114,21 +118,21 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
         for ts in t_s:
             if ts == 'mean':
                 list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
-                list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT})
+                #list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT})
                 list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
-                list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT})
+                #list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT})
             else:
                 for t in thres:
                     list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
-                    list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT})
+                    #list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT})
                     list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
-                    list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT})
+                    #list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT})
     
     if not nn_s:
         list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
-        list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT})
+        #list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT})
         list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
-        list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT})
+        #list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT})
         
             
     # get the strategis object to run them
