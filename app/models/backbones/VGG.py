@@ -24,16 +24,17 @@ class VGG(nn.Module):
         super(VGG, self).__init__()
         self.features = features
         self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
-        self.classifier = nn.Sequential(
+        self.linears = nn.Sequential(
             nn.Linear(512 * 7 * 7, 4096),
             nn.ReLU(True),
             nn.Dropout(),
             nn.Linear(4096, 4096),
             nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(4096, n_classes),
+            nn.Dropout()
         )
-        
+            
+        self.classifier = nn.Linear(4096, n_classes)
+
         self.apply(init_weights_apply)
 
 
@@ -48,13 +49,14 @@ class VGG(nn.Module):
         x = self.features(x)
         x = self.avgpool(x)
         
-        embedds = x.view(x.size(0), -1)
+        x = x.view(x.size(0), -1)
+        embedds = self.linears(x)
         x = self.classifier(embedds)
         
         return x, embedds
     
     def get_embedding_dim(self) -> int:
-        return self.classifier[0].in_features
+        return self.classifier.in_features
     
     def get_features(self) -> List[torch.Tensor]:
         return self.feat

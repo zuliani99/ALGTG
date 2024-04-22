@@ -186,7 +186,7 @@ cls_config = {
         'batch_size': 128,
         'optimizer': torch.optim.SGD,
         'optim_p': {
-            'lr': 0.001,
+            'lr': 0.1,
             'momentum': 0.9,
             'weight_decay': 5e-4
         }
