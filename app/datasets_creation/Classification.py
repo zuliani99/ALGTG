@@ -92,7 +92,7 @@ def create_train_test_dir(list_idxs: Tuple[List[int], List[int]], train_data: Da
 
 
 def compute_mean_std(data: Dataset, idxs=None) -> Tuple[np.ndarray, np.ndarray]:
-    logger.info(' Computing the mean and std for the train set')
+    logger.info(' => Computing mean and std for the train test split...')
     images = []
     if idxs != None:
         for i in idxs:
@@ -135,13 +135,12 @@ def init_caltech256() -> None:
     train_idxs = rand_perm[:train_size].tolist()
     test_idxs = rand_perm[train_size:].tolist()
                 
-    train_data = datasets.ImageFolder('./datasets/caltech256/256_ObjectCategories', transform=v2.Compose([v2.Resize((64,64))]))
+    train_data = datasets.ImageFolder('./datasets/caltech256/256_ObjectCategories', transform=v2.Compose([v2.Resize((224,224))]))
         
     split_path = './datasets/caltech256/256_ObjectCategories_new'
     os.mkdir(split_path)
     create_train_test_dir((train_idxs, test_idxs), train_data, split_path, ('train', 'test'), classes)
     
-    logger.info(' => Computing mean and std for the train test split...')                
     complete_caltech_transforms(compute_mean_std(train_data, train_idxs))
 
     shutil.rmtree('./datasets/caltech256/256_ObjectCategories')

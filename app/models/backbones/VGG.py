@@ -35,7 +35,7 @@ class VGG(nn.Module):
         x = self.features(x)
         x = self.avgpool(x)
         embedds = torch.flatten(x, 1)
-        x = self.classifier(x)
+        x = self.classifier(embedds)
         return x, embedds
     
     def get_embedding_dim(self) -> int:

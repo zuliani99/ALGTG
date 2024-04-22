@@ -18,4 +18,4 @@ conda activate al_env
 
 #python3 app/main.py -m lq_gtg -ds cifar10 -tr 1 -s mixed -ts mean -t 0.5 -plb 0.1 
 #python3 app/main.py -m lq_gtg -ds cifar10 -tr 1 -s mixed -plb 0.1
-python3 app/main.py -m random entropy ll gtg gtg_ll -ds cifar10 cifar100 svhn -tr 1 -s mixed -ts mean 
+python3 app/main.py -m random -ds caltech256 -tr 1 
