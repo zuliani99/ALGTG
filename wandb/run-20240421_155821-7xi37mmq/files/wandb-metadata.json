@@ -1,0 +1,199 @@
+{
+    "os": "Linux-5.4.0-169-generic-x86_64-with-glibc2.31",
+    "python": "3.12.2",
+    "heartbeatAt": "2024-04-21T13:58:21.780424",
+    "startedAt": "2024-04-21T13:58:21.101549",
+    "docker": null,
+    "cuda": null,
+    "args": [
+        "-bb",
+        "resnet18",
+        "-m",
+        "lq_gtg",
+        "-ds",
+        "cifar10",
+        "-tr",
+        "1",
+        "-s",
+        "mixed",
+        "-ts",
+        "threshold",
+        "-t",
+        "0.5",
+        "-plb",
+        "0.1",
+        "--no_none_strategy",
+        "--wandb"
+    ],
+    "state": "running",
+    "program": "/home/rzuliani/projects/AL_GTG/app/main.py",
+    "codePathLocal": "app/main.py",
+    "codePath": "app/main.py",
+    "git": {
+        "remote": "https://github.com/zuliani99/Active_Learning_GTG.git",
+        "commit": "a6bc917a451cfc0a4d0d01b72a65daaa5f48acec"
+    },
+    "email": "875532@stud.unive.it",
+    "root": "/home/rzuliani/projects/AL_GTG",
+    "host": "ppv-gpu1",
+    "username": "rzuliani",
+    "executable": "/home/rzuliani/.conda/envs/al_env/bin/python3",
+    "cpu_count": 24,
+    "cpu_count_logical": 24,
+    "cpu_freq": {
+        "current": 3099.998000000001,
+        "min": 0.0,
+        "max": 0.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3099.998,
+            "min": 0.0,
+            "max": 0.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 48.1395378112793,
+            "used": 40.97492980957031
+        }
+    },
+    "gpu": "Tesla T4",
+    "gpu_count": 4,
+    "gpu_devices": [
+        {
+            "name": "Tesla T4",
+            "memory_total": 16106127360
+        },
+        {
+            "name": "Tesla T4",
+            "memory_total": 16106127360
+        },
+        {
+            "name": "Tesla T4",
+            "memory_total": 16106127360
+        },
+        {
+            "name": "Tesla T4",
+            "memory_total": 16106127360
+        }
+    ],
+    "memory": {
+        "total": 1309.6657257080078
+    }
+}

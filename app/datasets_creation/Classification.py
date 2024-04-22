@@ -4,7 +4,7 @@ from torchvision import datasets
 import torch
 import numpy as np
 
-from typing import List, Tuple, Dict
+from typing import List, Tuple
 import os
 import shutil
 
@@ -29,7 +29,6 @@ def download_tinyimagenet() -> None:
         logger.info('Tiny-IMAGENET Dataset already downloaded')
         
         
-        
 def create_val_img_folder(dataset_dir):
     val_dir = os.path.join(dataset_dir, 'val')
     img_dir = os.path.join(val_dir, 'images')
@@ -51,19 +50,7 @@ def create_val_img_folder(dataset_dir):
             os.rename(os.path.join(img_dir, img), os.path.join(newpath, img))
 
 
-
-'''def get_class_name_timagenet(dataset_dir) -> Dict[str, str]:
-    class_to_name = dict()
-    fp = open(os.path.join(dataset_dir, 'words.txt'), 'r')
-    data = fp.readlines()
-    for line in data:
-        words = line.strip('\n').split('\t')
-        class_to_name[words[0]] = words[1].split(',')[0]
-    fp.close()
-    return class_to_name
-'''
-
-def preprocess_caltech256(caltech256_path):
+def preprocess_caltech256_dir(caltech256_path):
     n_images = 0
     for dir_name in os.listdir(caltech256_path):
         new_dir_name = dir_name.split('.')[-1]
@@ -79,16 +66,22 @@ def preprocess_caltech256(caltech256_path):
 def download_caltech256():
     os.makedirs('./datasets/caltech256', exist_ok=True)
     logger.info(' => Downloading Caltech256 Dataset')
-    os.system('wget -P ./datasets/caltech256 https://data.caltech.edu/records/nyy15-4j048/files/256_ObjectCategories.tar') # downlaod dataset
-    os.system('tar -xopf ./datasets/caltech256/256_ObjectCategories.tar -C ./datasets/caltech256') # extract and remove it
+    # downlaod dataset
+    os.system('wget -P ./datasets/caltech256 https://data.caltech.edu/records/nyy15-4j048/files/256_ObjectCategories.tar')
+    # extract and remove it
+    os.system('tar -xopf ./datasets/caltech256/256_ObjectCategories.tar -C ./datasets/caltech256')
     os.remove('./datasets/caltech256/256_ObjectCategories.tar')
-    os.remove(os.path.join('./datasets/caltech256/256_ObjectCategories', '198.spider/RENAME2')) # remove non-images
+    # remove non-images
+    os.remove(os.path.join('./datasets/caltech256/256_ObjectCategories', '198.spider/RENAME2'))
     shutil.rmtree(os.path.join('./datasets/caltech256/256_ObjectCategories', '056.dog/greg'))
-    shutil.rmtree(os.path.join('./datasets/caltech256/256_ObjectCategories', '257.clutter')) # we don't need the class with noise
-    return preprocess_caltech256('./datasets/caltech256/256_ObjectCategories')
+    # we don't need the class with noise
+    shutil.rmtree(os.path.join('./datasets/caltech256/256_ObjectCategories', '257.clutter'))
+        
+    return preprocess_caltech256_dir('./datasets/caltech256/256_ObjectCategories')
 
 
-def create_train_test_dir(list_idxs, train_data, split_path, split_types, classes):
+def create_train_test_dir(list_idxs: Tuple[List[int], List[int]], train_data: Dataset, split_path: str, \
+                          split_types: Tuple[str, str], classes: List[str]) -> None:
     for idxs, split_type in zip(list_idxs, split_types):
         for i in idxs:
             pil_image, label = train_data[i]
@@ -98,37 +91,35 @@ def create_train_test_dir(list_idxs, train_data, split_path, split_types, classe
             pil_image.save(os.path.join(split_path, split_type, classes[int(label)], f'{id}.png'), 'PNG')
 
 
-def compute_mean_std(data: Dataset, idxs=None):
+def compute_mean_std(data: Dataset, idxs=None) -> Tuple[np.ndarray, np.ndarray]:
+    logger.info(' Computing the mean and std for the train set')
     images = []
-    
     if idxs != None:
         for i in idxs:
             if len(np.asarray(data[i][0]).shape) == 3: images.append(np.asarray(data[i][0]))
             else: images.append(np.repeat(np.asarray(data[i][0])[:, :, np.newaxis], 3, axis=2))
     else: 
         for img, _ in data: images.append(np.asarray(img))
-                    
     images = np.concatenate(images)
-                
     mean = np.mean(images, axis=(0, 1)) / 255 
     std = np.std(images, axis=(0, 1)) / 255
-    
     return mean, std
 
 
-def init_caltech256():
+def complete_caltech_transforms(mean_std: Tuple[np.ndarray, np.ndarray]) -> None:
+    mean, std = mean_std
+    cls_datasets['caltech256']['transforms']['train'].append(v2.Normalize(mean=mean.tolist(), std=std.tolist()))
+    cls_datasets['caltech256']['transforms']['train'] = v2.Compose(cls_datasets['caltech256']['transforms']['train'])
+                
+    cls_datasets['caltech256']['transforms']['test'].append(v2.Normalize(mean=mean.tolist(), std=std.tolist()))
+    cls_datasets['caltech256']['transforms']['test'] = v2.Compose(cls_datasets['caltech256']['transforms']['test'])
+
+
+def init_caltech256() -> None:
     if os.path.exists('./datasets/caltech256/256_ObjectCategories'): 
-        
-        cls_datasets['caltech256']['classes'] = sorted(os.listdir('./datasets/caltech256/256_ObjectCategories/train'))
         logger.info(' Caltech256 dataset already obtained and ready!')
-        
-        mean, std = compute_mean_std(datasets.ImageFolder('./datasets/caltech256/256_ObjectCategories'))
-    
-        cls_datasets['caltech256']['transforms']['train'].append(v2.Normalize(mean=mean, std=std))
-        cls_datasets['caltech256']['transforms']['train'] = v2.Compose(cls_datasets['caltech256']['transforms']['train'])
-                    
-        cls_datasets['caltech256']['transforms']['test'].append(v2.Normalize(mean=mean, std=std))
-        cls_datasets['caltech256']['transforms']['test'] = v2.Compose(cls_datasets['caltech256']['transforms']['test'])
+        cls_datasets['caltech256']['classes'] = sorted(os.listdir('./datasets/caltech256/256_ObjectCategories/train'))
+        complete_caltech_transforms(compute_mean_std(datasets.ImageFolder('./datasets/caltech256/256_ObjectCategories')))
         return 
     
     n_images = download_caltech256()
@@ -138,25 +129,20 @@ def init_caltech256():
     logger.info(' => Generating new train test split datasets...')
     
     rand_perm = torch.randperm(n_images)
-        
-    # we set 10000 test observations
-    train_idxs = rand_perm[10000:].tolist()
-    test_idxs = rand_perm[:10000].tolist()
+    
+    # 80% for the training set and the remaning 20% for the test set
+    train_size = int(n_images * 0.8)
+    train_idxs = rand_perm[:train_size].tolist()
+    test_idxs = rand_perm[train_size:].tolist()
                 
     train_data = datasets.ImageFolder('./datasets/caltech256/256_ObjectCategories', transform=v2.Compose([v2.Resize((64,64))]))
         
     split_path = './datasets/caltech256/256_ObjectCategories_new'
     os.mkdir(split_path)
-    create_train_test_dir([train_idxs, test_idxs], train_data, split_path, ['train', 'test'], classes)
-        
-    logger.info(' => Computing mean and std for the train test split...')
-    mean, std = compute_mean_std(train_data, train_idxs)
-                
-    cls_datasets['caltech256']['transforms']['train'].append(v2.Normalize(mean=mean, std=std))
-    cls_datasets['caltech256']['transforms']['train'] = v2.Compose(cls_datasets['caltech256']['transforms']['train'])
-                
-    cls_datasets['caltech256']['transforms']['test'].append(v2.Normalize(mean=mean, std=std))
-    cls_datasets['caltech256']['transforms']['test'] = v2.Compose(cls_datasets['caltech256']['transforms']['test'])
+    create_train_test_dir((train_idxs, test_idxs), train_data, split_path, ('train', 'test'), classes)
+    
+    logger.info(' => Computing mean and std for the train test split...')                
+    complete_caltech_transforms(compute_mean_std(train_data, train_idxs))
 
     shutil.rmtree('./datasets/caltech256/256_ObjectCategories')
     os.rename(split_path, './datasets/caltech256/256_ObjectCategories')
@@ -214,6 +200,7 @@ class Cls_Dataset(Dataset):
             # train
             if dataset_name == 'tinyimagenet':
                 download_tinyimagenet()
+                create_val_img_folder('./datasets/tiny-imagenet-200')
                 self.ds: Dataset = datasets.ImageFolder('./datasets/tiny-imagenet-200/train',
                     transform=cls_datasets['tinyimagenet']['transforms']['train']
                 )
@@ -235,7 +222,6 @@ class Cls_Dataset(Dataset):
         else:
             # unlabeled or test dataset
             if dataset_name == 'tinyimagenet':
-                if not bool_train: create_val_img_folder('./datasets/tiny-imagenet-200')
                 self.ds: Dataset = datasets.ImageFolder(f'./datasets/tiny-imagenet-200/{'train' if bool_train else 'val'}', 
                     transform=cls_datasets['tinyimagenet']['transforms']['test']
                 )
