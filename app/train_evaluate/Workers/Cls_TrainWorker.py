@@ -132,6 +132,8 @@ class Cls_TrainWorker():
                         module_out=module_out, outputs=outputs, labels=labels,
                         tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred
                     )
+                
+                logger.info(f' loss -> {loss.item()}\taccuracy -> {self.score_fn(outputs, labels)}')
                                 
                 loss.backward()
 

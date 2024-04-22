@@ -1,9 +1,21 @@
 import torch
 import torch.nn as nn
+import torch.nn.init as init
 
 from typing import List, Tuple
 
-from utils import init_weights_apply
+
+def init_weights_apply(m: torch.nn.Module) -> None:
+    if isinstance(m, nn.Conv2d):
+        init.xavier_uniform_(m.weight)
+        if m.bias is not None: init.constant_(m.bias, 0)
+    elif isinstance(m, nn.Linear):
+        init.normal_(m.weight, std=1e-3)
+        if m.bias is not None: init.constant_(m.bias, 0)
+    elif isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.BatchNorm1d):
+        init.constant_(m.weight, 1)
+        init.constant_(m.bias, 0)
+    
 
 
 class VGG(nn.Module):
@@ -21,12 +33,13 @@ class VGG(nn.Module):
             nn.Dropout(),
             nn.Linear(4096, n_classes),
         )
+        self.feat = []
         
         self.apply(init_weights_apply)
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        self.feat = []
-        y = x
+        
+        y = x.clone()
         for i, model in enumerate(self.features):
             y = model(y)
             if i in {3,5,10,15}:
@@ -34,8 +47,10 @@ class VGG(nn.Module):
         
         x = self.features(x)
         x = self.avgpool(x)
-        embedds = torch.flatten(x, 1)
+        
+        embedds = x.view(x.size(0), -1)
         x = self.classifier(embedds)
+        
         return x, embedds
     
     def get_embedding_dim(self) -> int:

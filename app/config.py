@@ -114,7 +114,7 @@ cls_datasets = {
         'id': 5,
         'n_classes': 256,
         'channels': 3,
-        'image_size': 64,
+        'image_size': 224,
         'classes':[],
         'transforms': {
             'train': [
@@ -176,7 +176,7 @@ cls_config = {
         }
     },
     'caltech256': {
-        'batch_size': 32,#64,
+        'batch_size': 64,
         'optimizer': torch.optim.SGD,
         'optim_p': {
             'lr': 0.1,
