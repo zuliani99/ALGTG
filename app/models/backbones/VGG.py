@@ -7,11 +7,11 @@ from typing import List, Tuple
 
 def init_weights_apply(m: torch.nn.Module) -> None:
     if isinstance(m, nn.Conv2d):
-        init.xavier_uniform_(m.weight)
+        nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
         if m.bias is not None: init.constant_(m.bias, 0)
     elif isinstance(m, nn.Linear):
-        init.normal_(m.weight, std=1e-3)
-        if m.bias is not None: init.constant_(m.bias, 0)
+        init.normal_(m.weight, std=0.01)
+        init.constant_(m.bias, 0)
     elif isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.BatchNorm1d):
         init.constant_(m.weight, 1)
         init.constant_(m.bias, 0)
@@ -33,17 +33,17 @@ class VGG(nn.Module):
             nn.Dropout(),
             nn.Linear(4096, n_classes),
         )
-        self.feat = []
         
         self.apply(init_weights_apply)
 
+
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        
-        y = x.clone()
+        feat = []
+        y = x
         for i, model in enumerate(self.features):
             y = model(y)
-            if i in {3,5,10,15}:
-                self.feat.append(y)#(y.view(y.size(0),-1))
+            if i in {3,5,10,15}: feat.append(y) #(y.view(y.size(0),-1))
+        self.feat = feat
         
         x = self.features(x)
         x = self.avgpool(x)

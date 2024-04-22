@@ -26,7 +26,6 @@ class Master_Model(nn.Module):
         else: 
             self.name = f'{self.backbone.__class__.__name__}'
             
-        
         # backbone and additional module have initialized their respecive layers, so I can save the initial checkpoint
         logger.info(f' => Saving Initial {self.name} checkpoint')
         torch.save(dict(state_dict = self.state_dict()), f'app/checkpoints/{dataset_name}/{self.name}_init.pth.tar')
@@ -43,7 +42,7 @@ class Master_Model(nn.Module):
             # module out is:
             # LL -> loss
             # GTG -> loss, mask
-            
+
             if self.added_module != None:
                 features = self.backbone.get_features()
                 if epoch > 120: 

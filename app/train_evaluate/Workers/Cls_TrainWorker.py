@@ -8,7 +8,6 @@ from utils import accuracy_score
 from torch.utils.data import DataLoader
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-
 from typing import Tuple, Dict, Any
 
 import logging
@@ -109,7 +108,7 @@ class Cls_TrainWorker():
     
     
     def train(self) -> torch.Tensor:
-                
+        
         results = torch.zeros((4, self.epochs), device=self.device)
         
         self.model.train()
@@ -120,9 +119,9 @@ class Cls_TrainWorker():
             
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore            
                         
-            for _, images, labels in self.train_dl:            
+            for _, images, labels in self.train_dl:   
                                 
-                images, labels = self.return_moved_imgs_labs(images, labels)
+                images, labels = self.return_moved_imgs_labs(images, labels)              
                                     
                 self.optimizer.zero_grad()
                 
@@ -131,9 +130,7 @@ class Cls_TrainWorker():
                 loss, train_loss_ce, train_loss_pred = self.compute_losses(
                         module_out=module_out, outputs=outputs, labels=labels,
                         tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred
-                    )
-                
-                logger.info(f' loss -> {loss.item()}\taccuracy -> {self.score_fn(outputs, labels)}')
+                    )  
                                 
                 loss.backward()
 
@@ -148,11 +145,12 @@ class Cls_TrainWorker():
             train_loss_ce /= len(self.train_dl)
             train_loss_pred /= len(self.train_dl)                        
             
+            logger.info(f' train_accuracy -> {train_accuracy}\ttrain_loss -> {train_loss}')
+            
             
             for pos, metric in zip(range(results.shape[0]), [train_accuracy, train_loss, train_loss_ce, train_loss_pred]):
                 results[pos][epoch] = metric
                 
-            #logger.info(f' train_loss_ce -> {train_loss_ce}\ttrain_loss_pred -> {train_loss_pred}')
                 
             if self.wandb_run != None:
                 self.wandb_run.log({
