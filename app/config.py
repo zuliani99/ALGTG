@@ -174,7 +174,7 @@ cls_config = {
         }
     },
     'caltech256': {
-        'batch_size': 32, # -> fit in memory
+        'batch_size': 16,#32, # -> fit in memory
         'optimizer': torch.optim.SGD,
         'optim_p': {
             'lr': 0.01, # from VAAL -> 0.01

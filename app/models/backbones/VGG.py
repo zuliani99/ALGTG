@@ -54,7 +54,7 @@ class VGG(nn.Module):
         return x, embedds
     
     def get_embedding_dim(self) -> int:
-        return self.classifier[-1].in_features
+        return self.classifier[0].in_features
     
     def get_features(self) -> List[torch.Tensor]:
         return self.feat
