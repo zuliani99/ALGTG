@@ -22,7 +22,7 @@ class GTG(ActiveLearner):
             strategy_name = f'{self.__class__.__name__}_{gtg_p['strategy_type']}_{str_rbf}{gtg_p['A_function']}_{gtg_p['ent_strategy'].name}'
                 
         
-        super().__init__(ct_p, t_p, al_p, strategy_name, False)
+        super().__init__(ct_p, t_p, al_p, strategy_name)
         
         if self.model.added_module != None:
             self.model.added_module.define_additional_parameters(gtg_p)

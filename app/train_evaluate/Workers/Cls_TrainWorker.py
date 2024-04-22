@@ -21,7 +21,6 @@ class Cls_TrainWorker():
         self.device = torch.device(gpu_id)
         self.iter: int = params['iter']
         
-        self.LL: bool = params['LL']
         self.world_size: int = world_size
         self.wandb_run = params['wandb_p'] if 'wandb_p' in params else None
 
@@ -38,6 +37,7 @@ class Cls_TrainWorker():
         
         self.backbone_loss_fn = torch.nn.CrossEntropyLoss(reduction='none').to(self.device)
         self.ll_loss_fn = LossPredLoss(self.device).to(self.device)
+        self.weight = 1.
 
         self.score_fn = accuracy_score
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'        
@@ -66,13 +66,13 @@ class Cls_TrainWorker():
 
 
 
-    def compute_losses(self, weight: float, module_out: torch.Tensor | None, outputs: torch.Tensor, \
+    def compute_losses(self, module_out: torch.Tensor | None, outputs: torch.Tensor, \
                        labels: torch.Tensor, tot_loss_ce: float, tot_pred_loss: float) -> Tuple[torch.Tensor, float, float]:
                 
         loss_ce = self.backbone_loss_fn(outputs, labels)
         backbone = torch.mean(loss_ce)
         
-        if module_out == None or weight == 0:
+        if module_out == None:
             tot_loss_ce += backbone.item()
             return backbone, tot_loss_ce, tot_pred_loss
         
@@ -90,7 +90,8 @@ class Cls_TrainWorker():
         
         else:
             loss_weird = self.ll_loss_fn(module_out, loss_ce)
-            loss = backbone + loss_weird
+            loss = backbone + self.weight * loss_weird
+            # with so I should see the module loss remain stable after the epoch 120
 
             tot_loss_ce += backbone.item()
             tot_pred_loss += loss_weird.item()
@@ -109,7 +110,6 @@ class Cls_TrainWorker():
     
     def train(self) -> torch.Tensor:
                 
-        weight = 1.
         results = torch.zeros((4, self.epochs), device=self.device)
         
         self.model.train()
@@ -118,7 +118,6 @@ class Cls_TrainWorker():
                         
             train_loss, train_loss_ce, train_loss_pred, train_accuracy = .0, .0, .0, .0
             
-            if self.LL and epoch == 121: weight = 0
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore            
                         
             for _, images, labels in self.train_dl:            
@@ -127,10 +126,10 @@ class Cls_TrainWorker():
                                     
                 self.optimizer.zero_grad()
                 
-                outputs, _, module_out = self.model(images, labels)
+                outputs, _, module_out = self.model(images, labels=labels, epoch=epoch)
                 
                 loss, train_loss_ce, train_loss_pred = self.compute_losses(
-                        weight=weight, module_out=module_out, outputs=outputs, labels=labels,
+                        module_out=module_out, outputs=outputs, labels=labels,
                         tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred
                     )
                                 
@@ -186,7 +185,7 @@ class Cls_TrainWorker():
                 outputs, _, module_out = self.model(images, labels)
 
                 loss, test_loss_ce, test_pred_loss = self.compute_losses(
-                        weight=1, module_out=module_out, outputs=outputs, labels=labels, 
+                        module_out=module_out, outputs=outputs, labels=labels, 
                         tot_loss_ce=test_loss_ce, tot_pred_loss=test_pred_loss
                     )
                 

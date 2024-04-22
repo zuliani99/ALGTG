@@ -14,29 +14,24 @@ logger = logging.getLogger(__name__)
     
 # Loss Prediction Loss
 '''class LossPredLoss(nn.Module):
+    def __init__(self, device, margin=1.0, reduction='mean'):
+            super(LossPred_nn_4, self).__init__()
 
-    def __init__(self, device: torch.device, margin=1):
-        super(LossPredLoss, self).__init__()
-        self.margin = margin
-        self.device = device
-        
-        
-    def forward(self, inputs: torch.Tensor, targets: torch.Tensor):
-        assert len(inputs) % 2 == 0, 'The batch size is not even.'
-        assert inputs.shape == inputs.flip(0).shape
-                
-        mid = inputs.shape[0] // 2
+            self.device = device
+            self.margin_ranking_loss = nn.MarginRankingLoss(margin=margin, reduction=reduction)
 
-        pred_lossi = inputs[:mid].squeeze()
-        target_lossi = targets[:mid]
 
-        pred_lossj = inputs[mid:].squeeze()
-        target_lossj = targets[mid:]
+    def forward(self, prediction, target):
+        batch_half = target.shape[0]//2
         
-        final_target = torch.sign(target_lossi - target_lossj).to(self.device)
+        target_ranking = (target[:batch_half]-target[batch_half:]).detach()
+        target_ranking = 2 * torch.sign(torch.clamp(target_ranking, min=0)) - 1
         
-        loss = F.margin_ranking_loss(pred_lossi, pred_lossj, final_target, margin=self.margin)
-                        
+        predictions_1 = prediction[:batch_half]
+        predictions_2 = prediction[batch_half:]
+        
+        loss = margin_ranking_loss(predictions_1, predictions_2, target_ranking)
+        
         return loss'''
 
 

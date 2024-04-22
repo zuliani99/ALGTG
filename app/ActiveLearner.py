@@ -24,9 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 class ActiveLearner():
-    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], strategy_name: str, LL: bool) -> None:
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], strategy_name: str) -> None:
         
-        self.LL = LL
         self.iter = 1
         
         self.al_p: Dict[str, Any] = al_p
@@ -195,10 +194,10 @@ class ActiveLearner():
         train_res_keys = list(results_format['train'].keys())
         
         params = { 'ct_p': self.ct_p, 't_p': self.t_p, 'strategy_name': self.strategy_name, 
-                'iter': iter, 'LL': self.LL, 'labeled_subset': self.labeled_subset }
+                'iter': iter, 'labeled_subset': self.labeled_subset }
         
         # wandb dictionary hyperparameters
-        hps = dict( **self.ct_p, **self.t_p, **self.al_p, strategy_name=self.strategy_name, iter=iter, LL=self.LL)
+        hps = dict( **self.ct_p, **self.t_p, **self.al_p, strategy_name=self.strategy_name, iter=iter)
         del hps['Dataset']
         hps['Master_Model'] = hps['Master_Model'].__class__.__name__
         
@@ -346,7 +345,7 @@ class ActiveLearner():
             else: self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter))
 
             # modify the datasets and dataloader and plot the tsne
-            self.update_sets(samp_unlab_subset.indices, topk_idx_obs)
+            self.update_sets(list(samp_unlab_subset.indices), topk_idx_obs)
 
             # iter + 1
             self.train_results[str(self.iter)] = self.train_evaluate_save(self.iter * self.al_p['n_top_k_obs'], self.iter, results_format)

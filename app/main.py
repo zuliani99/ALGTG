@@ -273,8 +273,7 @@ def main() -> None:
             
         common_training_params = {
             'Dataset': Dataset, 'device': device, 'timestamp': timestamp,
-            'dataset_name': dataset_name, 'task': task, # 'trial': trial,
-            'wandb_logs': wandb
+            'dataset_name': dataset_name, 'task': task, 'wandb_logs': wandb
         }
         
         for trial in range(trials):
