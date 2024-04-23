@@ -2,6 +2,7 @@
 
 import torch
 
+
 torch.autograd.set_detect_anomaly(True) # type: ignore
 import torch.distributed as dist
 
@@ -19,10 +20,8 @@ from strategies.baselines.Entropy import Entropy
 from strategies.baselines.LearningLoss import LearningLoss
 from strategies.competitors.CoreSet import CoreSet
 from strategies.competitors.BADGE import BADGE
-from strategies.competitors.BALD import BALD
 from strategies.competitors.CDAL import CDAL
-from strategies.competitors.K_Means import K_Means
-from strategies.competitors.LeastConfidence import LeastConfidence
+from strategies.competitors.TA_VAAL.TA_VAAL import TA_VAAL
 from strategies.GTG import GTG
 from strategies.GTG_off import GTG_off
     
@@ -41,7 +40,7 @@ logger = logging.getLogger(__name__)
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--methods', type=str, nargs='+', choices=[
-            'random', 'entropy', 'coreset', 'badge', 'bald', 'cdal', 'kmeans', 'leastconfidence',
+            'random', 'entropy', 'coreset', 'badge', 'cdal', 'tavaal',
             'gtg', 'll', 'gtg_ll', 'lq_gtg'
         ],
         required=True, help='Possible methods to choose')
@@ -66,10 +65,10 @@ def get_args() -> argparse.Namespace:
 
 
 dict_strategies = dict(
-    random = Random, entropy = Entropy, coreset = CoreSet, bald = BALD, badge = BADGE, # -> BB
-    kmeans = K_Means, leastconfidence = LeastConfidence, cdal = CDAL, gtg = GTG_off,# -> BB
+    random = Random, entropy = Entropy, coreset = CoreSet, badge = BADGE, # -> BB
+    cdal = CDAL, gtg = GTG_off,# -> BB
     
-    ll = LearningLoss, gtg_ll = GTG_off, # -> BB + LL
+    ll = LearningLoss, gtg_ll = GTG_off, tavaal = TA_VAAL, # -> BB + LL
     lq_gtg = GTG # -> BB + GTG
 )
 
@@ -93,7 +92,7 @@ def get_strategies_object(methods: List[str], list_gtg_p: List[Dict[str, Any]], 
                         {**ct_p, 'Master_Model': Masters['M_LL'] if method.split('_')[0] == 'gtg' else Masters['M_GTG']},
                         t_p, al_p, gtg_p
                     ))
-        elif method == 'll':
+        elif method == 'll' or method == 'tavaal':
             strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_LL']}, t_p, al_p))
         else:
             strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_None']}, t_p, al_p))
@@ -111,7 +110,7 @@ def get_masters(methods: List[str], BBone: ResNet | SSD | VGG,
     
     for method in methods:
         method_module = method.split('_')[-1]
-        if method_module == 'll' and not ll:
+        if (method == 'tavaal' or method_module == 'll') and not ll:
             LL_Mod = get_module('LL', ll_module_params)
             ll = True
         elif method_module == 'gtg':
