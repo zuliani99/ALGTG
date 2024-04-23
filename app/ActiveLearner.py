@@ -65,13 +65,13 @@ class ActiveLearner():
     def save_labeled_images(self, new_labeled_idxs: List[int]) -> None:
         logger.info(f' => Iteration {self.iter} Method {self.strategy_name} - Saving the new labeled images for further visual analysis...')
         create_class_dir(self.path, self.iter, self.dataset.classes)
-        for idx, img, gt in Subset(self.dataset.non_transformed_trainset, new_labeled_idxs):
+        for idx_top, (_, img, gt) in enumerate(Subset(self.dataset.non_transformed_trainset, new_labeled_idxs)): # type: ignore
             if self.ct_p['task'] != 'clf': 
                 unique_labs = np.unique(np.array([labs[-1] for labs in gt]))
                 for lab in unique_labs: 
-                    save_image(img, f'{self.path}/new_labeled_images/{self.iter}/{self.dataset.classes[int(lab)]}/{idx}.png')
+                    save_image(img, f'{self.path}/new_labeled_images/{self.iter}/{self.dataset.classes[int(lab)]}/{idx_top}.png')
             else:
-                save_image(img, f'{self.path}/new_labeled_images/{self.iter}/{self.dataset.classes[gt]}/{idx}.png')
+                save_image(img, f'{self.path}/new_labeled_images/{self.iter}/{self.dataset.classes[gt]}/{idx_top}.png')
         logger.info(' DONE\n')
         
         

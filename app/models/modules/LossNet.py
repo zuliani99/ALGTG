@@ -27,8 +27,8 @@ class LossPredLoss(nn.Module):
         target_ranking = (target[:batch_half]-target[batch_half:]).detach()
         target_ranking = 2 * torch.sign(torch.clamp(target_ranking, min=0)) - 1
         
-        predictions_1 = prediction[:batch_half]
-        predictions_2 = prediction[batch_half:]
+        predictions_1 = prediction[:batch_half].squeeze()
+        predictions_2 = prediction[batch_half:].squeeze()
         
         loss = self.margin_ranking_loss(predictions_1, predictions_2, target_ranking)
         
