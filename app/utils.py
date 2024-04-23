@@ -326,9 +326,10 @@ def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor
         axes[idx][0].set_title(f'{name} Affinity Matrix')
         axes[idx][0].legend()
         
-        sns.scatterplot(x=x, y=y, hue=[classes[l] for l in label], s=17, ax=axes[idx][1])
+        sns_p = sns.scatterplot(x=x, y=y, hue=[classes[l] for l in label], s=17, ax=axes[idx][1])
         axes[idx][1].set_title(f'{name} Affnity Matrix Classes')
-        if len(classes) <= 10: axes[idx][1].legend()
+        axes[idx][1].legend()
+        if len(classes) > 10: sns_p.legend([],[], frameon=False)
 
     plt.suptitle(f'Affinity Matrix TSNE Plots - Iteration {iter}', fontsize=30)
     
@@ -376,14 +377,14 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
     axes[0].set_title('TSNE -- labeled - unlabeled - new_labeled')
     axes[0].legend()
     
-    sns.scatterplot(x=np.hstack((x_lab, x_unlab)), y=np.hstack((y_lab, y_unlab)), 
+    sns_p = sns.scatterplot(x=np.hstack((x_lab, x_unlab)), y=np.hstack((y_lab, y_unlab)), 
                     hue=[classes[l] for l in np.hstack((lab['labels'], unlab['labels']))], s=17, ax=axes[1])
         
     axes[1].set_title('TSNE - classes')
-    
+    axes[1].legend()    
     if len(classes) <= 10: 
-        axes[1].legend()
         fig.text(0.5, 0.05, f'New Labeled Observations: {d_labels}', ha='center', va='center', fontdict={'size':17})
+    else: sns_p.legend([],[], frameon=False)
     
     plt.suptitle(f'{ds_name} - {method} - {iter}', fontsize=30)
     plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{iter}.png')

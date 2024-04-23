@@ -98,14 +98,14 @@ cls_datasets = {
                         v2.RandomHorizontalFlip(),
                         v2.RandomCrop(32, padding=4),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(mean=[0.48042979, 0.44819701, 0.39755623],
-                                     std=[0.27643974, 0.26888656, 0.28166852])
+                        #v2.Normalize(mean=[0.48042979, 0.44819701, 0.39755623],
+                        #             std=[0.27643974, 0.26888656, 0.28166852])
                     ]),
             'test': v2.Compose([
                         v2.ToImage(),
                         v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(mean=[0.48042979, 0.44819701, 0.39755623],
-                                     std=[0.27643974, 0.26888656, 0.28166852])
+                        #v2.Normalize(mean=[0.48042979, 0.44819701, 0.39755623],
+                        #             std=[0.27643974, 0.26888656, 0.28166852])
                     ])
         }
     },

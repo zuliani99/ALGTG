@@ -221,7 +221,7 @@ class Cls_Dataset(Dataset):
         else:
             # unlabeled or test dataset
             if dataset_name == 'tinyimagenet':
-                self.ds: Dataset = datasets.ImageFolder(f'./datasets/tiny-imagenet-200/{'train' if bool_train else 'val'}', 
+                self.ds: Dataset = datasets.ImageFolder(f'./datasets/tiny-imagenet-200/{'train' if bool_train else 'val/images'}', 
                     transform=cls_datasets['tinyimagenet']['transforms']['test']
                 )
             elif dataset_name == 'svhn':

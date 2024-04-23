@@ -12,14 +12,14 @@ from utils import init_weights_apply
 import logging
 logger = logging.getLogger(__name__)
     
+    
 # Loss Prediction Loss
-'''class LossPredLoss(nn.Module):
+class LossPredLoss(nn.Module):
     def __init__(self, device, margin=1.0, reduction='mean'):
-            super(LossPred_nn_4, self).__init__()
+        super(LossPredLoss, self).__init__()
 
-            self.device = device
-            self.margin_ranking_loss = nn.MarginRankingLoss(margin=margin, reduction=reduction)
-
+        self.device = device
+        self.margin_ranking_loss = nn.MarginRankingLoss(margin=margin, reduction=reduction)
 
     def forward(self, prediction, target):
         batch_half = target.shape[0]//2
@@ -30,89 +30,9 @@ logger = logging.getLogger(__name__)
         predictions_1 = prediction[:batch_half]
         predictions_2 = prediction[batch_half:]
         
-        loss = margin_ranking_loss(predictions_1, predictions_2, target_ranking)
-        
-        return loss'''
-
-
-'''def LossPredLoss(input, target, device, margin=1.0, reduction='mean'):
-    assert len(input) % 2 == 0, 'the batch size is not even.'
-    assert input.shape == input.flip(0).shape
-    
-    input = (input - input.flip(0))[:len(input)//2] # [l_1 - l_2B, l_2 - l_2B-1, ... , l_B - l_B+1], where batch_size = 2B
-    target = (target - target.flip(0))[:len(target)//2]
-    target = target.detach()
-
-    one = 2 * torch.sign(torch.clamp(target, min=0)) - 1 # 1 operation which is defined by the authors
-    one = one.to(device)
-    
-    if reduction == 'mean':
-        loss = torch.sum(torch.clamp(margin - one * input, min=0))
-        loss = loss / input.size(0) # Note that the size of input is already halved
-    elif reduction == 'none':
-        loss = torch.clamp(margin - one * input, min=0)
-    else:
-        NotImplementedError()
-    
-    return loss'''
-
-'''class LossPredLoss(nn.Module):
-    def __init__(self, device, margin=1.0, reduction='mean'):
-        super(LossPredLoss, self).__init__()
-
-        self.margin = margin
-        self.device = device
-        self.reduction = reduction 
-
-    def forward(self, input, target):
-        assert len(input) % 2 == 0, 'the batch size is not even.'
-        assert input.shape == input.flip(0).shape
-        
-        input = input.view(input.size(0))
-
-        input = (input - input.flip(0))[:len(input) // 2] # [l_1 - l_2B, l_2 - l_2B-1, ... , l_B - l_B+1], where batch_size = 2B
-        target = (target - target.flip(0))[:len(target) // 2]
-        target = target.detach()
-
-        one = 2 * torch.sign(torch.clamp(target, min=0)) - 1 # 1 operation which is defined by the authors
-        one = one.to(self.device)
-
-        if self.reduction == 'mean':
-            loss = torch.sum(torch.clamp(self.margin - one * input, min=0))
-            loss = loss / input.size(0) # Note that the size of input is already halved
-        elif self.reduction == 'none':
-            loss = torch.clamp(self.margin - one * input, min=0)
-        else:
-            NotImplementedError()
-
-        return loss'''
-    
-    
-class LossPredLoss(nn.Module):
-    def __init__(self, device, margin=1.0, reduction='mean'):
-        super(LossPredLoss, self).__init__()
-
-        self.margin = margin
-        self.device = device
-        self.reduction = reduction 
-        
-    def forward(self, input, target):
-        
-        criterion = nn.BCELoss(reduction='none')
-        input = input.view(input.size(0))
-        input = (input - input.flip(0))[:len(input)//2] # [l_1 - l_2B, l_2 - l_2B-1, ... , l_B - l_B+1], where batch_size = 2B
-        target = (target - target.flip(0))[:len(target)//2]
-        target = target.detach()
-        diff = torch.sigmoid(input)
-        one = torch.sign(torch.clamp(target, min=0)) # 1 operation which is defined by the authors
-        one = one.to(self.device)
-        
-        if self.reduction == 'mean': loss = torch.mean(criterion(diff,one))
-        elif self.reduction == 'none': loss = criterion(diff,one)
-        else: NotImplementedError()
+        loss = self.margin_ranking_loss(predictions_1, predictions_2, target_ranking)
         
         return loss
-    
 
 
 # Loss Prediction Network
