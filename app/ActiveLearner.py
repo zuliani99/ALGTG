@@ -252,7 +252,7 @@ class ActiveLearner():
             ts_dir = self.ct_p['timestamp'],
             dataset_name = self.ct_p['dataset_name'],
             head = ['method', 'iter', 'lab_obs'] + test_res_keys,
-            values = [self.strategy_name, self.ct_p['trial'], lab_obs] + list(iter_test_results.values())
+            values = [self.strategy_name, self.ct_p['trial'], self.al_p['init_lab_obs'] + (lab_obs * (self.iter - 1))] + list(iter_test_results.values())
         )
         
         save_train_val_curves(list(self.t_p['results_dict']['train'].keys()), iter_train_results, self.strategy_name,

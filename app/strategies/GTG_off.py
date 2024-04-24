@@ -32,13 +32,14 @@ class GTG_off(ActiveLearner):
         self.strategy_type: str = gtg_p['strategy_type']
         self.threshold_strategy: str = gtg_p['threshold_strategy']
         self.threshold: float = gtg_p['threshold']
-                        
+
+        ll_v = 'v2' if 'll_version' in ct_p and ct_p['ll_version'] == 2 else ''
         str_rbf = 'rbf_' if self.rbf_aff else ''
         if self.threshold_strategy != None:
             str_treshold = f'{self.threshold_strategy}_{self.threshold}' if self.threshold_strategy != 'mean' else 'mean'            
-            strategy_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_treshold}'
+            strategy_name = f'{self.__class__.__name__}_{ll_v}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_treshold}'
         else:
-            strategy_name = f'{self.__class__.__name__}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}'
+            strategy_name = f'{self.__class__.__name__}_{ll_v}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}'
                 
         super().__init__(ct_p, t_p, al_p, strategy_name)
         
@@ -66,7 +67,7 @@ class GTG_off(ActiveLearner):
 
         initial_A = torch.clone(A)
         
-        if self.threshold_strategy != None and self.threshold != None:
+        if self.threshold_strategy != None:
             # remove weak connections with the choosen threshold strategy and value
             logger.info(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
             if self.A_function != 'e_d': A = torch.where(A < self.get_A_treshold(A), 0, A)

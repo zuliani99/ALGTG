@@ -11,28 +11,64 @@ from utils import init_weights_apply
 
 import logging
 logger = logging.getLogger(__name__)
+
+class LossPredLoss_v1(nn.Module):
+    def __init__(self, device, margin=1.0, reduction='mean'):
+        super(LossPredLoss_v1, self).__init__()
+
+        self.margin = margin
+        self.device = device
+        self.reduction = reduction 
+
+    def forward(self, input, target):
+        assert len(input) % 2 == 0, 'the batch size is not even.'
+        assert input.shape == input.flip(0).shape
+        
+        input = input.view(input.size(0))
+
+        input = (input - input.flip(0))[:len(input) // 2] # [l_1 - l_2B, l_2 - l_2B-1, ... , l_B - l_B+1], where batch_size = 2B
+        target = (target - target.flip(0))[:len(target) // 2]
+        target = target.detach()
+
+        one = 2 * torch.sign(torch.clamp(target, min=0)) - 1 # 1 operation which is defined by the authors
+        one = one.to(self.device)
+
+        if self.reduction == 'mean':
+            loss = torch.sum(torch.clamp(self.margin - one * input, min=0))
+            loss = loss / input.size(0) # Note that the size of input is already halved
+        elif self.reduction == 'none':
+            loss = torch.clamp(self.margin - one * input, min=0)
+        else:
+            NotImplementedError()
+
+        return loss  
     
     
 # Loss Prediction Loss
-class LossPredLoss(nn.Module):
+class LossPredLoss_v2(nn.Module):
     def __init__(self, device, margin=1.0, reduction='mean'):
-        super(LossPredLoss, self).__init__()
+        super(LossPredLoss_v2, self).__init__()
 
+        assert reduction == 'mean' or reduction == 'none', 'Wrong reduction'
         self.device = device
-        self.margin_ranking_loss = nn.MarginRankingLoss(margin=margin, reduction=reduction)
+        self.margin = margin
+        self.criterion = nn.BCELoss(reduction=reduction)
 
-    def forward(self, prediction, target):
-        batch_half = target.shape[0]//2
+    def forward(self, input, target):
+        assert len(input) % 2 == 0, 'The batch size is not even.'
+        assert input.shape == input.flip(0).shape
         
-        target_ranking = (target[:batch_half]-target[batch_half:]).detach()
-        target_ranking = 2 * torch.sign(torch.clamp(target_ranking, min=0)) - 1
+        input = input.view(input.size(0))
         
-        predictions_1 = prediction[:batch_half].squeeze()
-        predictions_2 = prediction[batch_half:].squeeze()
+        input = (input - input.flip(0))[:len(input)//2] # [l_1 - l_2B, l_2 - l_2B-1, ... , l_B - l_B+1], where batch_size = 2B
+        target = (target - target.flip(0))[:len(target)//2]
+        target = target.detach()
         
-        loss = self.margin_ranking_loss(predictions_1, predictions_2, target_ranking)
+        diff = torch.sigmoid(input)
+        one = torch.sign(torch.clamp(target, min=0)).to(self.device) # 1 operation which is defined by the authors
         
-        return loss
+        return self.criterion(diff,one)
+
 
 
 # Loss Prediction Network

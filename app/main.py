@@ -41,7 +41,8 @@ def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--methods', type=str, nargs='+', choices=[
             'random', 'entropy', 'coreset', 'badge', 'cdal', 'tavaal',
-            'gtg', 'll', 'gtg_ll', 'lq_gtg'
+            'll_v1', 'll_v2', 
+            'gtg', 'll_v1_gtg', 'll_v2_gtg', 'lq_gtg'
         ],
         required=True, help='Possible methods to choose')
     parser.add_argument('-ds', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'svhn', 'caltech256', 'tinyimagenet', 'voc', 'coco'],
@@ -68,7 +69,7 @@ dict_strategies = dict(
     random = Random, entropy = Entropy, coreset = CoreSet, badge = BADGE, # -> BB
     cdal = CDAL, gtg = GTG_off,# -> BB
     
-    ll = LearningLoss, gtg_ll = GTG_off, tavaal = TA_VAAL, # -> BB + LL
+    ll_v1 = LearningLoss, ll_v2 = LearningLoss, gtg_ll = GTG_off, tavaal = TA_VAAL, # -> BB + LL
     lq_gtg = GTG # -> BB + GTG
 )
 
@@ -89,11 +90,18 @@ def get_strategies_object(methods: List[str], list_gtg_p: List[Dict[str, Any]], 
             else:
                 for gtg_p in list_gtg_p:
                     strategies.append(dict_strategies[method](
-                        {**ct_p, 'Master_Model': Masters['M_LL'] if method.split('_')[0] == 'gtg' else Masters['M_GTG']},
+                        {
+                            **ct_p, 'Master_Model': Masters['M_GTG'] if method.split('_')[1] == 'gtg' else Masters['M_LL'],
+                            'll_version': 2 if  method.split('_')[1]=='v2' else 1 
+                        },
                         t_p, al_p, gtg_p
                     ))
-        elif method == 'll' or method == 'tavaal':
-            strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_LL']}, t_p, al_p))
+        elif 'll' in method.split('_') or method == 'tavaal':
+            strategies.append(dict_strategies[method](
+                {
+                    **ct_p, 'Master_Model': Masters['M_LL'], 'll_version': 2 if  method.split('_')[1]=='v2' or method == 'tavaal' else 1
+                },
+                t_p, al_p))
         else:
             strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_None']}, t_p, al_p))
     
@@ -109,7 +117,7 @@ def get_masters(methods: List[str], BBone: ResNet | SSD | VGG,
     ll, only_bb = False, False
     
     for method in methods:
-        method_module = method.split('_')[-1]
+        method_module = method.split('_')[0]
         if (method == 'tavaal' or method_module == 'll') and not ll:
             LL_Mod = get_module('LL', ll_module_params)
             ll = True
@@ -119,7 +127,7 @@ def get_masters(methods: List[str], BBone: ResNet | SSD | VGG,
             M_None = Master_Model(BBone, None, dataset_name)
             only_bb = True
         else: continue
-            
+        
     Masters = { }
     # create and save the initial checkpoints of the masters
     if M_None != None: Masters['M_None'] = M_None

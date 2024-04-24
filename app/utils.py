@@ -182,9 +182,10 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
 
     title = 'Entropy History' if dir == 'history' else 'Entropy Derivatives'
 
-    palette = list(mcolors.CSS4_COLORS.values()) if len(classes) >= 10 \
-        else list(mcolors.TABLEAU_COLORS.values())
-    random.shuffle(palette)
+    #palette = list(mcolors.CSS4_COLORS.values()) if len(classes) > 10 \
+    #    else list(mcolors.TABLEAU_COLORS.values())
+    #random.shuffle(palette)
+    palette = list(mcolors.TABLEAU_COLORS.values())
         
     pl_cls_1, pl2_cls_2 = set(), set()
 

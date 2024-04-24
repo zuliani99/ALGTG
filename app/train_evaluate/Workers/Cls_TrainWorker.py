@@ -2,7 +2,7 @@
 import torch
 
 from models.BBone_Module import Master_Model
-from models.modules.LossNet import LossPredLoss
+from models.modules.LossNet import LossPredLoss_v1, LossPredLoss_v2
 from utils import accuracy_score
 
 from torch.utils.data import DataLoader
@@ -35,9 +35,11 @@ class Cls_TrainWorker():
         self.test_dl: DataLoader = params['test_dl']
         
         self.backbone_loss_fn = torch.nn.CrossEntropyLoss(reduction='none').to(self.device)
-        self.ll_loss_fn = LossPredLoss(self.device).to(self.device)
-        self.weight = 1.
-
+        if 'll_version' in params['ct_p'] and params['ct_p']['ll_version'] == 2:
+            self.ll_loss_fn = LossPredLoss_v2(self.device).to(self.device)
+        else: 
+            self.ll_loss_fn = LossPredLoss_v1(self.device).to(self.device)
+        
         self.score_fn = accuracy_score
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'        
         self.init_check_filename = f'{self.best_check_filename}/{self.model.module.name if self.world_size > 1 else self.model.name}_init.pth.tar'
@@ -65,13 +67,13 @@ class Cls_TrainWorker():
 
 
 
-    def compute_losses(self, module_out: torch.Tensor | None, outputs: torch.Tensor, \
+    def compute_losses(self, weight: float, module_out: torch.Tensor | None, outputs: torch.Tensor, \
                        labels: torch.Tensor, tot_loss_ce: float, tot_pred_loss: float) -> Tuple[torch.Tensor, float, float]:
                 
         loss_ce = self.backbone_loss_fn(outputs, labels)
         backbone = torch.mean(loss_ce)
         
-        if module_out == None:
+        if module_out == None or weight == 0.:
             tot_loss_ce += backbone.item()
             return backbone, tot_loss_ce, tot_pred_loss
         
@@ -89,7 +91,7 @@ class Cls_TrainWorker():
         
         else:
             loss_weird = self.ll_loss_fn(module_out, loss_ce)
-            loss = backbone + self.weight * loss_weird
+            loss = backbone + weight * loss_weird
             # with so I should see the module loss remain stable after the epoch 120
 
             tot_loss_ce += backbone.item()
@@ -109,6 +111,7 @@ class Cls_TrainWorker():
     
     def train(self) -> torch.Tensor:
         
+        weight = 1.
         results = torch.zeros((4, self.epochs), device=self.device)
         
         self.model.train()
@@ -117,7 +120,8 @@ class Cls_TrainWorker():
                         
             train_loss, train_loss_ce, train_loss_pred, train_accuracy = .0, .0, .0, .0
             
-            if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore            
+            if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore  
+            if epoch > 120: weight = 0.
                         
             for _, images, labels in self.train_dl:   
                                 
@@ -125,10 +129,11 @@ class Cls_TrainWorker():
                                     
                 self.optimizer.zero_grad()
                 
-                outputs, _, module_out = self.model(images, labels=labels, epoch=epoch)
+                #outputs, _, module_out = self.model(images, labels=labels, epoch=epoch)
+                outputs, _, module_out = self.model(images, labels=labels)
                 
                 loss, train_loss_ce, train_loss_pred = self.compute_losses(
-                        module_out=module_out, outputs=outputs, labels=labels,
+                        weight=weight, module_out=module_out, outputs=outputs, labels=labels,
                         tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred
                     )  
                                 
@@ -185,7 +190,7 @@ class Cls_TrainWorker():
                 outputs, _, module_out = self.model(images, labels)
 
                 loss, test_loss_ce, test_pred_loss = self.compute_losses(
-                        module_out=module_out, outputs=outputs, labels=labels, 
+                        weight=1., module_out=module_out, outputs=outputs, labels=labels, 
                         tot_loss_ce=test_loss_ce, tot_pred_loss=test_pred_loss
                     )
                 

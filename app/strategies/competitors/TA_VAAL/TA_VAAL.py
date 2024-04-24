@@ -1,6 +1,4 @@
 
-from ta_vaal_query_model import VAE, Discriminator
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -9,10 +7,12 @@ from torch.utils.data import DataLoader, Subset
 import numpy as np
 
 from ActiveLearner import ActiveLearner
+from strategies.competitors.TA_VAAL.ta_vaal_query_model import Discriminator, VAE
 
 from typing import Dict, Any, List, Tuple
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
