@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=my_LL    # Job name
+#SBATCH --job-name=base    # Job name
 #SBATCH --mail-type=END          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=875532@stud.unive.it     # Where to send mail	
 #SBATCH --nodes=1
@@ -20,4 +20,4 @@ conda activate al_env
 #python3 app/main.py -m lq_gtg -ds cifar10 -tr 1 -s mixed -plb 0.1
 #python3 app/main.py -m random entropy ll gtg gtg_ll -ds cifar10 cifar100 svhn -tr 1 -s mixed -ts mean 
 
-python3 app/main.py -m ll gtg gtg_ll -ds cifar10 -tr 1 -s mixed -ts mean 
+python3 app/main.py -m random entropy coreset badge cdal ll_v1 ll_v2 -ds cifar10 cifar100 svhn -tr 5

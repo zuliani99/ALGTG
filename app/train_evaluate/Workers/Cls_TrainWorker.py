@@ -150,7 +150,7 @@ class Cls_TrainWorker():
             train_loss_ce /= len(self.train_dl)
             train_loss_pred /= len(self.train_dl)                        
             
-            logger.info(f' train_accuracy -> {train_accuracy}\ttrain_loss -> {train_loss}')
+            #logger.info(f' train_accuracy -> {train_accuracy}\ttrain_loss -> {train_loss}')
             
             
             for pos, metric in zip(range(results.shape[0]), [train_accuracy, train_loss, train_loss_ce, train_loss_pred]):
