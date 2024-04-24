@@ -348,7 +348,7 @@ class ActiveLearner():
             self.update_sets(list(samp_unlab_subset.indices), topk_idx_obs)
 
             # iter + 1
-            self.train_results[str(self.iter)] = self.train_evaluate_save( self.al_p['init_lab_obs'] * ((self.iter - 1) * self.al_p['n_top_k_obs']), self.iter, results_format)
+            self.train_results[str(self.iter)] = self.train_evaluate_save( self.al_p['init_lab_obs'] + ((self.iter - 1) * self.al_p['n_top_k_obs']), self.iter, results_format)
                 
         epochs = len(self.train_results['1']['train_pred_loss'])
         
