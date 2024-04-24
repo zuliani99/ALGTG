@@ -99,7 +99,7 @@ def get_strategies_object(methods: List[str], list_gtg_p: List[Dict[str, Any]], 
         elif 'll' in method.split('_') or method == 'tavaal':
             strategies.append(dict_strategies[method](
                 {
-                    **ct_p, 'Master_Model': Masters['M_LL'], 'll_version': 2 if  method.split('_')[1]=='v2' or method == 'tavaal' else 1
+                    **ct_p, 'Master_Model': Masters['M_LL'], 'll_version': 2 if method == 'tavaal' or method.split('_')[1] == 'v2' else 1
                 },
                 t_p, al_p))
         else:
