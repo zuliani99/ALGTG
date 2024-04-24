@@ -69,7 +69,7 @@ dict_strategies = dict(
     random = Random, entropy = Entropy, coreset = CoreSet, badge = BADGE, # -> BB
     cdal = CDAL, gtg = GTG_off,# -> BB
     
-    ll_v1 = LearningLoss, ll_v2 = LearningLoss, gtg_ll = GTG_off, tavaal = TA_VAAL, # -> BB + LL
+    ll_v1 = LearningLoss, ll_v2 = LearningLoss, ll_v1_gtg = GTG_off, ll_v2_gtg = GTG_off, tavaal = TA_VAAL, # -> BB + LL
     lq_gtg = GTG # -> BB + GTG
 )
 
@@ -89,13 +89,13 @@ def get_strategies_object(methods: List[str], list_gtg_p: List[Dict[str, Any]], 
                     strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_None']}, t_p, al_p, gtg_p))
             else:
                 for gtg_p in list_gtg_p:
-                    strategies.append(dict_strategies[method](
-                        {
-                            **ct_p, 'Master_Model': Masters['M_GTG'] if method.split('_')[1] == 'gtg' else Masters['M_LL'],
-                            'll_version': 2 if  method.split('_')[1]=='v2' else 1 
-                        },
-                        t_p, al_p, gtg_p
-                    ))
+                    ll_version = 2 if method.split('_')[1] == 'v2' else 1 
+                    ct_p_updated = {
+                        **ct_p, 'Master_Model': Masters['M_GTG'] if method.split('_')[1] == 'gtg' else Masters['M_LL'],
+                    }
+                    if method.split('_')[0] == 'll': ct_p_updated['ll_version'] = ll_version
+                    
+                    strategies.append(dict_strategies[method](ct_p_updated, t_p, al_p, gtg_p))
         elif 'll' in method.split('_') or method == 'tavaal':
             strategies.append(dict_strategies[method](
                 {
@@ -158,21 +158,19 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
         for ts in t_s:
             if ts == 'mean':
                 list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
-                #list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT})
                 list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
-                #list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT})
+                list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'cos_sim', 'ent_strategy': ES.MEAN})
             else:
                 for t in thres:
                     list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
-                    #list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT})
                     list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
-                    #list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT})
+                    list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'cos_sim', 'ent_strategy': ES.MEAN})
+                    
     
     if not nn_s:
         list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
-        #list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.H_INT})
         list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
-        #list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.H_INT})
+        list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'cos_sim', 'ent_strategy': ES.MEAN})
         
             
     # get the strategis object to run them
