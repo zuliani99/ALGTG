@@ -37,8 +37,7 @@ class Cls_TrainWorker():
         self.backbone_loss_fn = torch.nn.CrossEntropyLoss(reduction='none').to(self.device)
         if 'll_version' in params['ct_p'] and params['ct_p']['ll_version'] == 2:
             self.ll_loss_fn = LossPredLoss_v2(self.device).to(self.device)
-        else: 
-            self.ll_loss_fn = LossPredLoss_v1(self.device).to(self.device)
+        else: self.ll_loss_fn = LossPredLoss_v1(self.device).to(self.device)
         
         self.score_fn = accuracy_score
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'        
@@ -73,13 +72,13 @@ class Cls_TrainWorker():
         loss_ce = self.backbone_loss_fn(outputs, labels)
         backbone = torch.mean(loss_ce)
         
-        if module_out == None or weight == 0.:
+        if module_out == None: # or not weight:
             tot_loss_ce += backbone.item()
             return backbone, tot_loss_ce, tot_pred_loss
         
         elif len(module_out) == 2:
             quantity_loss, mask = module_out
-            
+
             quantity_loss = torch.mean(quantity_loss)
             labeled_loss = torch.mean(loss_ce[mask])
             loss = labeled_loss + quantity_loss
@@ -92,10 +91,9 @@ class Cls_TrainWorker():
         else:
             loss_weird = self.ll_loss_fn(module_out, loss_ce)
             loss = backbone + weight * loss_weird
-            # with so I should see the module loss remain stable after the epoch 120
 
             tot_loss_ce += backbone.item()
-            tot_pred_loss += loss_weird.item()
+            tot_pred_loss += weight * loss_weird.item()
                 
             return loss, tot_loss_ce, tot_pred_loss
    
@@ -122,25 +120,24 @@ class Cls_TrainWorker():
             
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore  
             if epoch > 120: weight = 0.
-                        
+             
             for _, images, labels in self.train_dl:   
                                 
                 images, labels = self.return_moved_imgs_labs(images, labels)              
-                                    
-                self.optimizer.zero_grad()
-                
-                #outputs, _, module_out = self.model(images, labels=labels, epoch=epoch)
+             
+                self.optimizer.zero_grad()                       
+                    
                 outputs, _, module_out = self.model(images, labels=labels)
-                
-                loss, train_loss_ce, train_loss_pred = self.compute_losses(
-                        weight=weight, module_out=module_out, outputs=outputs, labels=labels,
-                        tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred
-                    )  
                                 
+                loss, train_loss_ce, train_loss_pred = self.compute_losses(
+                            weight=weight, module_out=module_out, outputs=outputs, labels=labels,
+                            tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred
+                        )  
+                                    
                 loss.backward()
 
                 self.optimizer.step()
-                
+                    
                 train_loss += loss.item()
                 train_accuracy += self.score_fn(outputs, labels)
 
@@ -150,7 +147,7 @@ class Cls_TrainWorker():
             train_loss_ce /= len(self.train_dl)
             train_loss_pred /= len(self.train_dl)                        
             
-            #logger.info(f' train_accuracy -> {train_accuracy}\ttrain_loss -> {train_loss}')
+            logger.info(f' Epoch: {epoch} | train_accuracy -> {train_accuracy}\ttran_loss -> {train_loss}\ttrain_loss_ce -> {train_loss_ce}\ttrain_loss_pred -> {train_loss_pred}')
             
             
             for pos, metric in zip(range(results.shape[0]), [train_accuracy, train_loss, train_loss_ce, train_loss_pred]):

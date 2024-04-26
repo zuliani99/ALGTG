@@ -117,11 +117,10 @@ def get_masters(methods: List[str], BBone: ResNet | SSD | VGG,
     ll, only_bb = False, False
     
     for method in methods:
-        method_module = method.split('_')[0]
-        if (method == 'tavaal' or method_module == 'll') and not ll:
+        if (method == 'tavaal' or method.split('_')[0] == 'll') and not ll:
             LL_Mod = get_module('LL', ll_module_params)
             ll = True
-        elif method_module == 'gtg':
+        elif method == 'lq_gtg':
             GTG_Mod = get_module('GTG', (gtg_module_params, ll_module_params))
         elif not only_bb:
             M_None = Master_Model(BBone, None, dataset_name)
