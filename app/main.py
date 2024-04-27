@@ -74,7 +74,7 @@ dict_strategies = dict(
 )
 
 dict_backbone = dict(
-    cifar10 = 'ResNet', cifar100 = 'ResNet', svhn = 'ResNet', 
+    cifar10 = 'ResNet', cifar100 = 'ResNet', svhn = 'ResNet', fmnist = 'ResNet',
     caltech256 = 'VGG', tinyimagenet = 'ResNet', voc = 'SSD', coco = 'SSD'
 )
 
