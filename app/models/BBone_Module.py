@@ -22,7 +22,7 @@ class Master_Model(nn.Module):
         self.added_module = added_module
         
         if added_module != None:
-            self.name = f'{self.backbone.__class__.__name__}_{self.added_module.__class__.__name__}'
+            self.name = f'{self.backbone.__class__.__name__}_{self.added_module.name}'
         else: 
             self.name = f'{self.backbone.__class__.__name__}'
             
@@ -45,7 +45,7 @@ class Master_Model(nn.Module):
 
             if self.added_module != None:
                 features = self.backbone.get_features()
-                if self.added_module.__class__.__name__ == 'GTG_Module':
+                if self.added_module.name == 'GTG_Module':
                     module_out = self.added_module(features, embedds, labels)
                 else: module_out = self.added_module(features)
                 return outs, embedds, module_out
@@ -59,7 +59,7 @@ class Master_Model(nn.Module):
         elif mode == 'module_out':
             if self.added_module != None:
                 _, embedds = self.backbone(x)
-                if self.added_module.__class__.__name__ == 'GTG_Module':
+                if self.added_module.name == 'GTG_Module':
                     return self.added_module(self.backbone.get_features(), embedds, labels)
                 else: return self.added_module(self.backbone.get_features())
             else:
