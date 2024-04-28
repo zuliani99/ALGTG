@@ -54,21 +54,21 @@ class Cls_TrainWorker():
 
     def init_opt_sched(self):
         optimizers = self.ds_t_p['optimizers']
-        
+        self.optimizers, self.lr_schedulers = [], []
         
         if self.model.added_module == None:
-            self.optimizers = [ optimizers[None]['backbone']['type'](self.model.backbone.parameters(), **optimizers[None]['backbone']['optim_p']) ]
+            self.optimizers.append(optimizers[None]['backbone']['type'](self.model.backbone.parameters(), **optimizers[None]['backbone']['optim_p']))
         else:
             if self.model.added_module.name == 'GTG_Module':
-                self.optimizers.append(optimizers['GTG_Module']['backbone']['type'](self.model.added_module.parameters(), **optimizers['GTG_Module']['backbone']['optim_p']))
+                self.optimizers.append(optimizers['GTG_Module']['backbone']['type'](self.model.backbone.parameters(), **optimizers['GTG_Module']['backbone']['optim_p']))
                 self.optimizers.append(optimizers['GTG_Module']['module']['type'](self.model.added_module.parameters(), **optimizers['GTG_Module']['module']['optim_p']))
             else:
-                self.optimizers.append(optimizers['LossNet']['backbone']['type'](self.model.added_module.parameters(), **optimizers['LossNet']['backbone']['optim_p']))
+                self.optimizers.append(optimizers['LossNet']['backbone']['type'](self.model.backbone.parameters(), **optimizers['LossNet']['backbone']['optim_p']))
                 self.optimizers.append(optimizers['LossNet']['module']['type'](self.model.added_module.parameters(), **optimizers['LossNet']['module']['optim_p']))
                 
             self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
 
-        self.lr_schedulers = [ torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1) ]
+        self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1))
 
     
     def __save_checkpoint(self, filename: str) -> None:
