@@ -110,7 +110,7 @@ class GTG_off(ActiveLearner):
     def get_A_rbfk(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         
         device = 'cpu' if to_cpu else self.device
-        A_matrix = self.get_A_fn[self.A_function](concat_embedds, to_cpu)
+        A_matrix = self.get_A_fn[self.A_function](concat_embedds, to_cpu).to(device)
 
         if self.A_function == 'e_d':
             # if euclidean distance is choosen we take the 7th smallest observation which is the 7th closest one (ascending order)
@@ -126,7 +126,7 @@ class GTG_off(ActiveLearner):
             for i in range(concat_embedds.shape[0]) 
         ], device=device), dim=0)
         
-        A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(device)
+        A = torch.exp(-A_matrix.pow(2).to(device) / (torch.mm(sigmas.T, sigmas).to(device))).to(device)
                 
         del A_matrix
         del sigmas
