@@ -54,19 +54,22 @@ class Cls_TrainWorker():
 
     def init_opt_sched(self):
         optimizers = self.ds_t_p['optimizers']
-        self.optimizers = [ optimizers['backbone']['type'](self.model.backbone.parameters(), **optimizers['backbone']['optim_p']) ]
-        self.lr_schedulers = [ torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1) ]
-        #self.lr_schedulers = [ torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[40,100,160] if self.model.added_module.name == 'GTG_Module' else [160], gamma=0.1) ]
         
-        if self.model.added_module != None:
+        
+        if self.model.added_module == None:
+            self.optimizers = [ optimizers[None]['backbone']['type'](self.model.backbone.parameters(), **optimizers[None]['backbone']['optim_p']) ]
+        else:
             if self.model.added_module.name == 'GTG_Module':
-                self.optimizers.append(optimizers['gtg_module']['type'](self.model.added_module.parameters(), **optimizers['gtg_module']['optim_p']))
-                self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
-                #self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[40,100,160], gamma=0.1))
+                self.optimizers.append(optimizers['GTG_Module']['backbone']['type'](self.model.added_module.parameters(), **optimizers['GTG_Module']['backbone']['optim_p']))
+                self.optimizers.append(optimizers['GTG_Module']['module']['type'](self.model.added_module.parameters(), **optimizers['GTG_Module']['module']['optim_p']))
             else:
-                self.optimizers.append(optimizers['backbone']['type'](self.model.added_module.parameters(), **optimizers['backbone']['optim_p']))
-                self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
-    
+                self.optimizers.append(optimizers['LossNet']['backbone']['type'](self.model.added_module.parameters(), **optimizers['LossNet']['backbone']['optim_p']))
+                self.optimizers.append(optimizers['LossNet']['module']['type'](self.model.added_module.parameters(), **optimizers['LossNet']['module']['optim_p']))
+                
+            self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
+
+        self.lr_schedulers = [ torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1) ]
+
     
     def __save_checkpoint(self, filename: str) -> None:
         checkpoint = dict(state_dict = self.model.module.state_dict() if self.world_size > 1 else self.model.state_dict())
@@ -129,9 +132,7 @@ class Cls_TrainWorker():
         
         weight = 1.
         results = torch.zeros((4, self.epochs), device=self.device)
-        
-        #_, images, labels = next(iter(self.train_dl))
-        
+                
         self.model.train()
                 
         for epoch in range(self.epochs):
@@ -166,8 +167,7 @@ class Cls_TrainWorker():
             train_loss_ce /= len(self.train_dl)
             train_loss_pred /= len(self.train_dl)
             
-            #logger.info(f' Epoch: {epoch} | train_accuracy -> {train_accuracy}\ttran_loss -> {train_loss}\ttrain_loss_ce -> {train_loss_ce}\ttrain_loss_pred -> {train_loss_pred}')
-            
+            logger.info(f' Epoch: {epoch} | train_accuracy -> {train_accuracy}\ttran_loss -> {train_loss}\ttrain_loss_ce -> {train_loss_ce}\ttrain_loss_pred -> {train_loss_pred}')
             
             for pos, metric in zip(range(results.shape[0]), [train_accuracy, train_loss, train_loss_ce, train_loss_pred]):
                 results[pos][epoch] = metric

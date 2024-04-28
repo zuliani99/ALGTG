@@ -19,7 +19,7 @@ class Custom_Module(nn.Module):
         # same parameters of loss net
         feature_sizes = params['feature_sizes']
         num_channels = params['num_channels']
-        interm_dim = params['interm_dim']
+        interm_dim = num_channels[-1]
 
         self.module_list, self.sequentials_1, self.sequentials_2 = [], [], []
 
@@ -54,6 +54,49 @@ class Custom_Module(nn.Module):
         out = self.classifier(torch.cat([out_concat, embedds], 1))
         return out
     
+
+class Custom_GAP_Module(nn.Module):
+    def __init__(self, params):
+        super(Custom_GAP_Module, self).__init__()
+
+        # same parameters of loss net
+        feature_sizes = params['feature_sizes']
+        num_channels = params['num_channels']
+        interm_dim = params['interm_dim']
+
+        self.convs, self.linears, self.gaps = [], [], []
+
+        for n_c, e_d in zip(num_channels, feature_sizes):
+            self.convs.append(nn.Sequential(
+                nn.Conv2d(n_c, n_c, kernel_size=3, stride=1, padding=1),
+                nn.BatchNorm2d(n_c),
+                nn.ReLU(),
+            ))
+            self.gaps.append(nn.AvgPool2d(e_d))
+            self.linears.append(nn.Sequential(
+                nn.Linear(n_c, interm_dim),
+                nn.ReLU(),
+            )),
+
+        self.convs = nn.ModuleList(self.convs)
+        self.linears = nn.ModuleList(self.linears)
+        self.gaps = nn.ModuleList(self.gaps)
+
+        self.linear = nn.Sequential(nn.Linear(interm_dim * len(num_channels), 1))
+
+
+    def forward(self, features):
+        outs = []
+        for i in range(len(features)):
+            out = self.convs[i](features[i])
+            out = self.gaps[i](out)
+            out = out.view(out.size(0), -1)
+            out = self.linears[i](out)
+            outs.append(out)
+
+        out = self.linear(torch.cat(outs, 1))
+        return out
+
   
 
 class GTG_Module(nn.Module):
@@ -63,7 +106,6 @@ class GTG_Module(nn.Module):
         self.name = self.__class__.__name__
 
         gtg_p, ll_p = params
-        ll_p['interm_dim'] = 512
 
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,
@@ -80,7 +122,8 @@ class GTG_Module(nn.Module):
         self.n_classes: int = gtg_p['n_classes']
         self.device: int = gtg_p['device']
 
-        self.c_mod = Custom_Module(ll_p).to(self.device)
+        #self.c_mod = Custom_Module(ll_p).to(self.device)
+        self.c_mod = Custom_GAP_Module(ll_p).to(self.device)
     
     
     
@@ -187,14 +230,6 @@ class GTG_Module(nn.Module):
             for label in range(self.n_classes): self.X[idx][label] = 1. / self.n_classes
         #self.X.requires_grad_(True)
 
-                 
-    @torch.no_grad()
-    def check_increasing_sum(self, mult_X_A_X: torch.Tensor, old_rowsum_X: int) -> int:
-        rowsum_X = torch.sum(mult_X_A_X).item()
-        if rowsum_X < old_rowsum_X: # it has to be increasing or at least equal
-            logger.exception('Sum of the vector on the denominator is lower than the previous step')
-            raise Exception('Sum of the vector on the denominator is lower than the previous step')
-        return int(rowsum_X)
 
 
     @torch.no_grad()
@@ -205,14 +240,14 @@ class GTG_Module(nn.Module):
                 
         err = float('Inf')
         i = 0
-        old_rowsum_X = 0
+        #old_rowsum_X = 0
                 
         while err > self.gtg_tol and i < self.gtg_max_iter:
             X_old = torch.clone(self.X)
             
             self.X *= torch.mm(self.A, self.X)
 
-            old_rowsum_X = self.check_increasing_sum(self.X, old_rowsum_X)
+            #old_rowsum_X = self.check_increasing_sum(self.X, old_rowsum_X)
             
             self.X /= torch.sum(self.X, dim=1, keepdim=True)
             self.entropy_hist[:, i] = entropy(self.X).to(self.device)
@@ -231,7 +266,6 @@ class GTG_Module(nn.Module):
                 
         err = float('Inf')
         i = 0
-        old_rowsum_X = 0
         
         #entropy_hist_while = torch.clone(self.entropy_hist)
         
@@ -247,7 +281,6 @@ class GTG_Module(nn.Module):
             #mult_X_A_X.register_hook(lambda t: print(f'hook mult_X_A_X :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
             assert torch.all(mult_X_A_X >= 0), 'Negative values in mult_X_A_X'
                         
-            old_rowsum_X = self.check_increasing_sum(mult_X_A_X, old_rowsum_X)
             
             sum_X_A_X = torch.sum(mult_X_A_X, dim=1, keepdim=True)
             #sum_X_A_X.register_hook(lambda t: print(f'hook sum_X_A_X :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
@@ -281,8 +314,8 @@ class GTG_Module(nn.Module):
         
         self.batch_size = len(embedding)
         self.n_lab_obs = int(self.batch_size * self.perc_labeled_batch) 
-                
-        indices = torch.randperm(self.batch_size)
+
+        indices = torch.arange(self.batch_size)
 
         self.labeled_indices: List[int] = indices[:self.n_lab_obs].tolist()
         self.unlabeled_indices: List[int] = indices[self.n_lab_obs:].tolist()
@@ -297,6 +330,10 @@ class GTG_Module(nn.Module):
                 
         #self.graph_trasduction_game(embedding)
         self.graph_trasduction_game_detached(embedding)
+        
+        unlab_pred_labels_gtg = torch.argmax(self.X[self.unlabeled_indices], dim=1)
+        logging.info(f' Unlabeled GTG Accuracty Score: {(unlab_pred_labels_gtg == self.unlab_labels).sum().item() / len(unlab_pred_labels_gtg)}')
+        
         
         if self.ent_strategy is Entropy_Strategy.MEAN:
             # computing the mean of the entropis history
@@ -318,9 +355,10 @@ class GTG_Module(nn.Module):
     
     def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, labels: torch.Tensor) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
 
-        y_pred = self.c_mod(features, embedds).squeeze()
+        #y_pred = self.c_mod(features, embedds).squeeze()
+        y_pred = self.c_mod(features).squeeze()
         
         y_true, labeled_mask = self.preprocess_inputs(embedds, labels)
-        #logger.info(f'y_pred {y_pred}\ny_true {y_true}')
+        logger.info(f'y_pred {y_pred[self.unlabeled_indices]}\ny_true {y_true[self.unlabeled_indices]}')
             
         return (y_pred, y_true), labeled_mask.bool()

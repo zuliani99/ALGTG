@@ -66,9 +66,9 @@ def plot_loss_curves(methods_results: Dict[str, Dict[str, List[float]]], n_lab_o
                 ax[pos1][pos2].plot(n_lab_obs, values[key], label = f'{method_str}')
                 
         for (pos1, pos2), _, title in data:
-            ax[pos1][pos2].set_title(f'{title} - # Labeled Obs')
-            ax[pos1][pos2].set_xlabel('# Labeled Obs')
-            ax[pos1][pos2].set_ylabel(title)
+            ax[pos1][pos2].set_title(f'{title} - # Labeled Obs', fontsize = 15)
+            ax[pos1][pos2].set_xlabel('# Labeled Obs', fontsize = 10)
+            ax[pos1][pos2].set_ylabel(title, fontsize = 10)
             ax[pos1][pos2].grid()
             ax[pos1][pos2].legend()
         
@@ -190,11 +190,9 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
         else:
             axes[0].plot(x, array[i], linestyle="-", color=palette[lab])
     
-    axes[0].set_title(f'{title} Classes')
-    axes[0].set_ylabel('Entropy')
-    axes[0].set_xlabel('GTG Iterations')
-    axes[0].set_ylabel('Entropy')
-    axes[0].set_xlabel('GTG Iterations')
+    axes[0].set_title(f'{title} Classes', fontsize = 15)
+    axes[0].set_ylabel('Entropy', fontsize = 10)
+    axes[0].set_xlabel('GTG Iterations', fontsize = 10)
     axes[0].grid()
     axes[0].legend()
     
@@ -215,11 +213,9 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
                 pl2_cls_2.add(label)
             else: axes[1].plot(x, array[i], linestyle=style, color=color)
         
-    axes[1].set_ylabel('Entropy')
-    axes[1].set_xlabel('GTG Iterations')
-    axes[1].set_ylabel('Entropy')
-    axes[1].set_xlabel('GTG Iterations')
-    axes[1].set_title(f'{title} - New_Lab / Unlab')
+    axes[1].set_ylabel('Entropy', fontsize = 10)
+    axes[1].set_xlabel('GTG Iterations', fontsize = 10)
+    axes[1].set_title(f'{title} - New_Lab / Unlab', fontsize = 15)
     axes[1].grid()
     axes[1].legend()
     
@@ -259,20 +255,15 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
         plt.fill_between(method_data['lab_obs'], method_data['ci_lower'], method_data['ci_upper'], alpha=0.3, color=palette[idx])
         plt.scatter(method_data['lab_obs'], method_data['mean'], marker=shapes[idx], color=palette[idx], zorder=5)
 
-    plt.xlabel('Labeled Observations')
-    plt.ylabel('Test Accuracy' if task == 'clf' else 'Test mAP')
-    plt.title(f'{dataset_name} results')
+    plt.xlabel('Labeled Observations', fontsize = 10)
+    plt.ylabel('Test Accuracy' if task == 'clf' else 'Test mAP', fontsize = 10)
+    plt.title(f'{dataset_name} results', fontsize = 30)
     plt.legend()
     plt.grid(True)
     
     plt.savefig(f'results/{timestamp}/{dataset_name}/mean_std_results.png') 
     
     
-
-'''class Entropy_Strategy(Enum):
-    DER = 0
-    H_INT = 1
-    MEAN = 2'''
     
 class Entropy_Strategy(Enum):
     H_INT = 0
@@ -318,11 +309,11 @@ def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor
         
         sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', s=17, ax=axes[idx][0])
         sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=17, ax=axes[idx][0])
-        axes[idx][0].set_title(f'{name} Affinity Matrix')
+        axes[idx][0].set_title(f'{name} Affinity Matrix', fontsize = 15)
         axes[idx][0].legend()
         
         sns_p = sns.scatterplot(x=x, y=y, hue=[classes[l] for l in label], s=17, ax=axes[idx][1])
-        axes[idx][1].set_title(f'{name} Affnity Matrix Classes')
+        axes[idx][1].set_title(f'{name} Affnity Matrix Classes', fontsize = 15)
         axes[idx][1].legend()
         if len(classes) > 10: sns_p.legend([],[], frameon=False)
 
@@ -369,19 +360,19 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
         sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labeled', 
                         s=17, color='red', ax=axes[0], markers=['o'])
     
-    axes[0].set_title('TSNE -- labeled - unlabeled - new_labeled')
+    axes[0].set_title('TSNE -- labeled - unlabeled - new_labeled', fontsize = 15)
     axes[0].legend()
     
     sns_p = sns.scatterplot(x=np.hstack((x_lab, x_unlab)), y=np.hstack((y_lab, y_unlab)), 
                     hue=[classes[l] for l in np.hstack((lab['labels'], unlab['labels']))], s=17, ax=axes[1])
         
-    axes[1].set_title('TSNE - classes')
+    axes[1].set_title('TSNE - classes', fontsize = 15)
     axes[1].legend()    
     if len(classes) <= 10: 
         fig.text(0.5, 0.05, f'New Labeled Observations: {d_labels}', ha='center', va='center', fontdict={'size':17})
     else: sns_p.legend([],[], frameon=False)
     
-    plt.suptitle(f'{ds_name} - {method} - {iter}', fontsize=30)
+    plt.suptitle(f'{ds_name} - {method} - {iter}', fontsize = 30)
     plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{iter}.png')
 
     

@@ -156,19 +156,19 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
     if t_s != None:
         for ts in t_s:
             if ts == 'mean':
-                #list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
-                #list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
+                list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
+                list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
                 list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'cos_sim', 'ent_strategy': ES.MEAN})
             else:
                 for t in thres:
-                    #list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
-                    #list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
+                    list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
+                    list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
                     list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'cos_sim', 'ent_strategy': ES.MEAN})
                     
     
     if not nn_s:
-        #list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
-        #list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
+        list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
+        list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
         list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'cos_sim', 'ent_strategy': ES.MEAN})
         
             

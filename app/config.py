@@ -158,8 +158,7 @@ cls_datasets = {
 
 al_params = {
     'init_lab_obs': 1000,
-    'al_iters': 10, 
-    'unlab_sample_dim': 10000,
+    'al_iters': 5,#10, 
     'n_top_k_obs': 1000,
 }
     
@@ -169,123 +168,266 @@ cls_config = {
     'results_dict': { 'train': {'train_accuracy': [], 'train_loss': [], 'train_loss_ce': [], 'train_pred_loss': []},
                      'test': {'test_accuracy': [], 'test_loss': [], 'test_loss_ce': [], 'test_pred_loss': []}},
     'cifar10': {
+        'unlab_sample_dim': 10000,
         'batch_size': 128,
         'optimizers': {
-            'backbone': {
-                'type': torch.optim.SGD, # Adam
-                'optim_p': {
-                    'lr': 0.1,#0.0001,
-                    'momentum': 0.9,
-                    'weight_decay': 5e-4
+            None: {
+                'backbone': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
                 }
             },
-            'gtg_module': { # overfit of a batch for the prediction module -> loss very low (adam 0.001 wd 5e-4)
-                'type': torch.optim.Adam,
-                'optim_p': {
-                    'lr': 0.001,
-                    #'momentum': 0.9,
-                    #'weight_decay': 5e-4
+            'LossNet': {
+                'backbone': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
+                },
+                'module': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
+                }
+            },
+            'GTG_Module': {
+                'backbone': {
+                    'type': torch.optim.Adam,
+                    'optim_p': { 'lr': 0.0001 }
+                },
+                'module': { 
+                    'type': torch.optim.Adam,
+                    'optim_p': { 'lr': 0.001 }
                 }
             }
         }
     },
+    
     'cifar100': {
+        'unlab_sample_dim': 10000,
         'batch_size': 128,
         'optimizers': {
-            'backbone': {
-                'type': torch.optim.SGD,
-                'optim_p': {
-                    'lr': 0.1,
-                    'momentum': 0.9,
-                    'weight_decay': 5e-4
+            None: {
+                'backbone': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
                 }
             },
-            'gtg_module': {
-                'type': torch.optim.Adam,
-                'optim_p': {
-                    'lr': 0.001,
-                    'weight_decay': 5e-4
+            'LossNet': {
+                'backbone': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
+                },
+                'module': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
+                }
+            },
+            'GTG_Module': {
+                'backbone': {
+                    'type': torch.optim.Adam,
+                    'optim_p': { 'lr': 0.0001 } # TODO: TO TUNE
+                },
+                'module': {
+                    'type': torch.optim.Adam,
+                    'optim_p': { 'lr': 0.001 } # TODO: TO TUNE
                 }
             }
         }
     },
     'svhn': {
+        'unlab_sample_dim': 10000,
         'batch_size': 128,
         'optimizers': {
-            'backbone': {
-                'type': torch.optim.SGD,
-                'optim_p': {
-                    'lr': 0.1,
-                    'momentum': 0.9,
-                    'weight_decay': 5e-4
+            None: {
+                'backbone': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
                 }
             },
-            'gtg_module': {
-                'type': torch.optim.Adam,
-                'optim_p': {
-                    'lr': 0.001,
-                    'weight_decay': 5e-4
+            'LossNet': {
+                'backbone': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
+                },
+                'module': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
+                }
+            },
+            'GTG_Module': {
+                'backbone': {
+                    'type': torch.optim.Adam,
+                    'optim_p': { 'lr': 0.0001 } # TODO: TO TUNE
+                },
+                'module': { 
+                    'type': torch.optim.Adam,
+                    'optim_p': { 'lr': 0.001 } # TODO: TO TUNE
                 }
             }
         }
     },
     'fmnist': {
+        'unlab_sample_dim': 10000,
         'batch_size': 128,
         'optimizers': {
-            'backbone': {
-                'type': torch.optim.SGD,
-                'optim_p': {
-                    'lr': 0.1,
-                    'momentum': 0.9,
-                    'weight_decay': 5e-4
+            None: {
+                'backbone': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
                 }
             },
-            'gtg_module': {
-                'type': torch.optim.Adam,
-                'optim_p': {
-                    'lr': 0.001,
-                    'weight_decay': 5e-4
+            'LossNet': {
+                'backbone': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
+                },
+                'module': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
+                }
+            },
+            'GTG_Module': {
+                'backbone': {
+                    'type': torch.optim.Adam,
+                    'optim_p': { 'lr': 0.0001 } # TODO: TO TUNE
+                },
+                'module': {
+                    'type': torch.optim.Adam,
+                    'optim_p': { 'lr': 0.001 } # TODO: TO TUNE
                 }
             }
         }
     },
     'caltech256': {
+        'unlab_sample_dim': 10000,
         'batch_size': 16, # -> fit in memory
-        'optimizer': torch.optim.SGD,
         'optimizers': {
-            'backbone': {
-                'type': torch.optim.SGD,
-                'optim_p': {
-                    'lr': 0.01,
-                    'momentum': 0.9,
-                    'weight_decay': 5e-4
+            None: {
+                'backbone': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
                 }
             },
-            'gtg_module': {
-                'type': torch.optim.Adam,
-                'optim_p': {
-                    'lr': 0.001,
-                    'weight_decay': 5e-4
+            'LossNet': {
+                'backbone': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
+                },
+                'module': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
+                }
+            },
+            'GTG_Module': {
+                'backbone': {
+                    'type': torch.optim.Adam,
+                    'optim_p': { 'lr': 0.0001 } # TODO: TO TUNE
+                },
+                'module': {
+                    'type': torch.optim.Adam,
+                    'optim_p': { 'lr': 0.001 } # TODO: TO TUNE
                 }
             }
         }
     },
     'tinyimagenet': {
+        'unlab_sample_dim': 5000,
         'batch_size': 128,
         'optimizers': {
-            'backbone': {
-                'type': torch.optim.SGD,
-                'optim_p': {
-                    'lr': 0.1,
-                    'momentum': 0.9,
-                    'weight_decay': 5e-4
+            None: {
+                'backbone': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
                 }
             },
-            'gtg_module': {
-                'type': torch.optim.Adam,
-                'optim_p': {
-                    'lr': 0.001,
-                    'weight_decay': 5e-4
+            'LossNet': {
+                'backbone': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
+                },
+                'module': {
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
+                }
+            },
+            'GTG_Module': {
+                'backbone': {
+                    'type': torch.optim.Adam,
+                    'optim_p': { 'lr': 0.0001 } # TODO: TO TUNE
+                },
+                'module': {
+                    'type': torch.optim.Adam,
+                    'optim_p': { 'lr': 0.001 } # TODO: TO TUNE
                 }
             }
         }

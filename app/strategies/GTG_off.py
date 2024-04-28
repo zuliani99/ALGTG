@@ -265,10 +265,7 @@ class GTG_off(ActiveLearner):
         self.graph_trasduction_game()
         logger.info(' DONE\n')
         
-        unlab_pred_labels_gtg = torch.argmax(self.X[len(self.labeled_indices):], dim=1).cpu()
-        
-        # TRUE / FALSE np.ndarray
-        self.gtg_result_prediction = (unlab_pred_labels_gtg == self.unlabeled_labels).numpy()
+        unlab_pred_labels_gtg = torch.argmax(self.X[len(self.labeled_indices):], dim=1)
         
         logging.info(f' Unlabeled GTG Accuracty Score: {(unlab_pred_labels_gtg == self.unlabeled_labels).sum().item() / len(unlab_pred_labels_gtg)}')
         

@@ -78,12 +78,12 @@ class ActiveLearner():
     
     def get_samp_unlab_subset(self) -> Subset:
         if self.ct_p['task'] == 'clf':
-            # set seed for reproducibility
+            # set seed for reproducibility            
             seed = self.dataset.dataset_id * (self.ct_p['trial'] * self.al_p['al_iters'] + (self.iter - 1))
             set_seeds(seed)
             
             rand_perm = torch.randperm(len(self.unlabeled_indices)).tolist()
-            rand_perm_unlabeled = [self.unlabeled_indices[idx] for idx in rand_perm[:self.al_p['unlab_sample_dim']]]
+            rand_perm_unlabeled = [self.unlabeled_indices[idx] for idx in rand_perm[:self.ds_t_p['unlab_sample_dim']]]
             
             logger.info(f' SEED: {seed} - Last 10 permuted indices are: {rand_perm[-10:]}')
             unlab_perm_subset = Subset(self.dataset.non_transformed_trainset, rand_perm_unlabeled)
@@ -262,9 +262,7 @@ class ActiveLearner():
         
         
     
-    def update_sets(self, unlab_samp_idxs: List[int], overall_topk: List[int]) -> None:
-    #def update_sets(self, overall_topk: List[int]) -> None:
-        
+    def update_sets(self, unlab_samp_idxs: List[int], overall_topk: List[int]) -> None:        
         # save the new labeled images to further visual analysis
         self.save_labeled_images(overall_topk)
         
@@ -278,7 +276,6 @@ class ActiveLearner():
         self.temp_unlab_pool.extend(unlab_samp_idxs) # + 9000
         # extend with the overall_topk
         self.labeled_indices.extend(overall_topk) # + 1000
-        
         
         
         # remove new labeled observations
