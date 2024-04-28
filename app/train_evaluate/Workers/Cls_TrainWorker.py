@@ -56,11 +56,13 @@ class Cls_TrainWorker():
         optimizers = self.ds_t_p['optimizers']
         self.optimizers = [ optimizers['backbone']['type'](self.model.backbone.parameters(), **optimizers['backbone']['optim_p']) ]
         self.lr_schedulers = [ torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1) ]
+        #self.lr_schedulers = [ torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[40,100,160] if self.model.added_module.name == 'GTG_Module' else [160], gamma=0.1) ]
         
         if self.model.added_module != None:
             if self.model.added_module.name == 'GTG_Module':
                 self.optimizers.append(optimizers['gtg_module']['type'](self.model.added_module.parameters(), **optimizers['gtg_module']['optim_p']))
                 self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
+                #self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[40,100,160], gamma=0.1))
             else:
                 self.optimizers.append(optimizers['backbone']['type'](self.model.added_module.parameters(), **optimizers['backbone']['optim_p']))
                 self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
@@ -77,7 +79,6 @@ class Cls_TrainWorker():
         self.init_opt_sched()
 
 
-
     def compute_losses(self, weight: float, module_out: torch.Tensor | None, outputs: torch.Tensor, \
                        labels: torch.Tensor, tot_loss_ce: float, tot_pred_loss: float) -> Tuple[torch.Tensor, float, float]:
                 
@@ -91,14 +92,16 @@ class Cls_TrainWorker():
         elif len(module_out) == 2:
             (pred_entr, true_entr), labeled_mask = module_out
             
-            entr_loss = self.gtg_loss_fn(pred_entr, true_entr)
+            ###########################################################
+            entr_loss = self.gtg_loss_fn(pred_entr, true_entr.detach())
+            ###########################################################
 
             lab_ce_loss = torch.mean(ce_loss[labeled_mask])
             unlab_entr_loss = torch.mean(entr_loss[torch.logical_not(labeled_mask)])
             
-            loss = lab_ce_loss + unlab_entr_loss #2 * 
+            loss = lab_ce_loss + unlab_entr_loss
             
-            tot_loss_ce += lab_ce_loss.item() #2 * 
+            tot_loss_ce += lab_ce_loss.item() 
             tot_pred_loss += unlab_entr_loss.item()
             
             return loss, tot_loss_ce, tot_pred_loss
@@ -127,6 +130,8 @@ class Cls_TrainWorker():
         weight = 1.
         results = torch.zeros((4, self.epochs), device=self.device)
         
+        #_, images, labels = next(iter(self.train_dl))
+        
         self.model.train()
                 
         for epoch in range(self.epochs):
@@ -136,7 +141,7 @@ class Cls_TrainWorker():
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore  
             if epoch > 120: weight = 0.
              
-            for _, images, labels in self.train_dl:   
+            for _, images, labels in self.train_dl:
                                 
                 images, labels = self.return_moved_imgs_labs(images, labels)              
                         
@@ -144,9 +149,9 @@ class Cls_TrainWorker():
                 
                                     
                 loss, train_loss_ce, train_loss_pred = self.compute_losses(
-                                weight=weight, module_out=module_out, outputs=outputs, labels=labels,
-                                tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred
-                            )  
+                        weight=weight, module_out=module_out, outputs=outputs, labels=labels,
+                        tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred
+                    )  
                                                     
                 for optimizer in self.optimizers: optimizer.zero_grad()
                 loss.backward()
@@ -159,7 +164,7 @@ class Cls_TrainWorker():
             train_accuracy /= len(self.train_dl)
             train_loss /= len(self.train_dl)
             train_loss_ce /= len(self.train_dl)
-            train_loss_pred /= len(self.train_dl)                        
+            train_loss_pred /= len(self.train_dl)
             
             logger.info(f' Epoch: {epoch} | train_accuracy -> {train_accuracy}\ttran_loss -> {train_loss}\ttrain_loss_ce -> {train_loss_ce}\ttrain_loss_pred -> {train_loss_pred}')
             

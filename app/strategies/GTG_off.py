@@ -64,7 +64,7 @@ class GTG_off(ActiveLearner):
         
         # compute the affinity matrix
         A = self.get_A_rbfk(concat_embedds, to_cpu=True) if self.rbf_aff else self.get_A_fn[self.A_function](concat_embedds)
-
+    
         initial_A = torch.clone(A)
         
         if self.threshold_strategy != None:
@@ -127,7 +127,8 @@ class GTG_off(ActiveLearner):
         ], device=device), dim=0)
         
         A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(device)
-                
+        A = torch.clamp(A, min=0., max=1.)
+        
         del A_matrix
         del sigmas
         torch.cuda.empty_cache()
@@ -135,18 +136,18 @@ class GTG_off(ActiveLearner):
         return A.to(self.device)
     
     
-    
     def get_A_e_d(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
-        return torch.cdist(concat_embedds, concat_embedds).to('cpu' if to_cpu else self.device)
-
+        A = torch.cdist(concat_embedds, concat_embedds).to('cpu' if to_cpu else self.device)
+        return torch.clamp(A, min=0., max=1.)
 
 
     def get_A_cos_sim(self, concat_embedds: torch.Tensor, to_cpu = True) -> torch.Tensor:
         device = 'cpu' if to_cpu else self.device
         normalized_embedding = F.normalize(concat_embedds, dim=-1).to(device)
         
-        A = F.relu(torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(device))
+        A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(device)
         A.fill_diagonal_(1.)
+        A = torch.clamp(A, min=0., max=1.)
 
         del normalized_embedding
         torch.cuda.empty_cache()
@@ -154,10 +155,9 @@ class GTG_off(ActiveLearner):
         return A.to(self.device)
         
         
-        
     def get_A_corr(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
-        return F.relu(torch.corrcoef(concat_embedds).to('cpu' if to_cpu else self.device))
-
+        A = torch.corrcoef(concat_embedds).to('cpu' if to_cpu else self.device)
+        return torch.clamp(A, min=0., max=1.)
         
 
     def get_X(self) -> None:

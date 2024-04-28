@@ -22,7 +22,7 @@ class Master_Model(nn.Module):
         self.added_module = added_module
         
         if added_module != None:
-            self.name = f'{self.backbone.__class__.__name__}_{self.added_module.name}'
+            self.name = f'{self.backbone.__class__.__name__}_{self.added_module.name}' # type: ignore
         else: 
             self.name = f'{self.backbone.__class__.__name__}'
             
