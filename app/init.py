@@ -34,21 +34,18 @@ def get_ll_module_params(task: str, image_size: int, dataset_name: str) -> Dict[
         return dict(
                     feature_sizes=[512, 1024, 512, 256, 256, 256],
                     num_channels=[512, 1024, 512, 256, 256, 256],
-                    interm_dim=128,
-                    task='detection'
+                    interm_dim=128, task='detection'
                 )
     else:
         if dataset_name != 'caltech256':   
             return dict(
                     feature_sizes=[image_size, image_size // 2, image_size // 4, image_size // 8],
                     num_channels=[64, 128, 256, 512],
-                    interm_dim=128,
-                    task='cls'
+                    interm_dim=128, task='cls'
                 )
         else: 
             return dict(
                     feature_sizes=[224, 224, 112, 56],
                     num_channels=[64, 64, 128, 256],
-                    interm_dim=128,
-                    task='cls'
+                    interm_dim=128, task='cls'
                 )

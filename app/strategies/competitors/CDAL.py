@@ -53,7 +53,10 @@ class CDAL(ActiveLearner):
             
         logger.info(' => Getting the labeled and unlabeled probebilities')
         lab_embedds_dict = {'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32)}
-        unlab_embedds_dict = {'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32)}
+        unlab_embedds_dict = {
+            'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32),
+            'idxs': torch.empty(0, dtype=torch.int8)
+        }
         
         self.load_best_checkpoint()
         

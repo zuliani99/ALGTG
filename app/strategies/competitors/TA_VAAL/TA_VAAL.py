@@ -12,7 +12,6 @@ from strategies.competitors.TA_VAAL.ta_vaal_query_model import Discriminator, VA
 from typing import Dict, Any, List, Tuple
 
 import logging
-
 logger = logging.getLogger(__name__)
 
 
@@ -76,8 +75,8 @@ class TA_VAAL(ActiveLearner):
             unlabeled_imgs = unlabeled_imgs.to(self.device)
             labels = labels.to(self.device)
             if iter_count == 0 :
-                r_l_0 = torch.from_numpy(np.random.uniform(0, 1, size=(labeled_imgs.shape[0],1))).to(torch.float32).to(self.device)#.cuda()
-                r_u_0 = torch.from_numpy(np.random.uniform(0, 1, size=(unlabeled_imgs.shape[0],1))).to(torch.float32).to(self.device)#.cuda()
+                r_l_0 = torch.from_numpy(np.random.uniform(0, 1, size=(labeled_imgs.shape[0],1))).to(torch.float32).to(self.device)
+                r_u_0 = torch.from_numpy(np.random.uniform(0, 1, size=(unlabeled_imgs.shape[0],1))).to(torch.float32).to(self.device)
             else:
                 with torch.no_grad():
                     _, _, r_l =self.model(labeled_imgs)

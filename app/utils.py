@@ -82,19 +82,15 @@ def plot_loss_curves(methods_results: Dict[str, Dict[str, List[float]]], n_lab_o
     
 def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any], strategy_name: str, \
                           ts_dir: str, dataset_name: str, al_iter: int, cicle_iter: int) -> None:
-    #, flag_LL: bool) -> None:
 
     epochs = range(1, len(results_info[list_dict_keys[0]]) + 1)
 
-    #if flag_LL:
     _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
         
     data = zip([(0,0), (0,1), (1,0), (1,1)], list_dict_keys)
         
     for (pos1, pos2), train_mes in data:
-        ax[pos1][pos2].plot(epochs, results_info[train_mes], label = train_mes)
-        #if not (pos1 == 0 and pos2 == 0): ax[pos1][pos2].set_ylim([0, 5])
-            
+        ax[pos1][pos2].plot(epochs, results_info[train_mes], label = train_mes)            
         ax[pos1][pos2].set_title(f'{train_mes} - Epochs', fontsize = 15)
         ax[pos1][pos2].set_xlabel('Epochs', fontsize = 10)
         ax[pos1][pos2].set_ylabel(train_mes, fontsize = 10)
@@ -108,9 +104,8 @@ def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any
 
 
 def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results: Dict[str, Any], strategy_name: str,\
-                                   epochs: int, ts_dir: str, dataset_name: str, cicle_iter: int):#, flag_LL: bool):
+                                   epochs: int, ts_dir: str, dataset_name: str, cicle_iter: int):
 
-    #if flag_LL:
     _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
         
     data = zip([(0,0), (0,1), (1,0), (1,1)], list_dict_keys)
@@ -419,9 +414,8 @@ def init_weights_apply(m: torch.nn.Module) -> None:
     elif isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.BatchNorm1d):
         init.constant_(m.weight, 1)
         init.constant_(m.bias, 0)
-    
 
-    
+
     
 '''def download_coco_dataset() -> None:
     if not os.path.exists('datasets/coco'):

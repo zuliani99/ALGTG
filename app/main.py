@@ -45,7 +45,7 @@ def get_args() -> argparse.Namespace:
             'gtg', 'll_v1_gtg', 'll_v2_gtg', 'lq_gtg'
         ],
         required=True, help='Possible methods to choose')
-    parser.add_argument('-ds', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'svhn', 'caltech256', 'tinyimagenet', 'voc', 'coco'],
+    parser.add_argument('-ds', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'svhn', 'fmnist', 'caltech256', 'tinyimagenet', 'voc', 'coco'],
                         required=True, help='Possible datasets to choose')
     parser.add_argument('-tr', '--trials', type=int, nargs=1, required=True, help='Number or trials of AL benchmark for each dataset')
     parser.add_argument('-s', '--strategy', type=str, nargs=1, choices=['uncertanity', 'diversity', 'mixed'], 
@@ -74,7 +74,7 @@ dict_strategies = dict(
 )
 
 dict_backbone = dict(
-    cifar10 = 'ResNet', cifar100 = 'ResNet', svhn = 'ResNet', 
+    cifar10 = 'ResNet', cifar100 = 'ResNet', svhn = 'ResNet', fmnist = 'ResNet',
     caltech256 = 'VGG', tinyimagenet = 'ResNet', voc = 'SSD', coco = 'SSD'
 )
 
@@ -99,7 +99,7 @@ def get_strategies_object(methods: List[str], list_gtg_p: List[Dict[str, Any]], 
         elif 'll' in method.split('_') or method == 'tavaal':
             strategies.append(dict_strategies[method](
                 {
-                    **ct_p, 'Master_Model': Masters['M_LL'], 'll_version': 2 if  method.split('_')[1]=='v2' or method == 'tavaal' else 1
+                    **ct_p, 'Master_Model': Masters['M_LL'], 'll_version': 2 if method == 'tavaal' or method.split('_')[1] == 'v2' else 1
                 },
                 t_p, al_p))
         else:
@@ -117,11 +117,10 @@ def get_masters(methods: List[str], BBone: ResNet | SSD | VGG,
     ll, only_bb = False, False
     
     for method in methods:
-        method_module = method.split('_')[0]
-        if (method == 'tavaal' or method_module == 'll') and not ll:
+        if (method == 'tavaal' or method.split('_')[0] == 'll') and not ll:
             LL_Mod = get_module('LL', ll_module_params)
             ll = True
-        elif method_module == 'gtg':
+        elif method == 'lq_gtg':
             GTG_Mod = get_module('GTG', (gtg_module_params, ll_module_params))
         elif not only_bb:
             M_None = Master_Model(BBone, None, dataset_name)
@@ -157,20 +156,20 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
     if t_s != None:
         for ts in t_s:
             if ts == 'mean':
-                list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
-                list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
+                #list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
+                #list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
                 list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'cos_sim', 'ent_strategy': ES.MEAN})
             else:
                 for t in thres:
-                    list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
-                    list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
+                    #list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
+                    #list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
                     list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'cos_sim', 'ent_strategy': ES.MEAN})
                     
     
     if not nn_s:
-        list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
-        list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
-        list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': False, 'A_function': 'cos_sim', 'ent_strategy': ES.MEAN})
+        #list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
+        #list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
+        list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'cos_sim', 'ent_strategy': ES.MEAN})
         
             
     # get the strategis object to run them
@@ -249,7 +248,7 @@ def main() -> None:
         
     for dataset_name in choosen_datasets:
         
-        if dataset_name in ['cifar10', 'cifar100', 'svhn', 'caltech256', 'tinyimagenet']: 
+        if dataset_name in ['cifar10', 'cifar100', 'svhn', 'caltech256', 'tinyimagenet', 'fmnist']: 
             task = 'clf'
             task_params = cls_config
         else: 

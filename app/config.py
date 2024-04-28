@@ -127,6 +127,28 @@ cls_datasets = {
                         v2.ToDtype(torch.float32, scale=True),
                     ],
         }   
+    },
+    'fmnist': {
+        'id': 6,
+        'method': datasets.FashionMNIST,
+        'n_classes': 10,
+        'channels': 1,
+        'image_size': 28,
+        'classes': ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot'],
+        'transforms': {
+            'train': v2.Compose([
+                        v2.ToImage(),
+                        v2.RandomHorizontalFlip(),
+                        v2.RandomCrop(28, padding=3),
+                        v2.ToDtype(torch.float32, scale=True),
+                        v2.Normalize(mean=[0.2860405969887955], std=[0.3530242445149223])
+                    ]),
+            'test': v2.Compose([
+                        v2.ToImage(),
+                        v2.ToDtype(torch.float32, scale=True),
+                        v2.Normalize(mean=[0.2860405969887955], std=[0.3530242445149223])
+                    ]),
+        } 
     }
 }
 
@@ -136,7 +158,7 @@ cls_datasets = {
 
 al_params = {
     'init_lab_obs': 1000,
-    'al_iters': 10, 
+    'al_iters': 2,#10, 
     'unlab_sample_dim': 10000,
     'n_top_k_obs': 1000,
 }
@@ -148,55 +170,127 @@ cls_config = {
                      'test': {'test_accuracy': [], 'test_loss': [], 'test_loss_ce': [], 'test_pred_loss': []}},
     'cifar10': {
         'batch_size': 128,
-        'optimizer': torch.optim.SGD,
-        'optim_p': {
-            'lr': 0.1,
-            'momentum': 0.9,
-            'weight_decay': 5e-4
-        }
+        'optimizers': {
+            'backbone': {
+                'type': torch.optim.Adam,
+                'optim_p': {
+                    'lr': 0.00001,
+                    'momentum': 0.9,
+                    'weight_decay': 5e-4
+                }
+            },
+            'gtg_module': { # overfit of a batch for the prediction module -> loss very low (adam 0.001 wd 5e-4)
+                'type': torch.optim.Adam,#Adam,
+                'optim_p': {
+                    'lr': 0.001,
+                    #'momentum': 0.9,
+                    'weight_decay': 5e-4
+                }
+            }
+        } 
     },
     'cifar100': {
         'batch_size': 128,
-        'optimizer': torch.optim.SGD,
-        'optim_p': {
-            'lr': 0.1, 
-            'momentum': 0.9,
-            'weight_decay': 5e-4   
+        'optimizers': {
+            'backbone': {
+                'type': torch.optim.SGD,
+                'optim_p': {
+                    'lr': 0.1,
+                    'momentum': 0.9,
+                    'weight_decay': 5e-4
+                }
+            },
+            'gtg_module': {
+                'type': torch.optim.Adam,
+                'optim_p': {
+                    'lr': 0.001,
+                    'weight_decay': 5e-4
+                }
+            }
         }
     },
     'svhn': {
         'batch_size': 128,
-        'optimizer': torch.optim.SGD,
-        'optim_p': {
-            'lr': 0.1, # -> TA-VAAL
-            'momentum': 0.9,
-            'weight_decay': 5e-4
+        'optimizers': {
+            'backbone': {
+                'type': torch.optim.SGD,
+                'optim_p': {
+                    'lr': 0.1,
+                    'momentum': 0.9,
+                    'weight_decay': 5e-4
+                }
+            },
+            'gtg_module': {
+                'type': torch.optim.Adam,
+                'optim_p': {
+                    'lr': 0.001,
+                    'weight_decay': 5e-4
+                }
+            }
+        }
+    },
+    'fmnist': {
+        'batch_size': 128,
+        'optimizers': {
+            'backbone': {
+                'type': torch.optim.SGD,
+                'optim_p': {
+                    'lr': 0.1,
+                    'momentum': 0.9,
+                    'weight_decay': 5e-4
+                }
+            },
+            'gtg_module': {
+                'type': torch.optim.Adam,
+                'optim_p': {
+                    'lr': 0.001,
+                    'weight_decay': 5e-4
+                }
+            }
         }
     },
     'caltech256': {
-        'batch_size': 16,#32, # -> fit in memory
+        'batch_size': 16, # -> fit in memory
         'optimizer': torch.optim.SGD,
-        'optim_p': {
-            'lr': 0.01, # from VAAL -> 0.01
-            'momentum': 0.9,
-            'weight_decay': 5e-4
+        'optimizers': {
+            'backbone': {
+                'type': torch.optim.SGD,
+                'optim_p': {
+                    'lr': 0.01,
+                    'momentum': 0.9,
+                    'weight_decay': 5e-4
+                }
+            },
+            'gtg_module': {
+                'type': torch.optim.Adam,
+                'optim_p': {
+                    'lr': 0.001,
+                    'weight_decay': 5e-4
+                }
+            }
         }
     },
     'tinyimagenet': {
         'batch_size': 128,
-        'optimizer': torch.optim.SGD,
-        'optim_p': {
-            'lr': 0.1,
-            'momentum': 0.9,
-            'weight_decay': 5e-4
+        'optimizers': {
+            'backbone': {
+                'type': torch.optim.SGD,
+                'optim_p': {
+                    'lr': 0.1,
+                    'momentum': 0.9,
+                    'weight_decay': 5e-4
+                }
+            },
+            'gtg_module': {
+                'type': torch.optim.Adam,
+                'optim_p': {
+                    'lr': 0.001,
+                    'weight_decay': 5e-4
+                }
+            }
         }
     }
 }
-
-
-
-
-
 
 
 

@@ -3,69 +3,19 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import init_weights_apply
 from utils import Entropy_Strategy, entropy
 
 from typing import Any, List, Dict, Tuple
 
-
 import logging
 logger = logging.getLogger(__name__)
 
-
-
-class Custom_MLP(nn.Module):
-    def __init__(self):
-        super(Custom_MLP, self).__init__()
-
-        # same parameters of loss net
-        feature_sizes = [32,16,8,4]#params['feature_sizes']
-        num_channels = [64,128,256,512]#params['num_channels']
-        interm_dim = 128#params['interm_dim']
-
-        self.module_list = []
-        self.sequentials_1 = []
-        self.sequentials_2 = []
-
-        for n_c, e_d in zip(num_channels, feature_sizes):
-            self.sequentials_1.append(nn.Sequential(
-                nn.Linear(n_c * (e_d**2), n_c * (e_d // 2)),
-                nn.ReLU(),
-                nn.BatchNorm1d(n_c * (e_d // 2))
-
-            ))
-            self.sequentials_2.append(nn.Sequential(
-                nn.Linear(n_c * (e_d // 2), interm_dim),
-                nn.ReLU(),
-            )), # type: ignore
-
-        self.sequentials_1 = nn.ModuleList(self.sequentials_1)
-        self.sequentials_2 = nn.ModuleList(self.sequentials_2)
-        self.linear = nn.Sequential(
-            nn.Linear(interm_dim * len(num_channels), 1), nn.ReLU()
-        )
-
-        self.apply(init_weights_apply)
-
-
-    def forward(self, features):
-        outs = []
-        for i in range(len(features)):
-            feature = features[i].view(features[i].size(0), -1)
-            out = self.sequentials_1[i](feature)
-            out = out.view(out.size(0), -1)
-            out = self.sequentials_2[i](out)
-            outs.append(out)
-
-        out = self.linear(torch.cat(outs, 1))
-        return out
     
     
-        
 class Custom_Module(nn.Module):
     def __init__(self, params: Dict[str, Any]):
         super(Custom_Module, self).__init__()
-        
+
         # same parameters of loss net
         feature_sizes = params['feature_sizes']
         num_channels = params['num_channels']
@@ -79,38 +29,41 @@ class Custom_Module(nn.Module):
                 nn.BatchNorm2d(n_c // (e_d // 2)),
                 nn.ReLU(),
             ))
+            
             self.sequentials_2.append(nn.Sequential(
                 nn.Linear(n_c * (e_d // 2), interm_dim),
                 nn.ReLU(),
-            )), # type: ignore
+            ))
 
         self.sequentials_1 = nn.ModuleList(self.sequentials_1)
         self.sequentials_2 = nn.ModuleList(self.sequentials_2)
-        self.linear = nn.Sequential(
-            nn.Linear(interm_dim * len(num_channels), 1), nn.ReLU()
-        )
-        
-        self.apply(init_weights_apply)
+
+        self.linear_concat = nn.Sequential( nn.Linear(interm_dim * len(num_channels), interm_dim), nn.ReLU() )
+        self.classifier = nn.Linear(interm_dim * 2, 1)
 
 
-    def forward(self, features):
+
+    def forward(self, features, embedds):
         outs = []
         for i in range(len(features)):
             out = self.sequentials_1[i](features[i])
             out = out.view(out.size(0), -1)
             out = self.sequentials_2[i](out)
             outs.append(out)
-
-        out = self.linear(torch.cat(outs, 1))
+        out_concat = self.linear_concat(torch.cat(outs, 1))
+        out = self.classifier(torch.cat([out_concat, embedds], 1))
         return out
-
-
+    
+  
 
 class GTG_Module(nn.Module):
-    def __init__(self, params, phase='train'):
+    def __init__(self, params):
         super(GTG_Module, self).__init__()
+        
+        self.name = self.__class__.__name__
 
         gtg_p, ll_p = params
+        ll_p['interm_dim'] = 512
 
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,
@@ -126,11 +79,8 @@ class GTG_Module(nn.Module):
         self.n_top_k_obs: int = gtg_p['n_top_k_obs']
         self.n_classes: int = gtg_p['n_classes']
         self.device: int = gtg_p['device']
-        self.phase: str = phase
-        
-        self.c_cnn = Custom_Module(ll_p).to(self.device)
-        self.mse_loss = nn.MSELoss(reduction='none').to(self.device)
-        self.l1loss = nn.L1Loss(reduction='none').to(self.device)
+
+        self.c_mod = Custom_Module(ll_p).to(self.device)
     
     
     
@@ -168,25 +118,24 @@ class GTG_Module(nn.Module):
         A_m_2 = -A_matrix.pow(2)
         sigma_T = sigmas.T
         sigma_mm = (torch.mm(sigma_T, sigmas))
-        A = torch.exp( A_m_2 / sigma_mm) 
+        A = torch.exp(A_m_2 / sigma_mm) 
         return A.to(self.device)
     
         
     def get_A_e_d(self, concat_embedds: torch.Tensor) -> torch.Tensor:
-        A = torch.cdist(concat_embedds, concat_embedds).to(self.device)
-        return A
+        return torch.clamp(torch.cdist(concat_embedds, concat_embedds).to(self.device), min=0., max=1.)
     
 
-    def get_A_cos_sim(self, concat_embedds: torch.Tensor) -> torch.Tensor:        
+    def get_A_cos_sim(self, concat_embedds: torch.Tensor) -> torch.Tensor: 
         normalized_embedding = F.normalize(concat_embedds, dim=-1).to(self.device)
-        A = F.relu(torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device))
-        A.fill_diagonal_(1.)
-        return A
-        
+        A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device)        
+        A_flat = A.flatten()
+        A_flat[::(A.shape[-1]+1)] = 0.
+        return torch.clamp(A.clone(), min=0., max=1.)
+
         
     def get_A_corr(self, concat_embedds: torch.Tensor) -> torch.Tensor:
-        A = F.relu(torch.corrcoef(concat_embedds).to(self.device))
-        return A
+        return torch.clamp(torch.corrcoef(concat_embedds).to(self.device), min=0., max=1.)
     
     
     def get_A(self, embedding: torch.Tensor) -> None:
@@ -196,13 +145,9 @@ class GTG_Module(nn.Module):
             A = self.get_A_rbfk(embedding) if self.rbf_aff else self.get_A_fn[self.A_function](embedding)
         else: raise AttributeError('A Fucntion is None')
         
-        assert torch.all(A >= 0), 'Negative value in self.A'
-
         if self.threshold_strategy != None and self.threshold != None:
             if self.A_function != 'e_d': A = torch.where(A < self.get_A_treshold(A), 0, A)
             else: A = torch.where(A > self.get_A_treshold(A), 1, A)
-            
-        assert torch.all(A >= 0), 'Negative value in self.A'
 
         if self.strategy_type == 'diversity':
             # set the whole matrix as a distance matrix and not similarity matrix
@@ -223,8 +168,6 @@ class GTG_Module(nn.Module):
                         A[j,i] = 1 - A[j,i]                        
         
         self.A = A
-        #self.A.requires_grad_(True)
-        
         
 
     def get_X(self) -> None:
@@ -233,58 +176,17 @@ class GTG_Module(nn.Module):
             self.X[idx][int(label.item())] = 1.
         for idx in self.unlabeled_indices:
             for label in range(self.n_classes): self.X[idx][label] = 1. / self.n_classes
-    
-                     
+        self.X.requires_grad_(True)
+
                  
     @torch.no_grad()
     def check_increasing_sum(self, mult_X_A_X: torch.Tensor, old_rowsum_X: int) -> int:
-    #def check_increasing_sum(self, old_rowsum_X: int) -> int:
-        #rowsum_X = torch.sum(self.X).item()
         rowsum_X = torch.sum(mult_X_A_X).item()
         if rowsum_X < old_rowsum_X: # it has to be increasing or at least equal
             logger.exception('Sum of the vector on the denominator is lower than the previous step')
             raise Exception('Sum of the vector on the denominator is lower than the previous step')
         return int(rowsum_X)
 
-        
-    '''@torch.no_grad()
-    def graph_trasduction_game(self, embedding: torch.Tensor) -> None:
-        
-        self.get_A(embedding)
-        self.get_X()
-
-        assert torch.all(self.X >= 0), 'Negative values in self.X'
-        if not torch.all(self.A >= 0): print(embedding, self.A)
-        assert torch.all(self.A >= 0), 'Negative values in self.A'
-
-        err = float('Inf')
-        i = 0
-        old_rowsum_X = 0
-        
-        
-        while err > self.gtg_tol and i < self.gtg_max_iter:
-            X_old = torch.clone(self.X)
-            
-            A_X = torch.mm(self.A, self.X)
-            assert torch.all(A_X >= 0), 'Negative values in A_X'
-            
-            self.X = self.X * A_X
-            assert torch.all(self.X >= 0), 'Negative values in self.X'
-            old_rowsum_X = self.check_increasing_sum(old_rowsum_X)
-            
-            X_sum = torch.sum(self.X, dim=1, keepdim=True)
-            assert torch.all(X_sum > 0), 'Negative or zero values in X_sum'
-            
-            self.X = self.X / X_sum 
-            assert torch.all(self.X >= 0), 'Negative values in self.X'
-            
-            iter_entropy = entropy(self.X).to(self.device) # there are both labeled and sample unlabeled
-            assert torch.all(iter_entropy >= 0), 'Negative values in iter_entropy'
-
-            self.unlab_entropy_hist[:, i] = iter_entropy
-            
-            i += 1
-            err = torch.norm(self.X - X_old)'''
             
             
     def graph_trasduction_game(self, embedding) -> None:
@@ -292,15 +194,12 @@ class GTG_Module(nn.Module):
         self.get_A(embedding)
         #self.A.register_hook(lambda t: print(f'hook self.A :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
         self.get_X()
-        
-        assert torch.all(self.A >= 0), 'Negative value in self.A'
-        assert torch.all(self.X >= 0), 'Negative value in self.X'
-        
+                
         err = float('Inf')
         i = 0
         old_rowsum_X = 0
         
-        unlab_entropy_hist_while = torch.clone(self.unlab_entropy_hist)
+        #unlab_entropy_hist_while = torch.clone(self.unlab_entropy_hist)
         
         while err > self.gtg_tol and i < self.gtg_max_iter:
             X_old = torch.clone(self.X)
@@ -310,15 +209,13 @@ class GTG_Module(nn.Module):
             #mm_A_X.register_hook(lambda t: print(f'hook mm_A_X :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
             assert torch.all(mm_A_X >= 0), 'Negative values in mm_A_X'
             
-            mult_X_A_X = self.X * mm_A_X #torch.mul(self.X, mm_A_X)
+            mult_X_A_X = self.X * mm_A_X
             #mult_X_A_X.register_hook(lambda t: print(f'hook mult_X_A_X :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
             assert torch.all(mult_X_A_X >= 0), 'Negative values in mult_X_A_X'
                         
             old_rowsum_X = self.check_increasing_sum(mult_X_A_X, old_rowsum_X)
             
-            mult_X_A_X = X_old + mult_X_A_X
-            
-            sum_X_A_X = torch.sum(mult_X_A_X, dim=1, keepdim=True) + 1e-8
+            sum_X_A_X = torch.sum(mult_X_A_X, dim=1, keepdim=True)
             #sum_X_A_X.register_hook(lambda t: print(f'hook sum_X_A_X :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
             assert torch.all(sum_X_A_X > 0), 'Negative or zero values in sum_X_A_X'
             
@@ -330,18 +227,18 @@ class GTG_Module(nn.Module):
             iter_entropy = entropy(div_sum_X_A_X).to(self.device)
             assert torch.all(iter_entropy >= 0), 'Nagative values in iter_entropy'
             
-            #div_sum_X_A_X = X_old + div_sum_X_A_X
-
-            unlab_entropy_hist_while[:, i] = iter_entropy
+            #unlab_entropy_hist_while[:, i] = iter_entropy
+            self.unlab_entropy_hist[:, i] = iter_entropy
             
             i += 1
-            #err = torch.norm(div_sum_X_A_X.detach() - X_old)            
-            err = torch.norm(div_sum_X_A_X - X_old)            
+            err = torch.norm(div_sum_X_A_X.detach() - X_old)            
             self.X = div_sum_X_A_X
             
-        self.unlab_entropy_hist = unlab_entropy_hist_while
+        #self.unlab_entropy_hist = unlab_entropy_hist_while
         #self.unlab_entropy_hist.register_hook(lambda t: print(f'hook self.unlab_entropy_hist :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
         assert torch.all(self.unlab_entropy_hist >= 0), 'Nagative values in self.unlab_entropy_hist'
+        
+        self.unlab_entropy_hist.requires_grad_(True)
         
         
         
@@ -351,15 +248,16 @@ class GTG_Module(nn.Module):
         self.batch_size = len(embedding)
         self.n_lab_obs = int(self.batch_size * self.perc_labeled_batch) 
                 
-        shuffled_indices = torch.randperm(self.batch_size)
+        #indices = torch.arange(self.batch_size)
+        indices = torch.randperm(self.batch_size)
 
-        self.labeled_indices: List[int] = shuffled_indices[:self.n_lab_obs].tolist()
-        self.unlabeled_indices: List[int] = shuffled_indices[self.n_lab_obs:].tolist()
+        self.labeled_indices: List[int] = indices[:self.n_lab_obs].tolist()
+        self.unlabeled_indices: List[int] = indices[self.n_lab_obs:].tolist()
                         
-        self.unlab_entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device, requires_grad=True)        
+        self.unlab_entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)#, requires_grad=True)        
         
-        mask = torch.zeros(self.batch_size, device=self.device, requires_grad=False)
-        mask[self.labeled_indices] = 1.
+        labeled_mask = torch.zeros(self.batch_size, device=self.device)
+        labeled_mask[self.labeled_indices] = 1.
         
         self.lab_labels = labels[self.labeled_indices]
         self.unlab_labels = labels[self.unlabeled_indices]
@@ -380,28 +278,16 @@ class GTG_Module(nn.Module):
             logger.exception(' Invlaid GTG Strategy') 
             raise AttributeError(' Invlaid GTG Strategy')
             
-        return quantity_result, mask
+        return quantity_result, labeled_mask
     
     
     
     def forward(self, features: List[torch.Tensor], embedds: torch.Tensor | None = None, labels: torch.Tensor | None = None) -> Tuple[torch.Tensor, torch.Tensor | None]:
-        #for feature in features: print(feature.grad, feature.grad_fn)
-        y_pred = self.c_cnn(features).squeeze()
+
+        y_pred = self.c_mod(features, embedds).squeeze()
         #y_pred.register_hook(lambda t: print(f'hook y_pred :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
         
-        '''if self.phase == 'train':
+        y_true, labeled_mask = self.preprocess_inputs(embedds, labels)
+        #logger.info(f'y_pred {y_pred}\ny_true {y_true}')
             
-            y_true, mask = self.preprocess_inputs(embedds, labels) # type: ignore
-            #logger.info(f'{y_pred} - {y_true}')
-            return self.mse_loss(y_pred, y_true), mask if mask == None else mask.bool()
-            #return self.l1loss(y_pred, y_true), mask if mask == None else mask.bool()
-        else:
-            return y_pred, None'''
-        
-
-        y_true, mask = self.preprocess_inputs(embedds, labels) # type: ignore
-        logger.info(f'{y_pred} - {y_true}')
-        
-        #loss = self.mse_loss(y_pred, y_true) + 5 * self.mse_loss(torch.log(y_pred + 1e-8), torch.log(y_true + 1e-8))
-        loss = self.mse_loss(y_pred, y_true)
-        return loss, mask.bool()
+        return (y_pred, y_true), labeled_mask.bool()

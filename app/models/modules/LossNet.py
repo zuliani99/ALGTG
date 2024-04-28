@@ -75,6 +75,8 @@ class LossPredLoss_v2(nn.Module):
 class LossNet(nn.Module):
     def __init__(self, LL_params):
         super(LossNet, self).__init__()
+        
+        self.name = self.__class__.__name__
 
         feature_sizes = LL_params['feature_sizes']
         num_channels = LL_params['num_channels']

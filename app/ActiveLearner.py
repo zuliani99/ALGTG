@@ -132,7 +132,7 @@ class ActiveLearner():
                     if self.model.added_module != None:
                         if self.model.added_module.__class__.__name__ == 'GTG_Module':
                             module_out = self.model(images.to(self.device), labels.to(self.device), mode='module_out')
-                            dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out[0].cpu().squeeze()), dim=0)
+                            dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out[0][0].cpu().squeeze()), dim=0)
                         else:
                             module_out = self.model(images.to(self.device), mode='module_out')
                             dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out.cpu().squeeze()), dim=0)

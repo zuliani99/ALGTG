@@ -1,5 +1,6 @@
 
 import torch
+import torch.nn as nn
 
 from models.BBone_Module import Master_Model
 from models.modules.LossNet import LossPredLoss_v1, LossPredLoss_v2
@@ -34,11 +35,12 @@ class Cls_TrainWorker():
         self.train_dl: DataLoader = params['train_dl']
         self.test_dl: DataLoader = params['test_dl']
         
-        self.backbone_loss_fn = torch.nn.CrossEntropyLoss(reduction='none').to(self.device)
+        self.backbone_loss_fn = nn.CrossEntropyLoss(reduction='none').to(self.device)
+        self.gtg_loss_fn = nn.MSELoss(reduction='none').to(self.device)
+        
         if 'll_version' in params['ct_p'] and params['ct_p']['ll_version'] == 2:
             self.ll_loss_fn = LossPredLoss_v2(self.device).to(self.device)
-        else: 
-            self.ll_loss_fn = LossPredLoss_v1(self.device).to(self.device)
+        else: self.ll_loss_fn = LossPredLoss_v1(self.device).to(self.device)
         
         self.score_fn = accuracy_score
         self.best_check_filename = f'app/checkpoints/{self.dataset_name}'        
@@ -51,8 +53,17 @@ class Cls_TrainWorker():
 
 
     def init_opt_sched(self):
-        self.optimizer = self.ds_t_p['optimizer'](self.model.parameters(), **self.ds_t_p['optim_p'])
-        self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[160], gamma=0.1)
+        optimizers = self.ds_t_p['optimizers']
+        self.optimizers = [ optimizers['backbone']['type'](self.model.backbone.parameters(), **optimizers['backbone']['optim_p']) ]
+        self.lr_schedulers = [ torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1) ]
+        
+        if self.model.added_module != None:
+            if self.model.added_module.name == 'GTG_Module':
+                self.optimizers.append(optimizers['gtg_module']['type'](self.model.added_module.parameters(), **optimizers['gtg_module']['optim_p']))
+                self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
+            else:
+                self.optimizers.append(optimizers['backbone']['type'](self.model.added_module.parameters(), **optimizers['backbone']['optim_p']))
+                self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
     
     
     def __save_checkpoint(self, filename: str) -> None:
@@ -70,32 +81,34 @@ class Cls_TrainWorker():
     def compute_losses(self, weight: float, module_out: torch.Tensor | None, outputs: torch.Tensor, \
                        labels: torch.Tensor, tot_loss_ce: float, tot_pred_loss: float) -> Tuple[torch.Tensor, float, float]:
                 
-        loss_ce = self.backbone_loss_fn(outputs, labels)
-        backbone = torch.mean(loss_ce)
+        ce_loss = self.backbone_loss_fn(outputs, labels)
+        backbone = torch.mean(ce_loss)
         
-        if module_out == None or weight == 0.:
+        if module_out == None:
             tot_loss_ce += backbone.item()
             return backbone, tot_loss_ce, tot_pred_loss
         
         elif len(module_out) == 2:
-            quantity_loss, mask = module_out
+            (pred_entr, true_entr), labeled_mask = module_out
             
-            quantity_loss = torch.mean(quantity_loss)
-            labeled_loss = torch.mean(loss_ce[mask])
-            loss = labeled_loss + quantity_loss
+            entr_loss = self.gtg_loss_fn(pred_entr, true_entr)
+
+            lab_ce_loss = torch.mean(ce_loss[labeled_mask])
+            unlab_entr_loss = torch.mean(entr_loss[torch.logical_not(labeled_mask)])
             
-            tot_loss_ce += labeled_loss.item()
-            tot_pred_loss += quantity_loss.item()
+            loss = lab_ce_loss + unlab_entr_loss #2 * 
+            
+            tot_loss_ce += lab_ce_loss.item() #2 * 
+            tot_pred_loss += unlab_entr_loss.item()
             
             return loss, tot_loss_ce, tot_pred_loss
         
         else:
-            loss_weird = self.ll_loss_fn(module_out, loss_ce)
+            loss_weird = self.ll_loss_fn(module_out, ce_loss)
             loss = backbone + weight * loss_weird
-            # with so I should see the module loss remain stable after the epoch 120
 
             tot_loss_ce += backbone.item()
-            tot_pred_loss += loss_weird.item()
+            tot_pred_loss += weight * loss_weird.item()
                 
             return loss, tot_loss_ce, tot_pred_loss
    
@@ -115,32 +128,30 @@ class Cls_TrainWorker():
         results = torch.zeros((4, self.epochs), device=self.device)
         
         self.model.train()
-        
+                
         for epoch in range(self.epochs):
                         
             train_loss, train_loss_ce, train_loss_pred, train_accuracy = .0, .0, .0, .0
             
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore  
             if epoch > 120: weight = 0.
-                        
+             
             for _, images, labels in self.train_dl:   
                                 
                 images, labels = self.return_moved_imgs_labs(images, labels)              
-                                    
-                self.optimizer.zero_grad()
-                
-                #outputs, _, module_out = self.model(images, labels=labels, epoch=epoch)
+                        
                 outputs, _, module_out = self.model(images, labels=labels)
                 
+                                    
                 loss, train_loss_ce, train_loss_pred = self.compute_losses(
-                        weight=weight, module_out=module_out, outputs=outputs, labels=labels,
-                        tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred
-                    )  
-                                
+                                weight=weight, module_out=module_out, outputs=outputs, labels=labels,
+                                tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred
+                            )  
+                                                    
+                for optimizer in self.optimizers: optimizer.zero_grad()
                 loss.backward()
-
-                self.optimizer.step()
-                
+                for optimizer in self.optimizers: optimizer.step()
+                        
                 train_loss += loss.item()
                 train_accuracy += self.score_fn(outputs, labels)
 
@@ -150,7 +161,7 @@ class Cls_TrainWorker():
             train_loss_ce /= len(self.train_dl)
             train_loss_pred /= len(self.train_dl)                        
             
-            #logger.info(f' train_accuracy -> {train_accuracy}\ttrain_loss -> {train_loss}')
+            #logger.info(f' Epoch: {epoch} | train_accuracy -> {train_accuracy}\ttran_loss -> {train_loss}\ttrain_loss_ce -> {train_loss_ce}\ttrain_loss_pred -> {train_loss_pred}')
             
             
             for pos, metric in zip(range(results.shape[0]), [train_accuracy, train_loss, train_loss_ce, train_loss_pred]):
@@ -167,7 +178,7 @@ class Cls_TrainWorker():
         
 
             # MultiStepLR
-            self.lr_scheduler.step()
+            for lr_scheduler in self.lr_schedulers: lr_scheduler.step()
             
             # Save checkpoint
             self.__save_checkpoint(self.check_best_path)
@@ -203,6 +214,3 @@ class Cls_TrainWorker():
             test_pred_loss /= len(self.test_dl)
             
         return torch.tensor((test_accuracy, test_loss, test_loss_ce, test_pred_loss), device=self.device)
-
-        
-        
