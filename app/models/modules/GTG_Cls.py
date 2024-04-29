@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import Entropy_Strategy, entropy
+from utils import Entropy_Strategy, entropy, log_assert
 
 from typing import Any, List, Dict, Tuple
 
@@ -160,12 +160,12 @@ class GTG_Module(nn.Module):
         
         A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(self.device)      
         
-        #A_m_2 = -A_matrix.pow(2)
-        #sigma_T = sigmas.T
-        #sigma_mm = (torch.mm(sigma_T, sigmas))
-        #A = torch.exp(A_m_2 / sigma_mm) 
-        #return torch.clamp(A.to(self.device), min=0., max=1.)
-        return torch.clamp(A, min=0., max=1.)
+        A_m_2 = -A_matrix.pow(2)
+        sigma_T = sigmas.T
+        sigma_mm = (torch.mm(sigma_T, sigmas))
+        A = torch.exp(A_m_2 / sigma_mm) 
+        return torch.clamp(A.to(self.device), min=0., max=1.)
+        #return torch.clamp(A, min=0., max=1.)
     
         
     def get_A_e_d(self, concat_embedds: torch.Tensor) -> torch.Tensor:
@@ -179,10 +179,10 @@ class GTG_Module(nn.Module):
         
         A.fill_diagonal_(1.)
         
-        #A_flat = A.flatten()
-        #A_flat[::(A.shape[-1]+1)] = 0.
-        #return torch.clamp(A.clone(), min=0., max=1.)
-        return torch.clamp(A, min=0., max=1.)
+        A_flat = A.flatten()
+        A_flat[::(A.shape[-1]+1)] = 0.
+        return torch.clamp(A.clone(), min=0., max=1.)
+        #return torch.clamp(A, min=0., max=1.)
 
         
     def get_A_corr(self, concat_embedds: torch.Tensor) -> torch.Tensor:
@@ -228,7 +228,6 @@ class GTG_Module(nn.Module):
             self.X[idx][int(label.item())] = 1.
         for idx in self.unlabeled_indices:
             for label in range(self.n_classes): self.X[idx][label] = 1. / self.n_classes
-        #self.X.requires_grad_(True)
 
 
 
@@ -240,14 +239,11 @@ class GTG_Module(nn.Module):
                 
         err = float('Inf')
         i = 0
-        #old_rowsum_X = 0
                 
         while err > self.gtg_tol and i < self.gtg_max_iter:
             X_old = torch.clone(self.X)
             
             self.X *= torch.mm(self.A, self.X)
-
-            #old_rowsum_X = self.check_increasing_sum(self.X, old_rowsum_X)
             
             self.X /= torch.sum(self.X, dim=1, keepdim=True)
             self.entropy_hist[:, i] = entropy(self.X).to(self.device)
@@ -263,6 +259,8 @@ class GTG_Module(nn.Module):
         self.get_A(embedding)
         #self.A.register_hook(lambda t: print(f'hook self.A :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
         self.get_X()
+        self.X.requires_grad_(True)
+        
                 
         err = float('Inf')
         i = 0
@@ -271,28 +269,28 @@ class GTG_Module(nn.Module):
         
         while err > self.gtg_tol and i < self.gtg_max_iter:
             X_old = torch.clone(self.X)
-            assert torch.all(X_old >= 0), 'Negative values in X_old'
+            log_assert(torch.all(X_old >= 0), 'Negative values in X_old')
             
             mm_A_X = torch.mm(self.A, self.X)
             #mm_A_X.register_hook(lambda t: print(f'hook mm_A_X :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
-            assert torch.all(mm_A_X >= 0), 'Negative values in mm_A_X'
+            log_assert(torch.all(mm_A_X >= 0), 'Negative values in mm_A_X')
             
             mult_X_A_X = self.X * mm_A_X
             #mult_X_A_X.register_hook(lambda t: print(f'hook mult_X_A_X :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
-            assert torch.all(mult_X_A_X >= 0), 'Negative values in mult_X_A_X'
+            log_assert(torch.all(mult_X_A_X >= 0), 'Negative values in mult_X_A_X')
                         
             
             sum_X_A_X = torch.sum(mult_X_A_X, dim=1, keepdim=True)
             #sum_X_A_X.register_hook(lambda t: print(f'hook sum_X_A_X :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
-            assert torch.all(sum_X_A_X > 0), 'Negative or zero values in sum_X_A_X'
+            log_assert(torch.all(sum_X_A_X > 0), 'Negative or zero values in sum_X_A_X')
             
             div_sum_X_A_X = mult_X_A_X / sum_X_A_X
             #div_sum_X_A_X.register_hook(lambda t: print(f'hook div_sum_X_A_X :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
-            assert torch.all(div_sum_X_A_X >= 0), 'Nagative values in div_sum_X_A_X'    
+            log_assert(torch.all(div_sum_X_A_X >= 0), 'Nagative values in div_sum_X_A_X')    
             
             
             iter_entropy = entropy(div_sum_X_A_X).to(self.device)
-            assert torch.all(iter_entropy >= 0), 'Nagative values in iter_entropy'
+            log_assert(torch.all(iter_entropy >= 0), 'Nagative values in iter_entropy')
             
             #entropy_hist_while[:, i] = iter_entropy
             self.entropy_hist[:, i] = iter_entropy
@@ -303,7 +301,7 @@ class GTG_Module(nn.Module):
             
         #self.entropy_hist = entropy_hist_while
         #self.entropy_hist.register_hook(lambda t: print(f'hook self.entropy_hist :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
-        assert torch.all(self.entropy_hist >= 0), 'Nagative values in self.entropy_hist'
+        log_assert(torch.all(self.entropy_hist >= 0), 'Nagative values in self.entropy_hist')
         
         self.entropy_hist.requires_grad_(True)
         
@@ -328,11 +326,8 @@ class GTG_Module(nn.Module):
         self.lab_labels = labels[self.labeled_indices]
         self.unlab_labels = labels[self.unlabeled_indices]
                 
-        #self.graph_trasduction_game(embedding)
-        self.graph_trasduction_game_detached(embedding)
-        
-        unlab_pred_labels_gtg = torch.argmax(self.X[self.unlabeled_indices], dim=1)
-        logging.info(f' Unlabeled GTG Accuracty Score: {(unlab_pred_labels_gtg == self.unlab_labels).sum().item() / len(unlab_pred_labels_gtg)}')
+        self.graph_trasduction_game(embedding)
+        #self.graph_trasduction_game_detached(embedding)
         
         
         if self.ent_strategy is Entropy_Strategy.MEAN:
@@ -353,12 +348,12 @@ class GTG_Module(nn.Module):
     
     
     
-    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, labels: torch.Tensor) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
+    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, labels: torch.Tensor) -> Tuple[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], torch.Tensor]:
 
         #y_pred = self.c_mod(features, embedds).squeeze()
         y_pred = self.c_mod(features).squeeze()
         
         y_true, labeled_mask = self.preprocess_inputs(embedds, labels)
-        logger.info(f'y_pred {y_pred[self.unlabeled_indices]}\ny_true {y_true[self.unlabeled_indices]}')
+        #logger.info(f'y_pred {y_pred[self.unlabeled_indices]}\ny_true {y_true[self.unlabeled_indices]}')
             
-        return (y_pred, y_true), labeled_mask.bool()
+        return (y_pred, y_true, self.X), labeled_mask.bool()

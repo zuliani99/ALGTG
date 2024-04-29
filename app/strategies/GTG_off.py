@@ -3,7 +3,6 @@ from ActiveLearner import ActiveLearner
 from utils import plot_tsne_A, create_directory, entropy, plot_gtg_entropy_tensor, Entropy_Strategy
 
 import torch
-import torch.nn as nn 
 from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
@@ -106,7 +105,6 @@ class GTG_off(ActiveLearner):
         torch.cuda.empty_cache()
 
 
-
     def get_A_rbfk(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         
         device = 'cpu' if to_cpu else self.device
@@ -177,17 +175,6 @@ class GTG_off(ActiveLearner):
         
         
         
-    def check_increasing_sum(self, old_rowsum_X):
-        
-        rowsum_X = torch.sum(self.X).item()
-        if rowsum_X < old_rowsum_X: # it has to be increasing or at least equal
-            logger.exception('Sum of the vector on the denominator is lower than the previous step')
-            raise Exception('Sum of the vector on the denominator is lower than the previous step')
-        
-        return rowsum_X
-        
-        
-        
     def graph_trasduction_game(self) -> None:
         
         self.get_A()
@@ -195,15 +182,12 @@ class GTG_off(ActiveLearner):
         
         err = float('Inf')
         i = 0
-        old_rowsum_X = 0
         
         while err > self.gtg_tol and i < self.gtg_max_iter:
             X_old = torch.clone(self.X)
             
             self.X *= torch.mm(self.A, self.X)
-            
-            old_rowsum_X = self.check_increasing_sum(old_rowsum_X)
-            
+                        
             self.X /= torch.sum(self.X, dim=1, keepdim=True)            
         
             iter_entropy = entropy(self.X).to(self.device) # there are both labeled and sample unlabeled
@@ -264,10 +248,7 @@ class GTG_off(ActiveLearner):
         logger.info(' => Execution of the Graph Trasduction Game')
         self.graph_trasduction_game()
         logger.info(' DONE\n')
-        
-        unlab_pred_labels_gtg = torch.argmax(self.X[len(self.labeled_indices):], dim=1)
-        
-        logging.info(f' Unlabeled GTG Accuracty Score: {(unlab_pred_labels_gtg == self.unlabeled_labels).sum().item() / len(unlab_pred_labels_gtg)}')
+
         
         del self.A
         del self.X
@@ -285,49 +266,6 @@ class GTG_off(ActiveLearner):
             # computing the area of the entropis history using trapezoid formula 
             area = torch.trapezoid(self.unlab_entropy_hist, dim=1)
             overall_topk = torch.topk(area, k=n_top_k_obs, largest=True)
-        
-            '''elif self.ent_strategy is Entropy_Strategy.DER:
-            # compute the pairwise differences to obtaion the entropy derivatives
-            self.unlab_entropy_der = -torch.diff(self.unlab_entropy_hist, dim=1)
-            
-            negative_indices = (self.unlab_entropy_der < 0).nonzero()
-            rows, cols = negative_indices.unbind(1)
-            
-            first_negative = torch.full((1, self.len_unlab_sample), -1).squeeze()
-            last_negative = torch.full((1, self.len_unlab_sample), 0).squeeze()
-            
-            for row, col in zip(rows, cols):
-                if first_negative[row] == -1: first_negative[row] = col
-                last_negative[row] = col
-            
-            # setting the range between the first and the last negative cell to negative
-            for row, (first_0, last_0) in enumerate(zip(first_negative, last_negative)):
-                for idx in range(first_0 + 1, last_0):
-                    self.unlab_entropy_der[row, idx] = -torch.abs(self.unlab_entropy_der[row, idx])
-                    
-            
-            bool_ent_der = self.unlab_entropy_der <= 1e-3
-            bool_ent_his = self.unlab_entropy_hist[:, 1:] <= 1e-3
-            
-            denominator = torch.logical_and(bool_ent_der, bool_ent_his)
-            denominator = torch.argmax(denominator.long(), dim=1)
-            denominator = torch.where(denominator == 0, self.unlab_entropy_der.shape[1], denominator)
-            
-            
-            # computing the actual mean
-            overall_topk = torch.topk(
-                torch.sum(self.unlab_entropy_der, dim=1) / denominator,
-                k=n_top_k_obs, largest=False
-            )            
-
-            # plot entropy derivatives tensor
-            plot_gtg_entropy_tensor(
-                tensor=self.unlab_entropy_der, topk=overall_topk.indices.tolist(), lab_unlabels=self.unlabeled_labels.tolist(), classes=self.dataset.classes, 
-                path=self.path, iter=self.iter - 1, max_x=self.gtg_max_iter - 1, dir='derivatives'
-            )
-        
-            del self.unlab_entropy_der
-            torch.cuda.empty_cache()'''
         
         else: 
             logger.exception('Unrecognized derivates computation strategy')

@@ -407,6 +407,12 @@ def init_weights_apply(m: torch.nn.Module) -> None:
         init.constant_(m.bias, 0)
 
 
+def log_assert(condition: bool, message: str):
+    try: assert condition
+    except AssertionError as err:
+        logger.exception(message)
+        raise err
+
     
 '''def download_coco_dataset() -> None:
     if not os.path.exists('datasets/coco'):
