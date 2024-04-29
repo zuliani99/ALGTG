@@ -76,7 +76,7 @@ class Custom_GAP_Module(nn.Module):
             self.linears.append(nn.Sequential(
                 nn.Linear(n_c, interm_dim),
                 nn.ReLU(),
-            )),
+            ))
 
         self.convs = nn.ModuleList(self.convs)
         self.linears = nn.ModuleList(self.linears)
