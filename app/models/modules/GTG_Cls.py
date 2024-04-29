@@ -76,7 +76,7 @@ class Custom_GAP_Module(nn.Module):
             self.linears.append(nn.Sequential(
                 nn.Linear(n_c, interm_dim),
                 nn.ReLU(),
-            )),
+            ))
 
         self.convs = nn.ModuleList(self.convs)
         self.linears = nn.ModuleList(self.linears)
@@ -331,7 +331,7 @@ class GTG_Module(nn.Module):
         #self.graph_trasduction_game(embedding)
         self.graph_trasduction_game_detached(embedding)
         
-        unlab_pred_labels_gtg = torch.argmax(self.X[self.unlabeled_indices], dim=1)
+        unlab_pred_labels_gtg = torch.argmax(self.X[self.unlabeled_indices], dim=1).cpu()
         logging.info(f' Unlabeled GTG Accuracty Score: {(unlab_pred_labels_gtg == self.unlab_labels).sum().item() / len(unlab_pred_labels_gtg)}')
         
         

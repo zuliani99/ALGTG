@@ -177,14 +177,14 @@ class GTG_off(ActiveLearner):
         
         
         
-    def check_increasing_sum(self, old_rowsum_X):
+    '''def check_increasing_sum(self, old_rowsum_X):
         
         rowsum_X = torch.sum(self.X).item()
         if rowsum_X < old_rowsum_X: # it has to be increasing or at least equal
             logger.exception('Sum of the vector on the denominator is lower than the previous step')
             raise Exception('Sum of the vector on the denominator is lower than the previous step')
         
-        return rowsum_X
+        return rowsum_X'''
         
         
         
@@ -195,14 +195,14 @@ class GTG_off(ActiveLearner):
         
         err = float('Inf')
         i = 0
-        old_rowsum_X = 0
+        #old_rowsum_X = 0
         
         while err > self.gtg_tol and i < self.gtg_max_iter:
             X_old = torch.clone(self.X)
             
             self.X *= torch.mm(self.A, self.X)
             
-            old_rowsum_X = self.check_increasing_sum(old_rowsum_X)
+            #old_rowsum_X = self.check_increasing_sum(old_rowsum_X)
             
             self.X /= torch.sum(self.X, dim=1, keepdim=True)            
         
@@ -265,7 +265,7 @@ class GTG_off(ActiveLearner):
         self.graph_trasduction_game()
         logger.info(' DONE\n')
         
-        unlab_pred_labels_gtg = torch.argmax(self.X[len(self.labeled_indices):], dim=1)
+        unlab_pred_labels_gtg = torch.argmax(self.X[len(self.labeled_indices):], dim=1).cpu()
         
         logging.info(f' Unlabeled GTG Accuracty Score: {(unlab_pred_labels_gtg == self.unlabeled_labels).sum().item() / len(unlab_pred_labels_gtg)}')
         
