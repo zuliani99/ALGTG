@@ -98,15 +98,17 @@ class Cls_TrainWorker():
             (pred_entr, true_entr, gtg_probs), labeled_mask = module_out
             
             ###########################################################
-            gtg_loss = self.nll_loss_fn(self.log_sm(gtg_probs), labels) # -> it is like the group loss of vascon
+            gtg_loss = self.nll_loss_fn(self.log_sm(gtg_probs), labels)
+            # it is like the group loss of vascon
             ###########################################################
             
             ###########################################################
-            entr_loss = self.mse_loss_fn(pred_entr, true_entr.detach()) # -> it is working also without the detach() and with the correlation matrix, let's see the results
+            entr_loss = self.mse_loss_fn(pred_entr, true_entr.detach())
+            # it is working also without the detach() and with the correlation matrix, let's see the results
             ###########################################################
 
             lab_ce_loss = torch.mean(ce_loss[labeled_mask])
-            unlab_entr_loss = torch.mean(entr_loss[torch.logical_not(labeled_mask)])
+            unlab_entr_loss = 2 * torch.mean(entr_loss[torch.logical_not(labeled_mask)])
             
             loss = lab_ce_loss + unlab_entr_loss + gtg_loss
             

@@ -229,3 +229,47 @@ class Custom_MLP_2(nn.Module):
         out = self.sequential3(out)
         out = self.classifier(out)
         return out
+    
+    
+    
+class Custom_Module(nn.Module):
+    def __init__(self, params: Dict[str, Any]):
+        super(Custom_Module, self).__init__()
+
+        # same parameters of loss net
+        feature_sizes = params['feature_sizes']
+        num_channels = params['num_channels']
+        interm_dim = num_channels[-1]
+
+        self.module_list, self.sequentials_1, self.sequentials_2 = [], [], []
+
+        for n_c, e_d in zip(num_channels, feature_sizes):
+            self.sequentials_1.append(nn.Sequential(
+                nn.Conv2d(n_c, n_c // (e_d // 2), kernel_size=3, stride=2, padding=1),
+                nn.BatchNorm2d(n_c // (e_d // 2)),
+                nn.ReLU(),
+            ))
+            
+            self.sequentials_2.append(nn.Sequential(
+                nn.Linear(n_c * (e_d // 2), interm_dim),
+                nn.ReLU(),
+            ))
+
+        self.sequentials_1 = nn.ModuleList(self.sequentials_1)
+        self.sequentials_2 = nn.ModuleList(self.sequentials_2)
+
+        self.linear_concat = nn.Sequential( nn.Linear(interm_dim * len(num_channels), interm_dim), nn.ReLU() )
+        self.classifier = nn.Linear(interm_dim * 2, 1)
+
+
+
+    def forward(self, features, embedds):
+        outs = []
+        for i in range(len(features)):
+            out = self.sequentials_1[i](features[i])
+            out = out.view(out.size(0), -1)
+            out = self.sequentials_2[i](out)
+            outs.append(out)
+        out_concat = self.linear_concat(torch.cat(outs, 1))
+        out = self.classifier(torch.cat([out_concat, embedds], 1))
+        return out

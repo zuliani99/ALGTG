@@ -1,4 +1,5 @@
 
+from matplotlib.typing import ColorType
 import torch
 from torch.utils.data import Dataset
 
@@ -156,6 +157,12 @@ def create_class_dir(base_path: str, iter: int, classes: List[str]) -> None:
     for cls in classes: create_directory(f'{base_path}/new_labeled_images/{iter}/{cls}')
         
     
+def get_palette(n_classes: int) -> List[ColorType]:
+    if n_classes <= 10: palette = list(mcolors.TABLEAU_COLORS.values())
+    elif n_classes <= 100: palette = list(mcolors.CSS4_COLORS.values())
+    else: palette = list(mcolors.XKCD_COLORS.values())
+    random.shuffle(palette)
+    return palette
     
 
 def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels: List[int], \
@@ -177,9 +184,7 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
 
     title = 'Entropy History' if dir == 'history' else 'Entropy Derivatives'
 
-    palette = list(mcolors.CSS4_COLORS.values()) if len(classes) > 10 \
-        else list(mcolors.TABLEAU_COLORS.values())
-    random.shuffle(palette)
+    palette = get_palette(len(classes))
         
     pl_cls_1, pl2_cls_2 = set(), set()
 
@@ -242,9 +247,7 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
     methods = df_grouped['method'].unique()
     shapes = ['o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v']
 
-    palette = list(mcolors.CSS4_COLORS.values()) if len(methods) > 10 \
-        else list(mcolors.TABLEAU_COLORS.values())
-    random.shuffle(palette)
+    palette = get_palette(len(methods))
 
     # Plot each method
     plt.figure(figsize=(14, 10))
