@@ -55,22 +55,14 @@ class Cls_TrainWorker():
 
 
     def init_opt_sched(self):
-        optimizers = self.ds_t_p['optimizers']
+        optimizers = self.ds_t_p[self.model.added_module.name if self.model.added_module != None else None]['optimizers']
         self.optimizers, self.lr_schedulers = [], []
         
-        if self.model.added_module == None:
-            self.optimizers.append(optimizers[None]['backbone']['type'](self.model.backbone.parameters(), **optimizers[None]['backbone']['optim_p']))
-        else:
-            if self.model.added_module.name == 'GTG_Module':
-                self.optimizers.append(optimizers['GTG_Module']['backbone']['type'](self.model.backbone.parameters(), **optimizers['GTG_Module']['backbone']['optim_p']))
-                self.optimizers.append(optimizers['GTG_Module']['module']['type'](self.model.added_module.parameters(), **optimizers['GTG_Module']['module']['optim_p']))
-            else:
-                self.optimizers.append(optimizers['LossNet']['backbone']['type'](self.model.backbone.parameters(), **optimizers['LossNet']['backbone']['optim_p']))
-                self.optimizers.append(optimizers['LossNet']['module']['type'](self.model.added_module.parameters(), **optimizers['LossNet']['module']['optim_p']))
-                
-            self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
-
+        self.optimizers.append(optimizers['backbone']['type'](self.model.backbone.parameters(), **optimizers['backbone']['optim_p']))
         self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1))
+        if self.model.added_module != None:
+            self.optimizers.append(optimizers['module']['type'](self.model.backbone.parameters(), **optimizers['module']['optim_p']))
+            self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
 
     
     def __save_checkpoint(self, filename: str) -> None:
@@ -95,34 +87,37 @@ class Cls_TrainWorker():
             return backbone, tot_loss_ce, tot_pred_loss
         
         elif len(module_out) == 2:
-            (pred_entr, true_entr, gtg_probs), labeled_mask = module_out
+            (pred_entr, true_entr, _), labeled_mask = module_out
             
             ###########################################################
-            gtg_loss = self.nll_loss_fn(self.log_sm(gtg_probs), labels)
+            #gtg_loss = self.nll_loss_fn(self.log_sm(gtg_probs), labels)
             # it is like the group loss of vascon
             ###########################################################
             
             ###########################################################
-            entr_loss = self.mse_loss_fn(pred_entr, true_entr.detach())
+            #entr_loss = weight * torch.mean(self.mse_loss_fn(pred_entr, true_entr.detach()))
+            entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
             # it is working also without the detach() and with the correlation matrix, let's see the results
             ###########################################################
 
             lab_ce_loss = torch.mean(ce_loss[labeled_mask])
-            unlab_entr_loss = 2 * torch.mean(entr_loss[torch.logical_not(labeled_mask)])
+            entr_loss = torch.mean(entr_loss[torch.logical_not(labeled_mask)])
             
-            loss = lab_ce_loss + unlab_entr_loss + gtg_loss
+            #loss = lab_ce_loss + unlab_entr_loss# + gtg_loss
+            loss = lab_ce_loss + entr_loss# + gtg_loss
             
-            tot_loss_ce += lab_ce_loss.item() + gtg_loss.item()
-            tot_pred_loss += unlab_entr_loss.item()
+            tot_loss_ce += lab_ce_loss.item()# + gtg_loss.item()
+            #tot_pred_loss += unlab_entr_loss.item()
+            tot_pred_loss += entr_loss.item()
             
             return loss, tot_loss_ce, tot_pred_loss
         
         else:
-            loss_weird = self.ll_loss_fn(module_out, ce_loss)
-            loss = backbone + weight * loss_weird
+            loss_weird = weight * self.ll_loss_fn(module_out, ce_loss)
+            loss = backbone + loss_weird
 
             tot_loss_ce += backbone.item()
-            tot_pred_loss += weight * loss_weird.item()
+            tot_pred_loss += loss_weird.item()
                 
             return loss, tot_loss_ce, tot_pred_loss
    
@@ -163,7 +158,7 @@ class Cls_TrainWorker():
                     )  
                                                     
                 for optimizer in self.optimizers: optimizer.zero_grad()
-                loss.backward()
+                loss.backward()#(retain_graph=True if self.model.added_module != None and self.model.added_module.name == 'GTG_Module' else False)
                 for optimizer in self.optimizers: optimizer.step()
                         
                 train_loss += loss.item()

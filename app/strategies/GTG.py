@@ -14,24 +14,20 @@ class GTG(ActiveLearner):
     
     def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p) -> None:
         
-        str_rbf = 'rbf_' if gtg_p['rbf_aff'] else ''
-        if gtg_p['threshold_strategy'] != None:
-            str_treshold = f'{gtg_p['threshold_strategy']}_{gtg_p['threshold']}' if gtg_p['threshold_strategy'] != 'mean' else 'mean'            
-            strategy_name = f'{self.__class__.__name__}_{gtg_p['strategy_type']}_{str_rbf}{gtg_p['A_function']}_{gtg_p['ent_strategy'].name}_{str_treshold}'
+        str_rbf = 'rbf_' if gtg_p['rbfk'] else ''
+        if gtg_p['am_ts'] != None:
+            str_treshold = f'{gtg_p['am_ts']}_{gtg_p['am_t']}' if gtg_p['am_ts'] != 'mean' else 'mean'            
+            strategy_name = f'{self.__class__.__name__}_{gtg_p['am_s']}_{str_rbf}{gtg_p['am']}_{gtg_p['e_s']}_{str_treshold}'
         else:
-            strategy_name = f'{self.__class__.__name__}_{gtg_p['strategy_type']}_{str_rbf}{gtg_p['A_function']}_{gtg_p['ent_strategy'].name}'
+            strategy_name = f'{self.__class__.__name__}_{gtg_p['am_s']}_{str_rbf}{gtg_p['am']}_{gtg_p['e_s']}'
                 
         
         super().__init__(ct_p, t_p, al_p, strategy_name)
         
-        if self.model.added_module != None:
-            self.model.added_module.define_additional_parameters(gtg_p)
-        
                 
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
         self.unlab_train_dl = DataLoader(
-            sample_unlab_subset,
-            batch_size=self.ds_t_p['batch_size'], shuffle=False, pin_memory=True
+            sample_unlab_subset, batch_size=self.batch_size, shuffle=False, pin_memory=True
         )
                 
         logger.info(' => Evaluating unlabeled observations')

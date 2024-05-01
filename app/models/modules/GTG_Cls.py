@@ -3,9 +3,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import Entropy_Strategy, entropy, log_assert
+from utils import entropy, log_assert
 
-from typing import Any, List, Dict, Tuple
+from typing import Any, List, Tuple
 
 import logging
 logger = logging.getLogger(__name__)
@@ -55,50 +55,6 @@ class Custom_GAP_Module(nn.Module):
         return out
 
 
-class Custom_conv_Module(nn.Module):
-    def __init__(self, params: Dict[str, Any]):
-        super(Custom_conv_Module, self).__init__()
-
-        # same parameters of loss net
-        feature_sizes = params['feature_sizes']
-        num_channels = params['num_channels']
-        interm_dim = params['interm_dim']
-
-        self.convs, self.linears = [], []
-
-        for n_c, e_d in zip(num_channels, feature_sizes):
-            self.convs.append(nn.Sequential(
-                nn.Conv2d(n_c, n_c // (e_d // 2), kernel_size=3, stride=2, padding=1),
-                nn.BatchNorm2d(n_c // (e_d // 2)),
-                nn.ReLU(),
-                
-                nn.Conv2d(n_c // (e_d // 2), n_c // (e_d // 2), kernel_size=3, stride=1, padding=1),
-                nn.BatchNorm2d(n_c // (e_d // 2)),
-                nn.ReLU(),
-            ))
-            self.linears.append(nn.Sequential(
-                nn.Linear(n_c * (e_d // 2), interm_dim),
-                nn.ReLU(),
-            ))
-
-        self.convs = nn.ModuleList(self.convs)
-        self.linears = nn.ModuleList(self.linears)
-
-        self.linear = nn.Sequential(nn.Linear(interm_dim * len(num_channels), 1), nn.ReLU())
-
-
-    def forward(self, features):
-        outs = []
-        for i in range(len(features)):
-            out = self.convs[i](features[i])
-            out = out.view(out.size(0), -1)
-            out = self.linears[i](out)
-            outs.append(out)
-        out = self.linear(torch.cat(outs, 1))
-        return out
-  
-
-
 class GTG_Module(nn.Module):
     def __init__(self, params):
         super(GTG_Module, self).__init__()
@@ -113,39 +69,38 @@ class GTG_Module(nn.Module):
             'e_d': self.get_A_e_d,
         }
         
-        self.gtg_tol: float = gtg_p['gtg_tol']
-        self.gtg_max_iter: int = gtg_p['gtg_max_iter']
-        self.strategy_type: str = gtg_p['strategy_type']
-        self.perc_labeled_batch: int = gtg_p['perc_labeled_batch']
+        self.gtg_tol: float = gtg_p['gtg_t']
+        self.gtg_max_iter: int = gtg_p['gtg_i']
+        
+        self.AM_function: str = gtg_p['am']
+        self.AM_strategy: str = gtg_p['am_s']
+        self.AM_threshold_strategy: str = gtg_p['am_ts']
+        self.AM_threshold: float = gtg_p['am_t']
+        
+        self.ent_strategy: str = gtg_p['e_s']
+        self.rbf_aff: bool = gtg_p['rbfk']
+                
+        self.perc_labeled_batch: int = gtg_p['plb']
+        
         
         self.n_top_k_obs: int = gtg_p['n_top_k_obs']
         self.n_classes: int = gtg_p['n_classes']
         self.device: int = gtg_p['device']
 
-        #self.c_mod = Custom_Module(ll_p).to(self.device)
-        #self.c_mod = Custom_GAP_Module(ll_p).to(self.device)
-        self.c_mod = Custom_conv_Module(ll_p).to(self.device)
-    
-    
-    
-    def define_additional_parameters(self, remaining_param: Dict[str, Any]) -> None:
-        self.rbf_aff: bool = remaining_param['rbf_aff']
-        self.A_function: str = remaining_param['A_function']
-        self.ent_strategy: Entropy_Strategy = remaining_param['ent_strategy']
-        self.threshold_strategy: str = remaining_param['threshold_strategy']
-        self.threshold: float = remaining_param['threshold']
+        self.c_mod = Custom_GAP_Module(ll_p).to(self.device)
+        
         
     
     def get_A_treshold(self, A: torch.Tensor) -> Any:
-        if self.threshold_strategy == 'mean': return torch.mean(A)
-        else: return self.threshold
+        if self.AM_threshold_strategy == 'mean': return torch.mean(A)
+        else: return self.AM_threshold
     
     
     def get_A_rbfk(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         
-        A_matrix = self.get_A_fn[self.A_function](concat_embedds) # type: ignore
+        A_matrix = self.get_A_fn[self.AM_function](concat_embedds) # type: ignore
 
-        if self.A_function == 'e_d':
+        if self.AM_function == 'e_d':
             # if euclidean distance is choosen we take the 7th smallest observation which is the 7th closest one (ascending order)
             seventh_neigh = concat_embedds[torch.argsort(A_matrix, dim=1)[:, 6]]            
         else:
@@ -153,7 +108,7 @@ class GTG_Module(nn.Module):
             seventh_neigh = concat_embedds[torch.argsort(A_matrix, dim=1, descending=True)[:, 6]]
             
         sigmas = torch.unsqueeze(torch.tensor([
-            self.get_A_fn[self.A_function](torch.cat(( # type: ignore
+            self.get_A_fn[self.AM_function](torch.cat(( # type: ignore
                 torch.unsqueeze(concat_embedds[i], dim=0), torch.unsqueeze(seventh_neigh[i], dim=0)
             )))[0,1].item()
             for i in range(concat_embedds.shape[0]) 
@@ -161,12 +116,12 @@ class GTG_Module(nn.Module):
         
         A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(self.device)      
         
-        A_m_2 = -A_matrix.pow(2)
+        '''A_m_2 = -A_matrix.pow(2)
         sigma_T = sigmas.T
         sigma_mm = (torch.mm(sigma_T, sigmas))
-        A = torch.exp(A_m_2 / sigma_mm) 
-        return torch.clamp(A.to(self.device), min=0., max=1.)
-        #return torch.clamp(A, min=0., max=1.)
+        A = torch.exp(A_m_2 / sigma_mm) '''
+        #return torch.clamp(A.to(self.device), min=0., max=1.)
+        return torch.clamp(A, min=0., max=1.)
     
         
     def get_A_e_d(self, concat_embedds: torch.Tensor) -> torch.Tensor:
@@ -180,10 +135,10 @@ class GTG_Module(nn.Module):
         
         A.fill_diagonal_(1.)
         
-        A_flat = A.flatten()
+        '''A_flat = A.flatten()
         A_flat[::(A.shape[-1]+1)] = 0.
-        return torch.clamp(A.clone(), min=0., max=1.)
-        #return torch.clamp(A, min=0., max=1.)
+        return torch.clamp(A.clone(), min=0., max=1.)'''
+        return torch.clamp(A, min=0., max=1.)
 
         
     def get_A_corr(self, concat_embedds: torch.Tensor) -> torch.Tensor:
@@ -194,21 +149,21 @@ class GTG_Module(nn.Module):
     def get_A(self, embedding: torch.Tensor) -> None:
 
         # compute the affinity matrix
-        if self.A_function != None:
-            A = self.get_A_rbfk(embedding) if self.rbf_aff else self.get_A_fn[self.A_function](embedding)
+        if self.AM_function != None:
+            A = self.get_A_rbfk(embedding) if self.rbf_aff else self.get_A_fn[self.AM_function](embedding)
         else: raise AttributeError('A Fucntion is None')
                 
-        if self.threshold_strategy != None and self.threshold != None:
-            if self.A_function != 'e_d': A = torch.where(A < self.get_A_treshold(A), 0, A)
+        if self.AM_threshold_strategy != None and self.AM_threshold!= None:
+            if self.AM_function != 'e_d': A = torch.where(A < self.get_A_treshold(A), 0, A)
             else: A = torch.where(A > self.get_A_treshold(A), 1, A)
 
-        if self.strategy_type == 'diversity':
+        if self.AM_strategy == 'diversity':
             # set the whole matrix as a distance matrix and not similarity matrix
             A = 1 - A
-        elif self.strategy_type == 'mixed':    
+        elif self.AM_strategy == 'mixed':    
             # set the unlabeled submatrix as distance matrix and not similarity matrix
             
-            if self.A_function == 'e_d':
+            if self.AM_function == 'e_d':
                 for i in self.labeled_indices:  # -> insert the similarity for the labeled observations
                     for j in self.labeled_indices:
                         A[i,j] = 1 - A[i,j]
@@ -233,7 +188,9 @@ class GTG_Module(nn.Module):
 
 
     @torch.no_grad()
-    def graph_trasduction_game_detached(self, embedding) -> None:
+    def graph_trasduction_game_detached(self, embedding: torch.Tensor) -> torch.Tensor:
+        
+        entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
         
         self.get_A(embedding)
         self.get_X()
@@ -247,15 +204,17 @@ class GTG_Module(nn.Module):
             self.X *= torch.mm(self.A, self.X)
             
             self.X /= torch.sum(self.X, dim=1, keepdim=True)
-            self.entropy_hist[:, i] = entropy(self.X).to(self.device)
+            entropy_hist[:, i] = entropy(self.X).to(self.device)
             
             i += 1
             err = torch.norm(self.X - X_old)            
 
-    
+        return entropy_hist
     
             
-    def graph_trasduction_game(self, embedding) -> None:
+    def graph_trasduction_game(self, embedding: torch.Tensor) -> torch.Tensor:
+        
+        entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device, requires_grad=True)        
         
         self.get_A(embedding)
         #self.A.register_hook(lambda t: print(f'hook self.A :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
@@ -266,7 +225,7 @@ class GTG_Module(nn.Module):
         err = float('Inf')
         i = 0
         
-        #entropy_hist_while = torch.clone(self.entropy_hist)
+        entropy_hist_while = torch.clone(entropy_hist)
         
         while err > self.gtg_tol and i < self.gtg_max_iter:
             X_old = torch.clone(self.X)
@@ -293,18 +252,19 @@ class GTG_Module(nn.Module):
             iter_entropy = entropy(div_sum_X_A_X).to(self.device)
             log_assert(torch.all(iter_entropy >= 0), 'Nagative values in iter_entropy')
             
-            #entropy_hist_while[:, i] = iter_entropy
-            self.entropy_hist[:, i] = iter_entropy
+            entropy_hist_while[:, i] = iter_entropy
+            #self.entropy_hist[:, i] = iter_entropy
             
             i += 1
             err = torch.norm(div_sum_X_A_X.detach() - X_old)            
             self.X = div_sum_X_A_X
             
-        #self.entropy_hist = entropy_hist_while
+        entropy_hist = entropy_hist_while
         #self.entropy_hist.register_hook(lambda t: print(f'hook self.entropy_hist :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
-        log_assert(torch.all(self.entropy_hist >= 0), 'Nagative values in self.entropy_hist')
+        log_assert(torch.all(entropy_hist >= 0), 'Nagative values in self.entropy_hist')
         
-        self.entropy_hist.requires_grad_(True)
+        #self.entropy_hist.requires_grad_(True)
+        return entropy_hist
         
         
         
@@ -318,27 +278,25 @@ class GTG_Module(nn.Module):
 
         self.labeled_indices: List[int] = indices[:self.n_lab_obs].tolist()
         self.unlabeled_indices: List[int] = indices[self.n_lab_obs:].tolist()
-                        
-        self.entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)#, requires_grad=True)        
-        
+                                
         labeled_mask = torch.zeros(self.batch_size, device=self.device)
         labeled_mask[self.labeled_indices] = 1.
         
         self.lab_labels = labels[self.labeled_indices]
         self.unlab_labels = labels[self.unlabeled_indices]
                 
-        self.graph_trasduction_game(embedding)
-        #self.graph_trasduction_game_detached(embedding)
+        #entropy_hist = self.graph_trasduction_game(embedding)
+        entropy_hist = self.graph_trasduction_game_detached(embedding)
         
         
-        if self.ent_strategy is Entropy_Strategy.MEAN:
+        if self.ent_strategy == 'mean':
             # computing the mean of the entropis history
-            quantity_result = torch.mean(self.entropy_hist, dim=1)
+            quantity_result = torch.mean(entropy_hist, dim=1)
             #quantity_result.register_hook(lambda t: print(f'hook quantity_result :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
             
-        elif self.ent_strategy is Entropy_Strategy.H_INT:
+        elif self.ent_strategy == 'integral':
             # computing the area of the entropis history using trapezoid formula 
-            quantity_result = torch.trapezoid(self.entropy_hist, dim=1)
+            quantity_result = torch.trapezoid(entropy_hist, dim=1)
             #quantity_result.register_hook(lambda t: print(f'hook quantity_result :\n {t} - {torch.any(torch.isnan(t))} - {torch.isfinite(t).all()} - {t.sum()}'))
             
         else:

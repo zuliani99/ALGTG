@@ -1,6 +1,6 @@
 
 from ActiveLearner import ActiveLearner
-from utils import plot_tsne_A, create_directory, entropy, plot_gtg_entropy_tensor, Entropy_Strategy
+from utils import plot_tsne_A, create_directory, entropy, plot_gtg_entropy_tensor
 
 import torch
 from torch.utils.data import DataLoader, Subset
@@ -23,22 +23,24 @@ class GTG_off(ActiveLearner):
             'e_d': self.get_A_e_d,
         }
 
-        self.A_function: str = gtg_p['A_function']
-        self.ent_strategy: Entropy_Strategy = gtg_p['ent_strategy']
-        self.rbf_aff: bool = gtg_p['rbf_aff']
-        self.gtg_tol: float = gtg_p['gtg_tol']
-        self.gtg_max_iter: int = gtg_p['gtg_max_iter']
-        self.strategy_type: str = gtg_p['strategy_type']
-        self.threshold_strategy: str = gtg_p['threshold_strategy']
-        self.threshold: float = gtg_p['threshold']
+        self.gtg_tol: float = gtg_p['gtg_t']
+        self.gtg_max_iter: int = gtg_p['gtg_i']
+        
+        self.AM_function: str = gtg_p['am']
+        self.AM_strategy: str = gtg_p['am_s']
+        self.AM_threshold_strategy: str = gtg_p['am_ts']
+        self.AM_threshold: float = gtg_p['am_t']
+        
+        self.ent_strategy: str = gtg_p['e_s']
+        self.rbf_aff: bool = gtg_p['rbfk']
 
         ll_v = 'v2' if 'll_version' in ct_p and ct_p['ll_version'] == 2 else ''
         str_rbf = 'rbf_' if self.rbf_aff else ''
-        if self.threshold_strategy != None:
-            str_treshold = f'{self.threshold_strategy}_{self.threshold}' if self.threshold_strategy != 'mean' else 'mean'            
-            strategy_name = f'{self.__class__.__name__}_{ll_v}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}_{str_treshold}'
+        if self.AM_threshold_strategy != None:
+            str_treshold = f'{self.AM_threshold_strategy}_{self.AM_threshold}' if self.AM_threshold_strategy != 'mean' else 'mean'            
+            strategy_name = f'{self.__class__.__name__}_{ll_v}_{self.AM_strategy}_{str_rbf}{self.AM_function}_{self.ent_strategy}_{str_treshold}'
         else:
-            strategy_name = f'{self.__class__.__name__}_{ll_v}_{self.strategy_type}_{str_rbf}{self.A_function}_{self.ent_strategy.name}'
+            strategy_name = f'{self.__class__.__name__}_{ll_v}_{self.AM_strategy}_{str_rbf}{self.AM_function}_{self.ent_strategy}'
                 
         super().__init__(ct_p, t_p, al_p, strategy_name)
         
@@ -47,8 +49,8 @@ class GTG_off(ActiveLearner):
         
     
     def get_A_treshold(self, A: torch.Tensor) -> Any:
-        if self.threshold_strategy == 'mean': return torch.mean(A)
-        else: return self.threshold
+        if self.AM_threshold_strategy == 'mean': return torch.mean(A)
+        else: return self.AM_threshold
     
         
     # select the relative choosen affinity matrix method
@@ -62,25 +64,25 @@ class GTG_off(ActiveLearner):
         torch.cuda.empty_cache()
         
         # compute the affinity matrix
-        A = self.get_A_rbfk(concat_embedds, to_cpu=True) if self.rbf_aff else self.get_A_fn[self.A_function](concat_embedds)
+        A = self.get_A_rbfk(concat_embedds, to_cpu=True) if self.rbf_aff else self.get_A_fn[self.AM_function](concat_embedds)
     
         initial_A = torch.clone(A)
         
-        if self.threshold_strategy != None:
+        if self.AM_threshold_strategy != None:
             # remove weak connections with the choosen threshold strategy and value
-            logger.info(f' Affinity Matrix Threshold to be used: {self.threshold_strategy}, {self.threshold} -> {self.get_A_treshold(A)}')
-            if self.A_function != 'e_d': A = torch.where(A < self.get_A_treshold(A), 0, A)
+            logger.info(f' Affinity Matrix Threshold to be used: {self.AM_threshold_strategy}, {self.AM_threshold} -> {self.get_A_treshold(A)}')
+            if self.AM_function != 'e_d': A = torch.where(A < self.get_A_treshold(A), 0, A)
             else: A = torch.where(A > self.get_A_treshold(A), 1, A)
         
         
-        if self.strategy_type == 'diversity':
+        if self.AM_strategy == 'diversity':
             # set the whole matrix as a distance matrix and not similarity matrix
             A = 1 - A
-        elif self.strategy_type == 'mixed':    
+        elif self.AM_strategy == 'mixed':    
             # set the unlabeled submatrix as distance matrix and not similarity matrix
             n_lab_obs = len(self.labeled_indices)
             
-            if self.A_function == 'e_d':
+            if self.AM_function == 'e_d':
                 A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL to similarity
                 
             else:
@@ -96,7 +98,7 @@ class GTG_off(ActiveLearner):
         plot_tsne_A(
             (initial_A, A),
             (self.lab_embedds_dict['labels'], self.unlabeled_labels), self.dataset.classes,
-            self.ct_p['timestamp'], self.ct_p['dataset_name'], self.ct_p['trial'], self.strategy_name, self.A_function, self.strategy_type, self.iter
+            self.ct_p['timestamp'], self.ct_p['dataset_name'], self.ct_p['trial'], self.strategy_name, self.AM_function, self.AM_strategy, self.iter
         )
         
         del A
@@ -108,9 +110,9 @@ class GTG_off(ActiveLearner):
     def get_A_rbfk(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         
         device = 'cpu' if to_cpu else self.device
-        A_matrix = self.get_A_fn[self.A_function](concat_embedds, to_cpu).to(device)
+        A_matrix = self.get_A_fn[self.AM_function](concat_embedds, to_cpu).to(device)
 
-        if self.A_function == 'e_d':
+        if self.AM_function == 'e_d':
             # if euclidean distance is choosen we take the 7th smallest observation which is the 7th closest one (ascending order)
             seventh_neigh = concat_embedds[torch.argsort(A_matrix, dim=1)[:, 6]]            
         else:
@@ -118,7 +120,7 @@ class GTG_off(ActiveLearner):
             seventh_neigh = concat_embedds[torch.argsort(A_matrix, dim=1, descending=True)[:, 6]]
             
         sigmas = torch.unsqueeze(torch.tensor([
-            self.get_A_fn[self.A_function](torch.cat((
+            self.get_A_fn[self.AM_function](torch.cat((
                 torch.unsqueeze(concat_embedds[i], dim=0), torch.unsqueeze(seventh_neigh[i], dim=0)
             )))[0,1].item()
             for i in range(concat_embedds.shape[0]) 
@@ -220,7 +222,7 @@ class GTG_off(ActiveLearner):
             shuffle=False, pin_memory=True
         )
         lab_train_dl = DataLoader(
-            self.labeled_subset, batch_size=self.ds_t_p['batch_size'],  # thus there is no needs on shuffling the unlabeled dataloader
+            self.labeled_subset, batch_size=self.batch_size,  # thus there is no needs on shuffling the unlabeled dataloader
             shuffle=False, pin_memory=True
         )
                 
@@ -257,12 +259,12 @@ class GTG_off(ActiveLearner):
                             
         logger.info(f' => Extracting the Top-k unlabeled observations using {self.ent_strategy}')
         
-        if self.ent_strategy is Entropy_Strategy.MEAN:
+        if self.ent_strategy == 'mean':
             # computing the mean of the entropis history
             mean_ent = torch.mean(self.unlab_entropy_hist, dim=1)
             overall_topk = torch.topk(mean_ent, k=n_top_k_obs)
           
-        elif self.ent_strategy is Entropy_Strategy.H_INT:
+        elif self.ent_strategy == 'integral':
             # computing the area of the entropis history using trapezoid formula 
             area = torch.trapezoid(self.unlab_entropy_hist, dim=1)
             overall_topk = torch.topk(area, k=n_top_k_obs, largest=True)

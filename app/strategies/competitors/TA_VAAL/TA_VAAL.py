@@ -67,8 +67,8 @@ class TA_VAAL(ActiveLearner):
             labels = labels.to(self.device)
             
             if iter_count == 0 :
-                r_l_0 = torch.from_numpy(np.random.uniform(0, 1, size=(labeled_imgs.shape[0],1))).type(torch.FloatTensor).to(self.device)
-                r_u_0 = torch.from_numpy(np.random.uniform(0, 1, size=(unlabeled_imgs.shape[0],1))).type(torch.FloatTensor).to(self.device)
+                r_l_0 = torch.FloatTensor(torch.from_numpy(np.random.uniform(0, 1, size=(labeled_imgs.shape[0],1)))).to(self.device)
+                r_u_0 = torch.FloatTensor(torch.from_numpy(np.random.uniform(0, 1, size=(unlabeled_imgs.shape[0],1)))).to(self.device)
             else:
                 with torch.no_grad():
                     _, _, r_l = self.model(labeled_imgs)
@@ -157,12 +157,10 @@ class TA_VAAL(ActiveLearner):
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
             
         # set the entire batch size to the dimension of the sampled unlabeled set
-        dl_dict = dict(batch_size=self.ds_t_p['batch_size'], shuffle=False, pin_memory=True)
+        dl_dict = dict( batch_size=self.batch_size, shuffle=False, pin_memory=True )
         
         self.unlab_train_dl = DataLoader(sample_unlab_subset, **dl_dict)
-        self.lab_train_dl = DataLoader(
-            Subset(self.dataset.non_transformed_trainset, self.labeled_indices), **dl_dict
-        )
+        self.lab_train_dl = DataLoader(Subset(self.dataset.non_transformed_trainset, self.labeled_indices), **dl_dict)
         
         self.idxs_unlab = { 'idxs': torch.empty(0, dtype=torch.int8) }
         self.get_embeddings(self.unlab_train_dl, self.idxs_unlab)

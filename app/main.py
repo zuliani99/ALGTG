@@ -13,7 +13,7 @@ from models.backbones.VGG import VGG
 
 from init import get_backbone, get_dataset, get_ll_module_params, get_module
 from utils import create_directory, create_ts_dir, plot_loss_curves, \
-    plot_res_std_mean, set_seeds, Entropy_Strategy as ES
+    plot_res_std_mean, set_seeds
 
 from strategies.baselines.Random import Random
 from strategies.baselines.Entropy import Entropy
@@ -39,25 +39,34 @@ logger = logging.getLogger(__name__)
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--methods', type=str, nargs='+', choices=[
+    parser.add_argument('-m', '--methods', type=str, nargs='+', required=True, choices=[
             'random', 'entropy', 'coreset', 'badge', 'cdal', 'tavaal',
             'll_v1', 'll_v2', 
             'gtg', 'll_v1_gtg', 'll_v2_gtg', 'lq_gtg'
-        ],
-        required=True, help='Possible methods to choose')
-    parser.add_argument('-ds', '--datasets', type=str, nargs='+', choices=['cifar10', 'cifar100', 'svhn', 'fmnist', 'caltech256', 'tinyimagenet', 'voc', 'coco'],
-                        required=True, help='Possible datasets to choose')
-    parser.add_argument('-tr', '--trials', type=int, nargs=1, required=True, help='Number or trials of AL benchmark for each dataset')
-    parser.add_argument('-s', '--strategy', type=str, nargs=1, choices=['uncertanity', 'diversity', 'mixed'], 
-                        required=False, help='Possible query strategy types to choose for our method')
-    parser.add_argument('-ts', '--threshold_strategies', type=str, nargs='+', choices=['threshold', 'mean'], 
-                        required=False, help='Possible query strategy types to choose for our method')
-    parser.add_argument('-t', '--thresholds', type=float, nargs='+', required=False, 
-                        help='Affinity Matrix Threshold for our method, when threshold_strategy = mean, this is ingnored')
-    parser.add_argument('--no_none_strategy', action='store_true', 
-                        help='Exclude the threshold application on the Affinity matrix')
-    parser.add_argument('-plb', '--perc_labeled_batch', type=float, nargs=1, required=False, 
-                        help='Number of labeled observations to mantain in each batch during out method')
+        ],help='Possible methods to choose')
+    parser.add_argument('-ds', '--datasets', type=str, nargs='+', required=True, choices=['cifar10', 'cifar100', 'svhn', 'fmnist', 'caltech256', 'tinyimagenet', 'voc', 'coco'],
+                        help='Possible datasets to choose')
+    parser.add_argument('-tr', '--trials', type=int, required=False, default=5, help='AL trials')
+    
+    parser.add_argument('-am', '--affinity_matrix', type=str, required=False, choices=['corr', 'cos_sim', 'e_d'], default='corr',
+                        help='Affinity matrix to choose')
+    parser.add_argument('-am_s', '--affinity_matrix_strategy', type=str, required=False, choices=['uncertanity', 'diversity', 'mixed'], default='mixed', 
+                       help='Different affinity matrix modification')
+    parser.add_argument('-am_ts', '--affinity_matrix_threshold_strategy', type=str, required=False, choices=['threshold', 'mean'], default='mean',
+                        help='Possible treshold strategy types to choose to apply in the affinity matrix')
+    parser.add_argument('-am_t', '--affinity_matrix_threshold', type=float, required=False, default=0.5, 
+                        help='Affinity Matrix Threshold for our method, when threshold_strategy = mean, this is ignored')
+    parser.add_argument('-e_s', '--entropy_strategy', type=str, required=False, choices=['mean', 'integral'], default='mean',
+                        help='Entropy strategy to sum up the entropy history')
+    parser.add_argument('--rbfk', action='store_true', help='Use the RBF Kernel with the specified affinity matrix', required=False)
+    
+    parser.add_argument('-gtg_iter', '--gtg_iterations', type=int, required=False, default=30,
+                        help='Maximum GTG iterations to perorm')
+    parser.add_argument('-gtg_t', '--gtg_tollerance', type=float, required=False, default=0.0001,
+                        help='GTG tollerance')
+        
+    parser.add_argument('-plb', '--perc_labeled_batch', type=float,  required=False, default=0.5,
+                        help='Number of labeled observations to mantain in each batch during GTG end-to-end version')
     parser.add_argument('--wandb', action='store_true', 
                         help='Log benchmark stats into Weights & Biases web app service')
 
@@ -79,23 +88,21 @@ dict_backbone = dict(
 )
 
 
-def get_strategies_object(methods: List[str], list_gtg_p: List[Dict[str, Any]], Masters: Dict[str, Master_Model], 
-                          ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any]) -> List[Any]:
+def get_strategies_object(methods: List[str], Masters: Dict[str, Master_Model], 
+                          ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any]) -> List[Any]:
     strategies = []
     for method in methods:
         if 'gtg' in method.split('_'):
-            if method == 'gtg':
-                for gtg_p in list_gtg_p:
-                    strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_None']}, t_p, al_p, gtg_p))
+            if method == 'gtg': strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_None']}, t_p, al_p, gtg_p))
             else:
-                for gtg_p in list_gtg_p:
-                    ll_version = 2 if method.split('_')[1] == 'v2' else 1 
-                    ct_p_updated = {
-                        **ct_p, 'Master_Model': Masters['M_GTG'] if method.split('_')[1] == 'gtg' else Masters['M_LL'],
-                    }
-                    if method.split('_')[0] == 'll': ct_p_updated['ll_version'] = ll_version
+                ll_version = 2 if method.split('_')[1] == 'v2' else 1 
+                ct_p_updated = {
+                    **ct_p, 'Master_Model': Masters['M_GTG'] if method.split('_')[1] == 'gtg' else Masters['M_LL']
+                }
+                if method.split('_')[0] == 'll': ct_p_updated['ll_version'] = ll_version
                     
-                    strategies.append(dict_strategies[method](ct_p_updated, t_p, al_p, gtg_p))
+                strategies.append(dict_strategies[method](ct_p_updated, t_p, al_p, gtg_p))
+                
         elif 'll' in method.split('_') or method == 'tavaal':
             strategies.append(dict_strategies[method](
                 {
@@ -141,39 +148,10 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
                    Masters: Dict[str, Master_Model], methods: List[str]) -> Tuple[Dict[str, Dict[str, List[float]]], List[int]]:
 
     results = { }
-    list_gtg_p = [ ]
     n_lab_obs = [al_p['init_lab_obs'] + (iter * al_p['n_top_k_obs']) for iter in range(al_p['al_iters'])]
-    
-    # different gtg configurations that we want to test
-    t_s = gtg_p['threshold_strategies']
-    thres = gtg_p['thresholds']
-    nn_s = gtg_p['no_none_strategy']
-    
-    if t_s == None and nn_s: 
-        logger.exception('No affinity matrix modification specified')
-        raise AttributeError('No affinity matrix modification specified')
-    
-    if t_s != None:
-        for ts in t_s:
-            if ts == 'mean':
-                list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
-                list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
-                list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': 'mean', 'rbf_aff': False, 'A_function': 'cos_sim', 'ent_strategy': ES.MEAN})
-            else:
-                for t in thres:
-                    list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
-                    list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
-                    list_gtg_p.append({**gtg_p, 'threshold': t, 'threshold_strategy': ts, 'rbf_aff': False, 'A_function': 'cos_sim', 'ent_strategy': ES.MEAN})
-                    
-    
-    if not nn_s:
-        list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': False, 'A_function': 'corr', 'ent_strategy': ES.MEAN})
-        list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'e_d', 'ent_strategy': ES.MEAN})
-        list_gtg_p.append({**gtg_p, 'threshold': None, 'threshold_strategy': None, 'rbf_aff': True, 'A_function': 'cos_sim', 'ent_strategy': ES.MEAN})
-        
-            
+     
     # get the strategis object to run them
-    strategies = get_strategies_object(methods, list_gtg_p, Masters, ct_p, t_p, al_p)
+    strategies = get_strategies_object(methods, Masters, ct_p, t_p, al_p, gtg_p)
     
     ##########################################################################################################
     # START THE ACTIVE LEARNING PROECSS
@@ -187,26 +165,7 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
 
 
 def main() -> None:
-    
     args = get_args()
-    
-    methods = args.methods
-    choosen_datasets = args.datasets
-
-    threshold_strategies = args.threshold_strategies if args.threshold_strategies != None else None
-    thresholds = args.thresholds if args.thresholds != None else None
-    
-    wandb = args.wandb
-    no_none_strategy = args.no_none_strategy
-    
-    perc_labeled_batch = args.perc_labeled_batch[0] if args.perc_labeled_batch != None else None
-    strategy_type = args.strategy[0] if args.strategy != None else None
-    trials = args.trials[0]
-    
-    
-    if threshold_strategies != None and 'mean' not in threshold_strategies and thresholds == None:
-        raise AttributeError('Please select a thresholds value')
-
     
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     create_directory(f'results/{timestamp}')
@@ -235,18 +194,21 @@ def main() -> None:
             
         
     gtg_params = {
-        'gtg_tol': 0.001,
-        'gtg_max_iter': 30,
-        'strategy_type': strategy_type,
-        'perc_labeled_batch': perc_labeled_batch,
+        'gtg_t': args.gtg_tollerance,
+        'gtg_i': args.gtg_iterations,
         
-        'threshold_strategies': threshold_strategies,
-        'no_none_strategy': no_none_strategy,
-        'thresholds': thresholds
+        'am': args.affinity_matrix,
+        'am_s': args.affinity_matrix_strategy,
+        'am_ts': args.affinity_matrix_threshold_strategy,
+        'am_t': args.affinity_matrix_threshold,
+        'e_s': args.entropy_strategy,
+        'rbfk': args.rbfk,
+        
+        'plb': args.perc_labeled_batch,
     }
     
         
-    for dataset_name in choosen_datasets:
+    for dataset_name in args.datasets:
         
         if dataset_name in ['cifar10', 'cifar100', 'svhn', 'caltech256', 'tinyimagenet', 'fmnist']: 
             task = 'clf'
@@ -271,25 +233,25 @@ def main() -> None:
         
         ll_module_params = get_ll_module_params(task, Dataset.image_size, dataset_name) # create learning loss dictionary parameters
             
-        Masters = get_masters(methods, BBone, ll_module_params, gtg_module_params, dataset_name) # obtain the master models
+        Masters = get_masters(args.methods, BBone, ll_module_params, gtg_module_params, dataset_name) # obtain the master models
                         
         logger.info('\n')
             
         common_training_params = {
             'Dataset': Dataset, 'device': device, 'timestamp': timestamp,
-            'dataset_name': dataset_name, 'task': task, 'wandb_logs': wandb
+            'dataset_name': dataset_name, 'task': task, 'wandb_logs': args.wandb
         }
         
-        for trial in range(trials):
+        for trial in range(args.trials):
             common_training_params['trial'] = trial
             
-            logger.info(f'----------------------- SAMPLE ITERATION {trial + 1} / {trials} -----------------------\n')
+            logger.info(f'----------------------- SAMPLE ITERATION {trial + 1} / {args.trials} -----------------------\n')
             
             create_ts_dir(timestamp, dataset_name, str(trial))
 
             results, n_lab_obs = run_strategies(
                 ct_p = common_training_params, t_p = task_params, al_p = al_params,
-                gtg_p = gtg_params, Masters = Masters, methods = methods
+                gtg_p = gtg_params, Masters = Masters, methods = args.methods
             )
             
             plot_loss_curves(results, n_lab_obs, timestamp,

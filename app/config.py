@@ -169,9 +169,9 @@ cls_config = {
                      'test': {'test_accuracy': [], 'test_loss': [], 'test_loss_ce': [], 'test_pred_loss': []}},
     'cifar10': {
         'unlab_sample_dim': 10000,
-        'batch_size': 128,
-        'optimizers': {
-            None: {
+        None: {
+            'batch_size': 128,
+            'optimizers': {
                 'backbone': {
                     'type': torch.optim.SGD,
                     'optim_p': {
@@ -180,8 +180,11 @@ cls_config = {
                         'weight_decay': 5e-4
                     }
                 }
-            },
-            'LossNet': {
+            }
+        },
+        'LossNet': {
+            'batch_size': 128,
+            'optimizers': {
                 'backbone': {
                     'type': torch.optim.SGD,
                     'optim_p': {
@@ -198,15 +201,30 @@ cls_config = {
                         'weight_decay': 5e-4
                     }
                 }
-            },
-            'GTG_Module': {
+            }
+        },
+        'GTG_Module': {
+            'batch_size': 256,
+            'optimizers':{
                 'backbone': {
-                    'type': torch.optim.Adam,
-                    'optim_p': { 'lr': 0.0001 }
+                    #'type': torch.optim.Adam,
+                    #'optim_p': { 'lr': 0.0001 }
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.1,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
                 },
                 'module': { 
-                    'type': torch.optim.Adam,
-                    'optim_p': { 'lr': 0.001 }
+                    #'type': torch.optim.Adam,
+                    #'optim_p': { 'lr': 0.001 }
+                    'type': torch.optim.SGD,
+                    'optim_p': {
+                        'lr': 0.001,
+                        'momentum': 0.9,
+                        'weight_decay': 5e-4
+                    }
                 }
             }
         }
@@ -214,9 +232,9 @@ cls_config = {
     
     'cifar100': {
         'unlab_sample_dim': 10000,
-        'batch_size': 128,
         'optimizers': {
             None: {
+                'batch_size': 128,
                 'backbone': {
                     'type': torch.optim.SGD,
                     'optim_p': {
@@ -227,6 +245,7 @@ cls_config = {
                 }
             },
             'LossNet': {
+                'batch_size': 128,
                 'backbone': {
                     'type': torch.optim.SGD,
                     'optim_p': {
@@ -245,6 +264,7 @@ cls_config = {
                 }
             },
             'GTG_Module': {
+                'batch_size': 256,
                 'backbone': {
                     'type': torch.optim.Adam,
                     'optim_p': { 'lr': 0.0001 } # TODO: TO TUNE
@@ -258,9 +278,9 @@ cls_config = {
     },
     'svhn': {
         'unlab_sample_dim': 10000,
-        'batch_size': 128,
         'optimizers': {
             None: {
+                'batch_size': 128,
                 'backbone': {
                     'type': torch.optim.SGD,
                     'optim_p': {
@@ -271,6 +291,7 @@ cls_config = {
                 }
             },
             'LossNet': {
+                'batch_size': 128,
                 'backbone': {
                     'type': torch.optim.SGD,
                     'optim_p': {
@@ -289,6 +310,7 @@ cls_config = {
                 }
             },
             'GTG_Module': {
+                'batch_size': 256,
                 'backbone': {
                     'type': torch.optim.Adam,
                     'optim_p': { 'lr': 0.0001 } # TODO: TO TUNE
@@ -302,9 +324,9 @@ cls_config = {
     },
     'fmnist': {
         'unlab_sample_dim': 10000,
-        'batch_size': 128,
         'optimizers': {
             None: {
+                'batch_size': 128,
                 'backbone': {
                     'type': torch.optim.SGD,
                     'optim_p': {
@@ -315,6 +337,7 @@ cls_config = {
                 }
             },
             'LossNet': {
+                'batch_size': 128,
                 'backbone': {
                     'type': torch.optim.SGD,
                     'optim_p': {
@@ -333,6 +356,7 @@ cls_config = {
                 }
             },
             'GTG_Module': {
+                'batch_size': 256,
                 'backbone': {
                     'type': torch.optim.Adam,
                     'optim_p': { 'lr': 0.0001 } # TODO: TO TUNE
@@ -346,9 +370,9 @@ cls_config = {
     },
     'caltech256': {
         'unlab_sample_dim': 10000,
-        'batch_size': 16, # -> fit in memory
         'optimizers': {
             None: {
+                'batch_size': 16, # -> fit in memory
                 'backbone': {
                     'type': torch.optim.SGD,
                     'optim_p': {
@@ -359,6 +383,7 @@ cls_config = {
                 }
             },
             'LossNet': {
+                'batch_size': 16, # -> fit in memory
                 'backbone': {
                     'type': torch.optim.SGD,
                     'optim_p': {
@@ -377,6 +402,7 @@ cls_config = {
                 }
             },
             'GTG_Module': {
+                'batch_size': 32, # -> fit in memory
                 'backbone': {
                     'type': torch.optim.Adam,
                     'optim_p': { 'lr': 0.0001 } # TODO: TO TUNE
@@ -390,9 +416,9 @@ cls_config = {
     },
     'tinyimagenet': {
         'unlab_sample_dim': 5000,
-        'batch_size': 128,
         'optimizers': {
             None: {
+                'batch_size': 128,
                 'backbone': {
                     'type': torch.optim.SGD,
                     'optim_p': {
@@ -403,6 +429,7 @@ cls_config = {
                 }
             },
             'LossNet': {
+                'batch_size': 128,
                 'backbone': {
                     'type': torch.optim.SGD,
                     'optim_p': {
@@ -421,6 +448,7 @@ cls_config = {
                 }
             },
             'GTG_Module': {
+                'batch_size': 256,
                 'backbone': {
                     'type': torch.optim.Adam,
                     'optim_p': { 'lr': 0.0001 } # TODO: TO TUNE

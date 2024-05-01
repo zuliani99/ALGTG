@@ -39,6 +39,7 @@ class ActiveLearner():
         self.dataset: Cls_Datasets | Det_Dataset = self.ct_p['Dataset']
         
         self.ds_t_p = self.t_p[self.ct_p['dataset_name']]
+        self.batch_size = self.ds_t_p[self.model.added_module_name]['batch_size']
                 
         self.labeled_indices: List[int] = copy.deepcopy(self.dataset.labeled_indices)
         self.unlabeled_indices: List[int] = copy.deepcopy(self.dataset.unlabeled_indices)
@@ -153,7 +154,7 @@ class ActiveLearner():
         
         logger.info(' => Saving the TSNE embeddings plot with labeled, unlabeled and new labeled observations')
         
-        dl_dict = dict(batch_size=self.ds_t_p['batch_size'], shuffle=False)
+        dl_dict = dict(batch_size=self.batch_size, shuffle=False)
         unlab_train_dl = DataLoader(samp_unlab_subset, **dl_dict)
         lab_train_dl = DataLoader(self.labeled_subset, **dl_dict)
         

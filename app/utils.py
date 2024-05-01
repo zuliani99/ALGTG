@@ -9,6 +9,8 @@ import torch.nn.init as init
 
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import matplotlib.lines as mlines
+
 from sklearn.manifold import TSNE
 import seaborn as sns
 import pandas as pd
@@ -16,7 +18,6 @@ import numpy as np
 import csv
 import os
 import random
-from enum import Enum
 from typing import List, Dict, Any, Tuple
 
 
@@ -247,6 +248,7 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
     methods = df_grouped['method'].unique()
     shapes = ['o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v']
 
+    lines_handles = []
     palette = get_palette(len(methods))
 
     # Plot each method
@@ -257,20 +259,16 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
                  linestyle = 'dashed' if method in ['Random_LL', 'Random'] else 'solid', color=palette[idx])
         plt.fill_between(method_data['lab_obs'], method_data['ci_lower'], method_data['ci_upper'], alpha=0.3, color=palette[idx])
         plt.scatter(method_data['lab_obs'], method_data['mean'], marker=shapes[idx], color=palette[idx], zorder=5)
+        lines_handles.append(mlines.Line2D([], [], color=palette[idx], marker=shapes[idx], markersize=5, label=method))
+        
 
     plt.xlabel('Labeled Observations', fontsize = 10)
     plt.ylabel('Test Accuracy' if task == 'clf' else 'Test mAP', fontsize = 10)
     plt.title(f'{dataset_name} results', fontsize = 30)
-    plt.legend()
+    plt.legend(handles=lines_handles)
     plt.grid(True)
     
     plt.savefig(f'results/{timestamp}/{dataset_name}/mean_std_results.png') 
-    
-    
-    
-class Entropy_Strategy(Enum):
-    H_INT = 0
-    MEAN = 1
     
 
 
@@ -410,7 +408,7 @@ def init_weights_apply(m: torch.nn.Module) -> None:
         init.constant_(m.bias, 0)
 
 
-def log_assert(condition: bool, message: str):
+def log_assert(condition: torch.Tensor, message: str):
     try: assert condition
     except AssertionError as err:
         logger.exception(message)

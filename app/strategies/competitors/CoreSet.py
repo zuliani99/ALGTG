@@ -39,16 +39,11 @@ class CoreSet(ActiveLearner):
 
     
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
+        
+        dl_dict = dict( batch_size=self.batch_size, shuffle=False, pin_memory=True )
             
-        # set the entire batch size to the dimension of the sampled unlabeled set
-        unlab_train_dl = DataLoader(
-            sample_unlab_subset, batch_size=self.ds_t_p['batch_size'],
-            shuffle=False, pin_memory=True,
-        )
-        lab_train_dl = DataLoader(
-            self.labeled_subset, batch_size=self.ds_t_p['batch_size'],
-            shuffle=False, pin_memory=True,
-        )
+        unlab_train_dl = DataLoader(sample_unlab_subset, **dl_dict)
+        lab_train_dl = DataLoader(self.labeled_subset, **dl_dict)
             
         logger.info(' => Getting the labeled and unlabeled embeddings')
         self.lab_embedds_dict = {

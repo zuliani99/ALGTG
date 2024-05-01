@@ -273,3 +273,46 @@ class Custom_Module(nn.Module):
         out_concat = self.linear_concat(torch.cat(outs, 1))
         out = self.classifier(torch.cat([out_concat, embedds], 1))
         return out
+
+class Custom_conv_Module(nn.Module):
+    def __init__(self, params: Dict[str, Any]):
+        super(Custom_conv_Module, self).__init__()
+
+        # same parameters of loss net
+        feature_sizes = params['feature_sizes']
+        num_channels = params['num_channels']
+        interm_dim = params['interm_dim']
+
+        self.convs, self.linears = [], []
+
+        for n_c, e_d in zip(num_channels, feature_sizes):
+            self.convs.append(nn.Sequential(
+                nn.Conv2d(n_c, n_c // (e_d // 2), kernel_size=3, stride=2, padding=1),
+                nn.BatchNorm2d(n_c // (e_d // 2)),
+                nn.ReLU(),
+                
+                nn.Conv2d(n_c // (e_d // 2), n_c // (e_d // 2), kernel_size=3, stride=1, padding=1),
+                nn.BatchNorm2d(n_c // (e_d // 2)),
+                nn.ReLU(),
+            ))
+            self.linears.append(nn.Sequential(
+                nn.Linear(n_c * (e_d // 2), interm_dim),
+                nn.ReLU(),
+            ))
+
+        self.convs = nn.ModuleList(self.convs)
+        self.linears = nn.ModuleList(self.linears)
+
+        self.linear = nn.Sequential(nn.Linear(interm_dim * len(num_channels), 1), nn.ReLU())
+
+
+    def forward(self, features):
+        outs = []
+        for i in range(len(features)):
+            out = self.convs[i](features[i])
+            out = out.view(out.size(0), -1)
+            out = self.linears[i](out)
+            outs.append(out)
+        out = self.linear(torch.cat(outs, 1))
+        return out
+  

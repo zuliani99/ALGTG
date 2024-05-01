@@ -23,7 +23,7 @@ class LearningLoss(ActiveLearner):
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset,
-            batch_size=self.ds_t_p['batch_size'], shuffle=False, pin_memory=True
+            batch_size=self.batch_size, shuffle=False, pin_memory=True
         )
                 
         logger.info(' => Evaluating unlabeled observations')
