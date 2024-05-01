@@ -6,7 +6,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 from models.backbones.ssd_pytorch.detect_eval import do_python_eval, write_voc_results_file
 from models.backbones.ssd_pytorch.ssd_layers.modules.multibox_loss import MultiBoxLoss
-from models.modules.LossNet import LossPredLoss_v1, LossPredLoss_v2
+from models.modules.LossNet import LossPredLoss
 from models.BBone_Module import Master_Model
 
 
@@ -44,11 +44,8 @@ class Det_TrainWorker():
         self.test_dl: DataLoader = params['test_dl']
         
         self.backbone_loss_fn = MultiBoxLoss(self.dataset.n_classes, 0.5, True, 0, True, 3, 0.5, False, self.device)
-        #self.ll_loss_fn = LossPredLoss(self.device).to(self.device)
-        if 'll_version' in params['ct_p'] and params['ct_p']['ll_version'] == 2:
-            self.ll_loss_fn = LossPredLoss_v2(self.device).to(self.device)
-        else: 
-            self.ll_loss_fn = LossPredLoss_v1(self.device).to(self.device)
+        self.ll_loss_fn = LossPredLoss(self.device).to(self.device)
+
 
         self.best_check_filename = f'app/checkpoints/{self.ct_p['dataset_name']}'
         self.init_check_filename = f'{self.best_check_filename}/{self.model.module.name if self.world_size > 1 else self.model.name}_init.pth.tar'

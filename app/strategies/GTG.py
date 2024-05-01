@@ -14,15 +14,16 @@ class GTG(ActiveLearner):
     
     def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p) -> None:
         
-        str_rbf = 'rbf_' if gtg_p['rbfk'] else ''
         if gtg_p['am_ts'] != None:
-            str_treshold = f'{gtg_p['am_ts']}_{gtg_p['am_t']}' if gtg_p['am_ts'] != 'mean' else 'mean'            
-            strategy_name = f'{self.__class__.__name__}_{gtg_p['am_s']}_{str_rbf}{gtg_p['am']}_{gtg_p['e_s']}_{str_treshold}'
+            str_tresh_strat = f'{gtg_p['am_ts']}_{gtg_p['am_t']}' if gtg_p['am_ts'] != 'mean' else 'ts-mean'            
+            strategy_name = f'{self.__class__.__name__}_{gtg_p['am_s']}_{gtg_p['am']}_{str_tresh_strat}_es-{gtg_p['e_s']}'
         else:
-            strategy_name = f'{self.__class__.__name__}_{gtg_p['am_s']}_{str_rbf}{gtg_p['am']}_{gtg_p['e_s']}'
+            strategy_name = f'{self.__class__.__name__}_{gtg_p['am_s']}_{gtg_p['am']}_es-{gtg_p['e_s']}'
                 
         
         super().__init__(ct_p, t_p, al_p, strategy_name)
+        
+        if self.model.added_module != None: self.model.added_module.define_A_function(gtg_p['am'])
         
                 
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:

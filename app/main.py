@@ -2,7 +2,6 @@
 
 import torch
 
-
 torch.autograd.set_detect_anomaly(True) # type: ignore
 import torch.distributed as dist
 
@@ -30,7 +29,7 @@ from datetime import datetime
 import argparse
 import time
 from typing import Dict, Any, List, Tuple
-
+import copy
 
 import logging
 logger = logging.getLogger(__name__)
@@ -41,14 +40,13 @@ def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--methods', type=str, nargs='+', required=True, choices=[
             'random', 'entropy', 'coreset', 'badge', 'cdal', 'tavaal',
-            'll_v1', 'll_v2', 
-            'gtg', 'll_v1_gtg', 'll_v2_gtg', 'lq_gtg'
+            'll', 'gtg', 'll_gtg', 'lq_gtg'
         ],help='Possible methods to choose')
     parser.add_argument('-ds', '--datasets', type=str, nargs='+', required=True, choices=['cifar10', 'cifar100', 'svhn', 'fmnist', 'caltech256', 'tinyimagenet', 'voc', 'coco'],
                         help='Possible datasets to choose')
     parser.add_argument('-tr', '--trials', type=int, required=False, default=5, help='AL trials')
     
-    parser.add_argument('-am', '--affinity_matrix', type=str, required=False, choices=['corr', 'cos_sim', 'e_d'], default='corr',
+    parser.add_argument('-am', '--affinity_matrix', type=str, nargs='+', required=False, choices=['corr', 'cos_sim', 'e_d'], default=['corr', 'cos_sim', 'rbfk'],
                         help='Affinity matrix to choose')
     parser.add_argument('-am_s', '--affinity_matrix_strategy', type=str, required=False, choices=['uncertanity', 'diversity', 'mixed'], default='mixed', 
                        help='Different affinity matrix modification')
@@ -58,7 +56,6 @@ def get_args() -> argparse.Namespace:
                         help='Affinity Matrix Threshold for our method, when threshold_strategy = mean, this is ignored')
     parser.add_argument('-e_s', '--entropy_strategy', type=str, required=False, choices=['mean', 'integral'], default='mean',
                         help='Entropy strategy to sum up the entropy history')
-    parser.add_argument('--rbfk', action='store_true', help='Use the RBF Kernel with the specified affinity matrix', required=False)
     
     parser.add_argument('-gtg_iter', '--gtg_iterations', type=int, required=False, default=30,
                         help='Maximum GTG iterations to perorm')
@@ -78,7 +75,7 @@ dict_strategies = dict(
     random = Random, entropy = Entropy, coreset = CoreSet, badge = BADGE, # -> BB
     cdal = CDAL, gtg = GTG_off,# -> BB
     
-    ll_v1 = LearningLoss, ll_v2 = LearningLoss, ll_v1_gtg = GTG_off, ll_v2_gtg = GTG_off, tavaal = TA_VAAL, # -> BB + LL
+    ll = LearningLoss, ll_gtg = GTG_off, tavaal = TA_VAAL, # -> BB + LL
     lq_gtg = GTG # -> BB + GTG
 )
 
@@ -95,20 +92,16 @@ def get_strategies_object(methods: List[str], Masters: Dict[str, Master_Model],
         if 'gtg' in method.split('_'):
             if method == 'gtg': strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_None']}, t_p, al_p, gtg_p))
             else:
-                ll_version = 2 if method.split('_')[1] == 'v2' else 1 
-                ct_p_updated = {
-                    **ct_p, 'Master_Model': Masters['M_GTG'] if method.split('_')[1] == 'gtg' else Masters['M_LL']
-                }
-                if method.split('_')[0] == 'll': ct_p_updated['ll_version'] = ll_version
-                    
-                strategies.append(dict_strategies[method](ct_p_updated, t_p, al_p, gtg_p))
+                am = gtg_p['am']
+                del gtg_p['am']
                 
-        elif 'll' in method.split('_') or method == 'tavaal':
-            strategies.append(dict_strategies[method](
-                {
-                    **ct_p, 'Master_Model': Masters['M_LL'], 'll_version': 2 if method == 'tavaal' or method.split('_')[1] == 'v2' else 1
-                },
-                t_p, al_p))
+                for a_matrix in am:
+                    strategies.append(dict_strategies[method]({
+                        **ct_p, 'Master_Model': Masters['M_GTG'] if method.split('_')[0] == 'lq' else Masters['M_LL']
+                    }, t_p, al_p, {**gtg_p, 'am': a_matrix}))
+                
+        elif method == 'll' or method == 'tavaal':
+            strategies.append(dict_strategies[method]({ **ct_p, 'Master_Model': Masters['M_LL'] }, t_p, al_p))
         else:
             strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_None']}, t_p, al_p))
     
@@ -202,7 +195,6 @@ def main() -> None:
         'am_ts': args.affinity_matrix_threshold_strategy,
         'am_t': args.affinity_matrix_threshold,
         'e_s': args.entropy_strategy,
-        'rbfk': args.rbfk,
         
         'plb': args.perc_labeled_batch,
     }
@@ -228,7 +220,7 @@ def main() -> None:
             n_classes = Dataset.n_classes, 
             init_lab_obs = al_params['init_lab_obs'], 
             embedding_dim = BBone.get_rich_features_shape(),
-            device = device, 
+            device = device
         )
         
         ll_module_params = get_ll_module_params(task, Dataset.image_size, dataset_name) # create learning loss dictionary parameters

@@ -39,7 +39,7 @@ class ActiveLearner():
         self.dataset: Cls_Datasets | Det_Dataset = self.ct_p['Dataset']
         
         self.ds_t_p = self.t_p[self.ct_p['dataset_name']]
-        self.batch_size = self.ds_t_p[self.model.added_module_name]['batch_size']
+        self.batch_size = self.ds_t_p['batch_size'][self.model.added_module_name]
                 
         self.labeled_indices: List[int] = copy.deepcopy(self.dataset.labeled_indices)
         self.unlabeled_indices: List[int] = copy.deepcopy(self.dataset.unlabeled_indices)
@@ -235,7 +235,6 @@ class ActiveLearner():
                 
             train_recv, test_recv = train(params)
             
-            #wandb.finish()
         
         logger.info(' DONE\n')
         
@@ -278,9 +277,6 @@ class ActiveLearner():
         # extend with the overall_topk
         self.labeled_indices.extend(overall_topk) # + 1000
         
-        
-        # remove new labeled observations
-        #for idx_to_remove in overall_topk: self.unlabeled_indices.remove(idx_to_remove)
         
         # sanity check
         if len(list(set(self.unlabeled_indices) & set(self.labeled_indices))) == 0 and \
@@ -336,8 +332,8 @@ class ActiveLearner():
             logger.info(f' Number of observations per class added to the labeled set:\n {d_labels}\n')
             
             # Saving the tsne embeddings plot
-            if self.strategy_name.split('_')[0] == 'GTG':
-                # if we are performing GTG plot also the GTG predictions in the TSNE plot 
+            if self.strategy_name.split('_')[2] == 'GTG':
+                # if we are performing GTG Ofline plot also the GTG predictions in the TSNE plot 
                 self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction) # type: ignore
             
             else: self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter))

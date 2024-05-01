@@ -63,19 +63,26 @@ def plot_loss_curves(methods_results: Dict[str, Dict[str, List[float]]], n_lab_o
             [(1,0), str_keys[2], 'CE Loss'], [(1,1), str_keys[3], 'Loss Weird']
         ]
         
-        for (pos1, pos2), key, _ in data:
-            for method_str, values in methods_results.items():
-                ax[pos1][pos2].plot(n_lab_obs, values[key], label = f'{method_str}')
+        shapes = ['o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v']
+        palette = get_palette(len(methods_results.items()))
+        
+        for (pos1, pos2), key, title in data:
+            lines_handles = []
+            for idx, (method_str, values) in enumerate(methods_results.items()):
+                ax[pos1][pos2].plot(n_lab_obs, values[key], label = f'{method_str}',
+                                     linestyle = 'dashed' if method_str.split('_')[1] in 'Random' else 'solid', color=palette[idx])
+                ax[pos1][pos2].scatter(n_lab_obs, values[key], marker=shapes[idx], color=palette[idx], zorder=5)
+                lines_handles.append(mlines.Line2D([], [], color=palette[idx], marker=shapes[idx], markersize=5, label=method_str))
                 
-        for (pos1, pos2), _, title in data:
+                
             ax[pos1][pos2].set_title(f'{title} - # Labeled Obs', fontsize = 15)
             ax[pos1][pos2].set_xlabel('# Labeled Obs', fontsize = 10)
             ax[pos1][pos2].set_ylabel(title, fontsize = 10)
             ax[pos1][pos2].grid()
-            ax[pos1][pos2].legend()
+            ax[pos1][pos2].legend(handles=lines_handles)
         
 
-        plt.suptitle('Results', fontsize = 30)
+        plt.suptitle('Summary Results', fontsize = 30)
         
         if save_plot: plt.savefig(f'results/{ts_dir}/{plot_png_name}')
         else: plt.show()
@@ -112,15 +119,23 @@ def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results:
         
     data = zip([(0,0), (0,1), (1,0), (1,1)], list_dict_keys)
     x = range(1, epochs + 1)
+    
+    shapes = ['o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v']
+    lines_handles = []
+    palette = get_palette(len(cum_train_results.items()))
+    
         
     for (pos1, pos2), train_mes in data:
-        for iter, results_info in cum_train_results.items():
-            ax[pos1][pos2].plot(x, results_info[train_mes], label = f'{train_mes}_{iter}')
+        for idx, (iter, results_info) in enumerate(cum_train_results.items()):
+            ax[pos1][pos2].plot(x, results_info[train_mes], label = f'{train_mes}_{iter}', color=palette[idx])
+            ax[pos1][pos2].scatter(x, results_info[train_mes], marker=shapes[idx], color=palette[idx], zorder=5)
+            lines_handles.append(mlines.Line2D([], [], color=palette[idx], marker=shapes[idx], markersize=5, label=f'{train_mes}_{iter}'))
+            
         ax[pos1][pos2].set_title(f'{train_mes} - Epochs', fontsize = 15)
         ax[pos1][pos2].set_xlabel('Epochs', fontsize = 10)
         ax[pos1][pos2].set_ylabel(train_mes, fontsize = 10)
         ax[pos1][pos2].grid()
-        ax[pos1][pos2].legend()
+        ax[pos1][pos2].legend(handles=lines_handles)
 
 
     plt.suptitle(f'Cumulative Train Results - {strategy_name}', fontsize = 30)
@@ -256,7 +271,7 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
     for idx, method in enumerate(methods):
         method_data = df_grouped[df_grouped['method'] == method]
         plt.plot(method_data['lab_obs'], method_data['mean'], label=method, 
-                 linestyle = 'dashed' if method in ['Random_LL', 'Random'] else 'solid', color=palette[idx])
+                 linestyle = 'dashed' if method.split('_')[1] in 'Random' else 'solid', color=palette[idx])
         plt.fill_between(method_data['lab_obs'], method_data['ci_lower'], method_data['ci_upper'], alpha=0.3, color=palette[idx])
         plt.scatter(method_data['lab_obs'], method_data['mean'], marker=shapes[idx], color=palette[idx], zorder=5)
         lines_handles.append(mlines.Line2D([], [], color=palette[idx], marker=shapes[idx], markersize=5, label=method))

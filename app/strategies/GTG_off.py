@@ -20,7 +20,7 @@ class GTG_off(ActiveLearner):
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,
             'corr': self.get_A_corr,
-            'e_d': self.get_A_e_d,
+            'rbfk': self.get_A_rbfk,
         }
 
         self.gtg_tol: float = gtg_p['gtg_t']
@@ -32,15 +32,12 @@ class GTG_off(ActiveLearner):
         self.AM_threshold: float = gtg_p['am_t']
         
         self.ent_strategy: str = gtg_p['e_s']
-        self.rbf_aff: bool = gtg_p['rbfk']
 
-        ll_v = 'v2' if 'll_version' in ct_p and ct_p['ll_version'] == 2 else ''
-        str_rbf = 'rbf_' if self.rbf_aff else ''
         if self.AM_threshold_strategy != None:
-            str_treshold = f'{self.AM_threshold_strategy}_{self.AM_threshold}' if self.AM_threshold_strategy != 'mean' else 'mean'            
-            strategy_name = f'{self.__class__.__name__}_{ll_v}_{self.AM_strategy}_{str_rbf}{self.AM_function}_{self.ent_strategy}_{str_treshold}'
+            str_tresh_strat = f'{self.AM_threshold_strategy}_{self.AM_threshold}' if self.AM_threshold_strategy != 'mean' else 'ts-mean'            
+            strategy_name = f'{self.__class__.__name__}_{self.AM_function}_{self.AM_strategy}_{str_tresh_strat}_es-{self.ent_strategy}'
         else:
-            strategy_name = f'{self.__class__.__name__}_{ll_v}_{self.AM_strategy}_{str_rbf}{self.AM_function}_{self.ent_strategy}'
+            strategy_name = f'{self.__class__.__name__}_{self.AM_strategy}_{self.AM_function}_es-{self.ent_strategy}'
                 
         super().__init__(ct_p, t_p, al_p, strategy_name)
         
@@ -56,22 +53,20 @@ class GTG_off(ActiveLearner):
     # select the relative choosen affinity matrix method
     def get_A(self) -> None:
 
-        concat_embedds = torch.cat(
-            (self.lab_embedds_dict['embedds'], self.unlab_embedds_dict['embedds'])
-        ).to(self.device)
+        concat_embedds = torch.cat((self.lab_embedds_dict['embedds'], self.unlab_embedds_dict['embedds'])).to(self.device)
         
         del self.unlab_embedds_dict
         torch.cuda.empty_cache()
         
         # compute the affinity matrix
-        A = self.get_A_rbfk(concat_embedds, to_cpu=True) if self.rbf_aff else self.get_A_fn[self.AM_function](concat_embedds)
+        A = self.get_A_fn[self.AM_function](concat_embedds)
     
         initial_A = torch.clone(A)
         
         if self.AM_threshold_strategy != None:
             # remove weak connections with the choosen threshold strategy and value
             logger.info(f' Affinity Matrix Threshold to be used: {self.AM_threshold_strategy}, {self.AM_threshold} -> {self.get_A_treshold(A)}')
-            if self.AM_function != 'e_d': A = torch.where(A < self.get_A_treshold(A), 0, A)
+            if self.AM_function != 'rbfk': A = torch.where(A < self.get_A_treshold(A), 0, A)
             else: A = torch.where(A > self.get_A_treshold(A), 1, A)
         
         
@@ -82,7 +77,7 @@ class GTG_off(ActiveLearner):
             # set the unlabeled submatrix as distance matrix and not similarity matrix
             n_lab_obs = len(self.labeled_indices)
             
-            if self.AM_function == 'e_d':
+            if self.AM_function == 'rbfk':
                 A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL to similarity
                 
             else:
@@ -110,14 +105,8 @@ class GTG_off(ActiveLearner):
     def get_A_rbfk(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         
         device = 'cpu' if to_cpu else self.device
-        A_matrix = self.get_A_fn[self.AM_function](concat_embedds, to_cpu).to(device)
-
-        if self.AM_function == 'e_d':
-            # if euclidean distance is choosen we take the 7th smallest observation which is the 7th closest one (ascending order)
-            seventh_neigh = concat_embedds[torch.argsort(A_matrix, dim=1)[:, 6]]            
-        else:
-            # if correlation or cosine_similairty are choosen we take the 7th highest observation which is the 7th most similar one (descending order)
-            seventh_neigh = concat_embedds[torch.argsort(A_matrix, dim=1, descending=True)[:, 6]]
+        A_matrix = self.get_A_e_d(concat_embedds, to_cpu).to(device)
+        seventh_neigh = concat_embedds[torch.argsort(A_matrix, dim=1)[:, 6]]            
             
         sigmas = torch.unsqueeze(torch.tensor([
             self.get_A_fn[self.AM_function](torch.cat((
@@ -250,6 +239,9 @@ class GTG_off(ActiveLearner):
         logger.info(' => Execution of the Graph Trasduction Game')
         self.graph_trasduction_game()
         logger.info(' DONE\n')
+                
+        # TRUE / FALSE np.ndarray
+        self.gtg_result_prediction = (torch.argmax(self.X[len(self.labeled_indices):], dim=1).cpu() == self.unlabeled_labels).numpy()
 
         
         del self.A
