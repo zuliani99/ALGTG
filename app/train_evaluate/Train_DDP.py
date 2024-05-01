@@ -131,7 +131,7 @@ def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
     t_p = params['t_p']   
     
     ct_p['Master_Model'] = ct_p['Master_Model'].to(params['ct_p']['device'])
-    batch_size = t_p[ct_p['dataset_name']]['batch_size'][ct_p['Master_Model'].added_module.name]
+    batch_size = t_p[ct_p['dataset_name']]['batch_size'][ct_p['Master_Model'].added_module_name]
     
     dict_dl = dict(batch_size=batch_size, pin_memory=True)
     
