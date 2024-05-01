@@ -19,6 +19,7 @@ from strategies.baselines.Entropy import Entropy
 from strategies.baselines.LearningLoss import LearningLoss
 from strategies.competitors.CoreSet import CoreSet
 from strategies.competitors.BADGE import BADGE
+from strategies.competitors.BALD import BALD
 from strategies.competitors.CDAL import CDAL
 from strategies.competitors.TA_VAAL.TA_VAAL import TA_VAAL
 from strategies.GTG import GTG
@@ -39,7 +40,7 @@ logger = logging.getLogger(__name__)
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--methods', type=str, nargs='+', required=True, choices=[
-            'random', 'entropy', 'coreset', 'badge', 'cdal', 'tavaal',
+            'random', 'entropy', 'coreset', 'badge', 'bald', 'cdal', 'tavaal',
             'll', 'gtg', 'll_gtg', 'lq_gtg'
         ],help='Possible methods to choose')
     parser.add_argument('-ds', '--datasets', type=str, nargs='+', required=True, choices=['cifar10', 'cifar100', 'svhn', 'fmnist', 'caltech256', 'tinyimagenet', 'voc', 'coco'],
@@ -72,7 +73,7 @@ def get_args() -> argparse.Namespace:
 
 
 dict_strategies = dict(
-    random = Random, entropy = Entropy, coreset = CoreSet, badge = BADGE, # -> BB
+    random = Random, entropy = Entropy, coreset = CoreSet, badge = BADGE, bald = BALD, # -> BB
     cdal = CDAL, gtg = GTG_off,# -> BB
     
     ll = LearningLoss, ll_gtg = GTG_off, tavaal = TA_VAAL, # -> BB + LL
