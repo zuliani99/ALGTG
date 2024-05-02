@@ -88,18 +88,18 @@ dict_backbone = dict(
 
 def get_strategies_object(methods: List[str], Masters: Dict[str, Master_Model], 
                           ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any]) -> List[Any]:
-    strategies = []
+    strategies: List[Random | Entropy | CoreSet | BADGE | BALD | CDAL | GTG_off | LearningLoss | TA_VAAL | GTG] = []
     for method in methods:
         if 'gtg' in method.split('_'):
-            if method == 'gtg': strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_None']}, t_p, al_p, gtg_p))
-            else:
-                am = gtg_p['am']
-                del gtg_p['am']
+            am = gtg_p['am']
+            del gtg_p['am']
                 
-                for a_matrix in am:
-                    strategies.append(dict_strategies[method]({
-                        **ct_p, 'Master_Model': Masters['M_GTG'] if method.split('_')[0] == 'lq' else Masters['M_LL']
-                    }, t_p, al_p, {**gtg_p, 'am': a_matrix}))
+            for a_matrix in am:
+                if method == 'gtg': m_model = Masters['M_None']
+                elif method.split('_')[0] == 'lq': m_model = Masters['M_GTG']
+                else: m_model = Masters['M_LL']
+
+                strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': copy.deepcopy(m_model)}, t_p, al_p, {**gtg_p, 'am': a_matrix}))
                 
         elif method == 'll' or method == 'tavaal':
             strategies.append(dict_strategies[method]({ **ct_p, 'Master_Model': Masters['M_LL'] }, t_p, al_p))

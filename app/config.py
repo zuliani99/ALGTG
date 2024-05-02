@@ -191,7 +191,7 @@ cls_config = {
                 'GTG_Module': {
                     'type': torch.optim.SGD,
                     'optim_p': {
-                        'lr': 0.001,
+                        'lr': 0.0001, #0.001
                         'momentum': 0.9,
                         'weight_decay': 5e-4
                     }

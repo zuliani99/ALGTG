@@ -27,6 +27,10 @@ class Custom_GAP_Module(nn.Module):
                 nn.Conv2d(n_c, n_c, kernel_size=3, stride=1, padding=1),
                 nn.BatchNorm2d(n_c),
                 nn.ReLU(),
+                
+                nn.Conv2d(n_c, n_c, kernel_size=3, stride=1, padding=1),
+                nn.BatchNorm2d(n_c),
+                nn.ReLU(),
             ))
             self.gaps.append(nn.AvgPool2d(e_d))
             self.linears.append(nn.Sequential(
@@ -52,7 +56,7 @@ class Custom_GAP_Module(nn.Module):
 
         out = self.linear(torch.cat(outs, 1))
         return out
-
+    
 
 class GTG_Module(nn.Module):
     def __init__(self, params):
@@ -76,9 +80,7 @@ class GTG_Module(nn.Module):
         self.AM_threshold: float = gtg_p['am_t']
         
         self.ent_strategy: str = gtg_p['e_s']
-                
         self.perc_labeled_batch: int = gtg_p['plb']
-        
         
         self.n_top_k_obs: int = gtg_p['n_top_k_obs']
         self.n_classes: int = gtg_p['n_classes']
@@ -96,12 +98,11 @@ class GTG_Module(nn.Module):
     
     
     def get_A_rbfk(self, concat_embedds: torch.Tensor) -> torch.Tensor:
-        
         A_matrix = self.get_A_e_d(concat_embedds)
         seventh_neigh = concat_embedds[torch.argsort(A_matrix, dim=1)[:, 6]]            
 
         sigmas = torch.unsqueeze(torch.tensor([
-            self.get_A_e_d(torch.cat(( # type: ignore
+            self.get_A_e_d(torch.cat((
                 torch.unsqueeze(concat_embedds[i], dim=0), torch.unsqueeze(seventh_neigh[i], dim=0)
             )))[0,1].item()
             for i in range(concat_embedds.shape[0]) 
@@ -189,8 +190,10 @@ class GTG_Module(nn.Module):
             self.X /= torch.sum(self.X, dim=1, keepdim=True)
             entropy_hist[:, i] = entropy(self.X).to(self.device)
             
+            #logger.info(f'{i} - {entropy_hist[:, i]}')
+
             i += 1
-            err = torch.norm(self.X - X_old)            
+            err = torch.norm(self.X - X_old)
 
         return entropy_hist
             
@@ -200,10 +203,10 @@ class GTG_Module(nn.Module):
     # , mode: int
     def preprocess_inputs(self, embedding: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
 
-        #indices = torch.arange(self.batch_size)
-        indices = torch.randperm(self.batch_size)
+        indices = torch.arange(self.batch_size)
+        #indices = torch.randperm(self.batch_size)
 
-        ''' if mode == 1:
+        '''if mode == 1:
             self.labeled_indices: List[int] = indices[:self.n_lab_obs].tolist()
             self.unlabeled_indices: List[int] = indices[self.n_lab_obs:].tolist()
         else:
@@ -239,8 +242,9 @@ class GTG_Module(nn.Module):
     
     
     def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, labels: torch.Tensor) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
+    # Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
     # Tuple[Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]], Tuple[torch.Tensor, torch.Tensor]]:
-
+    
         #y_pred = self.c_mod(features, embedds).squeeze()
         y_pred = self.c_mod(features).squeeze()
         
@@ -250,7 +254,7 @@ class GTG_Module(nn.Module):
         y_true, labeled_mask = self.preprocess_inputs(embedds, labels)
         #y_true_1, labeled_mask_1 = self.preprocess_inputs(embedds, labels, mode=1)
         #y_true_2, labeled_mask_2 = self.preprocess_inputs(embedds, labels, mode=2)
-        #logger.info(f'y_pred {y_pred[self.unlabeled_indices]}\ny_true {y_true[self.unlabeled_indices]}')
+        logger.info(f'y_pred {y_pred}\ny_true {y_true}')
             
         #return (y_pred, (y_true_1, y_true_2)), (labeled_mask_1.bool(), labeled_mask_2.bool())
         return (y_pred, y_true), labeled_mask.bool()

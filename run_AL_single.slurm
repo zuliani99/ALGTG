@@ -16,4 +16,4 @@
 
 conda activate al_env
 
-python3 app/main.py -m lq_gtg -ds cifar10 -tr 1 -am_s mixed -am_ts mean -e_s mean
+python3 app/main.py -m lq_gtg -ds cifar10 -tr 1 -am corr -am_s mixed -am_ts mean -e_s mean
