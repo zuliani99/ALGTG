@@ -58,7 +58,7 @@ class ActiveLearner():
         create_method_res_dir(self.path)
         
         # save initial labeled images
-        self.save_labeled_images(self.labeled_indices)
+        #self.save_labeled_images(self.labeled_indices)
         
         
         
@@ -264,7 +264,7 @@ class ActiveLearner():
     
     def update_sets(self, unlab_samp_idxs: List[int], overall_topk: List[int]) -> None:        
         # save the new labeled images to further visual analysis
-        self.save_labeled_images(overall_topk)
+        #self.save_labeled_images(overall_topk)
         
         # Update the labeeld and unlabeled training set
         logger.info(' => Modifing the Subsets')
@@ -336,7 +336,7 @@ class ActiveLearner():
                 # if we are performing GTG Ofline plot also the GTG predictions in the TSNE plot 
                 self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction) # type: ignore
             
-            else: self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter))
+            #else: self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter))
 
             # modify the datasets and dataloader and plot the tsne
             self.update_sets(list(samp_unlab_subset.indices), topk_idx_obs)

@@ -248,6 +248,10 @@ class Custom_Module(nn.Module):
                 nn.Conv2d(n_c, n_c // (e_d // 2), kernel_size=3, stride=2, padding=1),
                 nn.BatchNorm2d(n_c // (e_d // 2)),
                 nn.ReLU(),
+                
+                nn.Conv2d(n_c // (e_d // 2), n_c // (e_d // 2), kernel_size=3, stride=1, padding=1),
+                nn.BatchNorm2d(n_c // (e_d // 2)),
+                nn.ReLU(),
             ))
             
             self.sequentials_2.append(nn.Sequential(

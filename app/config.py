@@ -158,7 +158,7 @@ cls_datasets = {
 
 al_params = {
     'init_lab_obs': 1000,
-    'al_iters': 5,#10, 
+    'al_iters': 10, 
     'n_top_k_obs': 1000,
 }
     
@@ -191,7 +191,7 @@ cls_config = {
                 'GTG_Module': {
                     'type': torch.optim.SGD,
                     'optim_p': {
-                        'lr': 0.0001, #0.001
+                        'lr': 0.00001,
                         'momentum': 0.9,
                         'weight_decay': 5e-4
                     }

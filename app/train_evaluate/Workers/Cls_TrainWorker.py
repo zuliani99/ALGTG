@@ -57,7 +57,7 @@ class Cls_TrainWorker():
         self.optimizers.append(optimizers['backbone']['type'](self.model.backbone.parameters(), **optimizers['backbone']['optim_p']))
         self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1))
         if self.model.added_module != None:
-            self.optimizers.append(optimizers['modules'][self.model.added_module_name]['type'](self.model.backbone.parameters(), **optimizers['modules'][self.model.added_module_name]['optim_p']))
+            self.optimizers.append(optimizers['modules'][self.model.added_module_name]['type'](self.model.added_module.parameters(), **optimizers['modules'][self.model.added_module_name]['optim_p']))
             self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
 
     
@@ -102,11 +102,12 @@ class Cls_TrainWorker():
             tot_loss_ce += backbone.item()
             tot_pred_loss += entr_loss.item()
             '''
+            
             (pred_entr, true_entr), labeled_mask = module_out
             entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
 
             lab_ce_loss = torch.mean(ce_loss[labeled_mask])
-            entr_loss = torch.mean(entr_loss)#[torch.logical_not(labeled_mask)])
+            entr_loss = torch.mean(entr_loss)
             
             loss = lab_ce_loss + entr_loss
             

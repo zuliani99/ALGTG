@@ -5,14 +5,14 @@ import torch.nn.functional as F
 
 from utils import entropy
 
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Dict
 
 import logging
 logger = logging.getLogger(__name__)
 
 
 class Custom_GAP_Module(nn.Module):
-    def __init__(self, params):
+    def __init__(self, params: Dict[str, Any]):
         super(Custom_GAP_Module, self).__init__()
 
         # same parameters of loss net
@@ -24,10 +24,6 @@ class Custom_GAP_Module(nn.Module):
 
         for n_c, e_d in zip(num_channels, feature_sizes):
             self.convs.append(nn.Sequential(
-                nn.Conv2d(n_c, n_c, kernel_size=3, stride=1, padding=1),
-                nn.BatchNorm2d(n_c),
-                nn.ReLU(),
-                
                 nn.Conv2d(n_c, n_c, kernel_size=3, stride=1, padding=1),
                 nn.BatchNorm2d(n_c),
                 nn.ReLU(),
@@ -188,9 +184,10 @@ class GTG_Module(nn.Module):
             self.X *= torch.mm(self.A, self.X)
             
             self.X /= torch.sum(self.X, dim=1, keepdim=True)
-            entropy_hist[:, i] = entropy(self.X).to(self.device)
             
-            #logger.info(f'{i} - {entropy_hist[:, i]}')
+            iter_entropy = entropy(self.X).to(self.device)
+            
+            entropy_hist[self.unlabeled_indices, i] = iter_entropy[self.unlabeled_indices]
 
             i += 1
             err = torch.norm(self.X - X_old)
