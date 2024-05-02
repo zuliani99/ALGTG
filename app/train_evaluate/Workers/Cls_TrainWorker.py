@@ -85,37 +85,32 @@ class Cls_TrainWorker():
         elif len(module_out) == 2:
             
             '''(pred_entr, (true_entr_1, true_entr_2)), (labeled_mask_1, labeled_mask_2) = module_out
+                        
+            #entr_loss_1 = weight * self.mse_loss_fn(pred_entr, true_entr_1.detach())
+            #entr_loss_2 = weight * self.mse_loss_fn(pred_entr, true_entr_2.detach())
             
-            entr_loss_1 = weight * self.mse_loss_fn(pred_entr, true_entr_1.detach())
-            entr_loss_2 = weight * self.mse_loss_fn(pred_entr, true_entr_2.detach())
+            entr_loss_1 = weight * self.ll_loss_fn(pred_entr, true_entr_1)#.detach())
+            entr_loss_2 = weight * self.ll_loss_fn(pred_entr, true_entr_2)#.detach())
+                        
+            entr_loss_1 = torch.mean(entr_loss_1)#[torch.logical_not(labeled_mask_1)])
+            entr_loss_2 = torch.mean(entr_loss_2)#[torch.logical_not(labeled_mask_2)])
             
-            lab_ce_loss_1 = torch.mean(ce_loss[labeled_mask_1])
-            lab_ce_loss_2 = torch.mean(ce_loss[labeled_mask_2])
+            entr_loss = (entr_loss_1 + entr_loss_2) / 2
             
-            entr_loss_1 = torch.mean(entr_loss_1[torch.logical_not(labeled_mask_1)])
-            entr_loss_2 = torch.mean(entr_loss_2[torch.logical_not(labeled_mask_2)])
+            loss = backbone + entr_loss
             
-            entr_loss = entr_loss_1 + entr_loss_2
-            lab_ce_loss = lab_ce_loss_1 + lab_ce_loss_2
-            
-            loss = lab_ce_loss + entr_loss'''
-            
+            tot_loss_ce += backbone.item()
+            tot_pred_loss += entr_loss.item()
+            '''
             (pred_entr, true_entr), labeled_mask = module_out
-            
-            ###########################################################
-            #entr_loss = weight * torch.mean(self.mse_loss_fn(pred_entr, true_entr.detach()))
             entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
-            # it is working also without the detach() and with the correlation matrix, let's see the results
-            ###########################################################
 
             lab_ce_loss = torch.mean(ce_loss[labeled_mask])
-            entr_loss = torch.mean(entr_loss[torch.logical_not(labeled_mask)])
+            entr_loss = torch.mean(entr_loss)#[torch.logical_not(labeled_mask)])
             
-            #loss = lab_ce_loss + unlab_entr_loss
             loss = lab_ce_loss + entr_loss
             
             tot_loss_ce += lab_ce_loss.item()
-            #tot_pred_loss += unlab_entr_loss.item()
             tot_pred_loss += entr_loss.item()
             
             return loss, tot_loss_ce, tot_pred_loss
