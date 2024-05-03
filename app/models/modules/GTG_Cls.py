@@ -54,6 +54,27 @@ class Custom_GAP_Module(nn.Module):
         return out
     
 
+# can overfit a batch
+class Custom_MLP(nn.Module):
+    def __init__(self, in_dim):
+        super(Custom_MLP, self).__init__()
+
+        self.linear1 = nn.Sequential(nn.Linear(in_dim, in_dim//2), nn.ReLU())
+        self.linear2 = nn.Sequential(nn.Linear(in_dim//2, in_dim//4), nn.ReLU())
+        self.linear3 = nn.Sequential(nn.Linear(in_dim//4, in_dim//8), nn.ReLU())
+        self.classifier = nn.Linear(in_dim//8, 1)
+            
+
+    def forward(self, x): 
+        out = self.linear1(x)
+        out = self.linear2(out)
+        out = self.linear3(out)
+        out = self.classifier(out)
+        return out
+    
+    
+
+
 class GTG_Module(nn.Module):
     def __init__(self, params):
         super(GTG_Module, self).__init__()
@@ -82,7 +103,9 @@ class GTG_Module(nn.Module):
         self.n_classes: int = gtg_p['n_classes']
         self.device: int = gtg_p['device']
 
-        self.c_mod = Custom_GAP_Module(ll_p).to(self.device)
+        #self.c_mod = Custom_GAP_Module(ll_p).to(self.device)
+        self.c_mod = Custom_MLP(ll_p['num_channels'][-1]).to(self.device)
+        
         
         
     def define_A_function(self, AM_function: str) -> None: self.AM_function: str = AM_function
@@ -243,7 +266,8 @@ class GTG_Module(nn.Module):
     # Tuple[Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]], Tuple[torch.Tensor, torch.Tensor]]:
     
         #y_pred = self.c_mod(features, embedds).squeeze()
-        y_pred = self.c_mod(features).squeeze()
+        y_pred = self.c_mod(embedds).squeeze()
+        #y_pred = self.c_mod(features).squeeze()
         
         self.batch_size = len(embedds)
         self.n_lab_obs = int(self.batch_size * self.perc_labeled_batch) 
@@ -251,7 +275,7 @@ class GTG_Module(nn.Module):
         y_true, labeled_mask = self.preprocess_inputs(embedds, labels)
         #y_true_1, labeled_mask_1 = self.preprocess_inputs(embedds, labels, mode=1)
         #y_true_2, labeled_mask_2 = self.preprocess_inputs(embedds, labels, mode=2)
-        logger.info(f'y_pred {y_pred}\ny_true {y_true}')
+        #logger.info(f'y_pred {y_pred}\ny_true {y_true}')
             
         #return (y_pred, (y_true_1, y_true_2)), (labeled_mask_1.bool(), labeled_mask_2.bool())
         return (y_pred, y_true), labeled_mask.bool()

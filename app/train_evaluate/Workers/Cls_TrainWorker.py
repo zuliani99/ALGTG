@@ -73,7 +73,8 @@ class Cls_TrainWorker():
 
 
     def compute_losses(self, weight: float, module_out: torch.Tensor | None, outputs: torch.Tensor, \
-                       labels: torch.Tensor, tot_loss_ce: float, tot_pred_loss: float) -> Tuple[torch.Tensor, float, float]:
+                       labels: torch.Tensor, tot_loss_ce: float, tot_pred_loss: float,
+                       iterations: int = -1) -> Tuple[torch.Tensor, float, float]:
                 
         ce_loss = self.ce_loss_fn(outputs, labels)
         backbone = torch.mean(ce_loss)
@@ -104,10 +105,11 @@ class Cls_TrainWorker():
             '''
             
             (pred_entr, true_entr), labeled_mask = module_out
+            if iterations != -1 and iterations % 20 == 0: logger.info(f'pred_entr {pred_entr} - true_entr {true_entr}')
             entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
 
             lab_ce_loss = torch.mean(ce_loss[labeled_mask])
-            entr_loss = torch.mean(entr_loss)
+            entr_loss = torch.mean(entr_loss[labeled_mask]) + torch.mean(entr_loss[torch.logical_not(labeled_mask)])
             
             loss = lab_ce_loss + entr_loss
             
@@ -138,8 +140,10 @@ class Cls_TrainWorker():
     
     def train(self) -> torch.Tensor:
         
+        iterations = 0
         weight = 1.
         results = torch.zeros((4, self.epochs), device=self.device)
+        #_, images, labels = next(iter(self.train_dl))
                 
         self.model.train()
                 
@@ -159,7 +163,7 @@ class Cls_TrainWorker():
                                     
                 loss, train_loss_ce, train_loss_pred = self.compute_losses(
                         weight=weight, module_out=module_out, outputs=outputs, labels=labels,
-                        tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred
+                        tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred, iterations=iterations
                     )  
                                                     
                 for optimizer in self.optimizers: optimizer.zero_grad()
@@ -168,14 +172,15 @@ class Cls_TrainWorker():
                         
                 train_loss += loss.item()
                 train_accuracy += self.score_fn(outputs, labels)
-
+                iterations += 1
+                
 
             train_accuracy /= len(self.train_dl)
             train_loss /= len(self.train_dl)
             train_loss_ce /= len(self.train_dl)
             train_loss_pred /= len(self.train_dl)
             
-            logger.info(f' Epoch: {epoch} | train_accuracy -> {train_accuracy}\ttran_loss -> {train_loss}\ttrain_loss_ce -> {train_loss_ce}\ttrain_loss_pred -> {train_loss_pred}')
+            logger.info(f' Epoch: {epoch} | train_accuracy -> {train_accuracy}\ttrain_loss -> {train_loss}\ttrain_loss_ce -> {train_loss_ce}\ttrain_pred -> {train_loss_pred}')
             
             for pos, metric in zip(range(results.shape[0]), [train_accuracy, train_loss, train_loss_ce, train_loss_pred]):
                 results[pos][epoch] = metric

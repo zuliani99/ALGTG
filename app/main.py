@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument('-gpus', '--gpus', type=int, required=False, default=1, help='Number of GPUs to use during training')
     parser.add_argument('-m', '--methods', type=str, nargs='+', required=True, choices=[
             'random', 'entropy', 'coreset', 'badge', 'bald', 'cdal', 'tavaal',
             'll', 'gtg', 'll_gtg', 'lq_gtg'
@@ -47,7 +48,7 @@ def get_args() -> argparse.Namespace:
                         help='Possible datasets to choose')
     parser.add_argument('-tr', '--trials', type=int, required=False, default=5, help='AL trials')
     
-    parser.add_argument('-am', '--affinity_matrix', type=str, nargs='+', required=False, choices=['corr', 'cos_sim', 'e_d'], default=['corr', 'cos_sim', 'rbfk'],
+    parser.add_argument('-am', '--affinity_matrix', type=str, nargs='+', required=False, choices=['corr', 'cos_sim', 'rbfk'], default=['corr', 'cos_sim', 'rbfk'],
                         help='Affinity matrix to choose')
     parser.add_argument('-am_s', '--affinity_matrix_strategy', type=str, required=False, choices=['uncertanity', 'diversity', 'mixed'], default='mixed', 
                        help='Different affinity matrix modification')
@@ -173,12 +174,12 @@ def main() -> None:
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     if torch.cuda.is_available():
-        logger.info(f"Number of available GPUs: {torch.cuda.device_count()}")
+        logger.info(f'Using {args.gpus} / {torch.cuda.device_count()} of the available GPUs')
         device = torch.device('cuda')
         if dist.is_available(): logger.info('We can train on multiple GPU')
         if dist.is_nccl_available(): logger.info('NCCL backend available')
     else:
-        logger.info("CUDA is not available. Using CPU.")
+        logger.info('CUDA is not available. Using CPU')
         device = torch.device('cpu')
 
     logger.info(f'Application running on {device}\n')
@@ -232,7 +233,8 @@ def main() -> None:
             
         common_training_params = {
             'Dataset': Dataset, 'device': device, 'timestamp': timestamp,
-            'dataset_name': dataset_name, 'task': task, 'wandb_logs': args.wandb
+            'dataset_name': dataset_name, 'task': task, 'wandb_logs': args.wandb,
+            'gpus': args.gpus
         }
         
         for trial in range(args.trials):

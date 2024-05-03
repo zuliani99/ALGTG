@@ -189,11 +189,11 @@ cls_config = {
                     }
                 },
                 'GTG_Module': {
-                    'type': torch.optim.SGD,
+                    'type': torch.optim.Adam,
                     'optim_p': {
-                        'lr': 0.00001,
-                        'momentum': 0.9,
-                        'weight_decay': 5e-4
+                        'lr': 0.001,
+                        #'momentum': 0.9,
+                        #'weight_decay': 5e-4
                     }
                 }
             }

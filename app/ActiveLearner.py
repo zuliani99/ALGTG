@@ -52,7 +52,7 @@ class ActiveLearner():
         self.strategy_name = f'{self.model.name}_{strategy_name}' # define strategy name    
         self.best_check_filename: str = f'app/checkpoints/{self.ct_p['dataset_name']}/best_{self.strategy_name}'
         
-        self.world_size: int = torch.cuda.device_count()
+        self.world_size: int = self.ct_p['gpus']#torch.cuda.device_count()
         
         self.path = f'results/{self.ct_p['timestamp']}/{self.ct_p['dataset_name']}/{self.ct_p['trial']}/{self.strategy_name}'
         create_method_res_dir(self.path)
@@ -336,7 +336,7 @@ class ActiveLearner():
                 # if we are performing GTG Ofline plot also the GTG predictions in the TSNE plot 
                 self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction) # type: ignore
             
-            #else: self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter))
+            elif self.model.added_module_name == 'GTG_Module': self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter))
 
             # modify the datasets and dataloader and plot the tsne
             self.update_sets(list(samp_unlab_subset.indices), topk_idx_obs)
