@@ -18,12 +18,12 @@ conda activate <env>
 
 ## Applciation Start Up
 Example of application start-up:
-```bash
+```
 python3 app/main.py -gpus 1 -m random entropy coreset badge bald cdal tavaal ll ll_gtg -ds cifar10 -tr 5 -am corr -am_s mixed -am_ts mean -e_s mean
 ```
 
 Accepted Arguments:
-```bash
+```
 usage: main.py [-h] [-gpus GPUS]
                -m
                {random,entropy,coreset,badge,bald,cdal,tavaal,ll,gtg,ll_gtg,lq_gtg}
@@ -41,9 +41,11 @@ options:
   -h, --help            show this help message and exit
   -gpus GPUS, --gpus GPUS
                         Number of GPUs to use during training
-  -m {random,entropy,coreset,badge,bald,cdal,tavaal,ll,gtg,ll_gtg,lq_gtg} [{random,entropy,coreset,badge,bald,cdal,tavaal,ll,gtg,ll_gtg,lq_gtg} ...], --methods {random,entropy,coreset,badge,bald,cdal,tavaal,ll,gtg,ll_gtg,lq_gtg} [{random,entropy,coreset,badge,bald,cdal,tavaal,ll,gtg,ll_gtg,lq_gtg} ...]
+  -m {random,entropy,coreset,badge,bald,cdal,tavaal,ll,gtg,ll_gtg,lq_gtg} [{random,entropy,coreset,badge,bald,cdal,tavaal,ll,gtg,ll_gtg,lq_gtg} ...],
+  --methods {random,entropy,coreset,badge,bald,cdal,tavaal,ll,gtg,ll_gtg,lq_gtg} [{random,entropy,coreset,badge,bald,cdal,tavaal,ll,gtg,ll_gtg,lq_gtg} ...]
                         Possible methods to choose
-  -ds {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} ...], --datasets {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} ...]
+  -ds {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} ...],
+  --datasets {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} ...]
                         Possible datasets to choose
   -tr TRIALS, --trials TRIALS
                         AL trials
