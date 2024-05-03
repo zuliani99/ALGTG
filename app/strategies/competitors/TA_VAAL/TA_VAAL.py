@@ -55,7 +55,7 @@ class TA_VAAL(ActiveLearner):
         labeled_data = self.read_data(self.lab_train_dl)
         unlabeled_data = self.read_data(self.unlab_train_dl)
 
-        train_iterations = int( (n_top_k_obs * cycle + subset_len) * EPOCHV / self.ds_t_p['batch_size'] )
+        train_iterations = int( (n_top_k_obs * cycle + subset_len) * EPOCHV / self.batch_size )
 
 
         for iter_count in range(train_iterations):
@@ -67,8 +67,8 @@ class TA_VAAL(ActiveLearner):
             labels = labels.to(self.device)
             
             if iter_count == 0 :
-                r_l_0 = torch.FloatTensor(torch.from_numpy(np.random.uniform(0, 1, size=(labeled_imgs.shape[0],1)))).to(self.device)
-                r_u_0 = torch.FloatTensor(torch.from_numpy(np.random.uniform(0, 1, size=(unlabeled_imgs.shape[0],1)))).to(self.device)
+                r_l_0 = torch.from_numpy(np.random.uniform(0, 1, size=(labeled_imgs.shape[0],1))).type('torch.FloatTensor').to(self.device)
+                r_u_0 = torch.from_numpy(np.random.uniform(0, 1, size=(unlabeled_imgs.shape[0],1))).type('torch.FloatTensor').to(self.device)
             else:
                 with torch.no_grad():
                     _, _, r_l = self.model(labeled_imgs)
