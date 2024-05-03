@@ -168,7 +168,7 @@ class TA_VAAL(ActiveLearner):
         self.vae = VAE(
             z_dim=self.dataset.image_size,
             nc=self.dataset.n_channels,
-            f_filt=3 if self.ds_t_p['dataset_name'] == 'fmnist' else 4
+            f_filt=3 if self.ct_p['dataset_name'] == 'fmnist' else 4
         ).to(self.device)
         
         self.discriminator = Discriminator(z_dim=self.dataset.image_size).to(self.device)
