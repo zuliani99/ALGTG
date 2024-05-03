@@ -42,7 +42,7 @@ def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('-gpus', '--gpus', type=int, required=False, default=1, help='Number of GPUs to use during training')
     parser.add_argument('-m', '--methods', type=str, nargs='+', required=True, choices=[
-            'random', 'entropy', 'coreset', 'badge', 'bald', 'cdal', 'tavaal', 'alphamix'
+            'random', 'entropy', 'coreset', 'badge', 'bald', 'cdal', 'tavaal', 'alphamix',
             'll', 'gtg', 'll_gtg', 'lq_gtg'
         ],help='Possible methods to choose')
     parser.add_argument('-ds', '--datasets', type=str, nargs='+', required=True, choices=['cifar10', 'cifar100', 'svhn', 'fmnist', 'caltech256', 'tinyimagenet', 'voc', 'coco'],
@@ -95,14 +95,14 @@ def get_strategies_object(methods: List[str], Masters: Dict[str, Master_Model],
         if 'gtg' in method.split('_'):
             
             am_ts = gtg_p['am_ts']
-            del gtg_p['am_ts']
+            am = gtg_p['am']
             
+            del gtg_p['am_ts']
+            del gtg_p['am']
+                
             for a_t_strategy in am_ts:
                 
                 if a_t_strategy == 'none': a_t_strategy = None
-                
-                am = gtg_p['am']
-                del gtg_p['am']
                     
                 for a_matrix in am:
                     if method == 'gtg': m_model = Masters['M_None']
