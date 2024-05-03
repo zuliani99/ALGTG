@@ -48,11 +48,8 @@ class CDAL(ActiveLearner):
         lab_train_dl = DataLoader(self.labeled_subset, **dl_dict)
             
         logger.info(' => Getting the labeled and unlabeled probebilities')
-        lab_embedds_dict = {'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32)}
-        unlab_embedds_dict = {
-            'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32),
-            'idxs': torch.empty(0, dtype=torch.int8)
-        }
+        lab_embedds_dict = { 'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32) }
+        unlab_embedds_dict = { 'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32) }
         
         self.load_best_checkpoint()
         
@@ -67,5 +64,5 @@ class CDAL(ActiveLearner):
         topk_idx_obs = self.furthest_first(unlab_probs, lab_probs, n_top_k_obs)
                     
         
-        return topk_idx_obs, [int(unlab_embedds_dict['idxs'][id].item()) for id in topk_idx_obs]
+        return topk_idx_obs, [self.rand_unlab_sample[id] for id in topk_idx_obs]
     

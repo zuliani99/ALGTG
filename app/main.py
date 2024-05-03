@@ -22,6 +22,7 @@ from strategies.competitors.BADGE import BADGE
 from strategies.competitors.BALD import BALD
 from strategies.competitors.CDAL import CDAL
 from strategies.competitors.TA_VAAL.TA_VAAL import TA_VAAL
+from strategies.competitors.AlphaMix import AlphaMix
 from strategies.GTG import GTG
 from strategies.GTG_off import GTG_off
     
@@ -41,7 +42,7 @@ def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('-gpus', '--gpus', type=int, required=False, default=1, help='Number of GPUs to use during training')
     parser.add_argument('-m', '--methods', type=str, nargs='+', required=True, choices=[
-            'random', 'entropy', 'coreset', 'badge', 'bald', 'cdal', 'tavaal',
+            'random', 'entropy', 'coreset', 'badge', 'bald', 'cdal', 'tavaal', 'alphamix'
             'll', 'gtg', 'll_gtg', 'lq_gtg'
         ],help='Possible methods to choose')
     parser.add_argument('-ds', '--datasets', type=str, nargs='+', required=True, choices=['cifar10', 'cifar100', 'svhn', 'fmnist', 'caltech256', 'tinyimagenet', 'voc', 'coco'],
@@ -52,7 +53,7 @@ def get_args() -> argparse.Namespace:
                         help='Affinity matrix to choose')
     parser.add_argument('-am_s', '--affinity_matrix_strategy', type=str, required=False, choices=['uncertanity', 'diversity', 'mixed'], default='mixed', 
                        help='Different affinity matrix modification')
-    parser.add_argument('-am_ts', '--affinity_matrix_threshold_strategies', type=str, required=False, nargs='+' choices=['threshold', 'mean', 'none'], default=['mean', 'none'],
+    parser.add_argument('-am_ts', '--affinity_matrix_threshold_strategies', type=str, required=False, nargs='+', choices=['threshold', 'mean', 'none'], default=['mean', 'none'],
                         help='Possible treshold strategy types to choose to apply in the affinity matrix')
     parser.add_argument('-am_t', '--affinity_matrix_threshold', type=float, required=False, default=0.5, 
                         help='Affinity Matrix Threshold for our method, when threshold_strategy = mean, this is ignored')
@@ -75,7 +76,7 @@ def get_args() -> argparse.Namespace:
 
 dict_strategies = dict(
     random = Random, entropy = Entropy, coreset = CoreSet, badge = BADGE, bald = BALD, # -> BB
-    cdal = CDAL, gtg = GTG_off,# -> BB
+    cdal = CDAL, gtg = GTG_off, alphamix = AlphaMix, # -> BB
     
     ll = LearningLoss, ll_gtg = GTG_off, tavaal = TA_VAAL, # -> BB + LL
     lq_gtg = GTG # -> BB + GTG

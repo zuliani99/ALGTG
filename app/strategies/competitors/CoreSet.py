@@ -46,13 +46,8 @@ class CoreSet(ActiveLearner):
         lab_train_dl = DataLoader(self.labeled_subset, **dl_dict)
             
         logger.info(' => Getting the labeled and unlabeled embeddings')
-        self.lab_embedds_dict = {
-            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device)
-        }
-        self.unlab_embedds_dict = {
-            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
-            'idxs': torch.empty(0, dtype=torch.int8)
-        }
+        self.lab_embedds_dict = { 'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device) }
+        self.unlab_embedds_dict = { 'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device) }
         
         self.load_best_checkpoint()
             
@@ -67,5 +62,5 @@ class CoreSet(ActiveLearner):
         del self.lab_embedds_dict
         torch.cuda.empty_cache()
         
-        return topk_idx_obs, [int(self.unlab_embedds_dict['idxs'][id].item()) for id in topk_idx_obs]
+        return topk_idx_obs, [self.rand_unlab_sample[id] for id in topk_idx_obs]
     

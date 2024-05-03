@@ -73,10 +73,10 @@ class BALD(ActiveLearner):
         indices, res_entropy = self.disagreement_dropout()
         logger.info(' DONE\n')
             
-        overall_topk = torch.topk(res_entropy, n_top_k_obs)
+        overall_topk = torch.topk(res_entropy, n_top_k_obs).indices.tolist()
         
         del res_entropy
         torch.cuda.empty_cache()
-        
-        return overall_topk.indices.tolist(), [int(indices[id].item()) for id in overall_topk.indices.tolist()]
+                
+        return overall_topk, [int(indices[id].item()) for id in overall_topk]
     

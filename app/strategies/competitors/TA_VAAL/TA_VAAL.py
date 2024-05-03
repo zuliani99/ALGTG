@@ -162,9 +162,6 @@ class TA_VAAL(ActiveLearner):
         self.unlab_train_dl = DataLoader(sample_unlab_subset, **dl_dict)
         self.lab_train_dl = DataLoader(Subset(self.dataset.non_transformed_trainset, self.labeled_indices), **dl_dict)
         
-        self.idxs_unlab = { 'idxs': torch.empty(0, dtype=torch.int8) }
-        self.get_embeddings(self.unlab_train_dl, self.idxs_unlab)
-        
         self.vae = VAE(
             z_dim=self.dataset.image_size,
             nc=self.dataset.n_channels,
@@ -201,9 +198,8 @@ class TA_VAAL(ActiveLearner):
         #all_preds *= -1 # -> technically now should be correct, commenting this I can use torch.topk(, largest=False)
         
         # select the topk points which the discriminator things are the most likely to be unlabeled
-        overall_topk = torch.topk(all_preds, n_top_k_obs, largest=False)
+        overall_topk = torch.topk(all_preds, n_top_k_obs, largest=False).indices.tolist()
         
-        return overall_topk.indices.tolist(), [int(self.idxs_unlab['idxs'][id].item()) for id in overall_topk.indices.tolist()] 
-
+        return overall_topk, [self.rand_unlab_sample[id] for id in overall_topk]
         
     

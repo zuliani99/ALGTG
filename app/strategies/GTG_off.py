@@ -254,12 +254,12 @@ class GTG_off(ActiveLearner):
         if self.ent_strategy == 'mean':
             # computing the mean of the entropis history
             mean_ent = torch.mean(self.unlab_entropy_hist, dim=1)
-            overall_topk = torch.topk(mean_ent, k=n_top_k_obs)
+            overall_topk = torch.topk(mean_ent, k=n_top_k_obs).indices.tolist()
           
         elif self.ent_strategy == 'integral':
             # computing the area of the entropis history using trapezoid formula 
             area = torch.trapezoid(self.unlab_entropy_hist, dim=1)
-            overall_topk = torch.topk(area, k=n_top_k_obs, largest=True)
+            overall_topk = torch.topk(area, k=n_top_k_obs, largest=True).indices.tolist()
         
         else: 
             logger.exception('Unrecognized derivates computation strategy')
@@ -267,7 +267,7 @@ class GTG_off(ActiveLearner):
         
         # plot entropy hisstory tensor
         plot_gtg_entropy_tensor(
-            tensor=self.unlab_entropy_hist, topk=overall_topk.indices.tolist(), lab_unlabels=self.unlabeled_labels.tolist(), classes=self.dataset.classes, 
+            tensor=self.unlab_entropy_hist, topk=overall_topk, lab_unlabels=self.unlabeled_labels.tolist(), classes=self.dataset.classes, 
             path=self.path, iter=self.iter - 1, max_x=self.gtg_max_iter, dir='history'
         )
         
@@ -278,5 +278,5 @@ class GTG_off(ActiveLearner):
         
         logger.info(' DONE\n')
         
-        return overall_topk.indices.tolist(), [self.unlabeled_idxs[id].item() for id in overall_topk.indices.tolist()]
+        return overall_topk, [self.unlabeled_idxs[id].item() for id in overall_topk]
     

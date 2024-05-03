@@ -61,10 +61,7 @@ class BADGE(ActiveLearner):
         )
             
         logger.info(' => Getting the unlabeled embeddings')
-        self.embedds_dict = {
-            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
-            'idxs': torch.empty(0, dtype=torch.int8)
-        }
+        self.embedds_dict = { 'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device) }
         
         self.load_best_checkpoint()
         
@@ -75,7 +72,5 @@ class BADGE(ActiveLearner):
         topk_idx_obs = self.init_centers(n_top_k_obs)
         logger.info(' DONE\n')
         
-                
-        return topk_idx_obs, [int(self.embedds_dict['idxs'][id].item()) for id in topk_idx_obs]
-
+        return topk_idx_obs, [self.rand_unlab_sample[id] for id in topk_idx_obs]
     

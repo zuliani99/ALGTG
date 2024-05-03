@@ -84,13 +84,13 @@ class ActiveLearner():
             set_seeds(seed)
             
             rand_perm = torch.randperm(len(self.unlabeled_indices)).tolist()
-            rand_perm_unlabeled = [self.unlabeled_indices[idx] for idx in rand_perm[:self.ds_t_p['unlab_sample_dim']]]
+            self.rand_unlab_sample = [self.unlabeled_indices[idx] for idx in rand_perm[:self.ds_t_p['unlab_sample_dim']]]
             
             logger.info(f' SEED: {seed} - Last 10 permuted indices are: {rand_perm[-10:]}')
-            unlab_perm_subset = Subset(self.dataset.non_transformed_trainset, rand_perm_unlabeled)
+            unlab_perm_subset = Subset(self.dataset.non_transformed_trainset, self.rand_unlab_sample)
             
             # removing the whole observation sample fromt the unlabeled indices list
-            for idx in rand_perm_unlabeled: self.unlabeled_indices.remove(idx) # - 10000
+            for idx in self.rand_unlab_sample: self.unlabeled_indices.remove(idx) # - 10000
             
             logger.info(f' SEED: {seed} - With dataset indices: {unlab_perm_subset.indices[-10:]}')
             
@@ -118,7 +118,7 @@ class ActiveLearner():
 
         # again no gradients needed
         with torch.inference_mode():
-            for idxs, images, labels in dataloader:
+            for _, images, labels in dataloader:
 
                 if 'embedds' in dict_to_modify:
                     embed = self.model(images.to(self.device), mode='embedds')
@@ -140,10 +140,7 @@ class ActiveLearner():
                     else:
                         raise AttributeError("Can't get the module_out if there is no additional module specified")    
                                         
-                if 'labels' in dict_to_modify:
-                    dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)
-                if 'idxs' in dict_to_modify:
-                    dict_to_modify['idxs'] = torch.cat((dict_to_modify['idxs'], idxs), dim=0)
+                if 'labels' in dict_to_modify: dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)
 
     
     
