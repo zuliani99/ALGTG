@@ -52,7 +52,7 @@ def get_args() -> argparse.Namespace:
                         help='Affinity matrix to choose')
     parser.add_argument('-am_s', '--affinity_matrix_strategy', type=str, required=False, choices=['uncertanity', 'diversity', 'mixed'], default='mixed', 
                        help='Different affinity matrix modification')
-    parser.add_argument('-am_ts', '--affinity_matrix_threshold_strategy', type=str, required=False, choices=['threshold', 'mean'], default='mean',
+    parser.add_argument('-am_ts', '--affinity_matrix_threshold_strategies', type=str, required=False, nargs='+' choices=['threshold', 'mean', 'none'], default=['mean', 'none'],
                         help='Possible treshold strategy types to choose to apply in the affinity matrix')
     parser.add_argument('-am_t', '--affinity_matrix_threshold', type=float, required=False, default=0.5, 
                         help='Affinity Matrix Threshold for our method, when threshold_strategy = mean, this is ignored')
@@ -92,15 +92,25 @@ def get_strategies_object(methods: List[str], Masters: Dict[str, Master_Model],
     strategies: List[Random | Entropy | CoreSet | BADGE | BALD | CDAL | GTG_off | LearningLoss | TA_VAAL | GTG] = []
     for method in methods:
         if 'gtg' in method.split('_'):
-            am = gtg_p['am']
-            del gtg_p['am']
+            
+            am_ts = gtg_p['am_ts']
+            del gtg_p['am_ts']
+            
+            for a_t_strategy in am_ts:
                 
-            for a_matrix in am:
-                if method == 'gtg': m_model = Masters['M_None']
-                elif method.split('_')[0] == 'lq': m_model = Masters['M_GTG']
-                else: m_model = Masters['M_LL']
+                if a_t_strategy == 'none': a_t_strategy = None
+                
+                am = gtg_p['am']
+                del gtg_p['am']
+                    
+                for a_matrix in am:
+                    if method == 'gtg': m_model = Masters['M_None']
+                    elif method.split('_')[0] == 'lq': m_model = Masters['M_GTG']
+                    else: m_model = Masters['M_LL']
 
-                strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': copy.deepcopy(m_model)}, t_p, al_p, {**gtg_p, 'am': a_matrix}))
+                    strategies.append(dict_strategies[method](
+                        {**ct_p, 'Master_Model': copy.deepcopy(m_model)}, t_p, al_p, {**gtg_p, 'am_ts': a_t_strategy, 'am': a_matrix})
+                    )
                 
         elif method == 'll' or method == 'tavaal':
             strategies.append(dict_strategies[method]({ **ct_p, 'Master_Model': Masters['M_LL'] }, t_p, al_p))
@@ -194,7 +204,7 @@ def main() -> None:
         
         'am': args.affinity_matrix,
         'am_s': args.affinity_matrix_strategy,
-        'am_ts': args.affinity_matrix_threshold_strategy,
+        'am_ts': args.affinity_matrix_threshold_strategies,
         'am_t': args.affinity_matrix_threshold,
         'e_s': args.entropy_strategy,
         
