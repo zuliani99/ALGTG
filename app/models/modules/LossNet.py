@@ -1,7 +1,3 @@
-'''
-Reference:
-    https://github.com/euphoria0-0/Learning-Loss-for-Active-Learning/
-'''
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -11,7 +7,6 @@ from utils import init_weights_apply
 
 import logging
 logger = logging.getLogger(__name__)
-
 
     
 class LossPredLoss(nn.Module):
@@ -37,6 +32,7 @@ class LossPredLoss(nn.Module):
         one = torch.sign(torch.clamp(target, min=0)).to(self.device) # 1 operation which is defined by the authors
         
         return self.criterion(diff,one)
+
 
 
 # Loss Prediction Network

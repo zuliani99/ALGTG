@@ -3,8 +3,9 @@ import copy
 import torch
 
 from torch.distributed import destroy_process_group, init_process_group
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from torch.utils.data.distributed import DistributedSampler
+from torch.utils.data.sampler import SubsetRandomSampler
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
@@ -68,10 +69,13 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     train_results = [torch.zeros((4, t_p['epochs']), device=rank) for _ in range(world_size)]
     test_results = [torch.zeros(1, device=rank) for _ in range(world_size)]
     
-    
+    train_ds = Subset(ct_p['Dataset'].train_ds, params['labeled_subset'])
     params['train_dl'] = DataLoader(
-        params['labeled_subset'],
-        sampler=DistributedSampler(params['labeled_subset'], num_replicas=world_size,
+        train_ds,
+        #sampler=DistributedSampler(params['labeled_subset'], num_replicas=world_size,
+        
+        # TiDAL WON'T WORK SINCE MMOVING_PROBS IS NOT ACCESSIBLE FROM SUBSET
+        sampler=DistributedSampler(train_ds, num_replicas=world_size,
                                    rank=rank, shuffle=True, seed=100001),
         **dict_dl
     )
@@ -111,7 +115,6 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     
     gc.collect()
     
-    
     if rank == 0:
         train_results = (torch.sum(torch.stack(train_results), dim=0) / world_size).cpu().tolist()
         test_results = (torch.sum(torch.stack(test_results), dim=0) / world_size).cpu().tolist()
@@ -145,7 +148,7 @@ def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
     
     else: TrainWorker = Cls_TrainWorker
     
-    params['train_dl'] = DataLoader(params['labeled_subset'], shuffle=True, **dict_dl)
+    params['train_dl'] = DataLoader(ct_p['Dataset'].train_ds, sampler=SubsetRandomSampler(params['labeled_indices']), **dict_dl)
     params['test_dl'] = DataLoader(ct_p['Dataset'].test_ds, shuffle=False, **dict_dl)
     
     train_test = TrainWorker(params['ct_p']['device'], params)

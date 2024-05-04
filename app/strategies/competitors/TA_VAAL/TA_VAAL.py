@@ -160,7 +160,7 @@ class TA_VAAL(ActiveLearner):
         dl_dict = dict( batch_size=self.batch_size, shuffle=False, pin_memory=True )
         
         self.unlab_train_dl = DataLoader(sample_unlab_subset, **dl_dict)
-        self.lab_train_dl = DataLoader(Subset(self.dataset.non_transformed_trainset, self.labeled_indices), **dl_dict)
+        self.lab_train_dl = DataLoader(Subset(self.dataset.unlab_train_ds, self.labeled_indices), **dl_dict)
         
         self.vae = VAE(
             z_dim=self.dataset.image_size,

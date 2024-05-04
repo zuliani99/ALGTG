@@ -159,8 +159,8 @@ class Cls_Datasets():
         self.dataset_id: int = cls_datasets[dataset_name]['id']
         self.image_size: int = cls_datasets[dataset_name]['image_size']
         
-        self.transformed_trainset = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=True, n_classes=self.n_classes)
-        self.non_transformed_trainset = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=False)
+        self.train_ds = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=True, n_classes=self.n_classes)
+        self.unlab_train_ds = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=False)
         
         self.test_ds = Cls_Dataset(dataset_name=dataset_name, bool_train=False, bool_transform=False)
  
@@ -175,7 +175,7 @@ class Cls_Datasets():
     
     def get_initial_subsets(self, init_lab_obs: int) -> None:
 
-        train_size = len(self.transformed_trainset)
+        train_size = len(self.train_ds)
         
         # random shuffle of the train indices
         shuffled_indices = torch.randperm(train_size)
@@ -186,7 +186,7 @@ class Cls_Datasets():
         self.unlabeled_indices: List[int] = shuffled_indices[init_lab_obs:].tolist()
         
         logger.info(f' Initial subset of labeled observations composed with: {count_class_observation(
-            self.classes, Subset(self.transformed_trainset, self.labeled_indices)
+            self.classes, Subset(self.train_ds, self.labeled_indices)
         )}')
 
 
@@ -254,21 +254,4 @@ class Cls_Dataset(Dataset):
             return index, image, label, self.moving_prob[index] # -> for TiDAL
         else: return index, image, label
         
-        
-class MySubset(Dataset): # -> for TiDAL
     
-    def __init__(self, dataset, indices):
-        self.dataset = Subset(dataset, indices)
-        self.moving_prob = dataset.moving_prob
-        
-    def __getitem__(self, idx):
-        index = self.dataset[idx][0]
-        image = self.dataset[idx][1]
-        label = self.dataset[idx][2]
-        
-        if len(self.dataset[idx]) > 3:
-            return index, image, label, self.dataset[idx][3]
-        else: return index, image, label
-
-    def __len__(self):
-        return len(self.dataset)

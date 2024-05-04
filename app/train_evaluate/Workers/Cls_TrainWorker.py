@@ -40,7 +40,6 @@ class Cls_TrainWorker():
         self.ce_loss_fn = nn.CrossEntropyLoss(reduction='none').to(self.device)
         self.mse_loss_fn = nn.MSELoss(reduction='none').to(self.device)
         self.kld_loss_fn = nn.KLDivLoss(reduction='batchmean').to(self.device)
-        
         self.ll_loss_fn = LossPredLoss(self.device).to(self.device)
         
         self.score_fn = accuracy_score
@@ -158,19 +157,18 @@ class Cls_TrainWorker():
             if epoch > 120: weight = 0.
              
             for idxs, images, labels, moving_prob in self.train_dl:
-                                
                 images, labels = self.return_moved_imgs_labs(images, labels)
-                outputs, _, module_out = self.model(images, labels=labels)
                 
-                #print(module_out)
-                                    
+                for optimizer in self.optimizers: optimizer.zero_grad()
+                
+                outputs, _, module_out = self.model(images, labels=labels)
+                                                    
                 loss, train_loss_ce, train_loss_pred = self.compute_losses(
                         weight=weight, module_out=module_out, outputs=outputs, labels=labels,
                         tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred, tidal=(idxs, moving_prob, epoch),
                         #iterations=iterations
                     )  
                                                     
-                for optimizer in self.optimizers: optimizer.zero_grad()
                 loss.backward()
                 for optimizer in self.optimizers: optimizer.step()
                         

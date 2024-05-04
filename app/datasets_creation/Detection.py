@@ -69,7 +69,7 @@ def detection_collate(batch):
 class Det_Dataset():
     def __init__(self, dataset_name: str, init_lab_obs: int) -> None:
 
-        self.transformed_trainset, self.non_transformed_trainset, self.test_ds = get_detection_dataset(dataset_name, 'datasets/voc')
+        self.train_ds, self.unlab_train_ds, self.test_ds = get_detection_dataset(dataset_name, 'datasets/voc')
         
         self.n_classes: int = det_datasets[dataset_name]['n_classes']
         self.dataset_id: int = det_datasets[dataset_name]['id']
@@ -84,7 +84,7 @@ class Det_Dataset():
     
     def get_initial_subsets(self, init_lab_obs: int) -> None:
 
-        train_size = len(self.transformed_trainset)
+        train_size = len(self.train_ds)
         
         # random shuffle of the train indices
         shuffled_indices = torch.randperm(train_size)

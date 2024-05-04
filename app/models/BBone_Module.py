@@ -35,14 +35,16 @@ class Master_Model(nn.Module):
         
     def forward(self, x, labels=None, mode='all'):
         if mode == 'all':
+            
             outs, embedds = self.backbone(x)
+            
             if torch.any(torch.isnan(embedds)): print(embedds)
             assert not torch.any(torch.isnan(embedds)), 'embedding is nan'
             assert torch.std(embedds) > 0, 'std is zero or negative'
             
             # module out is:
             # LL -> loss
-            # GTG -> loss, mask
+            # GTG -> (y_true, y_pred), mask
 
             if self.added_module != None:
                 features = self.backbone.get_features()

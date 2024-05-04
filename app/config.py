@@ -177,7 +177,7 @@ cls_config = {
             'backbone': {
                 'type': torch.optim.SGD,
                 'optim_p': {
-                    'lr': 0.001, #0.1,
+                    'lr': 0.1,
                     'momentum': 0.9,
                     'weight_decay': 5e-4
                 }

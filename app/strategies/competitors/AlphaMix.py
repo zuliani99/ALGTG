@@ -38,7 +38,7 @@ class AlphaMix(ActiveLearner):
         dl_dict = dict( batch_size=self.batch_size, shuffle=False, pin_memory=True )
             
         unlab_train_dl = DataLoader(sample_unlab_subset, **dl_dict)
-        lab_train_dl = DataLoader(self.labeled_subset, **dl_dict)
+        lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labeled_indices), **dl_dict)
             
         logger.info(' => Getting the labeled and unlabeled embeddings')
         self.lab_embedds_dict = {

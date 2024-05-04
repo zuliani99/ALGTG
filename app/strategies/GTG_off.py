@@ -126,6 +126,7 @@ class GTG_off(ActiveLearner):
     
     
     def get_A_e_d(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
+        
         A = torch.cdist(concat_embedds, concat_embedds).to('cpu' if to_cpu else self.device)
         return torch.clamp(A, min=0., max=1.)
 
@@ -205,15 +206,14 @@ class GTG_off(ActiveLearner):
         # set the entire batch size to the dimension of the sampled unlabeled set
         self.len_unlab_sample = len(sample_unlab_subset)
 
-        # we have the batch size which is equal to the number of sampled observation from the unlabeled set                    
-        unlab_train_dl = DataLoader(                           # set shuffle to false since I do not have interest on shufflind the dataloader, since I have only to get the embeddings
-            sample_unlab_subset, batch_size=self.len_unlab_sample,  # thus there is no needs on shuffling the unlabeled dataloader
-            shuffle=False, pin_memory=True
-        )
-        lab_train_dl = DataLoader(
-            self.labeled_subset, batch_size=self.batch_size,  # thus there is no needs on shuffling the unlabeled dataloader
-            shuffle=False, pin_memory=True
-        )
+        dl_dict = dict(batch_size=self.len_unlab_sample, shuffle=False, pin_memory=True)
+        
+        # we have the batch size which is equal to the number of sampled observation from the unlabeled set
+        # set shuffle to false since I do not have interest on shufflind the dataloader, since I have only to get the embeddings
+        # thus there is no needs on shuffling the unlabeled dataloader            
+        
+        unlab_train_dl = DataLoader(sample_unlab_subset, **dl_dict)
+        lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labeled_indices), **dl_dict)
                 
         logger.info(' => Getting the labeled and unlabeled embeddings')
         self.lab_embedds_dict = {

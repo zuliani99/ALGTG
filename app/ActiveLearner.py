@@ -2,7 +2,7 @@
 import wandb
 
 from models.BBone_Module import Master_Model
-from datasets_creation.Classification import Cls_Datasets, MySubset
+from datasets_creation.Classification import Cls_Datasets
 from datasets_creation.Detection import Det_Dataset
 from train_evaluate.Train_DDP import train, train_ddp
 from utils import count_class_observation, print_cumulative_train_results, set_seeds,\
@@ -48,8 +48,6 @@ class ActiveLearner():
 
         self.train_results: Dict[str, Any] = {}
         
-        self.labeled_subset = MySubset(self.dataset.transformed_trainset, self.labeled_indices)
-
         self.strategy_name = f'{self.model.name}_{strategy_name}' # define strategy name    
         self.best_check_filename: str = f'app/checkpoints/{self.ct_p['dataset_name']}/best_{self.strategy_name}'
         
@@ -67,7 +65,7 @@ class ActiveLearner():
     def save_labeled_images(self, new_labeled_idxs: List[int]) -> None:
         logger.info(f' => Iteration {self.iter} Method {self.strategy_name} - Saving the new labeled images for further visual analysis...')
         create_class_dir(self.path, self.iter, self.dataset.classes)
-        for idx_top, (_, img, gt) in enumerate(Subset(self.dataset.non_transformed_trainset, new_labeled_idxs)): # type: ignore
+        for idx_top, (_, img, gt) in enumerate(Subset(self.dataset.unlab_train_ds, new_labeled_idxs)): # type: ignore
             if self.ct_p['task'] != 'clf': 
                 unique_labs = np.unique(np.array([labs[-1] for labs in gt]))
                 for lab in unique_labs: 
@@ -78,7 +76,7 @@ class ActiveLearner():
         
         
     
-    def get_samp_unlab_subset(self) -> Subset:
+    def get_rand_unlab_sample(self) -> None:
         if self.ct_p['task'] == 'clf':
             # set seed for reproducibility            
             seed = self.dataset.dataset_id * (self.ct_p['trial'] * self.al_p['al_iters'] + (self.iter - 1))
@@ -88,20 +86,15 @@ class ActiveLearner():
             self.rand_unlab_sample = [self.unlabeled_indices[idx] for idx in rand_perm[:self.ds_t_p['unlab_sample_dim']]]
             
             logger.info(f' SEED: {seed} - Last 10 permuted indices are: {rand_perm[-10:]}')
-            unlab_perm_subset = Subset(self.dataset.non_transformed_trainset, self.rand_unlab_sample)
             
             # removing the whole observation sample fromt the unlabeled indices list
             for idx in self.rand_unlab_sample: self.unlabeled_indices.remove(idx) # - 10000
             
-            logger.info(f' SEED: {seed} - With dataset indices: {unlab_perm_subset.indices[-10:]}')
-            
             #reset the original seed
             set_seeds()
         
-            return unlab_perm_subset
-        else:
-            return Subset(self.dataset.non_transformed_trainset, self.unlabeled_indices)
-    
+        else: self.rand_unlab_sample = self.unlabeled_indices
+            
     
     def load_best_checkpoint(self):
         if dist.is_available():
@@ -121,7 +114,7 @@ class ActiveLearner():
         with torch.inference_mode():
             
             for data in dataloader:
-                if len(data) > 3: _, images, labels, _ = data
+                if len(data) > 3: _, images, labels, _ = data # in case on TiDAL
                 else: _, images, labels = data
                 
                 if 'embedds' in dict_to_modify:
@@ -149,15 +142,15 @@ class ActiveLearner():
     
     
     
-    def save_tsne(self, samp_unlab_subset: Subset, idxs_new_labels: List[int], \
+    def save_tsne(self, idxs_new_labels: List[int], \
                   d_labels: Dict[str, int], al_iter: str, gtg_result_prediction = None) -> None:
         # plot the tsne graph for each iteration
         
         logger.info(' => Saving the TSNE embeddings plot with labeled, unlabeled and new labeled observations')
         
         dl_dict = dict(batch_size=self.batch_size, shuffle=False)
-        unlab_train_dl = DataLoader(samp_unlab_subset, **dl_dict)
-        lab_train_dl = DataLoader(self.labeled_subset, **dl_dict)
+        unlab_train_dl = DataLoader(Subset(self.dataset.unlab_train_ds, self.rand_unlab_sample), **dl_dict)
+        lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labeled_indices), **dl_dict)
         
         lab_embedds_dict = {
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
@@ -195,8 +188,10 @@ class ActiveLearner():
         test_res_keys = list(results_format['test'].keys())
         train_res_keys = list(results_format['train'].keys())
         
-        params = { 'ct_p': self.ct_p, 't_p': self.t_p, 'strategy_name': self.strategy_name, 
-                'iter': iter, 'labeled_subset': self.labeled_subset }
+        params = { 
+            'ct_p': self.ct_p, 't_p': self.t_p, 'strategy_name': self.strategy_name, 
+            'iter': iter, 'labeled_indices': self.labeled_indices 
+        }
         
         # wandb dictionary hyperparameters
         hps = dict( **self.ct_p, **self.t_p, **self.al_p, strategy_name=self.strategy_name, iter=iter)
@@ -223,9 +218,7 @@ class ActiveLearner():
             mp.spawn(fn=train_ddp, args=(self.world_size, params, child_conn, ), nprocs=self.world_size, join=True) # type: ignore
             # obtain the results
             while parent_conn.poll(): train_recv, test_recv = parent_conn.recv()
-            
-            #wandb.finish()            
-                
+                            
         else:
             logger.info(' => RUNNING TRAINING')
             # add the already created labeeld train dataloader
@@ -263,18 +256,18 @@ class ActiveLearner():
         
         
     
-    def update_sets(self, unlab_samp_idxs: List[int], overall_topk: List[int]) -> None:        
+    def update_sets(self, overall_topk: List[int]) -> None:        
         # save the new labeled images to further visual analysis
         #self.save_labeled_images(overall_topk)
         
         # Update the labeeld and unlabeled training set
-        logger.info(' => Modifing the Subsets')
+        logger.info(' => Modifing the Labeled and Unlabeled Indices Lists')
         
         
-        sample_len = len(unlab_samp_idxs)
+        sample_len = len(self.rand_unlab_sample)
         # the sample have been already removed from the labeled set
-        for idx in overall_topk: unlab_samp_idxs.remove(idx) # - 1000 = 9000
-        self.temp_unlab_pool.extend(unlab_samp_idxs) # + 9000
+        for idx in overall_topk: self.rand_unlab_sample.remove(idx) # - 1000 = 9000
+        self.temp_unlab_pool.extend(self.rand_unlab_sample) # + 9000
         # extend with the overall_topk
         self.labeled_indices.extend(overall_topk) # + 1000
         
@@ -292,10 +285,7 @@ class ActiveLearner():
             # reinsert all teh observations from the pool inside the original unlabeled pool
             self.unlabeled_indices.extend(self.temp_unlab_pool)
             self.temp_unlab_pool.clear() # empty the temp unlabeled pool list
-        
 
-        # generate the new labeled DataLoader
-        self.labeled_subset = MySubset(self.dataset.transformed_trainset, self.labeled_indices)
 
         
         logger.info(f' New labeled_indices lenght: {len(self.labeled_indices)} - new unlabeled_indices lenght: {len(self.unlabeled_indices)}')
@@ -320,36 +310,39 @@ class ActiveLearner():
             
             logger.info(f'----------------------- ITERATION {self.iter} / {self.al_p['al_iters']} -----------------------\n')
             
-            logger.info(f' => Getting the sampled unalbeled subset for the current iteration...')
-            samp_unlab_subset = self.get_samp_unlab_subset()
+            logger.info(f' => Getting the sampled unalbeled indices for the current iteration...')
+            self.get_rand_unlab_sample()
             logger.info(' DONE\n')
             
             logger.info(' START QUERY PROCESS\n')
             
             # run method query strategy
-            idxs_new_labels, topk_idx_obs = self.query(samp_unlab_subset, self.al_p['n_top_k_obs']) # type: ignore
+            idxs_new_labels, topk_idx_obs = self.query(
+                Subset(self.dataset.unlab_train_ds, self.rand_unlab_sample), self.al_p['n_top_k_obs']
+            )
             
-            d_labels = count_class_observation(self.dataset.classes, self.dataset.transformed_trainset, topk_idx_obs)
+            d_labels = count_class_observation(self.dataset.classes, self.dataset.train_ds, topk_idx_obs)
             logger.info(f' Number of observations per class added to the labeled set:\n {d_labels}\n')
             
             # Saving the tsne embeddings plot
             if len(self.strategy_name.split('_')) > 2 and self.strategy_name.split('_')[2] == 'GTG':
                 # if we are performing GTG Ofline plot also the GTG predictions in the TSNE plot 
-                self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction) # type: ignore
+                self.save_tsne(idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction)
             
-            elif self.model.added_module_name == 'GTG_Module': self.save_tsne(samp_unlab_subset, idxs_new_labels, d_labels, str(self.iter))
+            elif self.model.added_module_name == 'GTG_Module': self.save_tsne(idxs_new_labels, d_labels, str(self.iter))
 
             # modify the datasets and dataloader and plot the tsne
-            self.update_sets(list(samp_unlab_subset.indices), topk_idx_obs)
+            self.update_sets(topk_idx_obs)
 
             # iter + 1
-            self.train_results[str(self.iter)] = self.train_evaluate_save( self.al_p['init_lab_obs'] + ((self.iter - 1) * self.al_p['n_top_k_obs']), self.iter, results_format)
+            self.train_results[str(self.iter)] = self.train_evaluate_save(
+                self.al_p['init_lab_obs'] + ((self.iter - 1) * self.al_p['n_top_k_obs']), self.iter, results_format
+            )
                 
-        epochs = len(self.train_results['1']['train_pred_loss'])
-        
+                
         # plotting the cumulative train results
         print_cumulative_train_results(list(self.t_p['results_dict']['train'].keys()), 
-                                       self.train_results, self.strategy_name, epochs,
+                                       self.train_results, self.strategy_name, len(self.train_results['1']['train_pred_loss']),
                                        self.ct_p['timestamp'], self.ct_p['dataset_name'], 
                                        self.ct_p['trial'])
         
