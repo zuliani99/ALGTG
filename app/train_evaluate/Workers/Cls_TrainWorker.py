@@ -4,10 +4,11 @@ import torch.nn as nn
 
 from models.BBone_Module import Master_Model
 from models.modules.LossNet import LossPredLoss
-from utils import accuracy_score
+from utils import accuracy_score, log_assert
 
 from torch.utils.data import DataLoader
 from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.nn.functional as F
 
 from typing import Tuple, Dict, Any
 
@@ -28,6 +29,7 @@ class Cls_TrainWorker():
         
         self.dataset_name: str = params['ct_p']['dataset_name']
         self.strategy_name: str = params['strategy_name']
+        self.method_name: str = self.strategy_name.split(f'{self.model.name}_')[1]
         
         self.epochs = params['t_p']['epochs']
         self.ds_t_p = params['t_p'][self.dataset_name]
@@ -37,6 +39,7 @@ class Cls_TrainWorker():
         
         self.ce_loss_fn = nn.CrossEntropyLoss(reduction='none').to(self.device)
         self.mse_loss_fn = nn.MSELoss(reduction='none').to(self.device)
+        self.kld_loss_fn = nn.KLDivLoss(reduction='batchmean').to(self.device)
         
         self.ll_loss_fn = LossPredLoss(self.device).to(self.device)
         
@@ -74,7 +77,8 @@ class Cls_TrainWorker():
 
     def compute_losses(self, weight: float, module_out: torch.Tensor | None, outputs: torch.Tensor, \
                        labels: torch.Tensor, tot_loss_ce: float, tot_pred_loss: float,
-                       iterations: int = -1) -> Tuple[torch.Tensor, float, float]:
+                       tidal: None | Tuple[torch.Tensor, torch.Tensor , int] = None, ) -> Tuple[torch.Tensor, float, float]:
+                       #iterations: int = -1
                 
         ce_loss = self.ce_loss_fn(outputs, labels)
         backbone = torch.mean(ce_loss)
@@ -85,27 +89,8 @@ class Cls_TrainWorker():
         
         elif len(module_out) == 2:
             
-            '''(pred_entr, (true_entr_1, true_entr_2)), (labeled_mask_1, labeled_mask_2) = module_out
-                        
-            #entr_loss_1 = weight * self.mse_loss_fn(pred_entr, true_entr_1.detach())
-            #entr_loss_2 = weight * self.mse_loss_fn(pred_entr, true_entr_2.detach())
-            
-            entr_loss_1 = weight * self.ll_loss_fn(pred_entr, true_entr_1)#.detach())
-            entr_loss_2 = weight * self.ll_loss_fn(pred_entr, true_entr_2)#.detach())
-                        
-            entr_loss_1 = torch.mean(entr_loss_1)#[torch.logical_not(labeled_mask_1)])
-            entr_loss_2 = torch.mean(entr_loss_2)#[torch.logical_not(labeled_mask_2)])
-            
-            entr_loss = (entr_loss_1 + entr_loss_2) / 2
-            
-            loss = backbone + entr_loss
-            
-            tot_loss_ce += backbone.item()
-            tot_pred_loss += entr_loss.item()
-            '''
-            
             (pred_entr, true_entr), labeled_mask = module_out
-            if iterations != -1 and iterations % 20 == 0: logger.info(f'pred_entr {pred_entr} - true_entr {true_entr}')
+            #if iterations != -1 and iterations % 20 == 0: logger.info(f'pred_entr {pred_entr} - true_entr {true_entr}')
             entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
 
             lab_ce_loss = torch.mean(ce_loss[labeled_mask])
@@ -119,12 +104,34 @@ class Cls_TrainWorker():
             return loss, tot_loss_ce, tot_pred_loss
             
         
-        else:
+        elif self.method_name == 'LearningLoss':
             loss_weird = weight * self.ll_loss_fn(module_out, ce_loss)
             loss = backbone + loss_weird
 
             tot_loss_ce += backbone.item()
             tot_pred_loss += loss_weird.item()
+                
+            return loss, tot_loss_ce, tot_pred_loss
+        
+        else:
+            log_assert(tidal != None, 'TiDAL parameters are None')
+            idxs, moving_prob, epoch = tidal # type: ignore
+            
+            index = idxs.tolist()
+            probs = torch.softmax(outputs, dim=1)
+            moving_prob = moving_prob.to(self.device)
+            
+            moving_prob = (moving_prob * epoch + probs * 1) / (epoch + 1)
+            self.train_dl.dataset.moving_prob[index, :] = moving_prob.cpu().detach()
+            
+            #logger.info(f'{moving_prob} - {module_out} - {F.log_softmax(module_out, 1)}')
+            #logger.info(f'{moving_prob.sum(dim=1)} - {F.log_softmax(module_out, 1).sum(dim=1)}')
+
+            m_module_loss = self.kld_loss_fn(F.log_softmax(module_out, 1), moving_prob.detach())
+            loss = backbone + weight * m_module_loss
+            
+            tot_loss_ce += backbone.item()
+            tot_pred_loss += m_module_loss.item()
                 
             return loss, tot_loss_ce, tot_pred_loss
    
@@ -154,7 +161,7 @@ class Cls_TrainWorker():
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore  
             if epoch > 120: weight = 0.
              
-            for _, images, labels in self.train_dl:
+            for idxs, images, labels, moving_prob in self.train_dl:
                                 
                 images, labels = self.return_moved_imgs_labs(images, labels)              
                         
@@ -163,7 +170,8 @@ class Cls_TrainWorker():
                                     
                 loss, train_loss_ce, train_loss_pred = self.compute_losses(
                         weight=weight, module_out=module_out, outputs=outputs, labels=labels,
-                        tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred, iterations=iterations
+                        tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred, tidal=(idxs, moving_prob, epoch),
+                        #iterations=iterations
                     )  
                                                     
                 for optimizer in self.optimizers: optimizer.zero_grad()

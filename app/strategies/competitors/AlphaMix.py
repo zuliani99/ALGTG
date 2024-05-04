@@ -69,12 +69,12 @@ class AlphaMix(ActiveLearner):
         unlabeled_size = ulb_embedding.size(0)
         embedding_size = ulb_embedding.size(1)
 
-        min_alphas = torch.ones((unlabeled_size, embedding_size), dtype=torch.float)
-        candidate = torch.zeros(unlabeled_size, dtype=torch.bool)
+        min_alphas = torch.ones((unlabeled_size, embedding_size), dtype=torch.float, device=self.device)
+        candidate = torch.zeros(unlabeled_size, dtype=torch.bool, device=self.device)
 
         if self.alpha_closed_form_approx:
             var_emb = Variable(ulb_embedding, requires_grad=True).to(self.device)
-            out, _, _ = self.model(var_emb)
+            out, _ = self.model.backbone(var_emb, embedding=True)
             loss = F.cross_entropy(out, pred_1.to(self.device))
             grads = torch.autograd.grad(loss, var_emb)[0].data.cpu()
             del loss, var_emb, out
@@ -107,10 +107,10 @@ class AlphaMix(ActiveLearner):
             logger.info('alpha_std_mean: %f' % min_alphas[candidate].mean(dim=1).std().item())
             logger.info('alpha_mean_std %f' % min_alphas[candidate].std(dim=1).mean().item())
 
-            c_alpha = F.normalize(org_ulb_embedding[candidate].view(int(candidate.sum()), -1), p=2, dim=1).detach()
+            c_alpha = F.normalize(org_ulb_embedding[candidate].view(int(candidate.sum()), -1), p=2, dim=1).detach().cpu()
 
             selected_idxs = self.sample(min(n_top_k_obs, candidate.sum().item()), feats=c_alpha)
-            selected_idxs = idxs_unlabeled[candidate][selected_idxs]
+            selected_idxs = idxs_unlabeled[candidate.bool()][selected_idxs]
         else:
             selected_idxs = np.array([], dtype=np.int32)
 
@@ -133,8 +133,8 @@ class AlphaMix(ActiveLearner):
         unlabeled_size = ulb_embedding.size(0)
         embedding_size = ulb_embedding.size(1)
 
-        min_alphas = torch.ones((unlabeled_size, embedding_size), dtype=torch.float)
-        pred_change = torch.zeros(unlabeled_size, dtype=torch.bool)
+        min_alphas = torch.ones((unlabeled_size, embedding_size), dtype=torch.float, device=self.device)
+        pred_change = torch.zeros(unlabeled_size, dtype=torch.bool, device=self.device)
 
         if self.alpha_closed_form_approx:
             alpha_cap /= math.sqrt(embedding_size)
@@ -151,19 +151,20 @@ class AlphaMix(ActiveLearner):
                 alpha = self.calculate_optimum_alpha(alpha_cap, embed_i, ulb_embed, grads)
 
                 embedding_mix = (1 - alpha) * ulb_embed + alpha * embed_i
-                out, _, _ = self.model(embedding_mix)
+                out, _ = self.model.backbone(embedding_mix, embedding=True)
                 out = out.detach().cpu()
                 alpha = alpha.cpu()
 
                 pc = out.argmax(dim=1) != pred_1
             else:
-                alpha = self.generate_alpha(unlabeled_size, embedding_size, alpha_cap)
+                alpha = self.generate_alpha(unlabeled_size, embedding_size, alpha_cap).to(self.device)
                 if self.alpha_opt:
                     alpha, pc = self.learn_alpha(ulb_embedding, pred_1, anchor_i, alpha, alpha_cap,
                                                  log_prefix=str(i))
                 else:
                     embedding_mix = (1 - alpha) * ulb_embedding + alpha * anchor_i
-                    out, _, _ = self.model(embedding_mix.to(self.device))
+                    out, _ = self.model.backbone(embedding_mix.to(self.device), embedding=True)                    
+                    
                     out = out.detach().cpu()
 
                     pc = out.argmax(dim=1) != pred_1
@@ -218,17 +219,17 @@ class AlphaMix(ActiveLearner):
 
     def learn_alpha(self, org_embed, labels, anchor_embed, alpha, alpha_cap, log_prefix=''):
         labels = labels.to(self.device)
-        min_alpha = torch.ones(alpha.size(), dtype=torch.float)
-        pred_changed = torch.zeros(labels.size(0), dtype=torch.bool)
+        min_alpha = torch.ones(alpha.size(), dtype=torch.float, device=self.device)
+        pred_changed = torch.zeros(labels.size(0), dtype=torch.bool, device=self.device)
 
         loss_func = torch.nn.CrossEntropyLoss(reduction='none')
 
-        self.model.eval()
+        self.model.backbone.eval()
 
         for i in range(self.alpha_learning_iters):
             tot_nrm, tot_loss, tot_clf_loss = 0., 0., 0.
             for b in range(math.ceil(float(alpha.size(0)) / self.alpha_learn_batch_size)):
-                self.model.zero_grad()
+                self.model.backbone.zero_grad()
                 start_idx = b * self.alpha_learn_batch_size
                 end_idx = min((b + 1) * self.alpha_learn_batch_size, alpha.size(0))
 
@@ -239,11 +240,11 @@ class AlphaMix(ActiveLearner):
                 c_e = anchor_embed[start_idx:end_idx].to(self.device)
                 embedding_mix = (1 - l) * e + l * c_e
 
-                out, _, _ = self.model(embedding_mix)
+                out, _ = self.model.backbone(embedding_mix, embedding=True)
 
                 label_change = out.argmax(dim=1) != labels[start_idx:end_idx]
 
-                tmp_pc = torch.zeros(labels.size(0), dtype=torch.bool).to(self.device)
+                tmp_pc = torch.zeros(labels.size(0), dtype=torch.bool, device=self.device)
                 tmp_pc[start_idx:end_idx] = label_change
                 pred_changed[start_idx:end_idx] += tmp_pc[start_idx:end_idx].detach().cpu()
 

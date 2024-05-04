@@ -64,7 +64,7 @@ class LossNet(nn.Module):
 
         self.linear = nn.Linear(len(num_channels) * interm_dim, 1)
         
-        self.apply(init_weights_apply)
+        #self.apply(init_weights_apply)
 
     def forward(self, features):
         outs = []

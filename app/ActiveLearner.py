@@ -2,7 +2,7 @@
 import wandb
 
 from models.BBone_Module import Master_Model
-from datasets_creation.Classification import Cls_Datasets
+from datasets_creation.Classification import Cls_Datasets, MySubset
 from datasets_creation.Detection import Det_Dataset
 from train_evaluate.Train_DDP import train, train_ddp
 from utils import count_class_observation, print_cumulative_train_results, set_seeds,\
@@ -21,6 +21,7 @@ import os
 
 import logging
 logger = logging.getLogger(__name__)
+
 
 
 class ActiveLearner():
@@ -47,12 +48,12 @@ class ActiveLearner():
 
         self.train_results: Dict[str, Any] = {}
         
-        self.labeled_subset = Subset(self.dataset.transformed_trainset, self.labeled_indices)
+        self.labeled_subset = MySubset(self.dataset.transformed_trainset, self.labeled_indices)
 
         self.strategy_name = f'{self.model.name}_{strategy_name}' # define strategy name    
         self.best_check_filename: str = f'app/checkpoints/{self.ct_p['dataset_name']}/best_{self.strategy_name}'
         
-        self.world_size: int = self.ct_p['gpus']#torch.cuda.device_count()
+        self.world_size: int = self.ct_p['gpus']
         
         self.path = f'results/{self.ct_p['timestamp']}/{self.ct_p['dataset_name']}/{self.ct_p['trial']}/{self.strategy_name}'
         create_method_res_dir(self.path)
@@ -118,8 +119,11 @@ class ActiveLearner():
 
         # again no gradients needed
         with torch.inference_mode():
-            for _, images, labels in dataloader:
-
+            
+            for data in dataloader:
+                if len(data) > 3: _, images, labels, _ = data
+                else: _, images, labels = data
+                
                 if 'embedds' in dict_to_modify:
                     embed = self.model(images.to(self.device), mode='embedds')
                     dict_to_modify['embedds'] = torch.cat((dict_to_modify['embedds'], embed.squeeze()), dim=0)
@@ -291,7 +295,7 @@ class ActiveLearner():
         
 
         # generate the new labeled DataLoader
-        self.labeled_subset = Subset(self.dataset.transformed_trainset, self.labeled_indices)
+        self.labeled_subset = MySubset(self.dataset.transformed_trainset, self.labeled_indices)
 
         
         logger.info(f' New labeled_indices lenght: {len(self.labeled_indices)} - new unlabeled_indices lenght: {len(self.unlabeled_indices)}')

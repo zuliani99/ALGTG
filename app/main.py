@@ -23,6 +23,7 @@ from strategies.competitors.BALD import BALD
 from strategies.competitors.CDAL import CDAL
 from strategies.competitors.TA_VAAL.TA_VAAL import TA_VAAL
 from strategies.competitors.AlphaMix import AlphaMix
+from strategies.competitors.TiDAL import TiDAL
 from strategies.GTG import GTG
 from strategies.GTG_off import GTG_off
     
@@ -42,7 +43,7 @@ def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('-gpus', '--gpus', type=int, required=False, default=1, help='Number of GPUs to use during training')
     parser.add_argument('-m', '--methods', type=str, nargs='+', required=True, choices=[
-            'random', 'entropy', 'coreset', 'badge', 'bald', 'cdal', 'tavaal', 'alphamix',
+            'random', 'entropy', 'coreset', 'badge', 'bald', 'cdal', 'tavaal', 'alphamix', 'tidal',
             'll', 'gtg', 'll_gtg', 'lq_gtg'
         ],help='Possible methods to choose')
     parser.add_argument('-ds', '--datasets', type=str, nargs='+', required=True, choices=['cifar10', 'cifar100', 'svhn', 'fmnist', 'caltech256', 'tinyimagenet', 'voc', 'coco'],
@@ -75,10 +76,10 @@ def get_args() -> argparse.Namespace:
 
 
 dict_strategies = dict(
-    random = Random, entropy = Entropy, coreset = CoreSet, badge = BADGE, bald = BALD, # -> BB
+    random = Random, entropy = Entropy, coreset = CoreSet, badge = BADGE, bald = BALD, #s -> BB
     cdal = CDAL, gtg = GTG_off, alphamix = AlphaMix, # -> BB
     
-    ll = LearningLoss, ll_gtg = GTG_off, tavaal = TA_VAAL, # -> BB + LL
+    ll = LearningLoss, ll_gtg = GTG_off, tavaal = TA_VAAL, tidal = TiDAL,# -> BB + LL
     lq_gtg = GTG # -> BB + GTG
 )
 
@@ -113,7 +114,7 @@ def get_strategies_object(methods: List[str], Masters: Dict[str, Master_Model],
                         {**ct_p, 'Master_Model': copy.deepcopy(m_model)}, t_p, al_p, {**gtg_p, 'am_ts': a_t_strategy, 'am': a_matrix})
                     )
                 
-        elif method == 'll' or method == 'tavaal':
+        elif method in ['ll', 'tavaal', 'tidal']:
             strategies.append(dict_strategies[method]({ **ct_p, 'Master_Model': Masters['M_LL'] }, t_p, al_p))
         else:
             strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_None']}, t_p, al_p))
@@ -130,7 +131,7 @@ def get_masters(methods: List[str], BBone: ResNet | SSD | VGG,
     ll, only_bb = False, False
     
     for method in methods:
-        if (method == 'tavaal' or method.split('_')[0] == 'll') and not ll:
+        if (method in ['ll', 'll_gtg', 'tavaal', 'tidal']) and not ll:
             LL_Mod = get_module('LL', ll_module_params)
             ll = True
         elif method == 'lq_gtg':

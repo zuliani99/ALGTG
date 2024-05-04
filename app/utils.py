@@ -388,7 +388,7 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
     
     
 def count_class_observation(classes: List[str], dataset: Dataset, topk_idx_obs=None) -> Dict[str, int]:
-    if topk_idx_obs == None: labels = [lab for _, _ ,lab in dataset]
+    if topk_idx_obs == None: labels = [lab for _, _ ,lab in dataset] if len(dataset[0]) == 3 else [lab for _, _ ,lab, _ in dataset]
     else: labels = [dataset[k][2] for k in topk_idx_obs]
     
     d_labels = {}
@@ -416,7 +416,7 @@ def init_weights_apply(m: torch.nn.Module) -> None:
         init.constant_(m.bias, 0)
 
 
-def log_assert(condition: torch.Tensor, message: str):
+def log_assert(condition: bool | torch.Tensor, message: str):
     try: assert condition
     except AssertionError as err:
         logger.exception(message)
