@@ -11,7 +11,7 @@ from models.backbones.ssd_pytorch.SSD import SSD
 from models.backbones.VGG import VGG
 
 from init import get_backbone, get_dataset, get_ll_module_params, get_module
-from utils import create_directory, create_ts_dir, plot_loss_curves, \
+from utils import create_directory, create_ts_dir, plot_trail_acc, \
     plot_res_std_mean, set_seeds
 
 from strategies.baselines.Random import Random
@@ -261,8 +261,8 @@ def main() -> None:
                 gtg_p = gtg_params, Masters = Masters, methods = args.methods
             )
             
-            plot_loss_curves(results, n_lab_obs, timestamp,
-                             list(task_params['results_dict']['test'].keys()),
+            plot_trail_acc(dataset_name, trial, results, n_lab_obs, timestamp,
+                             list(task_params['results_dict']['test'].keys())[0],
                              plot_png_name=f'{dataset_name}/{trial}/results.png')
             
         plot_res_std_mean(task, timestamp, dataset_name)

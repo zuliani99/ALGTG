@@ -62,7 +62,6 @@ class Cls_TrainWorker():
         if self.model.added_module != None:
             self.optimizers.append(optimizers['modules'][self.model.added_module_name]['type'](self.model.added_module.parameters(), **optimizers['modules'][self.model.added_module_name]['optim_p']))
             self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
-
     
     def __save_checkpoint(self, filename: str) -> None:
         checkpoint = dict(state_dict = self.model.module.state_dict() if self.world_size > 1 else self.model.state_dict())
@@ -122,13 +121,10 @@ class Cls_TrainWorker():
             moving_prob = moving_prob.to(self.device)
             
             moving_prob = (moving_prob * epoch + probs * 1) / (epoch + 1)
-            self.train_dl.dataset.moving_prob[index, :] = moving_prob.cpu().detach()
+            self.train_dl.dataset.moving_prob[index, :] = moving_prob.cpu().detach() # type: ignore
             
-            #logger.info(f'{moving_prob} - {module_out} - {F.log_softmax(module_out, 1)}')
-            #logger.info(f'{moving_prob.sum(dim=1)} - {F.log_softmax(module_out, 1).sum(dim=1)}')
-
-            m_module_loss = self.kld_loss_fn(F.log_softmax(module_out, 1), moving_prob.detach())
-            loss = backbone + weight * m_module_loss
+            m_module_loss = weight * self.kld_loss_fn(F.log_softmax(module_out, 1), moving_prob.detach())
+            loss = backbone + m_module_loss
             
             tot_loss_ce += backbone.item()
             tot_pred_loss += m_module_loss.item()
@@ -163,10 +159,10 @@ class Cls_TrainWorker():
              
             for idxs, images, labels, moving_prob in self.train_dl:
                                 
-                images, labels = self.return_moved_imgs_labs(images, labels)              
-                        
+                images, labels = self.return_moved_imgs_labs(images, labels)
                 outputs, _, module_out = self.model(images, labels=labels)
                 
+                #print(module_out)
                                     
                 loss, train_loss_ce, train_loss_pred = self.compute_losses(
                         weight=weight, module_out=module_out, outputs=outputs, labels=labels,
@@ -215,7 +211,7 @@ class Cls_TrainWorker():
 
 
     def test(self) -> torch.Tensor:
-        test_accuracy, test_loss, test_loss_ce, test_pred_loss = .0, .0, .0, .0
+        test_accuracy = .0
         
         self.model.eval()    
 
@@ -223,20 +219,9 @@ class Cls_TrainWorker():
             for _, images, labels in self.test_dl:
                 
                 images, labels = self.return_moved_imgs_labs(images, labels)
-                    
-                outputs, _, module_out = self.model(images, labels)
-
-                loss, test_loss_ce, test_pred_loss = self.compute_losses(
-                        weight=1., module_out=module_out, outputs=outputs, labels=labels, 
-                        tot_loss_ce=test_loss_ce, tot_pred_loss=test_pred_loss
-                    )
-                
+                outputs, _, _,  = self.model(images, labels)
                 test_accuracy += self.score_fn(outputs, labels)
-                test_loss += loss.item()
 
             test_accuracy /= len(self.test_dl)
-            test_loss /= len(self.test_dl)
-            test_loss_ce /= len(self.test_dl)
-            test_pred_loss /= len(self.test_dl)
             
-        return torch.tensor((test_accuracy, test_loss, test_loss_ce, test_pred_loss), device=self.device)
+        return torch.tensor([test_accuracy], device=self.device)
