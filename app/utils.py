@@ -36,54 +36,33 @@ def entropy(tensor: torch.Tensor, dim=1) -> torch.Tensor:
     x = tensor + 1e-20
     return -torch.sum(x * torch.log2(x), dim=dim)
 
-    
 
-def plot_loss_curves(methods_results: Dict[str, Dict[str, List[float]]], n_lab_obs: List[int], ts_dir: str, \
-    str_keys: List[str], save_plot=True, plot_png_name=None) -> None:
+def plot_trail_acc(dataset_name: str, trial: int, methods_results: Dict[str, Dict[str, List[float]]], n_lab_obs: List[int], ts_dir: str, \
+    key: str, save_plot=True, plot_png_name=None) -> None:
     
-    if len(str_keys) == 1:
-        # detection
-        plt.figure(figsize = (18,15))
-        for method_str, values in methods_results.items():
-            plt.plot(n_lab_obs, values['test_map'], label = f'{method_str}')
-        plt.title(f'mAP - # Labeled Obs')
-        plt.xlabel('# Labeled Obs')
-        plt.ylabel('mAP')
-        plt.grid()
-        plt.legend()
-        
-    else:
-        # image classification
-        _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
-        
-        data = [
-            [(0,0), str_keys[0], 'Accuracy Score'], [(0,1), str_keys[1], 'Total Loss'],
-            [(1,0), str_keys[2], 'CE Loss'], [(1,1), str_keys[3], 'Loss Weird']
-        ]
-        
-        shapes = ['o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v']
-        palette = get_palette(len(methods_results.items()))
-        
-        for (pos1, pos2), key, title in data:
-            lines_handles = []
-            for idx, (method_str, values) in enumerate(methods_results.items()):
-                ax[pos1][pos2].plot(n_lab_obs, values[key], label = f'{method_str}',
+    if key == 'test_map': measure = 'mAP'
+    else: measure = 'Accuracy'
+    
+    plt.figure(figsize = (14,10))
+    
+    shapes = ['o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v']
+    palette = get_palette(len(methods_results.items()))
+    lines_handles = []
+    
+    for idx, (method_str, values) in enumerate(methods_results.items()):
+        plt.plot(n_lab_obs, values[key], label = f'{method_str}',
                                      linestyle = 'dashed' if method_str.split('_')[1] in 'Random' else 'solid', color=palette[idx])
-                ax[pos1][pos2].scatter(n_lab_obs, values[key], marker=shapes[idx], color=palette[idx], zorder=5)
-                lines_handles.append(mlines.Line2D([], [], color=palette[idx], marker=shapes[idx], markersize=5, label=method_str))
-                
-                
-            ax[pos1][pos2].set_title(f'{title} - # Labeled Obs', fontsize = 15)
-            ax[pos1][pos2].set_xlabel('# Labeled Obs', fontsize = 10)
-            ax[pos1][pos2].set_ylabel(title, fontsize = 10)
-            ax[pos1][pos2].grid()
-            ax[pos1][pos2].legend(handles=lines_handles)
-        
-
-        plt.suptitle('Summary Results', fontsize = 30)
-        
-        if save_plot: plt.savefig(f'results/{ts_dir}/{plot_png_name}')
-        else: plt.show()
+        plt.scatter(n_lab_obs, values[key], marker=shapes[idx], color=palette[idx], zorder=5)
+        lines_handles.append(mlines.Line2D([], [], color=palette[idx], marker=shapes[idx], markersize=5, label=method_str))
+  
+    plt.title(f'{dataset_name} - Trial {trial} - {measure} Labeled Obs', fontsize = 30)
+    plt.xlabel('# Labeled Obs', fontsize = 15)
+    plt.ylabel(measure, fontsize = 15)
+    plt.grid(True)
+    plt.legend(handles=lines_handles)
+    
+    if save_plot: plt.savefig(f'results/{ts_dir}/{plot_png_name}')
+    else: plt.show()
     
     
     
@@ -270,8 +249,8 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
         lines_handles.append(mlines.Line2D([], [], color=palette[idx], marker=shapes[idx], markersize=5, label=method))
         
 
-    plt.xlabel('Labeled Observations', fontsize = 10)
-    plt.ylabel('Test Accuracy' if task == 'clf' else 'Test mAP', fontsize = 10)
+    plt.xlabel('Labeled Observations', fontsize = 15)
+    plt.ylabel('Test Accuracy' if task == 'clf' else 'Test mAP', fontsize = 15)
     plt.title(f'{dataset_name} results', fontsize = 30)
     plt.legend(handles=lines_handles)
     plt.grid(True)
@@ -388,7 +367,7 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
     
     
 def count_class_observation(classes: List[str], dataset: Dataset, topk_idx_obs=None) -> Dict[str, int]:
-    if topk_idx_obs == None: labels = [lab for _, _ ,lab in dataset]
+    if topk_idx_obs == None: labels = [lab for _, _ ,lab in dataset] if len(dataset[0]) == 3 else [lab for _, _ ,lab, _ in dataset] # -> for TiDAL
     else: labels = [dataset[k][2] for k in topk_idx_obs]
     
     d_labels = {}
@@ -416,7 +395,7 @@ def init_weights_apply(m: torch.nn.Module) -> None:
         init.constant_(m.bias, 0)
 
 
-def log_assert(condition: torch.Tensor, message: str):
+def log_assert(condition: bool | torch.Tensor, message: str):
     try: assert condition
     except AssertionError as err:
         logger.exception(message)

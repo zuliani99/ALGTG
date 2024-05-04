@@ -66,7 +66,7 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     if world_size % 2 != 0: dict_dl['drop_last'] = True
     
     train_results = [torch.zeros((4, t_p['epochs']), device=rank) for _ in range(world_size)]
-    test_results = [torch.zeros(4, device=rank) for _ in range(world_size)]
+    test_results = [torch.zeros(1, device=rank) for _ in range(world_size)]
     
     
     params['train_dl'] = DataLoader(

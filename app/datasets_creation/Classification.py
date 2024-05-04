@@ -10,7 +10,7 @@ import shutil
 
 from torchvision.transforms import v2
 
-from utils import count_class_observation
+from utils import count_class_observation, log_assert
 from config import cls_datasets 
 
 import logging
@@ -153,16 +153,16 @@ def init_caltech256() -> None:
 class Cls_Datasets():
     
     def __init__(self, dataset_name: str, init_lab_obs: int) -> None:
-        
-        self.transformed_trainset = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=True)
-        self.non_transformed_trainset = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=False)
-        
-        self.test_ds = Cls_Dataset(dataset_name=dataset_name, bool_train=False, bool_transform=False)
 
         self.n_classes: int = cls_datasets[dataset_name]['n_classes']
         self.n_channels: int = cls_datasets[dataset_name]['channels']
         self.dataset_id: int = cls_datasets[dataset_name]['id']
         self.image_size: int = cls_datasets[dataset_name]['image_size']
+        
+        self.transformed_trainset = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=True, n_classes=self.n_classes)
+        self.non_transformed_trainset = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=False)
+        
+        self.test_ds = Cls_Dataset(dataset_name=dataset_name, bool_train=False, bool_transform=False)
  
         if dataset_name == 'tinyimagenet':
             cls_datasets[dataset_name]['classes'] = os.listdir('./datasets/tiny-imagenet-200/train')
@@ -193,9 +193,9 @@ class Cls_Datasets():
 
 
 class Cls_Dataset(Dataset):
-    def __init__(self, dataset_name: str, bool_train: bool, bool_transform: bool) -> None:
+    def __init__(self, dataset_name: str, bool_train: bool, bool_transform: bool, n_classes: int = -1) -> None:
         
-        if bool_train and bool_transform:
+        if bool_train and bool_transform:            
             # train
             if dataset_name == 'tinyimagenet':
                 download_tinyimagenet()
@@ -217,7 +217,11 @@ class Cls_Dataset(Dataset):
                 self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',
                     train=bool_train, download=True,
                     transform=cls_datasets[dataset_name]['transforms']['train']
-                )    
+                ) 
+
+            log_assert(n_classes != -1, 'Invalid n_classes')
+            self.moving_prob = torch.zeros((len(self.ds), n_classes), dtype=torch.float32) # type: ignore  # -> for TiDAL
+               
         else:
             # unlabeled or test dataset
             if dataset_name == 'tinyimagenet':
@@ -244,6 +248,27 @@ class Cls_Dataset(Dataset):
         return len(self.ds) # type: ignore
 
 
-    def __getitem__(self, index: int) -> Tuple[int, torch.Tensor, int]:
+    def __getitem__(self, index: int) -> Tuple[int, torch.Tensor, int] | Tuple[int, torch.Tensor, int, torch.Tensor]:
         image, label = self.ds[index]
-        return index, image, label
+        if hasattr(self, 'moving_prob'):
+            return index, image, label, self.moving_prob[index] # -> for TiDAL
+        else: return index, image, label
+        
+        
+class MySubset(Dataset): # -> for TiDAL
+    
+    def __init__(self, dataset, indices):
+        self.dataset = Subset(dataset, indices)
+        self.moving_prob = dataset.moving_prob
+        
+    def __getitem__(self, idx):
+        index = self.dataset[idx][0]
+        image = self.dataset[idx][1]
+        label = self.dataset[idx][2]
+        
+        if len(self.dataset[idx]) > 3:
+            return index, image, label, self.dataset[idx][3]
+        else: return index, image, label
+
+    def __len__(self):
+        return len(self.dataset)

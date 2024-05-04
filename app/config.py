@@ -169,7 +169,7 @@ al_params = {
 cls_config = {
     'epochs': 200,
     'results_dict': { 'train': {'train_accuracy': [], 'train_loss': [], 'train_loss_ce': [], 'train_pred_loss': []},
-                     'test': {'test_accuracy': [], 'test_loss': [], 'test_loss_ce': [], 'test_pred_loss': []}},
+                     'test': {'test_accuracy': []}},
     'cifar10': {
         'unlab_sample_dim': 10000,
         'batch_size': { None: 128, 'LossNet': 128, 'GTG_Module': 256 },
