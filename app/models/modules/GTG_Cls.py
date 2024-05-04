@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import entropy
+from utils import entropy, log_assert
 
 from typing import Any, List, Tuple, Dict
 
@@ -127,9 +127,15 @@ class GTG_Module(nn.Module):
             for i in range(concat_embedds.shape[0]) 
         ], device=self.device), dim=0)
         
-        A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(self.device)      
+        '''A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(self.device)      
         
-        return torch.clamp(A, min=0., max=1.)
+        return torch.clamp(A, min=0., max=1.)'''
+        
+        A_m_2 = -A_matrix.pow(2)
+        sigma_T = sigmas.T
+        sigma_mm = (torch.mm(sigma_T, sigmas))
+        A = torch.exp(A_m_2 / sigma_mm)
+        return torch.clamp(A.to(self.device), min=0., max=1.)
     
         
     def get_A_e_d(self, concat_embedds: torch.Tensor) -> torch.Tensor:
@@ -141,9 +147,12 @@ class GTG_Module(nn.Module):
         normalized_embedding = F.normalize(concat_embedds, dim=-1).to(self.device)
         A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device)
         
-        A.fill_diagonal_(1.)
+        '''A.fill_diagonal_(1.)
         
-        return torch.clamp(A, min=0., max=1.)
+        return torch.clamp(A, min=0., max=1.)'''
+        A_flat = A.flatten()
+        A_flat[::(A.shape[-1]+1)] = 0.
+        return torch.clamp(A.clone(), min=0., max=1.)
 
         
     def get_A_corr(self, concat_embedds: torch.Tensor) -> torch.Tensor:
@@ -216,7 +225,37 @@ class GTG_Module(nn.Module):
             err = torch.norm(self.X - X_old)
 
         return entropy_hist
+
+
+
+    def graph_trasduction_game(self, embedding: torch.Tensor) -> torch.Tensor:
+        
+        entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)#, requires_grad=True)        
+        
+        self.get_A(embedding)
+        self.get_X()
+        self.X.requires_grad_(True)
+        
+        err = float('Inf')
+        i = 0
+                
+        while err > self.gtg_tol and i < self.gtg_max_iter:
+            X_old = self.X.detach().clone()
             
+            mm_A_X = torch.mm(self.A, self.X)
+            mult_X_A_X = self.X * mm_A_X
+            sum_X_A_X = torch.sum(mult_X_A_X, dim=1, keepdim=True)
+            div_sum_X_A_X = mult_X_A_X / sum_X_A_X
+            
+            entropy_hist[:, i] = entropy(div_sum_X_A_X).to(self.device)
+            
+            err = torch.norm(div_sum_X_A_X.detach() - X_old)            
+            self.X = div_sum_X_A_X
+            
+            i += 1
+                    
+        return entropy_hist.requires_grad_(True)
+    
         
         
     # List[torch.Tensor] -> detection
@@ -243,7 +282,7 @@ class GTG_Module(nn.Module):
         self.unlab_labels = labels[self.unlabeled_indices]
                 
         entropy_hist = self.graph_trasduction_game_detached(embedding)
-        
+        #entropy_hist = self.graph_trasduction_game(embedding)
         
         if self.ent_strategy == 'mean':
             # computing the mean of the entropis history
