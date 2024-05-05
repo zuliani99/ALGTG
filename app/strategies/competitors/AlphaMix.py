@@ -112,16 +112,16 @@ class AlphaMix(ActiveLearner):
         if len(selected_idxs) < n_top_k_obs:
 
             remained = n_top_k_obs - len(selected_idxs)
-            bool_idx_unlb = np.zeros(len(self.unlabeled_indices))
+            bool_idx_unlb = np.zeros(len(self.rand_unlab_sample))
                     
             for idx in selected_idxs: bool_idx_unlb[np.where(
-                np.array(self.unlabeled_indices) == idx
+                np.array(self.rand_unlab_sample) == idx
             )[0][0]] = 1
                     
             selected_idxs = np.concatenate([
                 selected_idxs, 
                 np.random.choice(
-                    np.array(self.unlabeled_indices)[np.where(bool_idx_unlb == 0)[0]], 
+                    np.array(self.rand_unlab_sample)[np.where(bool_idx_unlb == 0)[0]], 
                     remained, replace=False
                 )
             ])
