@@ -110,13 +110,23 @@ class AlphaMix(ActiveLearner):
 
 
         if len(selected_idxs) < n_top_k_obs:
+
             remained = n_top_k_obs - len(selected_idxs)
-            idx_lb = np.array(copy.deepcopy(self.labeled_indices))
-            for idx in selected_idxs: idx_lb[np.where(idx_lb == idx)[0][0]] = True
-            #idx_lb[selected_idxs] = True
-            selected_idxs = np.concatenate([selected_idxs, np.random.choice(np.where(idx_lb == 0)[0], remained)])
+            bool_idx_unlb = np.zeros(len(self.unlabeled_indices))
+                    
+            for idx in selected_idxs: bool_idx_unlb[np.where(
+                np.array(self.unlabeled_indices) == idx
+            )[0][0]] = 1
+                    
+            selected_idxs = np.concatenate([
+                selected_idxs, 
+                np.random.choice(
+                    np.array(self.unlabeled_indices)[np.where(bool_idx_unlb == 0)[0]], 
+                    remained, replace=False
+                )
+            ])
             logger.info('picked %d samples from RandomSampling.' % (remained))
-        
+            
         selected_idxs = np.array(selected_idxs).tolist()
         
         return [self.rand_unlab_sample.index(idx) for idx in selected_idxs], selected_idxs
