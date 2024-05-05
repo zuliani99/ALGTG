@@ -26,15 +26,16 @@ python3 app/main.py -gpus 1 -m random entropy coreset badge bald cdal tavaal ll 
 
 Accepted Arguments:
 ```
-usage: main.py [-h] [-gpus GPUS]
-               -m
-               {random,entropy,coreset,badge,bald,cdal,tavaal,ll,gtg,ll_gtg,lq_gtg}
-               [{random,entropy,coreset,badge,bald,cdal,tavaal,ll,gtg,ll_gtg,lq_gtg} ...]
+usage: main.py [-h] [-gpus GPUS] -m
+               {random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg}
+               [{random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg} ...]
                -ds
                {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco}
                [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} ...]
-               [-tr TRIALS] [-am {corr,cos_sim,e_d} [{corr,cos_sim,rbfk} ...]]
-               [-am_s {uncertanity,diversity,mixed}] [-am_ts {threshold,mean}]
+               [-tr TRIALS]
+               [-am {corr,cos_sim,rbfk} [{corr,cos_sim,rbfk} ...]]
+               [-am_s {uncertanity,diversity,mixed}]
+               [-am_ts {threshold,mean,none} [{threshold,mean,none} ...]]
                [-am_t AFFINITY_MATRIX_THRESHOLD] [-e_s {mean,integral}]
                [-gtg_iter GTG_ITERATIONS] [-gtg_t GTG_TOLLERANCE]
                [-plb PERC_LABELED_BATCH] [--wandb]
@@ -43,22 +44,24 @@ options:
   -h, --help            show this help message and exit
   -gpus GPUS, --gpus GPUS
                         Number of GPUs to use during training
-  -m {random,entropy,coreset,badge,bald,cdal,tavaal,ll,gtg,ll_gtg,lq_gtg} [{random,entropy,coreset,badge,bald,cdal,tavaal,ll,gtg,ll_gtg,lq_gtg} ...],
-  --methods {random,entropy,coreset,badge,bald,cdal,tavaal,ll,gtg,ll_gtg,lq_gtg} [{random,entropy,coreset,badge,bald,cdal,tavaal,ll,gtg,ll_gtg,lq_gtg} ...]
+  -m {random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg} [{random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg} ...],
+     --methods {random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg} [{random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg} ...]
                         Possible methods to choose
   -ds {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} ...],
-  --datasets {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} ...]
+     --datasets {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} ...]
                         Possible datasets to choose
   -tr TRIALS, --trials TRIALS
                         AL trials
-  -am {corr,cos_sim,e_d} [{corr,cos_sim,e_d} ...], --affinity_matrix {corr,cos_sim,e_d} [{corr,cos_sim,e_d} ...]
+  -am {corr,cos_sim,rbfk} [{corr,cos_sim,rbfk} ...], --affinity_matrix {corr,cos_sim,rbfk} [{corr,cos_sim,rbfk} ...]
                         Affinity matrix to choose
   -am_s {uncertanity,diversity,mixed}, --affinity_matrix_strategy {uncertanity,diversity,mixed}
                         Different affinity matrix modification
-  -am_ts {threshold,mean}, --affinity_matrix_threshold_strategy {threshold,mean}
-                        Possible treshold strategy types to choose to apply in the affinity matrix
+  -am_ts {threshold,mean,none} [{threshold,mean,none} ...], --affinity_matrix_threshold_strategies {threshold,mean,none} [{threshold,mean,none} ...]
+                        Possible treshold strategy types to choose to apply in
+                        the affinity matrix
   -am_t AFFINITY_MATRIX_THRESHOLD, --affinity_matrix_threshold AFFINITY_MATRIX_THRESHOLD
-                        Affinity Matrix Threshold for our method, when threshold_strategy = mean, this is ignored
+                        Affinity Matrix Threshold for our method, when
+                        threshold_strategy = mean, this is ignored
   -e_s {mean,integral}, --entropy_strategy {mean,integral}
                         Entropy strategy to sum up the entropy history
   -gtg_iter GTG_ITERATIONS, --gtg_iterations GTG_ITERATIONS
@@ -66,8 +69,10 @@ options:
   -gtg_t GTG_TOLLERANCE, --gtg_tollerance GTG_TOLLERANCE
                         GTG tollerance
   -plb PERC_LABELED_BATCH, --perc_labeled_batch PERC_LABELED_BATCH
-                        Number of labeled observations to mantain in each batch during GTG end-to-end version
-  --wandb               Log benchmark stats into Weights & Biases web app service
+                        Number of labeled observations to mantain in each
+                        batch during GTG end-to-end version
+  --wandb               Log benchmark stats into Weights & Biases web app
+                        service
 ```
 
 ## Notes
