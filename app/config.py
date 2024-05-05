@@ -167,7 +167,7 @@ al_params = {
     
 
 cls_config = {
-    'epochs': 200,
+    'epochs': 20,#200,
     'results_dict': { 'train': {'train_accuracy': [], 'train_loss': [], 'train_loss_ce': [], 'train_pred_loss': []},
                      'test': {'test_accuracy': []}},
     'cifar10': {

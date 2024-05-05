@@ -84,7 +84,7 @@ class Cls_TrainWorker():
             tot_loss_ce += backbone.item()
             return backbone, tot_loss_ce, tot_pred_loss
         
-        elif self.method_name.split('_')[0] == 'GTG':
+        elif self.method_name.split('_')[0] == 'GTG' and self.model.added_module_name == 'GTG_Module':
             
             (pred_entr, true_entr), labeled_mask = module_out
             #if iterations != -1 and iterations % 20 == 0: logger.info(f'pred_entr {pred_entr} - true_entr {true_entr}')
@@ -101,7 +101,7 @@ class Cls_TrainWorker():
             return loss, tot_loss_ce, tot_pred_loss
             
         
-        elif self.method_name == 'LearningLoss':
+        elif self.method_name in ['LearningLoss', 'TAVAAL'] or 'GTG_off' in self.method_name:
             loss_weird = weight * self.ll_loss_fn(module_out, ce_loss)
             loss = backbone + loss_weird
 
