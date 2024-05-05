@@ -55,7 +55,6 @@ class Cls_TrainWorker():
     def init_opt_sched(self):
         optimizers = self.ds_t_p['optimizers']
         self.optimizers, self.lr_schedulers = [], []
-        
         self.optimizers.append(optimizers['backbone']['type'](self.model.backbone.parameters(), **optimizers['backbone']['optim_p']))
         self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1))
         if self.model.added_module != None:
@@ -80,12 +79,12 @@ class Cls_TrainWorker():
                 
         ce_loss = self.ce_loss_fn(outputs, labels)
         backbone = torch.mean(ce_loss)
-        
+                
         if module_out == None:
             tot_loss_ce += backbone.item()
             return backbone, tot_loss_ce, tot_pred_loss
         
-        elif len(module_out) == 2:
+        elif self.method_name.split('_')[0] == 'GTG':
             
             (pred_entr, true_entr), labeled_mask = module_out
             #if iterations != -1 and iterations % 20 == 0: logger.info(f'pred_entr {pred_entr} - true_entr {true_entr}')
@@ -111,17 +110,14 @@ class Cls_TrainWorker():
                 
             return loss, tot_loss_ce, tot_pred_loss
         
-        else:
+        elif self.method_name == 'TiDAL':
             log_assert(tidal != None, 'TiDAL parameters are None')
             idxs, moving_prob, epoch = tidal # type: ignore
-            
-            index = idxs.tolist()
-            probs = torch.softmax(outputs, dim=1)
             moving_prob = moving_prob.to(self.device)
             
-            moving_prob = (moving_prob * epoch + probs * 1) / (epoch + 1)
-            self.train_dl.dataset.moving_prob[index, :] = moving_prob.cpu().detach() # type: ignore
-            
+            moving_prob = (moving_prob * epoch + torch.softmax(outputs, dim=1) * 1) / (epoch + 1)
+            self.train_dl.dataset.moving_prob[idxs.tolist(), :] = moving_prob.detach().cpu() # type: ignore
+                        
             m_module_loss = weight * self.kld_loss_fn(F.log_softmax(module_out, 1), moving_prob.detach())
             loss = backbone + m_module_loss
             
@@ -129,7 +125,9 @@ class Cls_TrainWorker():
             tot_pred_loss += m_module_loss.item()
                 
             return loss, tot_loss_ce, tot_pred_loss
-   
+
+        else: raise AttributeError('Invalid method_name')
+    
     
     def return_moved_imgs_labs(self, images, labels):
         if self.world_size > 1:
@@ -162,13 +160,13 @@ class Cls_TrainWorker():
                 for optimizer in self.optimizers: optimizer.zero_grad()
                 
                 outputs, _, module_out = self.model(images, labels=labels)
-                                                    
+                                                                    
                 loss, train_loss_ce, train_loss_pred = self.compute_losses(
                         weight=weight, module_out=module_out, outputs=outputs, labels=labels,
                         tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred, tidal=(idxs, moving_prob, epoch),
                         #iterations=iterations
                     )  
-                                                    
+                
                 loss.backward()
                 for optimizer in self.optimizers: optimizer.step()
                         
@@ -186,7 +184,7 @@ class Cls_TrainWorker():
             
             for pos, metric in zip(range(results.shape[0]), [train_accuracy, train_loss, train_loss_ce, train_loss_pred]):
                 results[pos][epoch] = metric
-                
+
                 
             if self.wandb_run != None:
                 self.wandb_run.log({
