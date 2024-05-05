@@ -62,6 +62,8 @@ class ResNet(nn.Module):
         self.conv5_x = self._make_layer(block, 512, num_block[3], 2)
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
         self.classifier = nn.Linear(512 * block.expansion, num_classes)
+    
+        self.dropout = nn.Dropout(0.2) # -> BALD
         
         self.apply(init_weights_apply)
         
@@ -74,7 +76,7 @@ class ResNet(nn.Module):
             self.in_channels = planes * block.expansion
         return nn.Sequential(*layers)
 
-    def forward(self, x: torch.Tensor, embedding = False) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor, embedding = False, dropout = False) -> Tuple[torch.Tensor, torch.Tensor]:
         if embedding: # -> performed for alphamix strategy
             embedds = x
         else:
@@ -86,10 +88,10 @@ class ResNet(nn.Module):
             out4 = self.conv5_x(out3)
             
             self.features = [out1, out2, out3, out4]
-            
             out = self.avg_pool(out4)
-            
             embedds = out.view(out.size(0), -1)
+            
+            if dropout: embedds = self.dropout(embedds)
             
         out = self.classifier(embedds)
 

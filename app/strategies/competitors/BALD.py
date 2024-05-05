@@ -26,7 +26,7 @@ class BALD(ActiveLearner):
         
         self.load_best_checkpoint()
 
-        self.model.train()
+        self.model.backbone.train()
         
         prob_dist_drop = torch.zeros((n_drop, len(self.unlab_train_dl.dataset), self.dataset.n_classes), dtype=torch.float32, device=self.device)  # type: ignore
         indices = torch.empty(0, dtype=torch.int8, device=self.device) 
@@ -37,7 +37,7 @@ class BALD(ActiveLearner):
                     
                     idxs, images = idxs.to(self.device), images.to(self.device)
                     
-                    outputs = self.model(images, mode='probs')
+                    outputs, _ = self.model.backbone(images, dropout = True)
                                                          
                     prob_dist_drop[drop][idx_dl * idxs.shape[0] : (idx_dl + 1) * idxs.shape[0]] += F.softmax(outputs, dim=1)
 
