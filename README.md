@@ -1,5 +1,5 @@
-# GTGAL
-## Active Learning Strategy using Graph Trusduction Algorithm
+# ALGTG
+## Active Learning trategy using Graph Trusduction Game
 
 Nowadays neural networks are one of the main pillars of artificial intelligence. However, they are data hungry, which means that to get good results on such a problem like image classification or object detection requires a large amount of information. This results in increased time and training costs. Active Learning wants to overcome this problem by finding the most important observations and features that summarize the data set. Having found those we can get results very close to the one obtained by analysing the entire data set. 
 
