@@ -75,9 +75,9 @@ class Custom_MLP(nn.Module):
     
 
 
-class GTG_Module(nn.Module):
+class GTGModule(nn.Module):
     def __init__(self, params):
-        super(GTG_Module, self).__init__()
+        super(GTGModule, self).__init__()
         
         self.name = self.__class__.__name__
 

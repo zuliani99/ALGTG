@@ -58,7 +58,8 @@ class Cls_TrainWorker():
         self.optimizers.append(optimizers['backbone']['type'](self.model.backbone.parameters(), **optimizers['backbone']['optim_p']))
         self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1))
         if self.model.added_module != None:
-            self.optimizers.append(optimizers['modules'][self.model.added_module_name]['type'](self.model.added_module.parameters(), **optimizers['modules'][self.model.added_module_name]['optim_p']))
+            module_name = self.model.added_module_name if self.model.added_module == None else self.model.added_module_name.split('_')[0]
+            self.optimizers.append(optimizers['modules'][module_name]['type'](self.model.added_module.parameters(), **optimizers['modules'][module_name]['optim_p']))
             self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
     
     def __save_checkpoint(self, filename: str) -> None:
@@ -84,7 +85,7 @@ class Cls_TrainWorker():
             tot_loss_ce += backbone.item()
             return backbone, tot_loss_ce, tot_pred_loss
         
-        elif self.method_name.split('_')[0] == 'GTG' and self.model.added_module_name == 'GTG_Module':
+        elif self.method_name.split('_')[0] == 'GTG' and self.model.added_module_name == 'GTGModule':
             
             (pred_entr, true_entr), labeled_mask = module_out
             #if iterations != -1 and iterations % 20 == 0: logger.info(f'pred_entr {pred_entr} - true_entr {true_entr}')

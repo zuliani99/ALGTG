@@ -46,7 +46,7 @@ def get_args() -> argparse.Namespace:
             'random', 'entropy', 'coreset', 'badge', 'bald', 'cdal', 'tavaal', 'alphamix', 'tidal',
             'll', 'gtg', 'll_gtg', 'lq_gtg'
         ],help='Possible methods to choose')
-    parser.add_argument('-ds', '--datasets', type=str, nargs='+', required=True, choices=['cifar10', 'cifar100', 'svhn', 'fmnist', 'caltech256', 'tinyimagenet', 'voc', 'coco'],
+    parser.add_argument('-ds', '--datasets', type=str, nargs='+', required=True, choices=['cifar10', 'cifar100', 'svhn', 'fmnist', 'caltech256', 'tinyimagenet'], #'voc', 'coco'
                         help='Possible datasets to choose')
     parser.add_argument('-tr', '--trials', type=int, required=False, default=5, help='AL trials')
     

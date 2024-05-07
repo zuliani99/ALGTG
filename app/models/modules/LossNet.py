@@ -40,7 +40,7 @@ class LossNet(nn.Module):
     def __init__(self, LL_params):
         super(LossNet, self).__init__()
         
-        self.name = self.__class__.__name__
+        self.name = f'{self.__class__.__name__}_{LL_params['module_out']}' # -> or TiDAL LL module
 
         feature_sizes = LL_params['feature_sizes']
         num_channels = LL_params['num_channels']

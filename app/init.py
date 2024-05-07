@@ -1,5 +1,5 @@
 
-from models.modules.GTG_Cls import GTG_Module
+from models.modules.GTG_Cls import GTGModule
 from models.modules.LossNet import LossNet
 from models.backbones.ssd_pytorch.SSD import SSD, build_ssd
 from models.backbones.ResNet18 import ResNet, ResNet18
@@ -24,9 +24,9 @@ def get_backbone(n_classes: int, n_channels: int, bbone: str) -> ResNet | VGG | 
     else: return build_ssd('train', voc_config, num_classes=n_classes)
     
 
-def get_module(module: str, module_params: Dict[str, Any] | Tuple[Dict[str, Any], Dict[str, Any]]) -> LossNet | GTG_Module:
+def get_module(module: str, module_params: Dict[str, Any] | Tuple[Dict[str, Any], Dict[str, Any]]) -> LossNet | GTGModule:
     if module == 'LL': return LossNet(module_params)
-    else: return GTG_Module(module_params)
+    else: return GTGModule(module_params)
 
 
 def get_ll_module_params(task: str, image_size: int, dataset_name: str) -> Dict[str, int | str | List[int]]:

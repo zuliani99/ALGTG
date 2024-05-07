@@ -6,7 +6,7 @@ from models.backbones.ResNet18 import ResNet
 from models.backbones.ssd_pytorch.SSD import SSD
 from models.backbones.VGG import VGG
 
-from models.modules.GTG_Cls import GTG_Module
+from models.modules.GTG_Cls import GTGModule
 from models.modules.LossNet import LossNet
 
 import logging
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class Master_Model(nn.Module):
-    def __init__(self, backbone: SSD | ResNet | VGG, added_module: LossNet | GTG_Module | None, dataset_name: str) -> None:
+    def __init__(self, backbone: SSD | ResNet | VGG, added_module: LossNet | GTGModule | None, dataset_name: str) -> None:
         
         super(Master_Model, self).__init__()
         
@@ -48,7 +48,7 @@ class Master_Model(nn.Module):
 
             if self.added_module != None:
                 features = self.backbone.get_features()
-                if self.added_module.name == 'GTG_Module':
+                if self.added_module.name == 'GTGModule':
                     module_out = self.added_module(features, embedds, labels)
                 else: module_out = self.added_module(features)
                 return outs, embedds, module_out
@@ -62,7 +62,7 @@ class Master_Model(nn.Module):
         elif mode == 'module_out':
             if self.added_module != None:
                 _, embedds = self.backbone(x)
-                if self.added_module.name == 'GTG_Module':
+                if self.added_module.name == 'GTGModule':
                     return self.added_module(self.backbone.get_features(), embedds, labels)
                 else: return self.added_module(self.backbone.get_features())
             else:

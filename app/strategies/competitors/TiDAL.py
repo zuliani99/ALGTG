@@ -25,14 +25,14 @@ class TiDAL(ActiveLearner):
         )
                 
         logger.info(' => Evaluating unlabeled observations')
-        embeds_dict = { 'module_out': torch.empty(0, dtype=torch.float32, device=torch.device('cpu')) }
+        embeds_dict = { 'module_out': torch.empty((0, self.dataset.n_classes), dtype=torch.float32, device=torch.device('cpu')) }
         
         self.load_best_checkpoint()
         
         self.get_embeddings(self.unlab_train_dl, embeds_dict)
+        sub_prob = torch.softmax(embeds_dict['module_out'], dim=1)
+        logger.info(' DONE\n')
         
-        sub_prob = torch.softmax(embeds_dict['module_out'].unsqueeze(dim=1), dim=1)
-                
         logger.info(f' => Extracting the Top-k unlabeled observations')
         overall_topk = torch.topk(entropy(sub_prob), n_top_k_obs).indices.tolist()
         logger.info(' DONE\n')

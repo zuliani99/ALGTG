@@ -40,7 +40,7 @@ class ActiveLearner():
         self.dataset: Cls_Datasets | Det_Dataset = self.ct_p['Dataset']
         
         self.ds_t_p = self.t_p[self.ct_p['dataset_name']]
-        self.batch_size = self.ds_t_p['batch_size'][self.model.added_module_name]
+        self.batch_size = self.ds_t_p['batch_size'][self.model.added_module_name if self.model.added_module == None else self.model.added_module_name.split('_')[0]]
                 
         self.labeled_indices: List[int] = copy.deepcopy(self.dataset.labeled_indices)
         self.unlabeled_indices: List[int] = copy.deepcopy(self.dataset.unlabeled_indices)
@@ -125,12 +125,12 @@ class ActiveLearner():
                     
                 if 'probs' in dict_to_modify:
                     outs = self.model(images, mode='probs')
-                    dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], outs.squeeze().cpu()), dim=0)
+                    dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], outs.cpu()), dim=0)
                     
                 # could be both LL (1 output) and GTG (2 outputs)
                 if 'module_out' in dict_to_modify:
                     if self.model.added_module != None:
-                        if self.model.added_module.__class__.__name__ == 'GTG_Module':
+                        if self.model.added_module_name == 'GTGModule':
                             module_out = self.model(images, labels.to(self.device), mode='module_out')
                             dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out[0][0].cpu().squeeze()), dim=0)
                         else:
@@ -325,11 +325,11 @@ class ActiveLearner():
             logger.info(f' Number of observations per class added to the labeled set:\n {d_labels}\n')
             
             # Saving the tsne embeddings plot
-            if len(self.strategy_name.split('_')) > 2 and self.model.added_module_name == 'LossNet':
+            if len(self.strategy_name.split('_')) > 2 and self.model.added_module_name.split('_')[0] == 'LossNet':
                 # if we are performing GTG Ofline plot also the GTG predictions in the TSNE plot 
                 self.save_tsne(idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction)
             
-            elif self.model.added_module_name == 'GTG_Module': self.save_tsne(idxs_new_labels, d_labels, str(self.iter))
+            elif self.model.added_module_name == 'GTGModule': self.save_tsne(idxs_new_labels, d_labels, str(self.iter))
 
             # modify the datasets and dataloader and plot the tsne
             self.update_sets(topk_idx_obs)
