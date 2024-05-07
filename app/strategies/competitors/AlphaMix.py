@@ -42,16 +42,16 @@ class AlphaMix(ActiveLearner):
             
         logger.info(' => Getting the labeled and unlabeled embeddings')
         self.lab_embedds_dict = {
-            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu')),
+            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
             'labels': torch.empty(0, dtype=torch.int8, device=torch.device('cpu'))
         }
         self.unlab_embedds_dict = {
             'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32, device=torch.device('cpu')),
-            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu')),
+            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
         }
 
-        self.get_embeddings(lab_train_dl, self.lab_embedds_dict, embedds2cpu=True)
-        self.get_embeddings(unlab_train_dl, self.unlab_embedds_dict, embedds2cpu=True)
+        self.get_embeddings(lab_train_dl, self.lab_embedds_dict)
+        self.get_embeddings(unlab_train_dl, self.unlab_embedds_dict)
         
         idxs_unlabeled = torch.tensor(self.rand_unlab_sample) 
 

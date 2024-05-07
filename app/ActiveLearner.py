@@ -325,8 +325,8 @@ class ActiveLearner():
             logger.info(f' Number of observations per class added to the labeled set:\n {d_labels}\n')
             
             # Saving the tsne embeddings plot
-            if len(self.strategy_name.split('_')) > 2 and self.model.added_module_name.split('_')[0] == 'LossNet':
-                # if we are performing GTG Ofline plot also the GTG predictions in the TSNE plot 
+            if len(self.strategy_name.split('_')) > 2 and self.model.added_module_name.split('_')[1] == '':
+                # if we are performing GTG Offline plot also the GTG predictions in the TSNE plot 
                 self.save_tsne(idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction)
             
             elif self.model.added_module_name == 'GTGModule': self.save_tsne(idxs_new_labels, d_labels, str(self.iter))
