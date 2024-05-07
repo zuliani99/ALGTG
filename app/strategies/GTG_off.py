@@ -36,7 +36,7 @@ class GTG_off(ActiveLearner):
 
         if self.AM_threshold_strategy != None:
             str_tresh_strat = f'{self.AM_threshold_strategy}_{self.AM_threshold}' if self.AM_threshold_strategy != 'mean' else 'ts-mean'            
-            strategy_name = f'{self.__class__.__name__}_{self.AM_strategy}_{self.AM_function}_{str_tresh_strat}_es-{self.ent_strategy}'
+            strategy_name = f'{self.__class__.__name__}_{self.AM_function}_{self.AM_strategy}_{str_tresh_strat}_es-{self.ent_strategy}'
         else:
             strategy_name = f'{self.__class__.__name__}_{self.AM_function}_{self.AM_strategy}_es-{self.ent_strategy}'
                 
@@ -57,21 +57,17 @@ class GTG_off(ActiveLearner):
         logger.info(' => Computing Affinity Matrix...')
 
         concat_embedds = torch.cat((self.lab_embedds_dict['embedds'], self.unlab_embedds_dict['embedds']))
-        
+                
         # compute the affinity matrix
         A = self.get_A_fn[self.AM_function](concat_embedds, to_cpu=True)
-        
-        torch.cuda.empty_cache()
-        gc.collect()
     
         initial_A = torch.clone(A)
-        
+               
         if self.AM_threshold_strategy != None:
             # remove weak connections with the choosen threshold strategy and value
             logger.info(f' Affinity Matrix Threshold to be used: {self.AM_threshold_strategy}, {self.AM_threshold} -> {self.get_A_treshold(A)}')
             if self.AM_function != 'rbfk': A = torch.where(A < self.get_A_treshold(A), 0, A)
             else: A = torch.where(A > self.get_A_treshold(A), 1, A)
-        
         
         if self.AM_strategy == 'diversity':
             # set the whole matrix as a distance matrix and not similarity matrix
@@ -94,7 +90,7 @@ class GTG_off(ActiveLearner):
         logger.info('Plotting TSNE of the original and modified Affinity Matrix...')
         plot_tsne_A(
             (initial_A, A),
-            (self.lab_embedds_dict['labels'], self.unlabeled_labels), self.dataset.classes,
+            (self.lab_embedds_dict['labels'], self.unlab_embedds_dict['labels']), self.dataset.classes,
             self.ct_p['timestamp'], self.ct_p['dataset_name'], self.ct_p['trial'], self.strategy_name, self.AM_function, self.AM_strategy, self.iter
         )
         
@@ -103,14 +99,14 @@ class GTG_off(ActiveLearner):
         del A
         del initial_A
         del concat_embedds
-        
+        gc.collect()
         logger.info(' DONE\n')
 
 
     def get_A_rbfk(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         
         device = torch.device('cpu') if to_cpu else self.device
-        A_matrix = self.get_A_e_d(concat_embedds, to_cpu).to(device)
+        A_matrix = self.get_A_e_d(concat_embedds, to_cpu)
         seventh_neigh = concat_embedds[torch.argsort(A_matrix, dim=1)[:, 6]]            
             
         sigmas = torch.unsqueeze(torch.tensor([
@@ -143,7 +139,6 @@ class GTG_off(ActiveLearner):
         A = torch.clamp(A, min=0., max=1.)
 
         del normalized_embedding
-        
         return A
         
         
@@ -153,35 +148,25 @@ class GTG_off(ActiveLearner):
         
 
     def get_X(self) -> None:
-        
         logger.info(' => Computing X Matrix...')
         
         self.X: torch.Tensor = torch.zeros(
             (len(self.labeled_indices) + self.len_unlab_sample, self.dataset.n_classes),
             dtype=torch.float32, device=self.device
         )
-
         for idx, label in enumerate(self.lab_embedds_dict['labels']): self.X[idx][int(label.item())] = 1.
-        
         for idx in range(len(self.labeled_indices), len(self.labeled_indices) + self.len_unlab_sample):
             for label in range(self.dataset.n_classes): self.X[idx][label] = 1. / self.dataset.n_classes
         
         del self.lab_embedds_dict
-        
         logger.info(' DONE\n')
         
         
         
-    def graph_trasduction_game(self) -> None:        
-        
-        torch.cuda.empty_cache()
-        gc.collect()
+    def graph_trasduction_game(self) -> None:
         
         self.get_A()
         self.get_X()
-                
-        torch.cuda.empty_cache()        
-        gc.collect()
                 
         # from here to the end will be all on cuda
         
@@ -204,19 +189,19 @@ class GTG_off(ActiveLearner):
             err = torch.norm(self.X - X_old)
             i += 1
         
-            del X_old
+            '''del X_old
             del iter_entropy
-            torch.cuda.empty_cache()
+            logger.info(gc.collect())
+            torch.cuda.empty_cache()'''
             
         logger.info(' DONE\n')
 
 
-    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
-            
+    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:            
         # set the entire batch size to the dimension of the sampled unlabeled set
         self.len_unlab_sample = len(sample_unlab_subset)
 
-        dl_dict = dict(batch_size=self.len_unlab_sample, shuffle=False, pin_memory=True)
+        dl_dict = dict(batch_size=self.batch_size, shuffle=False, pin_memory=True)
         
         # we have the batch size which is equal to the number of sampled observation from the unlabeled set
         # set shuffle to false since I do not have interest on shufflind the dataloader, since I have only to get the embeddings
@@ -224,34 +209,33 @@ class GTG_off(ActiveLearner):
         
         unlab_train_dl = DataLoader(sample_unlab_subset, **dl_dict)
         lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labeled_indices), **dl_dict)
-                
+                        
         logger.info(' => Getting the labeled and unlabeled embeddings')
         self.lab_embedds_dict = {
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu')),
             'labels': torch.empty(0, dtype=torch.int8, device=torch.device('cpu'))
         }
-        self.unlab_embedds_dict = {'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu'))}
-        
+        self.unlab_embedds_dict = {
+            'idxs': torch.empty(0, dtype=torch.int8, device=torch.device('cpu')),
+            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu')),
+            'labels': torch.empty(0, dtype=torch.int8, device=torch.device('cpu'))
+        }        
         self.load_best_checkpoint()
-        
+                
         self.get_embeddings(lab_train_dl, self.lab_embedds_dict, embedds2cpu=True)
         self.get_embeddings(unlab_train_dl, self.unlab_embedds_dict, embedds2cpu=True)
         logger.info(' DONE\n')
-            
-        # I can take the indices and labels from the dataloader, without using the get_embeddings function so no cuda memory is used in this case
-        # I have a single batch
-        self.unlabeled_idxs = next(iter(unlab_train_dl))[0]
-        self.unlabeled_labels = next(iter(unlab_train_dl))[2]
-                    
+        
+        
         # I save the entropy history in order to be able to plot it
         self.unlab_entropy_hist = torch.zeros((self.len_unlab_sample, self.gtg_max_iter), device=self.device)
-        
+                
         logger.info(' => Execution of the Graph Trasduction Game')
         self.graph_trasduction_game()
         logger.info(' DONE\n')
-                
+                        
         # TRUE / FALSE np.ndarray
-        self.gtg_result_prediction = (torch.argmax(self.X[len(self.labeled_indices):], dim=1).cpu() == self.unlabeled_labels).numpy()
+        self.gtg_result_prediction = (torch.argmax(self.X[len(self.labeled_indices):], dim=1).cpu() == self.unlab_embedds_dict['labels']).numpy()
 
         
         del self.A
@@ -278,16 +262,15 @@ class GTG_off(ActiveLearner):
         
         # plot entropy hisstory tensor
         plot_gtg_entropy_tensor(
-            tensor=self.unlab_entropy_hist, topk=overall_topk, lab_unlabels=self.unlabeled_labels.tolist(), classes=self.dataset.classes, 
+            tensor=self.unlab_entropy_hist, topk=overall_topk, lab_unlabels=self.unlab_embedds_dict['labels'].tolist(), classes=self.dataset.classes, 
             path=self.path, iter=self.iter - 1, max_x=self.gtg_max_iter, dir='history'
         )
-        
-            
+                    
         del self.unlab_entropy_hist
         gc.collect()
         torch.cuda.empty_cache() 
         
         logger.info(' DONE\n')
         
-        return overall_topk, [self.unlabeled_idxs[id].item() for id in overall_topk]
+        return overall_topk, [self.unlab_embedds_dict['idxs'][id].item() for id in overall_topk]
     

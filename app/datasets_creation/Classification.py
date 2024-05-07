@@ -220,7 +220,7 @@ class Cls_Dataset(Dataset):
                 ) 
 
             log_assert(n_classes != -1, 'Invalid n_classes')
-            self.moving_prob = torch.zeros((len(self.ds), n_classes), dtype=torch.float32) # type: ignore  # -> for TiDAL
+            self.moving_prob = torch.zeros((len(self.ds), n_classes), dtype=torch.float32, device=torch.device('cpu')) # type: ignore  # -> for TiDAL
                
         else:
             # unlabeled or test dataset

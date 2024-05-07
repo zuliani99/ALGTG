@@ -18,6 +18,7 @@ import numpy as np
 from typing import List, Dict, Any
 import copy
 import os
+import gc
 
 import logging
 logger = logging.getLogger(__name__)
@@ -114,36 +115,42 @@ class ActiveLearner():
         with torch.inference_mode():
             
             for data in dataloader:
-                if len(data) > 3: _, images, labels, _ = data # in case on TiDAL
-                else: _, images, labels = data
+                if len(data) > 3: idxs, images, labels, _ = data # in case on TiDAL
+                else: idxs, images, labels = data
                 
                 images = images.to(self.device)
                 
                 if 'embedds' in dict_to_modify:
-                    embed = self.model(images, mode='embedds').squeeze()
+                    embed = self.model(images, mode='embedds')
                     dict_to_modify['embedds'] = torch.cat((dict_to_modify['embedds'], embed.cpu() if embedds2cpu else embed), dim=0)
-                    
+
                 if 'probs' in dict_to_modify:
-                    outs = self.model(images, mode='probs')
-                    dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], outs.cpu()), dim=0)
-                    
+                    dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], self.model(images, mode='probs').cpu()), dim=0)
+
                 # could be both LL (1 output) and GTG (2 outputs)
                 if 'module_out' in dict_to_modify:
                     if self.model.added_module != None:
                         if self.model.added_module_name == 'GTGModule':
-                            module_out = self.model(images, labels.to(self.device), mode='module_out')
-                            dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out[0][0].cpu().squeeze()), dim=0)
+                            dict_to_modify['module_out'] = torch.cat((
+                                dict_to_modify['module_out'], 
+                                self.model(images, labels.to(self.device), mode='module_out')[0][0].cpu().squeeze()
+                            ), dim=0)
                         else:
-                            module_out = self.model(images, mode='module_out')
-                            dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out.cpu().squeeze()), dim=0)
-
+                            dict_to_modify['module_out'] = torch.cat((
+                                dict_to_modify['module_out'], 
+                                self.model(images, mode='module_out').cpu().squeeze()
+                            ), dim=0)
                     else:
                         raise AttributeError("Can't get the module_out if there is no additional module specified")    
-                                        
-                if 'labels' in dict_to_modify: dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)
 
-            del images
+                if 'labels' in dict_to_modify: dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)
+                if 'idxs' in dict_to_modify: dict_to_modify['idxs'] = torch.cat((dict_to_modify['idxs'], idxs), dim=0)
+                
+            gc.collect()
             torch.cuda.empty_cache()
+                
+                
+
     
     
     def save_tsne(self, idxs_new_labels: List[int], \
@@ -158,11 +165,11 @@ class ActiveLearner():
         
         lab_embedds_dict = {
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu')),
-            'labels': torch.empty(0, dtype=torch.int8)
+            'labels': torch.empty(0, dtype=torch.int8, device=torch.device('cpu'))
         }
         unlab_embedds_dict = {
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu')),
-            'labels': torch.empty(0, dtype=torch.int8)
+            'labels': torch.empty(0, dtype=torch.int8, device=torch.device('cpu'))
         }
             
         logger.info(' Getting the embeddings...')

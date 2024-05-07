@@ -37,7 +37,7 @@ class BALD(ActiveLearner):
                     
                     idxs, images = idxs.to(self.device), images.to(self.device)
                     
-                    outputs, _ = self.model.backbone(images, dropout = True)
+                    outputs, _ = self.model.backbone(images)
                                                          
                     prob_dist_drop[drop][idx_dl * idxs.shape[0] : (idx_dl + 1) * idxs.shape[0]] += F.softmax(outputs, dim=1)
 

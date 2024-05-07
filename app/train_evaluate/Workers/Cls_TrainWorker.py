@@ -210,13 +210,13 @@ class Cls_TrainWorker():
     def test(self) -> torch.Tensor:
         test_accuracy = .0
         
-        self.model.eval()    
+        self.model.backbone.eval()    
 
         with torch.inference_mode():
             for _, images, labels in self.test_dl:
                 
                 images, labels = self.return_moved_imgs_labs(images, labels)
-                outputs, _, _,  = self.model(images, labels)
+                outputs, _   = self.model.backbone(images)
                 test_accuracy += self.score_fn(outputs, labels)
 
             test_accuracy /= len(self.test_dl)

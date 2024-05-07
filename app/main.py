@@ -127,29 +127,24 @@ def get_masters(methods: List[str], BBone: ResNet | SSD | VGG,
                 ll_module_params: Dict[str, Any], gtg_module_params: Dict[str, Any],
                 dataset_name: str, n_classes: int) -> Dict[str, Master_Model]:
     
-    LL_Mod, LL_Mod_tidal, GTG_Mod, M_None = None, None, None, None
     ll, ll_tidal, only_bb = False, False, False
     
+    Masters = { }
+    
+    # create and save the initial checkpoints of the masters
     for method in methods:
         if (method in ['ll', 'll_gtg', 'tavaal']) and not ll:
-            LL_Mod = get_module('LL', {**ll_module_params, 'module_out': 1})
+            Masters['M_LL'] = Master_Model(BBone, get_module('LL', {**ll_module_params, 'module_out': 1}), dataset_name)
             ll = True
         elif method == 'tidal' and not ll_tidal:
-            LL_Mod_tidal = get_module('LL', {**ll_module_params, 'module_out': n_classes})
+            Masters['M_LL_tidal'] = Master_Model(BBone, get_module('LL', {**ll_module_params, 'module_out': n_classes}), dataset_name)
             ll_tidal = True
         elif method == 'lq_gtg':
-            GTG_Mod = get_module('GTG', (gtg_module_params, {**ll_module_params, 'module_out': 1}))
+            Masters['M_GTG'] = Master_Model(BBone, get_module('GTG', (gtg_module_params, {**ll_module_params, 'module_out': 1})), dataset_name)
         elif not only_bb:
-            M_None = Master_Model(BBone, None, dataset_name)
+            Masters['M_None'] = Master_Model(BBone, None, dataset_name)
             only_bb = True
         else: continue
-        
-    Masters = { }
-    # create and save the initial checkpoints of the masters
-    if M_None != None: Masters['M_None'] = M_None
-    if GTG_Mod != None: Masters['M_GTG'] = Master_Model(BBone, GTG_Mod, dataset_name)
-    if LL_Mod != None: Masters['M_LL'] = Master_Model(BBone, LL_Mod, dataset_name)
-    if LL_Mod_tidal != None: Masters['M_LL_tidal'] = Master_Model(BBone, LL_Mod_tidal, dataset_name)
     
     return Masters
     

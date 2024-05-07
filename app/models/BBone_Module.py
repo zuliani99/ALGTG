@@ -55,10 +55,10 @@ class Master_Model(nn.Module):
             else:
                 return outs, embedds, None
         
-        elif mode == 'probs': return self.backbone(x)[0]
-        
+        elif mode == 'probs': return self.backbone(x)[0] 
+            
         elif mode == 'embedds': return self.backbone(x)[1]
-        
+            
         elif mode == 'module_out':
             if self.added_module != None:
                 _, embedds = self.backbone(x)

@@ -76,7 +76,7 @@ class ResNet(nn.Module):
             self.in_channels = planes * block.expansion
         return nn.Sequential(*layers)
 
-    def forward(self, x: torch.Tensor, embedding = False, dropout = False) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor, embedding = False) -> Tuple[torch.Tensor, torch.Tensor]:
         if embedding: # -> performed for alphamix strategy
             embedds = x
         else:
@@ -90,9 +90,7 @@ class ResNet(nn.Module):
             self.features = [out1, out2, out3, out4]
             out = self.avg_pool(out4)
             embedds = out.view(out.size(0), -1)
-            
-            if dropout: embedds = self.dropout(embedds)
-            
+                        
         out = self.classifier(embedds)
 
         return out, embedds

@@ -279,8 +279,7 @@ def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor
     
     A_1, A_2 = A
     
-    label_lab, unlabel_lab = labels
-    len_lab = len(label_lab)
+    len_lab = len(labels[0])
     
     tsne_A1 = TSNE().fit_transform(A_1.numpy())
     tsne_A2 = TSNE().fit_transform(A_2.numpy())
@@ -293,7 +292,7 @@ def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor
         x_lab, y_lab = tsne_lab[:,0], tsne_lab[:,1]
         x_unlab, y_unlab = tsne_unlab[:,0], tsne_unlab[:,1]
         x, y = np.hstack((x_lab, x_unlab)), np.hstack((y_lab, y_unlab))
-        label = np.hstack((label_lab, unlabel_lab))
+        label = np.hstack(labels)
         
         sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', s=17, ax=axes[idx][0])
         sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=17, ax=axes[idx][0])
