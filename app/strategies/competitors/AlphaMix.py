@@ -114,9 +114,7 @@ class AlphaMix(ActiveLearner):
             remained = n_top_k_obs - len(selected_idxs)
             bool_idx_unlb = np.zeros(len(self.rand_unlab_sample))
                     
-            for idx in selected_idxs: bool_idx_unlb[np.where(
-                np.array(self.rand_unlab_sample) == idx
-            )[0][0]] = 1
+            bool_idx_unlb[[self.rand_unlab_sample.index(idx) for idx in selected_idxs]] = 1           
                     
             selected_idxs = np.concatenate([
                 selected_idxs, 

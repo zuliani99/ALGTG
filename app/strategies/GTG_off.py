@@ -36,7 +36,7 @@ class GTG_off(ActiveLearner):
 
         if self.AM_threshold_strategy != None:
             str_tresh_strat = f'{self.AM_threshold_strategy}_{self.AM_threshold}' if self.AM_threshold_strategy != 'mean' else 'ts-mean'            
-            strategy_name = f'{self.__class__.__name__}_{self.AM_function}_{self.AM_strategy}_{str_tresh_strat}_es-{self.ent_strategy}'
+            strategy_name = f'{self.__class__.__name__}_{self.AM_strategy}_{self.AM_function}_{str_tresh_strat}_es-{self.ent_strategy}'
         else:
             strategy_name = f'{self.__class__.__name__}_{self.AM_function}_{self.AM_strategy}_es-{self.ent_strategy}'
                 

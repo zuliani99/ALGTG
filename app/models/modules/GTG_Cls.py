@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import entropy, log_assert
+from utils import entropy
 
 from typing import Any, List, Tuple, Dict
 
