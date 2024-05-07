@@ -48,8 +48,8 @@ class CDAL(ActiveLearner):
         lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labeled_indices), **dl_dict)
             
         logger.info(' => Getting the labeled and unlabeled probebilities')
-        lab_embedds_dict = { 'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32) }
-        unlab_embedds_dict = { 'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32) }
+        lab_embedds_dict = { 'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32, device=torch.device('cpu')) }
+        unlab_embedds_dict = { 'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32, device=torch.device('cpu')) }
         
         self.load_best_checkpoint()
         

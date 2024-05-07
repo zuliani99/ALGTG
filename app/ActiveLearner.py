@@ -57,7 +57,7 @@ class ActiveLearner():
         create_method_res_dir(self.path)
         
         # save initial labeled images
-        #self.save_labeled_images(self.labeled_indices)
+        self.save_labeled_images(self.labeled_indices)
         
         
         
@@ -106,8 +106,8 @@ class ActiveLearner():
         self.model.load_state_dict(checkpoint['state_dict'])
     
     
-    def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, Any]) -> None:
-        
+    def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, Any], embedds2cpu = False) -> None:
+                
         self.model.eval()
 
         # again no gradients needed
@@ -117,29 +117,33 @@ class ActiveLearner():
                 if len(data) > 3: _, images, labels, _ = data # in case on TiDAL
                 else: _, images, labels = data
                 
+                images = images.to(self.device)
+                
                 if 'embedds' in dict_to_modify:
-                    embed = self.model(images.to(self.device), mode='embedds')
-                    dict_to_modify['embedds'] = torch.cat((dict_to_modify['embedds'], embed.squeeze()), dim=0)
+                    embed = self.model(images, mode='embedds').squeeze()
+                    dict_to_modify['embedds'] = torch.cat((dict_to_modify['embedds'], embed.cpu() if embedds2cpu else embed), dim=0)
                     
                 if 'probs' in dict_to_modify:
-                    outs = self.model(images.to(self.device), mode='probs')
+                    outs = self.model(images, mode='probs')
                     dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], outs.squeeze().cpu()), dim=0)
                     
                 # could be both LL (1 output) and GTG (2 outputs)
                 if 'module_out' in dict_to_modify:
                     if self.model.added_module != None:
                         if self.model.added_module.__class__.__name__ == 'GTG_Module':
-                            module_out = self.model(images.to(self.device), labels.to(self.device), mode='module_out')
+                            module_out = self.model(images, labels.to(self.device), mode='module_out')
                             dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out[0][0].cpu().squeeze()), dim=0)
                         else:
-                            module_out = self.model(images.to(self.device), mode='module_out')
+                            module_out = self.model(images, mode='module_out')
                             dict_to_modify['module_out'] = torch.cat((dict_to_modify['module_out'], module_out.cpu().squeeze()), dim=0)
+
                     else:
                         raise AttributeError("Can't get the module_out if there is no additional module specified")    
                                         
                 if 'labels' in dict_to_modify: dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)
 
-    
+            del images
+            torch.cuda.empty_cache()
     
     
     def save_tsne(self, idxs_new_labels: List[int], \
@@ -153,17 +157,17 @@ class ActiveLearner():
         lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labeled_indices), **dl_dict)
         
         lab_embedds_dict = {
-            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
+            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu')),
             'labels': torch.empty(0, dtype=torch.int8)
         }
         unlab_embedds_dict = {
-            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
+            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu')),
             'labels': torch.empty(0, dtype=torch.int8)
         }
             
         logger.info(' Getting the embeddings...')
-        self.get_embeddings(lab_train_dl, lab_embedds_dict)
-        self.get_embeddings(unlab_train_dl, unlab_embedds_dict)
+        self.get_embeddings(lab_train_dl, lab_embedds_dict, embedds2cpu=True)
+        self.get_embeddings(unlab_train_dl, unlab_embedds_dict, embedds2cpu=True)
         
 
         logger.info(' Plotting...')
@@ -176,10 +180,6 @@ class ActiveLearner():
         )
         
         logger.info(' DONE\n')
-        
-        del lab_embedds_dict
-        del unlab_embedds_dict
-        torch.cuda.empty_cache()
         
         
         
@@ -258,7 +258,7 @@ class ActiveLearner():
     
     def update_sets(self, overall_topk: List[int]) -> None:        
         # save the new labeled images to further visual analysis
-        #self.save_labeled_images(overall_topk)
+        self.save_labeled_images(overall_topk)
         
         # Update the labeeld and unlabeled training set
         logger.info(' => Modifing the Labeled and Unlabeled Indices Lists')
@@ -325,7 +325,7 @@ class ActiveLearner():
             logger.info(f' Number of observations per class added to the labeled set:\n {d_labels}\n')
             
             # Saving the tsne embeddings plot
-            if len(self.strategy_name.split('_')) > 2 and self.strategy_name.split('_')[2] == 'GTG':
+            if len(self.strategy_name.split('_')) > 2 and self.model.added_module_name == 'LossNet':
                 # if we are performing GTG Ofline plot also the GTG predictions in the TSNE plot 
                 self.save_tsne(idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction)
             

@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
 import gc
+import os
 from typing import Dict, Any, List, Tuple
     
 import logging
@@ -37,7 +38,7 @@ class GTG_off(ActiveLearner):
             str_tresh_strat = f'{self.AM_threshold_strategy}_{self.AM_threshold}' if self.AM_threshold_strategy != 'mean' else 'ts-mean'            
             strategy_name = f'{self.__class__.__name__}_{self.AM_function}_{self.AM_strategy}_{str_tresh_strat}_es-{self.ent_strategy}'
         else:
-            strategy_name = f'{self.__class__.__name__}_{self.AM_strategy}_{self.AM_function}_es-{self.ent_strategy}'
+            strategy_name = f'{self.__class__.__name__}_{self.AM_function}_{self.AM_strategy}_es-{self.ent_strategy}'
                 
         super().__init__(ct_p, t_p, al_p, strategy_name)
         
@@ -52,14 +53,16 @@ class GTG_off(ActiveLearner):
         
     # select the relative choosen affinity matrix method
     def get_A(self) -> None:
-
-        concat_embedds = torch.cat((self.lab_embedds_dict['embedds'], self.unlab_embedds_dict['embedds'])).to(self.device)
         
-        del self.unlab_embedds_dict
-        torch.cuda.empty_cache()
+        logger.info(' => Computing Affinity Matrix...')
+
+        concat_embedds = torch.cat((self.lab_embedds_dict['embedds'], self.unlab_embedds_dict['embedds']))
         
         # compute the affinity matrix
-        A = self.get_A_fn[self.AM_function](concat_embedds)
+        A = self.get_A_fn[self.AM_function](concat_embedds, to_cpu=True)
+        
+        torch.cuda.empty_cache()
+        gc.collect()
     
         initial_A = torch.clone(A)
         
@@ -86,32 +89,34 @@ class GTG_off(ActiveLearner):
                 A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #UL to distance
                 A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #LU to distance
 
-        
-        self.A = A
-        
+                
         # plot the TSNE fo the original and modified affinity matrix
+        logger.info('Plotting TSNE of the original and modified Affinity Matrix...')
         plot_tsne_A(
             (initial_A, A),
             (self.lab_embedds_dict['labels'], self.unlabeled_labels), self.dataset.classes,
             self.ct_p['timestamp'], self.ct_p['dataset_name'], self.ct_p['trial'], self.strategy_name, self.AM_function, self.AM_strategy, self.iter
         )
         
+        self.A = A.to(self.device)
+        
         del A
         del initial_A
         del concat_embedds
-        torch.cuda.empty_cache()
+        
+        logger.info(' DONE\n')
 
 
     def get_A_rbfk(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         
-        device = 'cpu' if to_cpu else self.device
+        device = torch.device('cpu') if to_cpu else self.device
         A_matrix = self.get_A_e_d(concat_embedds, to_cpu).to(device)
         seventh_neigh = concat_embedds[torch.argsort(A_matrix, dim=1)[:, 6]]            
             
         sigmas = torch.unsqueeze(torch.tensor([
             self.get_A_fn[self.AM_function](torch.cat((
                 torch.unsqueeze(concat_embedds[i], dim=0), torch.unsqueeze(seventh_neigh[i], dim=0)
-            )))[0,1].item()
+            )), to_cpu=to_cpu)[0,1].item()
             for i in range(concat_embedds.shape[0]) 
         ], device=device), dim=0)
         
@@ -120,19 +125,17 @@ class GTG_off(ActiveLearner):
         
         del A_matrix
         del sigmas
-        torch.cuda.empty_cache()
         
-        return A.to(self.device)
+        return A
     
     
     def get_A_e_d(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
-        
-        A = torch.cdist(concat_embedds, concat_embedds).to('cpu' if to_cpu else self.device)
+        A = torch.cdist(concat_embedds, concat_embedds).to(torch.device('cpu') if to_cpu else self.device)
         return torch.clamp(A, min=0., max=1.)
 
 
-    def get_A_cos_sim(self, concat_embedds: torch.Tensor, to_cpu = True) -> torch.Tensor:
-        device = 'cpu' if to_cpu else self.device
+    def get_A_cos_sim(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
+        device = torch.device('cpu') if to_cpu else self.device
         normalized_embedding = F.normalize(concat_embedds, dim=-1).to(device)
         
         A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(device)
@@ -140,18 +143,19 @@ class GTG_off(ActiveLearner):
         A = torch.clamp(A, min=0., max=1.)
 
         del normalized_embedding
-        torch.cuda.empty_cache()
         
-        return A.to(self.device)
+        return A
         
         
     def get_A_corr(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
-        A = torch.corrcoef(concat_embedds).to('cpu' if to_cpu else self.device)
+        A = torch.corrcoef(concat_embedds).to(torch.device('cpu') if to_cpu else self.device)
         return torch.clamp(A, min=0., max=1.)
         
 
     def get_X(self) -> None:
-                
+        
+        logger.info(' => Computing X Matrix...')
+        
         self.X: torch.Tensor = torch.zeros(
             (len(self.labeled_indices) + self.len_unlab_sample, self.dataset.n_classes),
             dtype=torch.float32, device=self.device
@@ -163,42 +167,48 @@ class GTG_off(ActiveLearner):
             for label in range(self.dataset.n_classes): self.X[idx][label] = 1. / self.dataset.n_classes
         
         del self.lab_embedds_dict
+        
+        logger.info(' DONE\n')
+        
+        
+        
+    def graph_trasduction_game(self) -> None:        
+        
         torch.cuda.empty_cache()
-        
-        
-        
-    def graph_trasduction_game(self) -> None:
+        gc.collect()
         
         self.get_A()
         self.get_X()
+                
+        torch.cuda.empty_cache()        
+        gc.collect()
+                
+        # from here to the end will be all on cuda
         
         err = float('Inf')
         i = 0
+        
+        logger.info(' => Running GTG')
         
         while err > self.gtg_tol and i < self.gtg_max_iter:
             X_old = torch.clone(self.X)
             
             self.X *= torch.mm(self.A, self.X)
-                        
             self.X /= torch.sum(self.X, dim=1, keepdim=True)            
         
-            iter_entropy = entropy(self.X).to(self.device) # there are both labeled and sample unlabeled
+            iter_entropy = entropy(self.X) # there are both labeled and sample unlabeled
             # I have to map only the sample_unlabeled to the correct position
-            
-            try:
-                # they should have the same dimension
-                assert len(self.unlab_entropy_hist[:, i]) == len(iter_entropy[len(self.labeled_indices):])
-                # Update only the unlabeled observations
-                self.unlab_entropy_hist[:, i] = iter_entropy[len(self.labeled_indices):]
-            except AssertionError as err:
-                logger.exception('Should have the same dimension')
-                raise err
+        
+            self.unlab_entropy_hist[:, i] = iter_entropy[len(self.labeled_indices):]
                         
             err = torch.norm(self.X - X_old)
             i += 1
         
-        del X_old
-        torch.cuda.empty_cache()
+            del X_old
+            del iter_entropy
+            torch.cuda.empty_cache()
+            
+        logger.info(' DONE\n')
 
 
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
@@ -217,25 +227,25 @@ class GTG_off(ActiveLearner):
                 
         logger.info(' => Getting the labeled and unlabeled embeddings')
         self.lab_embedds_dict = {
-            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
-            'labels': torch.empty(0, dtype=torch.int8)
+            'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu')),
+            'labels': torch.empty(0, dtype=torch.int8, device=torch.device('cpu'))
         }
-        self.unlab_embedds_dict = {'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device)}
+        self.unlab_embedds_dict = {'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu'))}
         
         self.load_best_checkpoint()
         
-        self.get_embeddings(lab_train_dl, self.lab_embedds_dict)
-        self.get_embeddings(unlab_train_dl, self.unlab_embedds_dict)
+        self.get_embeddings(lab_train_dl, self.lab_embedds_dict, embedds2cpu=True)
+        self.get_embeddings(unlab_train_dl, self.unlab_embedds_dict, embedds2cpu=True)
         logger.info(' DONE\n')
             
         # I can take the indices and labels from the dataloader, without using the get_embeddings function so no cuda memory is used in this case
         # I have a single batch
         self.unlabeled_idxs = next(iter(unlab_train_dl))[0]
         self.unlabeled_labels = next(iter(unlab_train_dl))[2]
-            
+                    
         # I save the entropy history in order to be able to plot it
         self.unlab_entropy_hist = torch.zeros((self.len_unlab_sample, self.gtg_max_iter), device=self.device)
-            
+        
         logger.info(' => Execution of the Graph Trasduction Game')
         self.graph_trasduction_game()
         logger.info(' DONE\n')
@@ -246,7 +256,8 @@ class GTG_off(ActiveLearner):
         
         del self.A
         del self.X
-        torch.cuda.empty_cache()         
+        gc.collect()
+        torch.cuda.empty_cache()
         
                             
         logger.info(f' => Extracting the Top-k unlabeled observations using {self.ent_strategy}')

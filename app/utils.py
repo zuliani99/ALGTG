@@ -282,8 +282,8 @@ def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor
     label_lab, unlabel_lab = labels
     len_lab = len(label_lab)
     
-    tsne_A1 = TSNE().fit_transform(A_1.cpu().numpy())
-    tsne_A2 = TSNE().fit_transform(A_2.cpu().numpy())
+    tsne_A1 = TSNE().fit_transform(A_1.numpy())
+    tsne_A2 = TSNE().fit_transform(A_2.numpy())
     
     _, axes = plt.subplots(nrows=2, ncols=2, figsize=(23, 18))
         
@@ -317,7 +317,7 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
                           classes: List[str], time_stamp: str, samp_iter: int, d_labels: Dict[str, int],
                           gtg_result_prediction = None):
     
-    tsne = TSNE().fit_transform(np.vstack((lab['embedds'].cpu().numpy(), unlab['embedds'].cpu().numpy())))
+    tsne = TSNE().fit_transform(np.vstack((lab['embedds'].numpy(), unlab['embedds'].numpy())))
     tsne_lab, tsne_unlab = tsne[:len(lab['embedds']), :], tsne[len(lab['embedds']):, :]
     
     x_lab, y_lab = tsne_lab[:, 0], tsne_lab[:, 1]

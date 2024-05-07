@@ -25,7 +25,7 @@ class TiDAL(ActiveLearner):
         )
                 
         logger.info(' => Evaluating unlabeled observations')
-        embeds_dict = { 'module_out': torch.empty(0, dtype=torch.float32) }
+        embeds_dict = { 'module_out': torch.empty(0, dtype=torch.float32, device=torch.device('cpu')) }
         
         self.load_best_checkpoint()
         
