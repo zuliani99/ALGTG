@@ -87,12 +87,12 @@ class Cls_TrainWorker():
         
         elif self.method_name.split('_')[0] == 'GTG' and self.model.added_module_name == 'GTGModule':
             
-            (pred_entr, true_entr), labeled_mask = module_out
+            (pred_entr, true_entr), labelled_mask = module_out
             #if iterations != -1 and iterations % 20 == 0: logger.info(f'pred_entr {pred_entr} - true_entr {true_entr}')
             entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
 
-            lab_ce_loss = torch.mean(ce_loss[labeled_mask])
-            entr_loss = torch.mean(entr_loss[labeled_mask]) + torch.mean(entr_loss[torch.logical_not(labeled_mask)])
+            lab_ce_loss = torch.mean(ce_loss[labelled_mask])
+            entr_loss = torch.mean(entr_loss[labelled_mask]) + torch.mean(entr_loss[torch.logical_not(labelled_mask)])
             
             loss = lab_ce_loss + entr_loss
             

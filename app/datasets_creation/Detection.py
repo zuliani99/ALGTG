@@ -33,14 +33,14 @@ def get_voc_data(dataset_path:str) -> Tuple[VOCDetection, VOCDetection, VOCDetec
     
     train = VOCDetection(root=f'{dataset_path}/VOCdevkit',
                                     transform=SSDAugmentation(voc_config['min_dim'], voc_means))
-    unlabeled = VOCDetection(root=f'{dataset_path}/VOCdevkit',
+    unlabelled = VOCDetection(root=f'{dataset_path}/VOCdevkit',
                                         transform=BaseTransform(300, voc_means),
                                         target_transform=VOCAnnotationTransform())
     test = VOCDetection(root=f'{dataset_path}/VOCdevkit',
                                    image_sets=[('2007', 'test')],
                                    transform=BaseTransform(300, voc_means),
                                    target_transform=VOCAnnotationTransform())
-    return train, unlabeled, test
+    return train, unlabelled, test
 
 
 
@@ -88,10 +88,10 @@ class Det_Dataset():
         
         # random shuffle of the train indices
         shuffled_indices = torch.randperm(train_size)
-        # each time should be a new shuffle, thus a new train-validation, labeled-unlabeled split
+        # each time should be a new shuffle, thus a new train-validation, labelled-unlabelled split
 
         logger.info(f' Last 5 shuffled train observations: {shuffled_indices[-5:]}')
 
-        # indices for the labeled and unlabeled sets
-        self.labeled_indices: List[int] = shuffled_indices[:init_lab_obs].tolist()
-        self.unlabeled_indices: List[int] = shuffled_indices[init_lab_obs:].tolist()
+        # indices for the labelled and unlabelled sets
+        self.labelled_indices: List[int] = shuffled_indices[:init_lab_obs].tolist()
+        self.unlabelled_indices: List[int] = shuffled_indices[init_lab_obs:].tolist()

@@ -73,8 +73,8 @@ class GTG_off(ActiveLearner):
             # set the whole matrix as a distance matrix and not similarity matrix
             A = 1 - A
         elif self.AM_strategy == 'mixed':    
-            # set the unlabeled submatrix as distance matrix and not similarity matrix
-            n_lab_obs = len(self.labeled_indices)
+            # set the unlabelled submatrix as distance matrix and not similarity matrix
+            n_lab_obs = len(self.labelled_indices)
             
             if self.AM_function == 'rbfk':
                 A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL to similarity
@@ -151,11 +151,11 @@ class GTG_off(ActiveLearner):
         logger.info(' => Computing X Matrix...')
         
         self.X: torch.Tensor = torch.zeros(
-            (len(self.labeled_indices) + self.len_unlab_sample, self.dataset.n_classes),
+            (len(self.labelled_indices) + self.len_unlab_sample, self.dataset.n_classes),
             dtype=torch.float32, device=self.device
         )
         for idx, label in enumerate(self.lab_embedds_dict['labels']): self.X[idx][int(label.item())] = 1.
-        for idx in range(len(self.labeled_indices), len(self.labeled_indices) + self.len_unlab_sample):
+        for idx in range(len(self.labelled_indices), len(self.labelled_indices) + self.len_unlab_sample):
             for label in range(self.dataset.n_classes): self.X[idx][label] = 1. / self.dataset.n_classes
         
         del self.lab_embedds_dict
@@ -181,10 +181,10 @@ class GTG_off(ActiveLearner):
             self.X *= torch.mm(self.A, self.X)
             self.X /= torch.sum(self.X, dim=1, keepdim=True)            
         
-            iter_entropy = entropy(self.X) # there are both labeled and sample unlabeled
-            # I have to map only the sample_unlabeled to the correct position
+            iter_entropy = entropy(self.X) # there are both labelled and sample unlabelled
+            # I have to map only the sample_unlabelled to the correct position
         
-            self.unlab_entropy_hist[:, i] = iter_entropy[len(self.labeled_indices):]
+            self.unlab_entropy_hist[:, i] = iter_entropy[len(self.labelled_indices):]
                         
             err = torch.norm(self.X - X_old)
             i += 1
@@ -198,19 +198,19 @@ class GTG_off(ActiveLearner):
 
 
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:            
-        # set the entire batch size to the dimension of the sampled unlabeled set
+        # set the entire batch size to the dimension of the sampled unlabelled set
         self.len_unlab_sample = len(sample_unlab_subset)
 
         dl_dict = dict(batch_size=self.batch_size, shuffle=False, pin_memory=True)
         
-        # we have the batch size which is equal to the number of sampled observation from the unlabeled set
+        # we have the batch size which is equal to the number of sampled observation from the unlabelled set
         # set shuffle to false since I do not have interest on shufflind the dataloader, since I have only to get the embeddings
-        # thus there is no needs on shuffling the unlabeled dataloader            
+        # thus there is no needs on shuffling the unlabelled dataloader            
         
         unlab_train_dl = DataLoader(sample_unlab_subset, **dl_dict)
-        lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labeled_indices), **dl_dict)
+        lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labelled_indices), **dl_dict)
                         
-        logger.info(' => Getting the labeled and unlabeled embeddings')
+        logger.info(' => Getting the labelled and unlabelled embeddings')
         self.lab_embedds_dict = {
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu')),
             'labels': torch.empty(0, dtype=torch.int8, device=torch.device('cpu'))
@@ -235,7 +235,7 @@ class GTG_off(ActiveLearner):
         logger.info(' DONE\n')
                         
         # TRUE / FALSE np.ndarray
-        self.gtg_result_prediction = (torch.argmax(self.X[len(self.labeled_indices):], dim=1).cpu() == self.unlab_embedds_dict['labels']).numpy()
+        self.gtg_result_prediction = (torch.argmax(self.X[len(self.labelled_indices):], dim=1).cpu() == self.unlab_embedds_dict['labels']).numpy()
 
         
         del self.A
@@ -244,7 +244,7 @@ class GTG_off(ActiveLearner):
         torch.cuda.empty_cache()
         
                             
-        logger.info(f' => Extracting the Top-k unlabeled observations using {self.ent_strategy}')
+        logger.info(f' => Extracting the Top-k unlabelled observations using {self.ent_strategy}')
         
         if self.ent_strategy == 'mean':
             # computing the mean of the entropis history
@@ -272,5 +272,5 @@ class GTG_off(ActiveLearner):
         
         logger.info(' DONE\n')
         
-        return overall_topk, [self.unlab_embedds_dict['idxs'][id].item() for id in overall_topk]
+        return overall_topk, [int(self.unlab_embedds_dict['idxs'][id].item()) for id in overall_topk]
     

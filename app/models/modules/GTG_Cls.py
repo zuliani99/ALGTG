@@ -97,7 +97,7 @@ class GTGModule(nn.Module):
         self.AM_threshold: float = gtg_p['am_t']
         
         self.ent_strategy: str = gtg_p['e_s']
-        self.perc_labeled_batch: int = gtg_p['plb']
+        self.perc_labelled_batch: int = gtg_p['plb']
         
         self.n_top_k_obs: int = gtg_p['n_top_k_obs']
         self.n_classes: int = gtg_p['n_classes']
@@ -173,17 +173,17 @@ class GTGModule(nn.Module):
             # set the whole matrix as a distance matrix and not similarity matrix
             A = 1 - A
         elif self.AM_strategy == 'mixed':    
-            # set the unlabeled submatrix as distance matrix and not similarity matrix
+            # set the unlabelled submatrix as distance matrix and not similarity matrix
             
             if self.AM_function == 'rbfk':
-                for i in self.labeled_indices:  # -> insert the similarity for the labeled observations
-                    for j in self.labeled_indices:
+                for i in self.labelled_indices:  # -> insert the similarity for the labelled observations
+                    for j in self.labelled_indices:
                         A[i,j] = 1 - A[i,j]
                         A[j,i] = 1 - A[j,i]
             else:
                 A = 1 - A # -> all distance matrix
-                for i in self.labeled_indices:  # -> reinsert the similarity for the labeled observations
-                    for j in self.labeled_indices:
+                for i in self.labelled_indices:  # -> reinsert the similarity for the labelled observations
+                    for j in self.labelled_indices:
                         A[i,j] = 1 - A[i,j]
                         A[j,i] = 1 - A[j,i]                        
         
@@ -192,9 +192,9 @@ class GTGModule(nn.Module):
 
     def get_X(self) -> None:
         self.X: torch.Tensor = torch.zeros((self.batch_size, self.n_classes), dtype=torch.float32, device=self.device)
-        for idx, label in zip(self.labeled_indices, self.lab_labels):
+        for idx, label in zip(self.labelled_indices, self.lab_labels):
             self.X[idx][int(label.item())] = 1.
-        for idx in self.unlabeled_indices:
+        for idx in self.unlabelled_indices:
             for label in range(self.n_classes): self.X[idx][label] = 1. / self.n_classes
 
 
@@ -219,7 +219,7 @@ class GTGModule(nn.Module):
             
             iter_entropy = entropy(self.X).to(self.device)
             
-            entropy_hist[self.unlabeled_indices, i] = iter_entropy[self.unlabeled_indices]
+            entropy_hist[self.unlabelled_indices, i] = iter_entropy[self.unlabelled_indices]
 
             i += 1
             err = torch.norm(self.X - X_old)
@@ -266,20 +266,20 @@ class GTGModule(nn.Module):
         #indices = torch.randperm(self.batch_size)
 
         '''if mode == 1:
-            self.labeled_indices: List[int] = indices[:self.n_lab_obs].tolist()
-            self.unlabeled_indices: List[int] = indices[self.n_lab_obs:].tolist()
+            self.labelled_indices: List[int] = indices[:self.n_lab_obs].tolist()
+            self.unlabelled_indices: List[int] = indices[self.n_lab_obs:].tolist()
         else:
-            self.unlabeled_indices: List[int] = indices[:self.n_lab_obs].tolist()
-            self.labeled_indices: List[int] = indices[self.n_lab_obs:].tolist()'''
+            self.unlabelled_indices: List[int] = indices[:self.n_lab_obs].tolist()
+            self.labelled_indices: List[int] = indices[self.n_lab_obs:].tolist()'''
         
-        self.labeled_indices: List[int] = indices[:self.n_lab_obs].tolist()
-        self.unlabeled_indices: List[int] = indices[self.n_lab_obs:].tolist()
+        self.labelled_indices: List[int] = indices[:self.n_lab_obs].tolist()
+        self.unlabelled_indices: List[int] = indices[self.n_lab_obs:].tolist()
                                 
-        labeled_mask = torch.zeros(self.batch_size, device=self.device)
-        labeled_mask[self.labeled_indices] = 1.
+        labelled_mask = torch.zeros(self.batch_size, device=self.device)
+        labelled_mask[self.labelled_indices] = 1.
         
-        self.lab_labels = labels[self.labeled_indices]
-        self.unlab_labels = labels[self.unlabeled_indices]
+        self.lab_labels = labels[self.labelled_indices]
+        self.unlab_labels = labels[self.unlabelled_indices]
                 
         entropy_hist = self.graph_trasduction_game_detached(embedding)
         #entropy_hist = self.graph_trasduction_game(embedding)
@@ -296,7 +296,7 @@ class GTGModule(nn.Module):
             logger.exception(' Invlaid GTG Strategy') 
             raise AttributeError(' Invlaid GTG Strategy')
             
-        return quantity_result, labeled_mask
+        return quantity_result, labelled_mask
     
     
     
@@ -309,12 +309,12 @@ class GTGModule(nn.Module):
         #y_pred = self.c_mod(features).squeeze()
         
         self.batch_size = len(embedds)
-        self.n_lab_obs = int(self.batch_size * self.perc_labeled_batch) 
+        self.n_lab_obs = int(self.batch_size * self.perc_labelled_batch) 
         
-        y_true, labeled_mask = self.preprocess_inputs(embedds, labels)
-        #y_true_1, labeled_mask_1 = self.preprocess_inputs(embedds, labels, mode=1)
-        #y_true_2, labeled_mask_2 = self.preprocess_inputs(embedds, labels, mode=2)
+        y_true, labelled_mask = self.preprocess_inputs(embedds, labels)
+        #y_true_1, labelled_mask_1 = self.preprocess_inputs(embedds, labels, mode=1)
+        #y_true_2, labelled_mask_2 = self.preprocess_inputs(embedds, labels, mode=2)
         #logger.info(f'y_pred {y_pred}\ny_true {y_true}')
             
-        #return (y_pred, (y_true_1, y_true_2)), (labeled_mask_1.bool(), labeled_mask_2.bool())
-        return (y_pred, y_true), labeled_mask.bool()
+        #return (y_pred, (y_true_1, y_true_2)), (labelled_mask_1.bool(), labelled_mask_2.bool())
+        return (y_pred, y_true), labelled_mask.bool()

@@ -19,7 +19,7 @@ class Random(ActiveLearner):
         
         
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
-        logger.info(f' => Sampling K unlabeled observations')
+        logger.info(f' => Sampling K unlabelled observations')
         if(len(sample_unlab_subset.indices) > n_top_k_obs):           
             sample = list(random.sample(list(sample_unlab_subset.indices), n_top_k_obs))
         else:

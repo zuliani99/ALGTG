@@ -66,8 +66,8 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('-gtg_t', '--gtg_tollerance', type=float, required=False, default=0.0001,
                         help='GTG tollerance')
         
-    parser.add_argument('-plb', '--perc_labeled_batch', type=float,  required=False, default=0.5,
-                        help='Number of labeled observations to mantain in each batch during GTG end-to-end version')
+    parser.add_argument('-plb', '--perc_labelled_batch', type=float,  required=False, default=0.5,
+                        help='Number of labelled observations to mantain in each batch during GTG end-to-end version')
     parser.add_argument('--wandb', action='store_true', 
                         help='Log benchmark stats into Weights & Biases web app service')
 
@@ -209,7 +209,7 @@ def main() -> None:
         'am_t': args.affinity_matrix_threshold,
         'e_s': args.entropy_strategy,
         
-        'plb': args.perc_labeled_batch,
+        'plb': args.perc_labelled_batch,
     }
     
         

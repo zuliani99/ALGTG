@@ -55,8 +55,8 @@ def plot_trail_acc(dataset_name: str, trial: int, methods_results: Dict[str, Dic
         plt.scatter(n_lab_obs, values[key], marker=shapes[idx], color=palette[idx], zorder=5)
         lines_handles.append(mlines.Line2D([], [], color=palette[idx], marker=shapes[idx], markersize=5, label=method_str))
   
-    plt.title(f'{dataset_name} - Trial {trial} - {measure} Labeled Obs', fontsize = 30)
-    plt.xlabel('# Labeled Obs', fontsize = 15)
+    plt.title(f'{dataset_name} - Trial {trial} - {measure} labelled Obs', fontsize = 30)
+    plt.xlabel('# labelled Obs', fontsize = 15)
     plt.ylabel(measure, fontsize = 15)
     plt.grid(True)
     plt.legend(handles=lines_handles)
@@ -138,11 +138,11 @@ def create_ts_dir(timestamp: str, dataset_name: str, iter: str) -> None:
     create_directory(os.path.join('results', timestamp, dataset_name, iter))
     
 def create_method_res_dir(path: str) -> None:
-    for dir in ['train_val_plots', 'tsne_plots', 'new_labeled_images']:
+    for dir in ['train_val_plots', 'tsne_plots', 'new_labelled_images']:
         create_directory(os.path.join(path, dir))
     
 def create_class_dir(base_path: str, iter: int, classes: List[str]) -> None:
-    for cls in classes: create_directory(f'{base_path}/new_labeled_images/{iter}/{cls}')
+    for cls in classes: create_directory(f'{base_path}/new_labelled_images/{iter}/{cls}')
         
     
 def get_palette(n_classes: int) -> List[ColorType]:
@@ -163,12 +163,12 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
     x = np.arange(max_x)
     array = tensor.cpu().numpy()
     
-    new_labeled = array[topk]
-    new_labeled_lab = [lab_unlabels[k] for k in topk]
+    new_labelled = array[topk]
+    new_labelled_lab = [lab_unlabels[k] for k in topk]
     
     mask = np.ones(array.shape[0], dtype=bool)
     mask[topk] = False
-    unlabeled = array[mask]
+    unlabelled = array[mask]
 
     title = 'Entropy History' if dir == 'history' else 'Entropy Derivatives'
 
@@ -190,8 +190,8 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
     axes[0].legend()
     
     
-    for array, color, style, label in [(unlabeled, 'lightblue', '--', 'unlabeled'),
-                                       (new_labeled, None, '-', new_labeled_lab)]:
+    for array, color, style, label in [(unlabelled, 'lightblue', '--', 'unlabelled'),
+                                       (new_labelled, None, '-', new_labelled_lab)]:
         if style == '-':
             labels_array = label
         
@@ -249,7 +249,7 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
         lines_handles.append(mlines.Line2D([], [], color=palette[idx], marker=shapes[idx], markersize=5, label=method))
         
 
-    plt.xlabel('Labeled Observations', fontsize = 15)
+    plt.xlabel('labelled Observations', fontsize = 15)
     plt.ylabel('Test Accuracy' if task == 'clf' else 'Test mAP', fontsize = 15)
     plt.title(f'{dataset_name} results', fontsize = 30)
     plt.legend(handles=lines_handles)
@@ -294,8 +294,8 @@ def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor
         x, y = np.hstack((x_lab, x_unlab)), np.hstack((y_lab, y_unlab))
         label = np.hstack(labels)
         
-        sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', s=17, ax=axes[idx][0])
-        sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=17, ax=axes[idx][0])
+        sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabelled', color='blue', s=17, ax=axes[idx][0])
+        sns.scatterplot(x=x_lab, y=y_lab, label='labelled', color='orange', s=17, ax=axes[idx][0])
         axes[idx][0].set_title(f'{name} Affinity Matrix', fontsize = 15)
         axes[idx][0].legend()
         
@@ -311,7 +311,7 @@ def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor
     
     
     
-def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor],
+def plot_new_labelled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor],
                           iter: str, method: str, ds_name: str, idxs_new_labels: List[int], 
                           classes: List[str], time_stamp: str, samp_iter: int, d_labels: Dict[str, int],
                           gtg_result_prediction = None):
@@ -332,22 +332,22 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
         pred_new_lab = gtg_result_prediction[idxs_new_labels]
         
         sns.scatterplot(x=x_unlab[idxs_unlab_again], y=y_unlab[idxs_unlab_again], 
-                        label='unlabeled', color='blue', s=17, ax=axes[0], style=pred_unlab, 
+                        label='unlabelled', color='blue', s=17, ax=axes[0], style=pred_unlab, 
                         markers=['X', 'o'] if len(np.unique(pred_unlab)) == 2 else ['o'])
         
-        sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=17, ax=axes[0], markers=['o'])
+        sns.scatterplot(x=x_lab, y=y_lab, label='labelled', color='orange', s=17, ax=axes[0], markers=['o'])
         
-        sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labeled', 
+        sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labelled', 
                         s=17, color='red', ax=axes[0], style=pred_new_lab, 
                         markers=['X', 'o'] if len(np.unique(pred_new_lab)) == 2 else ['o'])
     else:
         
-        sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabeled', color='blue', s=17, ax=axes[0], markers=['o'])
-        sns.scatterplot(x=x_lab, y=y_lab, label='labeled', color='orange', s=17, ax=axes[0], markers=['o'])
-        sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labeled', 
+        sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabelled', color='blue', s=17, ax=axes[0], markers=['o'])
+        sns.scatterplot(x=x_lab, y=y_lab, label='labelled', color='orange', s=17, ax=axes[0], markers=['o'])
+        sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labelled', 
                         s=17, color='red', ax=axes[0], markers=['o'])
     
-    axes[0].set_title('TSNE -- labeled - unlabeled - new_labeled', fontsize = 15)
+    axes[0].set_title('TSNE -- labelled - unlabelled - new_labelled', fontsize = 15)
     axes[0].legend()
     
     sns_p = sns.scatterplot(x=np.hstack((x_lab, x_unlab)), y=np.hstack((y_lab, y_unlab)), 
@@ -356,7 +356,7 @@ def plot_new_labeled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.T
     axes[1].set_title('TSNE - classes', fontsize = 15)
     axes[1].legend()    
     if len(classes) <= 10: 
-        fig.text(0.5, 0.05, f'New Labeled Observations: {d_labels}', ha='center', va='center', fontdict={'size':17})
+        fig.text(0.5, 0.05, f'New labelled Observations: {d_labels}', ha='center', va='center', fontdict={'size':17})
     else: sns_p.legend([],[], frameon=False)
     
     plt.suptitle(f'{ds_name} - {method} - {iter}', fontsize = 30)

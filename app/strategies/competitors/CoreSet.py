@@ -18,9 +18,9 @@ class CoreSet(ActiveLearner):
         
     
     def furthest_first(self, n_top_k_obs: int) -> List[int]:
-        unlabeled_size = self.unlab_embedds_dict['embedds'].size(0)
+        unlabelled_size = self.unlab_embedds_dict['embedds'].size(0)
         if self.lab_embedds_dict['embedds'].size(0) == 0:
-            min_dist = float('inf') * torch.ones(unlabeled_size)
+            min_dist = float('inf') * torch.ones(unlabelled_size)
         else:
             dist_ctr = torch.cdist(self.unlab_embedds_dict['embedds'], self.lab_embedds_dict['embedds'])
             min_dist, _ = torch.min(dist_ctr, dim=1)
@@ -43,9 +43,9 @@ class CoreSet(ActiveLearner):
         dl_dict = dict( batch_size=self.batch_size, shuffle=False, pin_memory=True )
             
         unlab_train_dl = DataLoader(sample_unlab_subset, **dl_dict)
-        lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labeled_indices), **dl_dict)
+        lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labelled_indices), **dl_dict)
             
-        logger.info(' => Getting the labeled and unlabeled embeddings')
+        logger.info(' => Getting the labelled and unlabelled embeddings')
         self.lab_embedds_dict = { 'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device) }
         self.unlab_embedds_dict = { 'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device) }
         
