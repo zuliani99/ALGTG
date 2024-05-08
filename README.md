@@ -1,9 +1,9 @@
 # ALGTG
 ## Active Learning trategy using Graph Trusduction Game
 
-Nowadays neural networks are one of the main pillars of artificial intelligence. However, they are data hungry, which means that to get good results on such a problem like image classification or object detection requires a large amount of information. This results in increased time and training costs. Active Learning wants to overcome this problem by finding the most important observations and features that summarize the data set. Having found those we can get results very close to the one obtained by analysing the entire data set. 
+**Active Learning (AL)** aims to leverage the performance of deep models by selecting the most valuable samples to be annotated from a pool of unlabelled data to be annotated and moved into the labeled-training set. On the other hand **Game Theory** deals with the study of strategic interactions between rational decision-makers, which are modeled as games.
 
-Our work wants to explore this field by applying the **Graph Trasduction Game** which formulates the classification task as an *evolutionary non-cooperative game* between *N players* (samples) with *M strategies* (labels). Reaching a **Nash Equilibria** corresponds to find stable point of a dynamical system, one reached, all the samples are labelled consistently. To this end, the selection of samples to be labelled in the AL model, is based on:
+Our work wants to connects these two fields by applying the **Graph Trasduction Game** which formulates the classification task as an *evolutionary non-cooperative game* between *N players* (samples) with *M strategies* (labels). Reaching a **Nash Equilibria** corresponds to find stable point of a dynamical system, one reached, all the samples are labeled consistently. To this end, the selection of samples to be labelled in the AL model, is based on:
 
 1. Tracking the evolution of the **entropy** along the iteration of the aforementioned dynamical system
 2. Creating an ad-hoc payoff function such that similar samples (already seen) are discouraged to emerge in the subsequent iterations.
