@@ -30,15 +30,15 @@ usage: main.py [-h] [-gpus GPUS] -m
                {random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg}
                [{random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg} ...]
                -ds
-               {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco}
-               [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} ...]
+               {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet}
+               [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet} ...]
                [-tr TRIALS]
                [-am {corr,cos_sim,rbfk} [{corr,cos_sim,rbfk} ...]]
                [-am_s {uncertanity,diversity,mixed}]
                [-am_ts {threshold,mean,none} [{threshold,mean,none} ...]]
                [-am_t AFFINITY_MATRIX_THRESHOLD] [-e_s {mean,integral}]
                [-gtg_iter GTG_ITERATIONS] [-gtg_t GTG_TOLLERANCE]
-               [-plb PERC_LABELED_BATCH] [--wandb]
+               [-plb PERC_LABELLED_BATCH] [--wandb]
 
 options:
   -h, --help            show this help message and exit
@@ -47,8 +47,8 @@ options:
   -m {random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg} [{random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg} ...],
      --methods {random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg} [{random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg} ...]
                         Possible methods to choose
-  -ds {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} ...],
-     --datasets {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} ...]
+  -ds {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet} [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet} ...],
+     --datasets {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet} [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet} ...]
                         Possible datasets to choose
   -tr TRIALS, --trials TRIALS
                         AL trials
@@ -68,7 +68,7 @@ options:
                         Maximum GTG iterations to perorm
   -gtg_t GTG_TOLLERANCE, --gtg_tollerance GTG_TOLLERANCE
                         GTG tollerance
-  -plb PERC_LABELED_BATCH, --perc_labelled_batch PERC_LABELED_BATCH
+  -plb PERC_LABELLED_BATCH, --perc_labelled_batch PERC_LABELLED_BATCH
                         Number of labelled observations to mantain in each
                         batch during GTG end-to-end version
   --wandb               Log benchmark stats into Weights & Biases web app
