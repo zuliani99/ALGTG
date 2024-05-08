@@ -75,13 +75,3 @@ options:
                         service
 ```
 
-## Notes
-Github url repo:
-```
-git clone https://github.com/zuliani99/Active_Learning_GTG.git
-```
-
-GitHub Token
-```
-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
-```
