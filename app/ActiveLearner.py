@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 class ActiveLearner():
-    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], strategy_name: str) -> None:
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], method_name: str) -> None:
         
         self.iter = 1
         
@@ -41,7 +41,9 @@ class ActiveLearner():
         self.dataset: Cls_Datasets | Det_Dataset = self.ct_p['Dataset']
         
         self.ds_t_p = self.t_p[self.ct_p['dataset_name']]
-        self.batch_size = self.ds_t_p['batch_size'][self.model.added_module_name if self.model.added_module == None else self.model.added_module_name.split('_')[0]]
+        self.batch_size = self.ds_t_p['batch_size'][
+            self.model.added_module_name if self.model.added_module == None else self.model.added_module_name.split('_')[0] # type: ignore
+        ]
                 
         self.labeled_indices: List[int] = copy.deepcopy(self.dataset.labeled_indices)
         self.unlabeled_indices: List[int] = copy.deepcopy(self.dataset.unlabeled_indices)
@@ -49,7 +51,8 @@ class ActiveLearner():
 
         self.train_results: Dict[str, Any] = {}
         
-        self.strategy_name = f'{self.model.name}_{strategy_name}' # define strategy name    
+        self.method_name = method_name
+        self.strategy_name = f'{self.model.name}_{method_name}' # define strategy name    
         self.best_check_filename: str = f'app/checkpoints/{self.ct_p['dataset_name']}/best_{self.strategy_name}'
         
         self.world_size: int = self.ct_p['gpus']
@@ -324,7 +327,7 @@ class ActiveLearner():
             logger.info(' START QUERY PROCESS\n')
             
             # run method query strategy
-            idxs_new_labels, topk_idx_obs = self.query(
+            idxs_new_labels, topk_idx_obs = self.query( # type: ignore
                 Subset(self.dataset.unlab_train_ds, self.rand_unlab_sample), self.al_p['n_top_k_obs']
             )
             
@@ -332,9 +335,9 @@ class ActiveLearner():
             logger.info(f' Number of observations per class added to the labeled set:\n {d_labels}\n')
             
             # Saving the tsne embeddings plot
-            if len(self.strategy_name.split('_')) > 2 and self.model.added_module_name.split('_')[1] == '':
+            if 'GTG_off' in self.method_name:
                 # if we are performing GTG Offline plot also the GTG predictions in the TSNE plot 
-                self.save_tsne(idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction)
+                self.save_tsne(idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction) # type: ignore
             
             elif self.model.added_module_name == 'GTGModule': self.save_tsne(idxs_new_labels, d_labels, str(self.iter))
 
