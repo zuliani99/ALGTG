@@ -346,44 +346,22 @@ def plot_new_labelled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.
         sns.scatterplot(x=x_lab, y=y_lab, label='labelled', color='orange', s=17, ax=axes[0], markers=['o'])
         sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labelled', 
                         s=17, color='red', ax=axes[0], markers=['o'])
+        
     
-    
-    '''if isinstance(gtg_result_prediction, np.ndarray):
-        
-        idxs_unlab_again = [id for id in range(len(gtg_result_prediction)) if id not in idxs_new_labels]
-        
-        pred_unlab = gtg_result_prediction[idxs_unlab_again]
-        pred_new_lab = gtg_result_prediction[idxs_new_labels]
-        
-        sns.scatterplot(x=x_unlab[idxs_unlab_again], y=y_unlab[idxs_unlab_again], 
-                        label='unlabelled', color='blue', s=17, ax=axes[0], style=pred_unlab, 
-                        markers=['X', 'o'] if len(np.unique(pred_unlab)) == 2 else ['o'])
-        
-        sns.scatterplot(x=x_lab, y=y_lab, label='labelled', color='orange', s=17, ax=axes[0], markers=['o'])
-        
-        sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labelled', 
-                        s=17, color='red', ax=axes[0], style=pred_new_lab, 
-                        markers=['X', 'o'] if len(np.unique(pred_new_lab)) == 2 else ['o'])
-    else:
-        
-        sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabelled', color='blue', s=17, ax=axes[0], markers=['o'])
-        sns.scatterplot(x=x_lab, y=y_lab, label='labelled', color='orange', s=17, ax=axes[0], markers=['o'])
-        sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labelled', 
-                        s=17, color='red', ax=axes[0], markers=['o'])'''
-    
-    axes[0].set_title('TSNE -- labelled - unlabelled - new_labelled', fontsize = 15)
+    axes[0].set_title('TSNE -- Labelled - Unlabelled - NewLabelled', fontsize = 15)
     axes[0].legend()
     
     sns_p = sns.scatterplot(x=np.hstack((x_lab, x_unlab)), y=np.hstack((y_lab, y_unlab)), 
                     hue=[classes[l] for l in np.hstack((lab['labels'], unlab['labels']))], s=17, ax=axes[1])
         
-    axes[1].set_title('TSNE - classes', fontsize = 15)
+    axes[1].set_title('TSNE - Classes', fontsize = 15)
     axes[1].legend()    
     if len(classes) <= 10: 
         fig.text(0.5, 0.05, f'New labelled Observations: {d_labels}', ha='center', va='center', fontdict={'size':17})
     else: sns_p.legend([],[], frameon=False)
     
-    plt.suptitle(f'{ds_name} - {method} - {iter}', fontsize = 30)
+    #plt.suptitle(f'{ds_name} - {method} - {iter}', fontsize = 30)
+    plt.suptitle(f'TSNE Plot - Iteration {iter}', fontsize = 30)
     plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{iter}.png')
 
     

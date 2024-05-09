@@ -65,7 +65,9 @@ class GTG_off(ActiveLearner):
                
         if self.AM_threshold_strategy != None:
             # remove weak connections with the choosen threshold strategy and value
-            logger.info(f' Affinity Matrix Threshold to be used: {self.AM_threshold_strategy}, {self.AM_threshold} -> {self.get_A_treshold(A)}')
+            logger.info(f' Affinity Matrix Threshold to be used: {self.AM_threshold_strategy} -> {\
+                self.get_A_treshold(A) if self.AM_threshold_strategy == 'mean' else self.AM_threshold}')
+                
             if self.AM_function != 'rbfk': A = torch.where(A < self.get_A_treshold(A), 0, A)
             else: A = torch.where(A > self.get_A_treshold(A), 1, A)
         
