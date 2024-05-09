@@ -19,6 +19,17 @@ class CDAL(ActiveLearner):
         
         super().__init__(ct_p, t_p, al_p, self.__class__.__name__)
         
+        
+    def kl_pairwise_distances(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        dist = torch.zeros((a.size(0), b.size(0)))
+        
+        for i in range(b.size(0)):
+            b_i = b[i]
+            kl1 = a * torch.log(a / b_i)
+            kl2 = b_i * torch.log(b_i / a)
+            dist[:, i] = 0.5 * (torch.sum(kl1, dim=1)) + 0.5 * (torch.sum(kl2, dim=1))
+            
+        return dist
 
 
     def furthest_first(self, X: torch.Tensor, X_set: torch.Tensor, n_top_k_obs: int) -> List[int]:
@@ -26,7 +37,7 @@ class CDAL(ActiveLearner):
         if X_set.size(0) == 0:
             min_dist = float('inf') * torch.ones(m)
         else:
-            dist_ctr = torch.cdist(X, X_set)
+            dist_ctr = self.kl_pairwise_distances(X, X_set)
             min_dist, _ = torch.min(dist_ctr, dim=1)
         
         overall_topk = []
@@ -34,7 +45,7 @@ class CDAL(ActiveLearner):
         while len(overall_topk) < n_top_k_obs:
             idx = torch.argmax(min_dist)
             overall_topk.append(idx.item())
-            dist_new_ctr = torch.cdist(X, X[idx].unsqueeze(0))
+            dist_new_ctr = self.kl_pairwise_distances(X, X[idx].unsqueeze(0))
             min_dist = torch.min(min_dist, dist_new_ctr[:, 0])
 
         return overall_topk
@@ -45,9 +56,9 @@ class CDAL(ActiveLearner):
         dl_dict = dict( batch_size=self.batch_size, shuffle=False, pin_memory=True )
             
         unlab_train_dl = DataLoader(sample_unlab_subset, **dl_dict)
-        lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labeled_indices), **dl_dict)
+        lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labelled_indices), **dl_dict)
             
-        logger.info(' => Getting the labeled and unlabeled probebilities')
+        logger.info(' => Getting the labelled and unlabelled logits')
         lab_embedds_dict = { 'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32, device=torch.device('cpu')) }
         unlab_embedds_dict = { 'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32, device=torch.device('cpu')) }
         

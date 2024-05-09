@@ -60,7 +60,7 @@ class BADGE(ActiveLearner):
             shuffle=False, pin_memory=True
         )
             
-        logger.info(' => Getting the unlabeled embeddings')
+        logger.info(' => Getting the unlabelled embeddings')
         self.embedds_dict = { 'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device) }
         
         self.load_best_checkpoint()

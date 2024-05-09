@@ -1,9 +1,9 @@
 # ALGTG
 ## Active Learning trategy using Graph Trusduction Game
 
-Nowadays neural networks are one of the main pillars of artificial intelligence. However, they are data hungry, which means that to get good results on such a problem like image classification or object detection requires a large amount of information. This results in increased time and training costs. Active Learning wants to overcome this problem by finding the most important observations and features that summarize the data set. Having found those we can get results very close to the one obtained by analysing the entire data set. 
+**Active Learning (AL)** aims to leverage the performance of deep models by selecting the most valuable samples to be annotated from a pool of unlabelled data to be annotated and moved into the labeled-training set. On the other hand **Game Theory** deals with the study of strategic interactions between rational decision-makers, which are modeled as games.
 
-Our work wants to explore this field by applying the **Graph Trasduction Game** which formulates the classification task as an *evolutionary non-cooperative game* between *N players* (samples) with *M strategies* (labels). Reaching a **Nash Equilibria** corresponds to find stable point of a dynamical system, one reached, all the samples are labeled consistently. To this end, the selection of samples to be labeled in the AL model, is based on:
+Our work wants to connects these two fields by applying the **Graph Trasduction Game** which formulates the classification task as an *evolutionary non-cooperative game* between *N players* (samples) with *M strategies* (labels). Reaching a **Nash Equilibria** corresponds to find stable point of a dynamical system, one reached, all the samples are labeled consistently. To this end, the selection of samples to be labelled in the AL model, is based on:
 
 1. Tracking the evolution of the **entropy** along the iteration of the aforementioned dynamical system
 2. Creating an ad-hoc payoff function such that similar samples (already seen) are discouraged to emerge in the subsequent iterations.
@@ -30,15 +30,15 @@ usage: main.py [-h] [-gpus GPUS] -m
                {random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg}
                [{random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg} ...]
                -ds
-               {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco}
-               [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} ...]
+               {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet}
+               [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet} ...]
                [-tr TRIALS]
                [-am {corr,cos_sim,rbfk} [{corr,cos_sim,rbfk} ...]]
                [-am_s {uncertanity,diversity,mixed}]
                [-am_ts {threshold,mean,none} [{threshold,mean,none} ...]]
                [-am_t AFFINITY_MATRIX_THRESHOLD] [-e_s {mean,integral}]
                [-gtg_iter GTG_ITERATIONS] [-gtg_t GTG_TOLLERANCE]
-               [-plb PERC_LABELED_BATCH] [--wandb]
+               [-plb PERC_LABELLED_BATCH] [--wandb]
 
 options:
   -h, --help            show this help message and exit
@@ -47,8 +47,8 @@ options:
   -m {random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg} [{random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg} ...],
      --methods {random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg} [{random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,lq_gtg} ...]
                         Possible methods to choose
-  -ds {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} ...],
-     --datasets {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet,voc,coco} ...]
+  -ds {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet} [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet} ...],
+     --datasets {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet} [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet} ...]
                         Possible datasets to choose
   -tr TRIALS, --trials TRIALS
                         AL trials
@@ -68,20 +68,10 @@ options:
                         Maximum GTG iterations to perorm
   -gtg_t GTG_TOLLERANCE, --gtg_tollerance GTG_TOLLERANCE
                         GTG tollerance
-  -plb PERC_LABELED_BATCH, --perc_labeled_batch PERC_LABELED_BATCH
-                        Number of labeled observations to mantain in each
+  -plb PERC_LABELLED_BATCH, --perc_labelled_batch PERC_LABELLED_BATCH
+                        Number of labelled observations to mantain in each
                         batch during GTG end-to-end version
   --wandb               Log benchmark stats into Weights & Biases web app
                         service
 ```
 
-## Notes
-Github url repo:
-```
-git clone https://github.com/zuliani99/Active_Learning_GTG.git
-```
-
-GitHub Token
-```
-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
-```

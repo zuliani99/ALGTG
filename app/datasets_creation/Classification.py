@@ -179,14 +179,14 @@ class Cls_Datasets():
         
         # random shuffle of the train indices
         shuffled_indices = torch.randperm(train_size)
-        # each time should be a new shuffle, thus a new train-validation, labeled-unlabeled split
+        # each time should be a new shuffle, thus a new train-validation, labelled-unlabelled split
 
-        # indices for the labeled and unlabeled sets
-        self.labeled_indices: List[int] = shuffled_indices[:init_lab_obs].tolist()
-        self.unlabeled_indices: List[int] = shuffled_indices[init_lab_obs:].tolist()
+        # indices for the labelled and unlabelled sets
+        self.labelled_indices: List[int] = shuffled_indices[:init_lab_obs].tolist()
+        self.unlabelled_indices: List[int] = shuffled_indices[init_lab_obs:].tolist()
         
-        logger.info(f' Initial subset of labeled observations composed with: {count_class_observation(
-            self.classes, Subset(self.train_ds, self.labeled_indices)
+        logger.info(f' Initial subset of labelled observations composed with: {count_class_observation(
+            self.classes, Subset(self.train_ds, self.labelled_indices)
         )}')
 
 
@@ -223,7 +223,7 @@ class Cls_Dataset(Dataset):
             self.moving_prob = torch.zeros((len(self.ds), n_classes), dtype=torch.float32, device=torch.device('cpu')) # type: ignore  # -> for TiDAL
                
         else:
-            # unlabeled or test dataset
+            # unlabelled or test dataset
             if dataset_name == 'tinyimagenet':
                 self.ds: Dataset = datasets.ImageFolder(f'./datasets/tiny-imagenet-200/{'train' if bool_train else 'val/images'}', 
                     transform=cls_datasets['tinyimagenet']['transforms']['test']

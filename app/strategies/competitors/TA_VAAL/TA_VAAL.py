@@ -52,27 +52,27 @@ class TA_VAAL(ActiveLearner):
 
         bce_loss = nn.BCELoss()
         
-        labeled_data = self.read_data(self.lab_train_dl)
-        unlabeled_data = self.read_data(self.unlab_train_dl)
+        labelled_data = self.read_data(self.lab_train_dl)
+        unlabelled_data = self.read_data(self.unlab_train_dl)
 
         train_iterations = int( (n_top_k_obs * cycle + subset_len) * EPOCHV / self.batch_size )
 
 
         for iter_count in range(train_iterations):
-            labeled_imgs, labels = next(labeled_data)
-            unlabeled_imgs = next(unlabeled_data)[0]
+            labelled_imgs, labels = next(labelled_data)
+            unlabelled_imgs = next(unlabelled_data)[0]
 
-            labeled_imgs = labeled_imgs.to(self.device)
-            unlabeled_imgs = unlabeled_imgs.to(self.device)
+            labelled_imgs = labelled_imgs.to(self.device)
+            unlabelled_imgs = unlabelled_imgs.to(self.device)
             labels = labels.to(self.device)
             
             if iter_count == 0 :
-                r_l_0 = torch.from_numpy(np.random.uniform(0, 1, size=(labeled_imgs.shape[0],1))).type('torch.FloatTensor').to(self.device)
-                r_u_0 = torch.from_numpy(np.random.uniform(0, 1, size=(unlabeled_imgs.shape[0],1))).type('torch.FloatTensor').to(self.device)
+                r_l_0 = torch.from_numpy(np.random.uniform(0, 1, size=(labelled_imgs.shape[0],1))).type('torch.FloatTensor').to(self.device)
+                r_u_0 = torch.from_numpy(np.random.uniform(0, 1, size=(unlabelled_imgs.shape[0],1))).type('torch.FloatTensor').to(self.device)
             else:
                 with torch.no_grad():
-                    _, _, r_l = self.model(labeled_imgs)
-                    _, _, r_u = self.model(unlabeled_imgs)
+                    _, _, r_l = self.model(labelled_imgs)
+                    _, _, r_u = self.model(unlabelled_imgs)
                     
             if iter_count == 0:
                 r_l = r_l_0.detach()
@@ -86,22 +86,22 @@ class TA_VAAL(ActiveLearner):
                            
             # VAE step
             for count in range(num_vae_steps): # num_vae_steps
-                recon, _, mu, logvar = self.vae(r_l_s, labeled_imgs)
-                unsup_loss = self.vae_loss(labeled_imgs, recon, mu, logvar, beta)
-                unlab_recon, _, unlab_mu, unlab_logvar = self.vae(r_u_s,unlabeled_imgs)
-                transductive_loss = self.vae_loss(unlabeled_imgs, unlab_recon, unlab_mu, unlab_logvar, beta)
+                recon, _, mu, logvar = self.vae(r_l_s, labelled_imgs)
+                unsup_loss = self.vae_loss(labelled_imgs, recon, mu, logvar, beta)
+                unlab_recon, _, unlab_mu, unlab_logvar = self.vae(r_u_s,unlabelled_imgs)
+                transductive_loss = self.vae_loss(unlabelled_imgs, unlab_recon, unlab_mu, unlab_logvar, beta)
             
-                labeled_preds = self.discriminator(r_l,mu)
-                unlabeled_preds = self.discriminator(r_u,unlab_mu)
+                labelled_preds = self.discriminator(r_l,mu)
+                unlabelled_preds = self.discriminator(r_u,unlab_mu)
                 
-                lab_real_preds = torch.ones(labeled_imgs.size(0))
-                unlab_real_preds = torch.ones(unlabeled_imgs.size(0))
+                lab_real_preds = torch.ones(labelled_imgs.size(0))
+                unlab_real_preds = torch.ones(unlabelled_imgs.size(0))
                     
                 lab_real_preds = lab_real_preds.to(self.device)
                 unlab_real_preds = unlab_real_preds.to(self.device)
 
-                dsc_loss = bce_loss(labeled_preds[:,0], lab_real_preds) + \
-                           bce_loss(unlabeled_preds[:,0], unlab_real_preds)
+                dsc_loss = bce_loss(labelled_preds[:,0], lab_real_preds) + \
+                           bce_loss(unlabelled_preds[:,0], unlab_real_preds)
                            
                 total_vae_loss = unsup_loss + transductive_loss + adversary_param * dsc_loss
                 
@@ -111,31 +111,31 @@ class TA_VAAL(ActiveLearner):
 
                 # sample new batch if needed to train the adversarial network
                 if count < (num_vae_steps - 1):
-                    labeled_imgs, _ = next(labeled_data)
-                    unlabeled_imgs = next(unlabeled_data)[0]
+                    labelled_imgs, _ = next(labelled_data)
+                    unlabelled_imgs = next(unlabelled_data)[0]
 
-                    labeled_imgs = labeled_imgs.to(self.device)
-                    unlabeled_imgs = unlabeled_imgs.to(self.device)
+                    labelled_imgs = labelled_imgs.to(self.device)
+                    unlabelled_imgs = unlabelled_imgs.to(self.device)
                     labels = labels.to(self.device)
 
 
             # Discriminator step
             for count in range(num_adv_steps):
                 with torch.no_grad():
-                    _, _, mu, _ = self.vae(r_l_s,labeled_imgs)
-                    _, _, unlab_mu, _ = self.vae(r_u_s,unlabeled_imgs)
+                    _, _, mu, _ = self.vae(r_l_s,labelled_imgs)
+                    _, _, unlab_mu, _ = self.vae(r_u_s,unlabelled_imgs)
                 
-                labeled_preds = self.discriminator(r_l,mu)
-                unlabeled_preds = self.discriminator(r_u,unlab_mu)
+                labelled_preds = self.discriminator(r_l,mu)
+                unlabelled_preds = self.discriminator(r_u,unlab_mu)
                 
-                lab_real_preds = torch.ones(labeled_imgs.size(0))
-                unlab_fake_preds = torch.zeros(unlabeled_imgs.size(0))
+                lab_real_preds = torch.ones(labelled_imgs.size(0))
+                unlab_fake_preds = torch.zeros(unlabelled_imgs.size(0))
 
                 lab_real_preds = lab_real_preds.to(self.device)
                 unlab_fake_preds = unlab_fake_preds.to(self.device)
                 
-                dsc_loss = bce_loss(labeled_preds[:,0], lab_real_preds) + \
-                           bce_loss(unlabeled_preds[:,0], unlab_fake_preds)
+                dsc_loss = bce_loss(labelled_preds[:,0], lab_real_preds) + \
+                           bce_loss(unlabelled_preds[:,0], unlab_fake_preds)
 
                 optimizers['discriminator'].zero_grad()
                 dsc_loss.backward()
@@ -143,11 +143,11 @@ class TA_VAAL(ActiveLearner):
 
                 # sample new batch if needed to train the adversarial network
                 if count < (num_adv_steps-1):
-                    labeled_imgs, _ = next(labeled_data)
-                    unlabeled_imgs = next(unlabeled_data)[0]
+                    labelled_imgs, _ = next(labelled_data)
+                    unlabelled_imgs = next(unlabelled_data)[0]
 
-                    labeled_imgs = labeled_imgs.to(self.device)
-                    unlabeled_imgs = unlabeled_imgs.to(self.device)
+                    labelled_imgs = labelled_imgs.to(self.device)
+                    unlabelled_imgs = unlabelled_imgs.to(self.device)
                     labels = labels.to(self.device)
                 if iter_count % 100 == 0:
                     logger.info("Iteration: " + str(iter_count) + "  vae_loss: " + str(total_vae_loss.item()) + " dsc_loss: " +str(dsc_loss.item()))
@@ -156,11 +156,11 @@ class TA_VAAL(ActiveLearner):
     
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
             
-        # set the entire batch size to the dimension of the sampled unlabeled set
+        # set the entire batch size to the dimension of the sampled unlabelled set
         dl_dict = dict( batch_size=self.batch_size, shuffle=False, pin_memory=True )
         
         self.unlab_train_dl = DataLoader(sample_unlab_subset, **dl_dict)
-        self.lab_train_dl = DataLoader(Subset(self.dataset.unlab_train_ds, self.labeled_indices), **dl_dict)
+        self.lab_train_dl = DataLoader(Subset(self.dataset.unlab_train_ds, self.labelled_indices), **dl_dict)
         
         self.vae = VAE(
             z_dim=self.dataset.image_size,
@@ -197,7 +197,7 @@ class TA_VAAL(ActiveLearner):
         # need to multiply by -1 to be able to use torch.topk 
         #all_preds *= -1 # -> technically now should be correct, commenting this I can use torch.topk(, largest=False)
         
-        # select the topk points which the discriminator things are the most likely to be unlabeled
+        # select the topk points which the discriminator things are the most likely to be unlabelled
         overall_topk = torch.topk(all_preds, n_top_k_obs, largest=False).indices.tolist()
         
         return overall_topk, [self.rand_unlab_sample[id] for id in overall_topk]

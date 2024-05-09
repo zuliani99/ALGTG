@@ -26,7 +26,7 @@ class Entropy(ActiveLearner):
             batch_size=self.batch_size, shuffle=False, pin_memory=True
         )
                 
-        logger.info(' => Evaluating unlabeled observations')
+        logger.info(' => Getting the unlabelled logits')
         embeds_dict = { 'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32, device=torch.device('cpu')) }
         
         self.load_best_checkpoint()
@@ -35,7 +35,7 @@ class Entropy(ActiveLearner):
         prob_dist = F.softmax(embeds_dict['probs'], dim=1)
         logger.info(' DONE\n')
 
-        logger.info(f' => Extracting the Top-k unlabeled observations')
+        logger.info(f' => Extracting the Top-k unlabelled observations')
         overall_topk = torch.topk(entropy(prob_dist), n_top_k_obs).indices.tolist()
         logger.info(' DONE\n')
         

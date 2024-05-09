@@ -6,7 +6,7 @@ from datasets_creation.Classification import Cls_Datasets
 from datasets_creation.Detection import Det_Dataset
 from train_evaluate.Train_DDP import train, train_ddp
 from utils import count_class_observation, print_cumulative_train_results, set_seeds,\
-    create_class_dir, create_method_res_dir, plot_new_labeled_tsne, save_train_val_curves, write_csv
+    create_class_dir, create_method_res_dir, plot_new_labelled_tsne, save_train_val_curves, write_csv
 
 from torch.utils.data import Subset, DataLoader
 import torch.distributed as dist
@@ -45,8 +45,8 @@ class ActiveLearner():
             self.model.added_module_name if self.model.added_module == None else self.model.added_module_name.split('_')[0] # type: ignore
         ]
                 
-        self.labeled_indices: List[int] = copy.deepcopy(self.dataset.labeled_indices)
-        self.unlabeled_indices: List[int] = copy.deepcopy(self.dataset.unlabeled_indices)
+        self.labelled_indices: List[int] = copy.deepcopy(self.dataset.labelled_indices)
+        self.unlabelled_indices: List[int] = copy.deepcopy(self.dataset.unlabelled_indices)
         self.temp_unlab_pool = []
 
         self.train_results: Dict[str, Any] = {}
@@ -60,22 +60,22 @@ class ActiveLearner():
         self.path = f'results/{self.ct_p['timestamp']}/{self.ct_p['dataset_name']}/{self.ct_p['trial']}/{self.strategy_name}'
         create_method_res_dir(self.path)
         
-        # save initial labeled images
-        self.save_labeled_images(self.labeled_indices)
+        # save initial labelled images
+        self.save_labelled_images(self.labelled_indices)
         
         
         
     
-    def save_labeled_images(self, new_labeled_idxs: List[int]) -> None:
-        logger.info(f' => Iteration {self.iter} Method {self.strategy_name} - Saving the new labeled images for further visual analysis...')
+    def save_labelled_images(self, new_labelled_idxs: List[int]) -> None:
+        logger.info(f' => Iteration {self.iter} Method {self.strategy_name} - Saving the new labelled images for further visual analysis...')
         create_class_dir(self.path, self.iter, self.dataset.classes)
-        for idx_top, (_, img, gt) in enumerate(Subset(self.dataset.unlab_train_ds, new_labeled_idxs)): # type: ignore
+        for idx_top, (_, img, gt) in enumerate(Subset(self.dataset.unlab_train_ds, new_labelled_idxs)): # type: ignore
             if self.ct_p['task'] != 'clf': 
                 unique_labs = np.unique(np.array([labs[-1] for labs in gt]))
                 for lab in unique_labs: 
-                    save_image(img, f'{self.path}/new_labeled_images/{self.iter}/{self.dataset.classes[int(lab)]}/{idx_top}.png')
+                    save_image(img, f'{self.path}/new_labelled_images/{self.iter}/{self.dataset.classes[int(lab)]}/{idx_top}.png')
             else:
-                save_image(img, f'{self.path}/new_labeled_images/{self.iter}/{self.dataset.classes[gt]}/{idx_top}.png')
+                save_image(img, f'{self.path}/new_labelled_images/{self.iter}/{self.dataset.classes[gt]}/{idx_top}.png')
         logger.info(' DONE\n')
         
         
@@ -86,18 +86,18 @@ class ActiveLearner():
             seed = self.dataset.dataset_id * (self.ct_p['trial'] * self.al_p['al_iters'] + (self.iter - 1))
             set_seeds(seed)
             
-            rand_perm = torch.randperm(len(self.unlabeled_indices)).tolist()
-            self.rand_unlab_sample = [self.unlabeled_indices[idx] for idx in rand_perm[:self.ds_t_p['unlab_sample_dim']]]
+            rand_perm = torch.randperm(len(self.unlabelled_indices)).tolist()
+            self.rand_unlab_sample = [self.unlabelled_indices[idx] for idx in rand_perm[:self.ds_t_p['unlab_sample_dim']]]
             
             logger.info(f' SEED: {seed} - Last 10 permuted indices are: {rand_perm[-10:]}')
             
-            # removing the whole observation sample fromt the unlabeled indices list
-            for idx in self.rand_unlab_sample: self.unlabeled_indices.remove(idx) # - 10000
+            # removing the whole observation sample fromt the unlabelled indices list
+            for idx in self.rand_unlab_sample: self.unlabelled_indices.remove(idx) # - 10000
             
             #reset the original seed
             set_seeds()
         
-        else: self.rand_unlab_sample = self.unlabeled_indices
+        else: self.rand_unlab_sample = self.unlabelled_indices
             
     
     def load_best_checkpoint(self):
@@ -160,11 +160,11 @@ class ActiveLearner():
                   d_labels: Dict[str, int], al_iter: str, gtg_result_prediction = None) -> None:
         # plot the tsne graph for each iteration
         
-        logger.info(' => Saving the TSNE embeddings plot with labeled, unlabeled and new labeled observations')
+        logger.info(' => Saving the TSNE embeddings plot with labelled, unlabelled and new labelled observations')
         
         dl_dict = dict(batch_size=self.batch_size, shuffle=False)
         unlab_train_dl = DataLoader(Subset(self.dataset.unlab_train_ds, self.rand_unlab_sample), **dl_dict)
-        lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labeled_indices), **dl_dict)
+        lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labelled_indices), **dl_dict)
         
         lab_embedds_dict = {
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu')),
@@ -181,7 +181,7 @@ class ActiveLearner():
         
 
         logger.info(' Plotting...')
-        plot_new_labeled_tsne(
+        plot_new_labelled_tsne(
             lab_embedds_dict, unlab_embedds_dict,
             al_iter, self.strategy_name,
             self.ct_p['dataset_name'], idxs_new_labels, self.dataset.classes, 
@@ -200,7 +200,7 @@ class ActiveLearner():
         
         params = { 
             'ct_p': self.ct_p, 't_p': self.t_p, 'strategy_name': self.strategy_name, 
-            'iter': iter, 'labeled_indices': self.labeled_indices 
+            'iter': iter, 'labelled_indices': self.labelled_indices 
         }
         
         # wandb dictionary hyperparameters
@@ -267,38 +267,38 @@ class ActiveLearner():
         
     
     def update_sets(self, overall_topk: List[int]) -> None:        
-        # save the new labeled images to further visual analysis
-        self.save_labeled_images(overall_topk)
+        # save the new labelled images to further visual analysis
+        self.save_labelled_images(overall_topk)
         
-        # Update the labeeld and unlabeled training set
-        logger.info(' => Modifing the Labeled and Unlabeled Indices Lists')
+        # Update the labeeld and unlabelled training set
+        logger.info(' => Modifing the labelled and Unlabelled Indices Lists')
         
         
         sample_len = len(self.rand_unlab_sample)
-        # the sample have been already removed from the labeled set
+        # the sample have been already removed from the labelled set
         for idx in overall_topk: self.rand_unlab_sample.remove(idx) # - 1000 = 9000
         self.temp_unlab_pool.extend(self.rand_unlab_sample) # + 9000
         # extend with the overall_topk
-        self.labeled_indices.extend(overall_topk) # + 1000
+        self.labelled_indices.extend(overall_topk) # + 1000
         
         
         # sanity check
-        if len(list(set(self.unlabeled_indices) & set(self.labeled_indices))) == 0 and \
-            len(list(set(self.temp_unlab_pool) & set(self.labeled_indices))) == 0 :
+        if len(list(set(self.unlabelled_indices) & set(self.labelled_indices))) == 0 and \
+            len(list(set(self.temp_unlab_pool) & set(self.labelled_indices))) == 0 :
             logger.info(' Intersection between indices lists are EMPTY')
         else: 
             logger.exception('NON EMPTY INDICES INTERSECTION')
             raise Exception('NON EMPTY INDICES INTERSECTION')
         
         
-        if len(self.unlabeled_indices) < sample_len and len(self.temp_unlab_pool) > 0:
-            # reinsert all teh observations from the pool inside the original unlabeled pool
-            self.unlabeled_indices.extend(self.temp_unlab_pool)
-            self.temp_unlab_pool.clear() # empty the temp unlabeled pool list
+        if len(self.unlabelled_indices) < sample_len and len(self.temp_unlab_pool) > 0:
+            # reinsert all teh observations from the pool inside the original unlabelled pool
+            self.unlabelled_indices.extend(self.temp_unlab_pool)
+            self.temp_unlab_pool.clear() # empty the temp unlabelled pool list
 
 
         
-        logger.info(f' New labeled_indices lenght: {len(self.labeled_indices)} - new unlabeled_indices lenght: {len(self.unlabeled_indices)}')
+        logger.info(f' New labelled_indices lenght: {len(self.labelled_indices)} - new unlabelled_indices lenght: {len(self.unlabelled_indices)}')
         
         logger.info(' DONE\n')
 
@@ -332,7 +332,7 @@ class ActiveLearner():
             )
             
             d_labels = count_class_observation(self.dataset.classes, self.dataset.train_ds, topk_idx_obs)
-            logger.info(f' Number of observations per class added to the labeled set:\n {d_labels}\n')
+            logger.info(f' Number of observations per class added to the labelled set:\n {d_labels}\n')
             
             # Saving the tsne embeddings plot
             if 'GTG_off' in self.method_name:

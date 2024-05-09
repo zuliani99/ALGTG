@@ -22,7 +22,7 @@ class BALD(ActiveLearner):
         
         
         
-    def evaluate_unlabeled_train(self, n_drop=5) -> Tuple[torch.Tensor, torch.Tensor]:
+    def evaluate_unlabelled_train(self, n_drop=5) -> Tuple[torch.Tensor, torch.Tensor]:
         
         self.load_best_checkpoint()
 
@@ -48,7 +48,7 @@ class BALD(ActiveLearner):
     
 
     def disagreement_dropout(self) -> Tuple[torch.Tensor, torch.Tensor]:
-        indices, prob_dist_drop = self.evaluate_unlabeled_train()
+        indices, prob_dist_drop = self.evaluate_unlabelled_train()
         
         mean_pb = torch.mean(prob_dist_drop, dim=0)
         

@@ -70,10 +70,10 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     train_results = [torch.zeros((4, t_p['epochs']), device=rank) for _ in range(world_size)]
     test_results = [torch.zeros(1, device=rank) for _ in range(world_size)]
     
-    train_ds = Subset(ct_p['Dataset'].train_ds, params['labeled_subset'])
+    train_ds = Subset(ct_p['Dataset'].train_ds, params['labelled_subset'])
     params['train_dl'] = DataLoader(
         train_ds,
-        #sampler=DistributedSampler(params['labeled_subset'], num_replicas=world_size,
+        #sampler=DistributedSampler(params['labelled_subset'], num_replicas=world_size,
         
         # TiDAL WON'T WORK SINCE MMOVING_PROBS IS NOT ACCESSIBLE FROM SUBSET
         sampler=DistributedSampler(train_ds, num_replicas=world_size,
@@ -143,14 +143,14 @@ def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
     if ct_p['task'] == 'detection': 
         dict_dl['collate_fn'] = detection_collate
         
-        t_p['epoch_size'] = len(params['labeled_subset']) // batch_size
+        t_p['epoch_size'] = len(params['labelled_subset']) // batch_size
         t_p['max_iter'] = t_p['epochs'] * t_p['epoch_size']
         
         TrainWorker = Det_TrainWorker
     
     else: TrainWorker = Cls_TrainWorker
     
-    params['train_dl'] = DataLoader(ct_p['Dataset'].train_ds, sampler=SubsetRandomSampler(params['labeled_indices']), **dict_dl)
+    params['train_dl'] = DataLoader(ct_p['Dataset'].train_ds, sampler=SubsetRandomSampler(params['labelled_indices']), **dict_dl)
     params['test_dl'] = DataLoader(ct_p['Dataset'].test_ds, shuffle=False, **dict_dl)
     
     train_test = TrainWorker(params['ct_p']['device'], params)

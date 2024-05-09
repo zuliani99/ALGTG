@@ -38,9 +38,9 @@ class AlphaMix(ActiveLearner):
         dl_dict = dict( batch_size=self.batch_size, shuffle=False, pin_memory=True )
             
         unlab_train_dl = DataLoader(sample_unlab_subset, **dl_dict)
-        lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labeled_indices), **dl_dict)
+        lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labelled_indices), **dl_dict)
             
-        logger.info(' => Getting the labeled and unlabeled embeddings')
+        logger.info(' => Getting the labelled and unlabelled embeddings')
         self.lab_embedds_dict = {
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
             'labels': torch.empty(0, dtype=torch.int8, device=torch.device('cpu'))
@@ -53,17 +53,17 @@ class AlphaMix(ActiveLearner):
         self.get_embeddings(lab_train_dl, self.lab_embedds_dict)
         self.get_embeddings(unlab_train_dl, self.unlab_embedds_dict)
         
-        idxs_unlabeled = torch.tensor(self.rand_unlab_sample) 
+        idxs_unlabelled = torch.tensor(self.rand_unlab_sample) 
 
         pred_1 = self.unlab_embedds_dict['probs'] .sort(descending=True)[1][:, 0]
         ulb_embedding = self.unlab_embedds_dict['embedds']
         lb_embedding = self.lab_embedds_dict['embedds']
 
-        unlabeled_size = ulb_embedding.size(0)
+        unlabelled_size = ulb_embedding.size(0)
         embedding_size = ulb_embedding.size(1)
 
-        min_alphas = torch.ones((unlabeled_size, embedding_size), dtype=torch.float, device=self.device)
-        candidate = torch.zeros(unlabeled_size, dtype=torch.bool, device=self.device)
+        min_alphas = torch.ones((unlabelled_size, embedding_size), dtype=torch.float, device=self.device)
+        candidate = torch.zeros(unlabelled_size, dtype=torch.bool, device=self.device)
 
         if self.alpha_closed_form_approx:
             var_emb = torch.clone(ulb_embedding).to(self.device)
@@ -82,7 +82,7 @@ class AlphaMix(ActiveLearner):
             tmp_pred_change, tmp_min_alphas = \
                 self.find_candidate_set(
                     lb_embedding, ulb_embedding, pred_1, alpha_cap=alpha_cap,
-                    Y=self.labeled_indices,
+                    Y=self.labelled_indices,
                     grads=grads)
 
             is_changed = min_alphas.norm(dim=1) >= tmp_min_alphas.norm(dim=1)
@@ -104,7 +104,7 @@ class AlphaMix(ActiveLearner):
             c_alpha = F.normalize(self.unlab_embedds_dict['embedds'][candidate].view(int(candidate.sum()), -1), p=2, dim=1).detach().cpu()
 
             selected_idxs = self.sample(min(n_top_k_obs, candidate.sum().item()), feats=c_alpha)
-            selected_idxs = idxs_unlabeled[candidate.bool().cpu()][selected_idxs]
+            selected_idxs = idxs_unlabelled[candidate.bool().cpu()][selected_idxs]
         else:
             selected_idxs = np.array([], dtype=np.int32)
 
@@ -133,11 +133,11 @@ class AlphaMix(ActiveLearner):
 
     def find_candidate_set(self, lb_embedding, ulb_embedding, pred_1, alpha_cap, Y, grads):
 
-        unlabeled_size = ulb_embedding.size(0)
+        unlabelled_size = ulb_embedding.size(0)
         embedding_size = ulb_embedding.size(1)
 
-        min_alphas = torch.ones((unlabeled_size, embedding_size), dtype=torch.float, device=self.device)
-        pred_change = torch.zeros(unlabeled_size, dtype=torch.bool, device=self.device)
+        min_alphas = torch.ones((unlabelled_size, embedding_size), dtype=torch.float, device=self.device)
+        pred_change = torch.zeros(unlabelled_size, dtype=torch.bool, device=self.device)
 
         if self.alpha_closed_form_approx:
             alpha_cap /= math.sqrt(embedding_size)
@@ -147,7 +147,7 @@ class AlphaMix(ActiveLearner):
             emb = lb_embedding[Y == i]
             if emb.size(0) == 0:
                 emb = lb_embedding
-            anchor_i = emb.mean(dim=0).view(1, -1).repeat(unlabeled_size, 1)
+            anchor_i = emb.mean(dim=0).view(1, -1).repeat(unlabelled_size, 1)
 
             if self.alpha_closed_form_approx:
                 embed_i, ulb_embed = anchor_i.to(self.device), ulb_embedding.to(self.device)
@@ -160,7 +160,7 @@ class AlphaMix(ActiveLearner):
 
                 pc = out.argmax(dim=1) != pred_1
             else:
-                alpha = self.generate_alpha(unlabeled_size, embedding_size, alpha_cap).to(self.device)
+                alpha = self.generate_alpha(unlabelled_size, embedding_size, alpha_cap).to(self.device)
                 if self.alpha_opt:
                     alpha, pc = self.learn_alpha(ulb_embedding, pred_1, anchor_i, alpha, alpha_cap,
                                                  log_prefix=str(i))
