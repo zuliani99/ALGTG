@@ -26,7 +26,7 @@ from strategies.competitors.AlphaMix import AlphaMix
 from strategies.competitors.TiDAL import TiDAL
 from strategies.GTG import GTG
 from strategies.GTG_off import GTG_off
-    
+    	
 from config import cls_config, al_params, det_config
 from datetime import datetime
 import argparse
@@ -92,14 +92,17 @@ dict_backbone = dict(
 def get_strategies_object(methods: List[str], Masters: Dict[str, Master_Model], 
                           ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any]) -> List[Any]:
     strategies: List[Random | Entropy | CoreSet | BADGE | BALD | CDAL | GTG_off | LearningLoss | TA_VAAL | GTG] = []
+    
+    gtg_p_2 = copy.deepcopy(gtg_p) # temporary copy
+    
     for method in methods:
         if 'gtg' in method.split('_'):
             
-            am_ts = gtg_p['am_ts']
-            am = gtg_p['am']
+            am_ts = gtg_p_2['am_ts']
+            am = gtg_p_2['am']
             
-            del gtg_p['am_ts']
-            del gtg_p['am']
+            del gtg_p_2['am_ts']
+            del gtg_p_2['am']
                 
             for a_t_strategy in am_ts:
                 
@@ -111,7 +114,7 @@ def get_strategies_object(methods: List[str], Masters: Dict[str, Master_Model],
                     else: m_model = Masters['M_LL']
 
                     strategies.append(dict_strategies[method](
-                        {**ct_p, 'Master_Model': copy.deepcopy(m_model)}, t_p, al_p, {**gtg_p, 'am_ts': a_t_strategy, 'am': a_matrix})
+                        {**ct_p, 'Master_Model': copy.deepcopy(m_model)}, t_p, al_p, {**gtg_p_2, 'am_ts': a_t_strategy, 'am': a_matrix})
                     )
                 
         elif method in ['ll', 'tavaal', 'tidal']:
@@ -248,7 +251,7 @@ def main() -> None:
             'gpus': args.gpus
         }
         
-        for trial in range(args.trials):
+        for trial in range(1, args.trials): ###########################################################
             common_training_params['trial'] = trial
             
             logger.info(f'----------------------- SAMPLE ITERATION {trial + 1} / {args.trials} -----------------------\n')

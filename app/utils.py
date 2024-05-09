@@ -328,6 +328,30 @@ def plot_new_labelled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.
         
         idxs_unlab_again = [id for id in range(len(gtg_result_prediction)) if id not in idxs_new_labels]
         
+        pred_unlab = ['True Unabelled Obs' if val else 'False Unlabelled Obs' for val in gtg_result_prediction[idxs_unlab_again]]
+        pred_new_lab = ['True New-Labelled Obs' if val else 'False New-Labelled Obs' for val in gtg_result_prediction[idxs_new_labels]]
+                        
+        sns.scatterplot(x=x_unlab[idxs_unlab_again], y=y_unlab[idxs_unlab_again], 
+                        color='blue', s=17, ax=axes[0], style=pred_unlab, 
+                        markers=['X', 'o'] if len(np.unique(pred_unlab)) == 2 else ['o'])
+        
+        sns.scatterplot(x=x_lab, y=y_lab, color='orange', s=17, ax=axes[0], markers=['o'], label='Old Labeled Obs')
+        
+        sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], 
+                        s=17, color='red', ax=axes[0], style=pred_new_lab, 
+                        markers=['X', 'o'] if len(np.unique(pred_new_lab)) == 2 else ['o'])    
+    else:
+        
+        sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabelled', color='blue', s=17, ax=axes[0], markers=['o'])
+        sns.scatterplot(x=x_lab, y=y_lab, label='labelled', color='orange', s=17, ax=axes[0], markers=['o'])
+        sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labelled', 
+                        s=17, color='red', ax=axes[0], markers=['o'])
+    
+    
+    '''if isinstance(gtg_result_prediction, np.ndarray):
+        
+        idxs_unlab_again = [id for id in range(len(gtg_result_prediction)) if id not in idxs_new_labels]
+        
         pred_unlab = gtg_result_prediction[idxs_unlab_again]
         pred_new_lab = gtg_result_prediction[idxs_new_labels]
         
@@ -345,7 +369,7 @@ def plot_new_labelled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.
         sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabelled', color='blue', s=17, ax=axes[0], markers=['o'])
         sns.scatterplot(x=x_lab, y=y_lab, label='labelled', color='orange', s=17, ax=axes[0], markers=['o'])
         sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labelled', 
-                        s=17, color='red', ax=axes[0], markers=['o'])
+                        s=17, color='red', ax=axes[0], markers=['o'])'''
     
     axes[0].set_title('TSNE -- labelled - unlabelled - new_labelled', fontsize = 15)
     axes[0].legend()
