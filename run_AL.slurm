@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=exp    # Job name
-#SBATCH --mail-type=NONE          # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --job-name=debug    # Job name
+#SBATCH --mail-type=END          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=875532@stud.unive.it     # Where to send mail	
 #SBATCH --nodes=1
 #SBATCH --ntasks=1                  # 2
@@ -13,6 +13,7 @@
 #SBATCH --gpus-per-node=1      # 2, number of GPUs per node
 #SBATCH --gpus-per-task=1      # number of GPUs per process
 
+
 conda activate al_env
 
-python3 app/main.py -gpus 1 -m ll_gtg -ds cifar10 -tr 1 -am corr
+python3 app/main.py -gpus 1 -m cdal -ds cifar10 -tr 1

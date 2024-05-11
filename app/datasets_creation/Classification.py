@@ -1,5 +1,5 @@
 
-from torch.utils.data import Dataset, Subset
+from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets
 import torch
 import numpy as np
@@ -10,6 +10,8 @@ import shutil
 
 from torchvision.transforms import v2
 
+from cold_start_VAE.train_VAE import fit_ae, get_initial_sample
+from cold_start_VAE.VAE import DeepConvAutoencoder
 from utils import count_class_observation, log_assert
 from config import cls_datasets 
 
@@ -152,7 +154,8 @@ def init_caltech256() -> None:
 
 class Cls_Datasets():
     
-    def __init__(self, dataset_name: str, init_lab_obs: int) -> None:
+    #def __init__(self, dataset_name: str, init_lab_obs: int) -> None:
+    def __init__(self, dataset_name: str, init_lab_obs: int, batch_size: int, device: torch.device) -> None:
 
         self.n_classes: int = cls_datasets[dataset_name]['n_classes']
         self.n_channels: int = cls_datasets[dataset_name]['channels']
@@ -169,11 +172,19 @@ class Cls_Datasets():
             
         self.classes: List[str] = cls_datasets[dataset_name]['classes']
         
-        self.get_initial_subsets(init_lab_obs)
+        self.get_initial_subsets(init_lab_obs, batch_size, device)
     
     
+    def get_initial_subsets(self, init_lab_obs: int, batch_size: int, device: torch.device) -> None:
+
+        vae = DeepConvAutoencoder(self.image_size)
+        fit_ae(vae, device, self.train_ds)
+        
+        dl = DataLoader(self.train_ds, shuffle=True, pin_memory=True, batch_size=batch_size)
+        self.labelled_indices = get_initial_sample(vae, dl, device, self.n_classes, int(init_lab_obs / self.n_classes))
+        self.unlabelled_indices = [idx for idx in self.train_ds.ds.indices if idx not in self.labelled_indices] # type: ignore
     
-    def get_initial_subsets(self, init_lab_obs: int) -> None:
+    '''def get_initial_subsets(self, init_lab_obs: int) -> None:
 
         train_size = len(self.train_ds)
         
@@ -187,7 +198,7 @@ class Cls_Datasets():
         
         logger.info(f' Initial subset of labelled observations composed with: {count_class_observation(
             self.classes, Subset(self.train_ds, self.labelled_indices)
-        )}')
+        )}')'''
 
 
 
