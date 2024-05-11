@@ -251,7 +251,7 @@ def main() -> None:
             'gpus': args.gpus
         }
         
-        for trial in range(1, args.trials): ###########################################################
+        for trial in range(args.trials):
             common_training_params['trial'] = trial
             
             logger.info(f'----------------------- SAMPLE ITERATION {trial + 1} / {args.trials} -----------------------\n')

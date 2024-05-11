@@ -360,7 +360,6 @@ def plot_new_labelled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.
         fig.text(0.5, 0.05, f'New labelled Observations: {d_labels}', ha='center', va='center', fontdict={'size':17})
     else: sns_p.legend([],[], frameon=False)
     
-    #plt.suptitle(f'{ds_name} - {method} - {iter}', fontsize = 30)
     plt.suptitle(f'TSNE Plot - Iteration {iter}', fontsize = 30)
     plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{iter}.png')
 
