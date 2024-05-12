@@ -62,9 +62,7 @@ class ResNet(nn.Module):
         self.conv5_x = self._make_layer(block, 512, num_block[3], 2)
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
         self.classifier = nn.Linear(512 * block.expansion, num_classes)
-    
-        self.dropout = nn.Dropout(0.2) # -> BALD
-        
+            
         self.apply(init_weights_apply)
         
 

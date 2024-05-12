@@ -90,22 +90,19 @@ cls_datasets = {
         'id': 4,
         'n_classes': 200,
         'channels': 3,
-        'image_size': 32,#64,
+        'image_size': 64,
         'classes': [],
         'transforms': {
             'train': v2.Compose([
                         v2.ToImage(),
-                        v2.Resize((32,32)),
                         v2.RandomHorizontalFlip(),
-                        #v2.RandomCrop(64, padding=8),
-                        v2.RandomCrop(32, padding=4),
+                        v2.RandomCrop(64, padding=8),
                         v2.ToDtype(torch.float32, scale=True),
                         v2.Normalize(mean=[0.48042979, 0.44819701, 0.39755623],
                                      std=[0.27643974, 0.26888656, 0.28166852])
                     ]),
             'test': v2.Compose([
                         v2.ToImage(),
-                        v2.Resize((32,32)),
                         v2.ToDtype(torch.float32, scale=True),
                         v2.Normalize(mean=[0.48042979, 0.44819701, 0.39755623],
                                      std=[0.27643974, 0.26888656, 0.28166852])

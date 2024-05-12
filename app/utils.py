@@ -357,7 +357,7 @@ def plot_new_labelled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.
     axes[1].set_title('TSNE - Classes', fontsize = 15)
     axes[1].legend()    
     if len(classes) <= 10: 
-        fig.text(0.5, 0.05, f'New labelled Observations: {d_labels}', ha='center', va='center', fontdict={'size':17})
+        fig.text(0.5, 0.05, f'New Labelled Observations: {d_labels}', ha='center', va='center', fontdict={'size':17})
     else: sns_p.legend([],[], frameon=False)
     
     plt.suptitle(f'TSNE Plot - Iteration {iter}', fontsize = 30)
