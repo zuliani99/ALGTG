@@ -20,22 +20,22 @@ class Cls_TrainWorker():
     def __init__(self, gpu_id: int, params: Dict[str, Any], world_size: int = 1) -> None:
         
         self.device = torch.device(gpu_id)
-        self.iter: int = params['iter']
+        self.iter: int = params["iter"]
         
         self.world_size: int = world_size
-        self.wandb_run = params['wandb_p'] if 'wandb_p' in params else None
+        self.wandb_run = params["wandb_p"] if 'wandb_p' in params else None
 
-        self.model: Master_Model | DDP = params['ct_p']['Master_Model']
+        self.model: Master_Model | DDP = params["ct_p"]["Master_Model"]
         
-        self.dataset_name: str = params['ct_p']['dataset_name']
-        self.strategy_name: str = params['strategy_name']
+        self.dataset_name: str = params["ct_p"]["dataset_name"]
+        self.strategy_name: str = params["strategy_name"]
         self.method_name: str = self.strategy_name.split(f'{self.model.name}_')[1]
         
-        self.epochs = params['t_p']['epochs']
-        self.ds_t_p = params['t_p'][self.dataset_name]
+        self.epochs = params["t_p"]["epochs"]
+        self.ds_t_p = params["t_p"][self.dataset_name]
         
-        self.train_dl: DataLoader = params['train_dl']
-        self.test_dl: DataLoader = params['test_dl']
+        self.train_dl: DataLoader = params["train_dl"]
+        self.test_dl: DataLoader = params["test_dl"]
         
         self.ce_loss_fn = nn.CrossEntropyLoss(reduction='none').to(self.device)
         self.mse_loss_fn = nn.MSELoss(reduction='none').to(self.device)
@@ -53,13 +53,13 @@ class Cls_TrainWorker():
 
 
     def init_opt_sched(self):
-        optimizers = self.ds_t_p['optimizers']
+        optimizers = self.ds_t_p["optimizers"]
         self.optimizers, self.lr_schedulers = [], []
-        self.optimizers.append(optimizers['backbone']['type'](self.model.backbone.parameters(), **optimizers['backbone']['optim_p']))
+        self.optimizers.append(optimizers["backbone"]["type"](self.model.backbone.parameters(), **optimizers["backbone"]["optim_p"]))
         self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1))
         if self.model.added_module != None:
             module_name = self.model.added_module_name if self.model.added_module == None else self.model.added_module_name.split('_')[0]
-            self.optimizers.append(optimizers['modules'][module_name]['type'](self.model.added_module.parameters(), **optimizers['modules'][module_name]['optim_p']))
+            self.optimizers.append(optimizers["modules"][module_name]["type"](self.model.added_module.parameters(), **optimizers["modules"][module_name]["optim_p"]))
             self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
     
     def __save_checkpoint(self, filename: str) -> None:
@@ -69,7 +69,7 @@ class Cls_TrainWorker():
     
     def __load_checkpoint(self, filename: str) -> None:
         checkpoint = torch.load(filename, map_location=self.device)
-        self.model.module.load_state_dict(checkpoint['state_dict']) if self.world_size > 1 else self.model.load_state_dict(checkpoint['state_dict'])
+        self.model.module.load_state_dict(checkpoint["state_dict"]) if self.world_size > 1 else self.model.load_state_dict(checkpoint["state_dict"])
         self.init_opt_sched()
 
 

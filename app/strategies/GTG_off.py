@@ -24,15 +24,15 @@ class GTG_off(ActiveLearner):
             'rbfk': self.get_A_rbfk,
         }
 
-        self.gtg_tol: float = gtg_p['gtg_t']
-        self.gtg_max_iter: int = gtg_p['gtg_i']
+        self.gtg_tol: float = gtg_p["gtg_t"]
+        self.gtg_max_iter: int = gtg_p["gtg_i"]
         
-        self.AM_function: str = gtg_p['am']
-        self.AM_strategy: str = gtg_p['am_s']
-        self.AM_threshold_strategy: str = gtg_p['am_ts']
-        self.AM_threshold: float = gtg_p['am_t']
+        self.AM_function: str = gtg_p["am"]
+        self.AM_strategy: str = gtg_p["am_s"]
+        self.AM_threshold_strategy: str = gtg_p["am_ts"]
+        self.AM_threshold: float = gtg_p["am_t"]
         
-        self.ent_strategy: str = gtg_p['e_s']
+        self.ent_strategy: str = gtg_p["e_s"]
 
         if self.AM_threshold_strategy != None:
             str_tresh_strat = f'{self.AM_threshold_strategy}_{self.AM_threshold}' if self.AM_threshold_strategy != 'mean' else 'ts-mean'            
@@ -56,7 +56,7 @@ class GTG_off(ActiveLearner):
         
         logger.info(' => Computing Affinity Matrix...')
 
-        concat_embedds = torch.cat((self.lab_embedds_dict['embedds'], self.unlab_embedds_dict['embedds']))
+        concat_embedds = torch.cat((self.lab_embedds_dict["embedds"], self.unlab_embedds_dict["embedds"]))
                 
         # compute the affinity matrix
         A = self.get_A_fn[self.AM_function](concat_embedds, to_cpu=True)
@@ -65,8 +65,7 @@ class GTG_off(ActiveLearner):
                
         if self.AM_threshold_strategy != None:
             # remove weak connections with the choosen threshold strategy and value
-            logger.info(f' Affinity Matrix Threshold to be used: {self.AM_threshold_strategy} -> {\
-                self.get_A_treshold(A) if self.AM_threshold_strategy == 'mean' else self.AM_threshold}')
+            logger.info(f' Affinity Matrix Threshold to be used: {self.AM_threshold_strategy} -> {self.get_A_treshold(A) if self.AM_threshold_strategy == "mean" else self.AM_threshold}')
                 
             if self.AM_function != 'rbfk': A = torch.where(A < self.get_A_treshold(A), 0, A)
             else: A = torch.where(A > self.get_A_treshold(A), 1, A)
@@ -90,18 +89,18 @@ class GTG_off(ActiveLearner):
                 
         # plot the TSNE fo the original and modified affinity matrix
         logger.info('Plotting TSNE of the original and modified Affinity Matrix...')
-        plot_tsne_A(
+        '''plot_tsne_A(
             (initial_A, A),
-            (self.lab_embedds_dict['labels'], self.unlab_embedds_dict['labels']), self.dataset.classes,
-            self.ct_p['timestamp'], self.ct_p['dataset_name'], self.ct_p['trial'], self.strategy_name, self.AM_function, self.AM_strategy, self.iter
-        )
+            (self.lab_embedds_dict["labels"], self.unlab_embedds_dict["labels"]), self.dataset.classes,
+            self.ct_p["timestamp"], self.ct_p["dataset_name"], self.ct_p["trial"], self.strategy_name, self.AM_function, self.AM_strategy, self.iter
+        )'''
         
         self.A = A.to(self.device)
         
-        del A
-        del initial_A
-        del concat_embedds
-        gc.collect()
+        #del A
+        #del initial_A
+        #del concat_embedds
+        #gc.collect()
         logger.info(' DONE\n')
 
 
@@ -156,7 +155,7 @@ class GTG_off(ActiveLearner):
             (len(self.labelled_indices) + self.len_unlab_sample, self.dataset.n_classes),
             dtype=torch.float32, device=self.device
         )
-        for idx, label in enumerate(self.lab_embedds_dict['labels']): self.X[idx][int(label.item())] = 1.
+        for idx, label in enumerate(self.lab_embedds_dict["labels"]): self.X[idx][int(label.item())] = 1.
         for idx in range(len(self.labelled_indices), len(self.labelled_indices) + self.len_unlab_sample):
             for label in range(self.dataset.n_classes): self.X[idx][label] = 1. / self.dataset.n_classes
         
@@ -237,7 +236,7 @@ class GTG_off(ActiveLearner):
         logger.info(' DONE\n')
                         
         # TRUE / FALSE np.ndarray
-        self.gtg_result_prediction = (torch.argmax(self.X[len(self.labelled_indices):], dim=1).cpu() == self.unlab_embedds_dict['labels']).numpy()
+        self.gtg_result_prediction = (torch.argmax(self.X[len(self.labelled_indices):], dim=1).cpu() == self.unlab_embedds_dict["labels"]).numpy()
 
         
         del self.A
@@ -263,10 +262,10 @@ class GTG_off(ActiveLearner):
             raise Exception('Unrecognized derivates computation strategy')
         
         # plot entropy hisstory tensor
-        plot_gtg_entropy_tensor(
-            tensor=self.unlab_entropy_hist, topk=overall_topk, lab_unlabels=self.unlab_embedds_dict['labels'].tolist(), classes=self.dataset.classes, 
+        '''plot_gtg_entropy_tensor(
+            tensor=self.unlab_entropy_hist, topk=overall_topk, lab_unlabels=self.unlab_embedds_dict["labels"].tolist(), classes=self.dataset.classes, 
             path=self.path, iter=self.iter - 1, max_x=self.gtg_max_iter, dir='history'
-        )
+        )'''
                     
         del self.unlab_entropy_hist
         gc.collect()
@@ -274,5 +273,5 @@ class GTG_off(ActiveLearner):
         
         logger.info(' DONE\n')
         
-        return overall_topk, [int(self.unlab_embedds_dict['idxs'][id].item()) for id in overall_topk]
+        return overall_topk, [int(self.unlab_embedds_dict["idxs"][id].item()) for id in overall_topk]
     

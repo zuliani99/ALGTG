@@ -16,9 +16,9 @@ class Custom_GAP_Module(nn.Module):
         super(Custom_GAP_Module, self).__init__()
 
         # same parameters of loss net
-        feature_sizes = params['feature_sizes']
-        num_channels = params['num_channels']
-        interm_dim = params['interm_dim']
+        feature_sizes = params["feature_sizes"]
+        num_channels = params["num_channels"]
+        interm_dim = params["interm_dim"]
 
         self.convs, self.linears, self.gaps = [], [], []
 
@@ -89,22 +89,22 @@ class GTGModule(nn.Module):
             'rbfk': self.get_A_rbfk,
         }
         
-        self.gtg_tol: float = gtg_p['gtg_t']
-        self.gtg_max_iter: int = gtg_p['gtg_i']
+        self.gtg_tol: float = gtg_p["gtg_t"]
+        self.gtg_max_iter: int = gtg_p["gtg_i"]
         
-        self.AM_strategy: str = gtg_p['am_s']
-        self.AM_threshold_strategy: str = gtg_p['am_ts']
-        self.AM_threshold: float = gtg_p['am_t']
+        self.AM_strategy: str = gtg_p["am_s"]
+        self.AM_threshold_strategy: str = gtg_p["am_ts"]
+        self.AM_threshold: float = gtg_p["am_t"]
         
-        self.ent_strategy: str = gtg_p['e_s']
-        self.perc_labelled_batch: int = gtg_p['plb']
+        self.ent_strategy: str = gtg_p["e_s"]
+        self.perc_labelled_batch: int = gtg_p["plb"]
         
-        self.n_top_k_obs: int = gtg_p['n_top_k_obs']
-        self.n_classes: int = gtg_p['n_classes']
-        self.device: int = gtg_p['device']
+        self.n_top_k_obs: int = gtg_p["n_top_k_obs"]
+        self.n_classes: int = gtg_p["n_classes"]
+        self.device: int = gtg_p["device"]
 
         #self.c_mod = Custom_GAP_Module(ll_p).to(self.device)
-        self.c_mod = Custom_MLP(ll_p['num_channels'][-1]).to(self.device)
+        self.c_mod = Custom_MLP(ll_p["num_channels"][-1]).to(self.device)
         
         
         

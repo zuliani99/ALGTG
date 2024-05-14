@@ -27,27 +27,27 @@ class Det_TrainWorker():
     def __init__(self, gpu_id: int, params: Dict[str, Any], world_size: int = 1) -> None:
         
         self.device = torch.device(gpu_id)
-        self.iter: int = params['iter']
-        self.ct_p, self.t_p = params['ct_p'], params['t_p']
-        self.epoch_size: int = self.t_p['epoch_size']
-        self.dataset: Det_Dataset = self.ct_p['Dataset']
+        self.iter: int = params["iter"]
+        self.ct_p, self.t_p = params["ct_p"], params["t_p"]
+        self.epoch_size: int = self.t_p["epoch_size"]
+        self.dataset: Det_Dataset = self.ct_p["Dataset"]
         
-        self.LL = params['LL']
+        self.LL = params["LL"]
         self.world_size: int = world_size
-        self.wandb_run = params['wandb_p'] if 'wandb_p' in params else None
+        self.wandb_run = params["wandb_p"] if 'wandb_p' in params else None
         
-        self.model: Master_Model | DDP = params['ct_p']['Master_Model']
+        self.model: Master_Model | DDP = params["ct_p"]["Master_Model"]
         
-        self.strategy_name: str = params['strategy_name']
+        self.strategy_name: str = params["strategy_name"]
         
-        self.train_dl: DataLoader = params['train_dl']
-        self.test_dl: DataLoader = params['test_dl']
+        self.train_dl: DataLoader = params["train_dl"]
+        self.test_dl: DataLoader = params["test_dl"]
         
         self.backbone_loss_fn = MultiBoxLoss(self.dataset.n_classes, 0.5, True, 0, True, 3, 0.5, False, self.device)
         self.ll_loss_fn = LossPredLoss(self.device).to(self.device)
 
 
-        self.best_check_filename = f'app/checkpoints/{self.ct_p['dataset_name']}'
+        self.best_check_filename = f'app/checkpoints/{self.ct_p["dataset_name"]}'
         self.init_check_filename = f'{self.best_check_filename}/{self.model.module.name if self.world_size > 1 else self.model.name}_init.pth.tar'
         self.check_best_path = f'{self.best_check_filename}/best_{self.strategy_name}_{self.device}.pth.tar'
         
@@ -78,7 +78,7 @@ class Det_TrainWorker():
 
     def __load_checkpoint(self, filename: str) -> None:
         checkpoint = torch.load(filename, map_location=self.device)
-        self.model.module.load_state_dict(checkpoint['state_dict']) if self.world_size > 1 else self.model.load_state_dict(checkpoint['state_dict'])
+        self.model.module.load_state_dict(checkpoint["state_dict"]) if self.world_size > 1 else self.model.load_state_dict(checkpoint["state_dict"])
         self.init_opt_sched()
         
         
@@ -118,21 +118,20 @@ class Det_TrainWorker():
         
         epoch, step_index = 0, 0
                 
-        results = torch.zeros((4, self.t_p['epochs']), device=self.device)
+        results = torch.zeros((4, self.t_p["epochs"]), device=self.device)
         
         if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore
         
         batch_iterator = iter(cycle(self.train_dl))
         
-        for iteration in range(0, self.t_p['max_iter']):
+        for iteration in range(0, self.t_p["max_iter"]):
             # reset epoch loss counters
             if iteration != 0 and (iteration % self.epoch_size == 0):
                 
                 self.__save_checkpoint(self.check_best_path)
                 self.scheduler.step()
                     
-                logger.info(f'GPU: {self.device} ||| Epoch {epoch} | Iteration {iteration} -> train_loss: {train_loss / self.epoch_size}\tloc_loss: {loc_loss \
-                    / self.epoch_size}\tconf_loss: {conf_loss / self.epoch_size}\ttrain_pred_loss: {train_pred_loss / self.epoch_size}')
+                logger.info(f'GPU: {self.device} ||| Epoch {epoch} | Iteration {iteration} -> train_loss: {train_loss / self.epoch_size}\tloc_loss: {loc_loss / self.epoch_size}\tconf_loss: {conf_loss / self.epoch_size}\ttrain_pred_loss: {train_pred_loss / self.epoch_size}')
                                 
                 for pos, metric in zip(range(results.shape[0]), [train_loss / self.epoch_size,
                                                                  loc_loss / self.epoch_size, 
@@ -144,7 +143,7 @@ class Det_TrainWorker():
                 train_loss, train_pred_loss = .0, .0
                 epoch += 1
 
-            if iteration in self.t_p['lr_steps']:
+            if iteration in self.t_p["lr_steps"]:
                 step_index += 1
                 self.adjust_learning_rate(step_index)
 
@@ -198,7 +197,7 @@ class Det_TrainWorker():
         
         # all detections are collected into:
         all_boxes: List[List[np.ndarray | None]] = [[ None for _ in range(num_images)] for _ in range(self.dataset.n_classes)]
-        output_dir = f'results/{self.ct_p['timestamp']}/{self.ct_p['dataset_name']}/{self.ct_p['trial']}/{self.strategy_name}/test'
+        output_dir = f'results/{self.ct_p["timestamp"]}/{self.ct_p["dataset_name"]}/{self.ct_p["trial"]}/{self.strategy_name}/test'
         create_directory(output_dir)        
         det_file = os.path.join(output_dir, f'detections_{self.device}.pkl')
         
@@ -249,4 +248,4 @@ class Det_TrainWorker():
         # lr = args.lr * (gamma ** (step))
         lr = 0.01 * (0.1 ** (step))
         for param_group in self.optimizer.param_groups:
-            param_group['lr'] = lr
+            param_group["lr"] = lr

@@ -67,8 +67,8 @@ class CDAL(ActiveLearner):
         self.get_embeddings(lab_train_dl, lab_embedds_dict)
         self.get_embeddings(unlab_train_dl, unlab_embedds_dict)
         
-        lab_probs = F.softmax(lab_embedds_dict['probs'], dim=1)
-        unlab_probs = F.softmax(unlab_embedds_dict['probs'], dim=1)
+        lab_probs = F.softmax(lab_embedds_dict["probs"], dim=1)
+        unlab_probs = F.softmax(unlab_embedds_dict["probs"], dim=1)
         
         logger.info(' DONE\n')
         

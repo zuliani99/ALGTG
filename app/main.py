@@ -64,7 +64,7 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
                    Masters: Dict[str, Master_Model], methods: List[str]) -> Tuple[Dict[str, Dict[str, List[float]]], List[int]]:
 
     results = { }
-    n_lab_obs = [al_p['init_lab_obs'] + (iter * al_p['n_top_k_obs']) for iter in range(al_p['al_iters'])]
+    n_lab_obs = [al_p["init_lab_obs"] + (iter * al_p["n_top_k_obs"]) for iter in range(al_p["al_iters"])]
      
     # get the strategis object to run them
     strategies = get_strategies_object(methods, Masters, ct_p, t_p, al_p, gtg_p)
@@ -134,14 +134,14 @@ def main() -> None:
 
         logger.info(f'----------------------- RUNNING ACTIVE LEARNING BENCHMARK ON {dataset_name} -----------------------\n')
         
-        Dataset = get_dataset(task, dataset_name, init_lab_obs = al_params['init_lab_obs']) # get the dataset
+        Dataset = get_dataset(task, dataset_name, init_lab_obs = al_params["init_lab_obs"]) # get the dataset
         BBone = get_backbone(Dataset.n_classes, Dataset.n_channels, dict_backbone[dataset_name]) # the backbone is the same for all
 
         # create gtg dictionary parameters
         gtg_module_params = dict(
-            **gtg_params, n_top_k_obs = al_params['n_top_k_obs'], 
+            **gtg_params, n_top_k_obs = al_params["n_top_k_obs"], 
             n_classes = Dataset.n_classes, 
-            init_lab_obs = al_params['init_lab_obs'], 
+            init_lab_obs = al_params["init_lab_obs"], 
             embedding_dim = BBone.get_rich_features_shape(),
             device = device
         )
@@ -158,8 +158,8 @@ def main() -> None:
             'gpus': args.gpus
         }
         
-        for trial in range(args.trials):
-            common_training_params['trial'] = trial
+        for trial in range(1, args.trials): ##################################
+            common_training_params["trial"] = trial
             
             logger.info(f'----------------------- SAMPLE ITERATION {trial + 1} / {args.trials} -----------------------\n')
             
@@ -171,7 +171,7 @@ def main() -> None:
             )
             
             plot_trail_acc(dataset_name, trial, results, n_lab_obs, timestamp,
-                             list(task_params['results_dict']['test'].keys())[0],
+                             list(task_params["results_dict"]["test"].keys())[0],
                              plot_png_name=f'{dataset_name}/{trial}/results.png')
             
         plot_res_std_mean(task, timestamp, dataset_name)
