@@ -1,7 +1,7 @@
 
 from models.modules.GTG_Cls import GTGModule
 from models.modules.LossNet import LossNet
-from models.backbones.ssd_pytorch.SSD import SSD, build_ssd
+#from models.backbones.ssd_pytorch.SSD import SSD, build_ssd
 from models.backbones.ResNet18 import ResNet, ResNet18
 from models.backbones.VGG import VGG, VGG16_bn
 
@@ -33,10 +33,10 @@ def get_dataset(task: str, dataset_name: str, init_lab_obs: int) -> Cls_Datasets
     else: return Det_Dataset(dataset_name, init_lab_obs=init_lab_obs)
 
     
-def get_backbone(n_classes: int, n_channels: int, bbone: str) -> ResNet | VGG | SSD:
+def get_backbone(n_classes: int, n_channels: int, bbone: str) -> ResNet | VGG:# | SSD:
     if bbone == 'ResNet': return ResNet18(n_classes=n_classes, n_channels=n_channels)
-    elif bbone == 'VGG': return VGG16_bn(n_classes=n_classes,  n_channels=n_channels)
-    else: return build_ssd('train', voc_config, num_classes=n_classes)
+    else: return VGG16_bn(n_classes=n_classes,  n_channels=n_channels) #bbone == 'VGG':
+    #else: return build_ssd('train', voc_config, num_classes=n_classes)
     
 
 def get_module(module: str, module_params: Dict[str, Any] | Tuple[Dict[str, Any], Dict[str, Any]]) -> LossNet | GTGModule:
@@ -118,7 +118,7 @@ def get_strategies_object(methods: List[str], Masters: Dict[str, Master_Model],
 
 
 # to create a single master model for each type
-def get_masters(methods: List[str], BBone: ResNet | SSD | VGG,
+def get_masters(methods: List[str], BBone: ResNet | VGG,
                 ll_module_params: Dict[str, Any], gtg_module_params: Dict[str, Any],
                 dataset_name: str, n_classes: int) -> Dict[str, Master_Model]:
     

@@ -1,5 +1,5 @@
 
-import wandb
+#import wandb
 
 from models.BBone_Module import Master_Model
 from datasets_creation.Classification import Cls_Datasets
@@ -34,14 +34,14 @@ class ActiveLearner():
         self.ct_p: Dict[str, Any] = ct_p
         self.t_p: Dict[str, Any] = t_p
         
-        self.device: torch.device = self.ct_p['device']
-        self.model: Master_Model = self.ct_p['Master_Model']
+        self.device: torch.device = self.ct_p["device"]
+        self.model: Master_Model = self.ct_p["Master_Model"]
         self.model = self.model.to(self.device)
         
-        self.dataset: Cls_Datasets | Det_Dataset = self.ct_p['Dataset']
+        self.dataset: Cls_Datasets | Det_Dataset = self.ct_p["Dataset"]
         
-        self.ds_t_p = self.t_p[self.ct_p['dataset_name']]
-        self.batch_size = self.ds_t_p['batch_size'][
+        self.ds_t_p = self.t_p[self.ct_p["dataset_name"]]
+        self.batch_size = self.ds_t_p["batch_size"][
             self.model.added_module_name if self.model.added_module == None else self.model.added_module_name.split('_')[0] # type: ignore
         ]
                 
@@ -53,11 +53,11 @@ class ActiveLearner():
         
         self.method_name = method_name
         self.strategy_name = f'{self.model.name}_{method_name}' # define strategy name    
-        self.best_check_filename: str = f'app/checkpoints/{self.ct_p['dataset_name']}/best_{self.strategy_name}'
+        self.best_check_filename: str = f'app/checkpoints/{self.ct_p["dataset_name"]}/best_{self.strategy_name}'
         
-        self.world_size: int = self.ct_p['gpus']
+        self.world_size: int = self.ct_p["gpus"]
         
-        self.path = f'results/{self.ct_p['timestamp']}/{self.ct_p['dataset_name']}/{self.ct_p['trial']}/{self.strategy_name}'
+        self.path = f'results/{self.ct_p["timestamp"]}/{self.ct_p["dataset_name"]}/{self.ct_p["trial"]}/{self.strategy_name}'
         create_method_res_dir(self.path)
         
         # save initial labelled images
@@ -69,8 +69,8 @@ class ActiveLearner():
     def save_labelled_images(self, new_labelled_idxs: List[int]) -> None:
         logger.info(f' => Iteration {self.iter} Method {self.strategy_name} - Saving the new labelled images for further visual analysis...')
         create_class_dir(self.path, self.iter, self.dataset.classes)
-        for idx_top, (_, img, gt) in enumerate(Subset(self.dataset.unlab_train_ds, new_labelled_idxs)): # type: ignore
-            if self.ct_p['task'] != 'clf': 
+        for idx_top, (_, img, gt, _) in enumerate(Subset(self.dataset.unlab_train_ds, new_labelled_idxs)): # type: ignore
+            if self.ct_p["task"] != 'clf': 
                 unique_labs = np.unique(np.array([labs[-1] for labs in gt]))
                 for lab in unique_labs: 
                     save_image(img, f'{self.path}/new_labelled_images/{self.iter}/{self.dataset.classes[int(lab)]}/{idx_top}.png')
@@ -81,13 +81,13 @@ class ActiveLearner():
         
     
     def get_rand_unlab_sample(self) -> None:
-        if self.ct_p['task'] == 'clf':
+        if self.ct_p["task"] == 'clf':
             # set seed for reproducibility            
-            seed = self.dataset.dataset_id * (self.ct_p['trial'] * self.al_p['al_iters'] + (self.iter - 1))
+            seed = self.dataset.dataset_id * (self.ct_p["trial"] * self.al_p["al_iters"] + (self.iter - 1))
             set_seeds(seed)
             
             rand_perm = torch.randperm(len(self.unlabelled_indices)).tolist()
-            self.rand_unlab_sample = [self.unlabelled_indices[idx] for idx in rand_perm[:self.ds_t_p['unlab_sample_dim']]]
+            self.rand_unlab_sample = [self.unlabelled_indices[idx] for idx in rand_perm[:self.ds_t_p["unlab_sample_dim"]]]
             
             logger.info(f' SEED: {seed} - Last 10 permuted indices are: {rand_perm[-10:]}')
             
@@ -107,7 +107,7 @@ class ActiveLearner():
         else: device = 'cpu'
 
         checkpoint: Dict = torch.load(f'{self.best_check_filename}_{device}.pth.tar', map_location=self.device)
-        self.model.load_state_dict(checkpoint['state_dict'])
+        self.model.load_state_dict(checkpoint["state_dict"])
     
     
     def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, Any], embedds2cpu = False) -> None:
@@ -118,39 +118,32 @@ class ActiveLearner():
         with torch.inference_mode():
             
             for data in dataloader:
-                if len(data) > 3: idxs, images, labels, _ = data # in case on TiDAL
-                else: idxs, images, labels = data
+                idxs, images, labels, _ = data # in case on TiDAL
                 
                 images = images.to(self.device)
                 
                 if 'embedds' in dict_to_modify:
                     embed = self.model(images, mode='embedds')
-                    dict_to_modify['embedds'] = torch.cat((dict_to_modify['embedds'], embed.cpu() if embedds2cpu else embed), dim=0)
+                    dict_to_modify["embedds"] = torch.cat((dict_to_modify["embedds"], embed.cpu() if embedds2cpu else embed), dim=0)
 
                 if 'probs' in dict_to_modify:
-                    dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], self.model(images, mode='probs').cpu()), dim=0)
+                    dict_to_modify["probs"] = torch.cat((dict_to_modify["probs"], self.model(images, mode='probs').cpu()), dim=0)
 
                 # could be both LL (1 output) and GTG (2 outputs)
                 if 'module_out' in dict_to_modify:
                     if self.model.added_module != None:
-                        if self.model.added_module_name == 'GTGModule':
-                            dict_to_modify['module_out'] = torch.cat((
-                                dict_to_modify['module_out'], 
-                                self.model(images, labels.to(self.device), mode='module_out')[0][0].cpu().squeeze()
-                            ), dim=0)
-                        else:
-                            dict_to_modify['module_out'] = torch.cat((
-                                dict_to_modify['module_out'], 
-                                self.model(images, mode='module_out').cpu().squeeze()
-                            ), dim=0)
+                        dict_to_modify["module_out"] = torch.cat((
+                            dict_to_modify["module_out"], 
+                            self.model(images, mode='module_out',
+                                        labels=labels.to(self.device) if self.model.added_module_name == 'GTGModule'
+                                        else None).cpu().squeeze()
+                        ), dim=0)    
                     else:
                         raise AttributeError("Can't get the module_out if there is no additional module specified")    
 
-                if 'labels' in dict_to_modify: dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)
-                if 'idxs' in dict_to_modify: dict_to_modify['idxs'] = torch.cat((dict_to_modify['idxs'], idxs), dim=0)
-                
-            gc.collect()
-            torch.cuda.empty_cache()
+                if 'labels' in dict_to_modify: dict_to_modify["labels"] = torch.cat((dict_to_modify["labels"], labels), dim=0)
+                if 'idxs' in dict_to_modify: dict_to_modify["idxs"] = torch.cat((dict_to_modify["idxs"], idxs), dim=0)
+
                 
                 
 
@@ -184,8 +177,8 @@ class ActiveLearner():
         plot_new_labelled_tsne(
             lab_embedds_dict, unlab_embedds_dict,
             al_iter, self.strategy_name,
-            self.ct_p['dataset_name'], idxs_new_labels, self.dataset.classes, 
-            self.ct_p['timestamp'], self.ct_p['trial'], d_labels,
+            self.ct_p["dataset_name"], idxs_new_labels, self.dataset.classes, 
+            self.ct_p["timestamp"], self.ct_p["trial"], d_labels,
             gtg_result_prediction
         )
         
@@ -195,8 +188,8 @@ class ActiveLearner():
         
     def train_evaluate_save(self, lab_obs: int, iter: int, results_format: Dict[str, Dict[str, List[float]]]) -> Dict[str, Any]:
         
-        test_res_keys = list(results_format['test'].keys())
-        train_res_keys = list(results_format['train'].keys())
+        test_res_keys = list(results_format["test"].keys())
+        train_res_keys = list(results_format["train"].keys())
         
         params = { 
             'ct_p': self.ct_p, 't_p': self.t_p, 'strategy_name': self.strategy_name, 
@@ -205,8 +198,8 @@ class ActiveLearner():
         
         # wandb dictionary hyperparameters
         hps = dict( **self.ct_p, **self.t_p, **self.al_p, strategy_name=self.strategy_name, iter=iter)
-        del hps['Dataset']
-        hps['Master_Model'] = hps['Master_Model'].__class__.__name__
+        del hps["Dataset"]
+        hps["Master_Model"] = hps["Master_Model"].__class__.__name__
         
         
         # if we are using multiple gpus
@@ -220,9 +213,9 @@ class ActiveLearner():
             
             logger.info(' => RUNNING DISTRIBUTED TRAINING')
             
-            if (self.ct_p['wandb_logs']):
-                logger.info(' => Logging in WandB!!!')
-                params['wandb_p'] = wandb.init(project="AL_GTG", group="DDP", config=hps)
+            #if (self.ct_p["wandb_logs"]):
+            #    logger.info(' => Logging in WandB!!!')
+            #    params["wandb_p"] = wandb.init(project="AL_GTG", group="DDP", config=hps)
             
             # spawn the process
             mp.spawn(fn=train_ddp, args=(self.world_size, params, child_conn, ), nprocs=self.world_size, join=True) # type: ignore
@@ -233,9 +226,9 @@ class ActiveLearner():
             logger.info(' => RUNNING TRAINING')
             # add the already created labeeld train dataloader
                         
-            if (self.ct_p['wandb_logs']):
-                logger.info(' => Logging in WandB!!!')
-                params['wandb_p'] = wandb.init(project="AL_GTG", config=hps)
+            #if (self.ct_p["wandb_logs"]):
+            #    logger.info(' => Logging in WandB!!!')
+            #    params["wandb_p"] = wandb.init(project="AL_GTG", config=hps)
                 
             train_recv, test_recv = train(params)
             
@@ -247,20 +240,20 @@ class ActiveLearner():
             
         for idx, metrics in enumerate(test_recv): 
             iter_test_results[test_res_keys[idx]] = metrics
-            results_format['test'][test_res_keys[idx]].append(metrics)
+            results_format["test"][test_res_keys[idx]].append(metrics)
         
         logger.info(f'TESTING RESULTS -> {iter_test_results}')
         
         write_csv(
-            task = self.ct_p['task'],
-            ts_dir = self.ct_p['timestamp'],
-            dataset_name = self.ct_p['dataset_name'],
-            head = ['method', 'iter', 'lab_obs'] + test_res_keys,
-            values = [self.strategy_name, self.ct_p['trial'], lab_obs] + list(iter_test_results.values())
+            task = self.ct_p["task"],
+            ts_dir = self.ct_p["timestamp"],
+            dataset_name = self.ct_p["dataset_name"],
+            head = ["method', 'iter', 'lab_obs"] + test_res_keys,
+            values = [self.strategy_name, self.ct_p["trial"], lab_obs] + list(iter_test_results.values())
         )
         
-        save_train_val_curves(list(self.t_p['results_dict']['train'].keys()), iter_train_results, self.strategy_name,
-                              self.ct_p['timestamp'], self.ct_p['dataset_name'], iter, self.ct_p['trial'])
+        save_train_val_curves(list(self.t_p["results_dict"]["train"].keys()), iter_train_results, self.strategy_name,
+                              self.ct_p["timestamp"], self.ct_p["dataset_name"], iter, self.ct_p["trial"])
 
         return iter_train_results
         
@@ -268,7 +261,7 @@ class ActiveLearner():
     
     def update_sets(self, overall_topk: List[int]) -> None:        
         # save the new labelled images to further visual analysis
-        self.save_labelled_images(overall_topk)
+        #self.save_labelled_images(overall_topk)
         
         # Update the labeeld and unlabelled training set
         logger.info(' => Modifing the labelled and Unlabelled Indices Lists')
@@ -306,19 +299,19 @@ class ActiveLearner():
         
     def run(self) -> Dict[str, List[float]]:
                 
-        results_format = copy.deepcopy(self.t_p['results_dict'])
+        results_format = copy.deepcopy(self.t_p["results_dict"])
         
-        logger.info(f'----------------------- ITERATION {self.iter} / {self.al_p['al_iters']} -----------------------\n')
+        logger.info(f'----------------------- ITERATION {self.iter} / {self.al_p["al_iters"]} -----------------------\n')
         
-        self.train_results[str(self.iter)] = self.train_evaluate_save(self.al_p['n_top_k_obs'], self.iter, results_format)
+        self.train_results[str(self.iter)] = self.train_evaluate_save(self.al_p["n_top_k_obs"], self.iter, results_format)
         
         
         # start of the loop
-        while self.iter < self.al_p['al_iters']:
+        while self.iter < self.al_p["al_iters"]:
 
             self.iter += 1
             
-            logger.info(f'----------------------- ITERATION {self.iter} / {self.al_p['al_iters']} -----------------------\n')
+            logger.info(f'----------------------- ITERATION {self.iter} / {self.al_p["al_iters"]} -----------------------\n')
             
             logger.info(f' => Getting the sampled unalbeled indices for the current iteration...')
             self.get_rand_unlab_sample()
@@ -328,7 +321,7 @@ class ActiveLearner():
             
             # run method query strategy
             idxs_new_labels, topk_idx_obs = self.query( # type: ignore
-                Subset(self.dataset.unlab_train_ds, self.rand_unlab_sample), self.al_p['n_top_k_obs']
+                Subset(self.dataset.unlab_train_ds, self.rand_unlab_sample), self.al_p["n_top_k_obs"]
             )
             
             d_labels = count_class_observation(self.dataset.classes, self.dataset.train_ds, topk_idx_obs)
@@ -346,15 +339,15 @@ class ActiveLearner():
 
             # iter + 1
             self.train_results[str(self.iter)] = self.train_evaluate_save(
-                self.al_p['init_lab_obs'] + ((self.iter - 1) * self.al_p['n_top_k_obs']), self.iter, results_format
+                self.al_p["init_lab_obs"] + ((self.iter - 1) * self.al_p["n_top_k_obs"]), self.iter, results_format
             )
                 
                 
         # plotting the cumulative train results
-        print_cumulative_train_results(list(self.t_p['results_dict']['train'].keys()), 
-                                       self.train_results, self.strategy_name, len(self.train_results['1']['train_pred_loss']),
-                                       self.ct_p['timestamp'], self.ct_p['dataset_name'], 
-                                       self.ct_p['trial'])
+        print_cumulative_train_results(list(self.t_p["results_dict"]["train"].keys()), 
+                                       self.train_results, self.strategy_name, len(self.train_results["1"]["train_pred_loss"]),
+                                       self.ct_p["timestamp"], self.ct_p["dataset_name"], 
+                                       self.ct_p["trial"])
         
         
-        return results_format['test']
+        return results_format["test"]
