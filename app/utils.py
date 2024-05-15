@@ -45,7 +45,7 @@ def plot_trail_acc(dataset_name: str, trial: int, methods_results: Dict[str, Dic
     
     plt.figure(figsize = (14,10))
     
-    shapes = ["o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v"]
+    shapes = ['o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v']
     palette = get_palette(len(methods_results.items()))
     lines_handles = []
     

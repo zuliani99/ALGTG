@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=c_10    # Job name
+#SBATCH --job-name=exp    # Job name
 #SBATCH --mail-type=END          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=875532@stud.unive.it     # Where to send mail	
 #SBATCH --nodes=1
@@ -14,10 +14,6 @@
 # ##SBATCH --gpus-per-node=1      # 2, number of GPUs per node
 # ##SBATCH --gpus-per-task=1      # number of GPUs per process
 
-#export MASTER_PORT=$(expr 10000 + $(echo -n $SLURM_JOBID | tail -c 4))
-#export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
-#echo "MASTER_ADDR:MASTER_PORT="${MASTER_ADDR}:${MASTER_PORT}
-
 conda activate al_env
 
-python3 app/main.py -gpus 1 -m ll_gtg -ds cifar10 -tr 5 -am corr
+python3 app/main.py -gpus 1 -m lq_gtg -ds cifar10 -tr 1 -am corr -am_ts none -gtg_iter 10

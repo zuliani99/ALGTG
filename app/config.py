@@ -168,7 +168,7 @@ cls_config = {
                      'test': {'test_accuracy': []}},
     'cifar10': {
         'unlab_sample_dim': 10000,
-        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 256 },
+        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 250 },
         'optimizers': {
             'backbone': {
                 'type': torch.optim.SGD,
@@ -188,9 +188,9 @@ cls_config = {
                     }
                 },
                 'GTGModule': {
-                    'type': torch.optim.SGD,#.Adam,
+                    'type': torch.optim.SGD,
                     'optim_p': {
-                        'lr': 0.0001, #0.001,
+                        'lr': 0.01,
                         'momentum': 0.9,
                         'weight_decay': 5e-4
                     }
@@ -201,7 +201,7 @@ cls_config = {
     
     'cifar100': {
         'unlab_sample_dim': 10000,
-        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 256 },
+        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 250 },
         'optimizers': {
             'backbone': {
                 'type': torch.optim.SGD,
@@ -233,7 +233,7 @@ cls_config = {
     },
     'svhn': {
         'unlab_sample_dim': 10000,
-        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 256 },
+        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 250 },
         'optimizers': {
             'backbone': {
                 'type': torch.optim.SGD,
@@ -265,7 +265,7 @@ cls_config = {
     },
     'fmnist': {
         'unlab_sample_dim': 10000,
-        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 256 },
+        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 250 },
         'optimizers': {
             'backbone': {
                 'type': torch.optim.SGD,
@@ -329,7 +329,7 @@ cls_config = {
     },
     'tinyimagenet': {
         'unlab_sample_dim': 10000,
-        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 256 },
+        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 250 },
         'optimizers': {
             'backbone': {
                 'type': torch.optim.SGD,

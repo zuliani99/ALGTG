@@ -39,6 +39,7 @@ class Cls_TrainWorker():
         
         self.ce_loss_fn = nn.CrossEntropyLoss(reduction='none').to(self.device)
         self.mse_loss_fn = nn.MSELoss(reduction='none').to(self.device)
+        self.l1_loss_fn = nn.L1Loss(reduction='none').to(self.device)
         self.kld_loss_fn = nn.KLDivLoss(reduction='batchmean').to(self.device)
         self.ll_loss_fn = LossPredLoss(self.device).to(self.device)
         
@@ -76,7 +77,6 @@ class Cls_TrainWorker():
     def compute_losses(self, weight: float, module_out: torch.Tensor | None, outputs: torch.Tensor, \
                        labels: torch.Tensor, tot_loss_ce: float, tot_pred_loss: float,
                        tidal: None | Tuple[torch.Tensor, torch.Tensor , int] = None, ) -> Tuple[torch.Tensor, float, float]:
-                       #iterations: int = -1
                 
         ce_loss = self.ce_loss_fn(outputs, labels)
         backbone = torch.mean(ce_loss)
@@ -88,12 +88,12 @@ class Cls_TrainWorker():
         elif self.method_name.split('_')[0] == 'GTG' and self.model.added_module_name == 'GTGModule':
             
             (pred_entr, true_entr), labelled_mask = module_out
-            #if iterations != -1 and iterations % 20 == 0: logger.info(f'pred_entr {pred_entr} - true_entr {true_entr}')
-            entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
+            entr_loss = weight * self.l1_loss_fn(pred_entr, true_entr.detach())
 
             lab_ce_loss = torch.mean(ce_loss[labelled_mask])
-            entr_loss = torch.mean(entr_loss[labelled_mask]) + torch.mean(entr_loss[torch.logical_not(labelled_mask)])
-            
+            #entr_loss = torch.mean(entr_loss[labelled_mask]) + torch.mean(entr_loss[torch.logical_not(labelled_mask)])
+            entr_loss = torch.mean(entr_loss)
+                                   
             loss = lab_ce_loss + entr_loss
             
             tot_loss_ce += lab_ce_loss.item()
@@ -141,11 +141,14 @@ class Cls_TrainWorker():
     
     def train(self) -> torch.Tensor:
         
-        iterations = 0
         weight = 1.
         results = torch.zeros((4, self.epochs), device=self.device)
-        #_, images, labels = next(iter(self.train_dl))
-                
+        
+        ###########################################################
+        #idxs, images, labels, moving_prob = next(iter(self.train_dl))
+        #images, labels = self.return_moved_imgs_labs(images, labels)
+        ###########################################################
+        
         self.model.train()
                 
         for epoch in range(self.epochs):
@@ -159,21 +162,19 @@ class Cls_TrainWorker():
                 images, labels = self.return_moved_imgs_labs(images, labels)
                 
                 for optimizer in self.optimizers: optimizer.zero_grad()
-                
+                    
                 outputs, _, module_out = self.model(images, labels=labels)
-                                                                    
+                                                                        
                 loss, train_loss_ce, train_loss_pred = self.compute_losses(
-                        weight=weight, module_out=module_out, outputs=outputs, labels=labels,
-                        tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred, tidal=(idxs, moving_prob, epoch),
-                        #iterations=iterations
-                    )  
-                
-                loss.backward()
+                            weight=weight, module_out=module_out, outputs=outputs, labels=labels,
+                            tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred, tidal=(idxs, moving_prob, epoch),
+                        )  
+                    
+                loss.backward()                
                 for optimizer in self.optimizers: optimizer.step()
                         
                 train_loss += loss.item()
                 train_accuracy += self.score_fn(outputs, labels)
-                iterations += 1
                 
 
             train_accuracy /= len(self.train_dl)
@@ -210,13 +211,13 @@ class Cls_TrainWorker():
     def test(self) -> torch.Tensor:
         test_accuracy = .0
         
-        self.model.backbone.eval()    
+        self.model.eval()    
 
         with torch.inference_mode():
             for _, images, labels in self.test_dl:
                 
                 images, labels = self.return_moved_imgs_labs(images, labels)
-                outputs, _   = self.model.backbone(images)
+                outputs, _, _   = self.model(images)
                 test_accuracy += self.score_fn(outputs, labels)
 
             test_accuracy /= len(self.test_dl)

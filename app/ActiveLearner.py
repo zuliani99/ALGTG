@@ -61,7 +61,7 @@ class ActiveLearner():
         create_method_res_dir(self.path)
         
         # save initial labelled images
-        #self.save_labelled_images(self.labelled_indices)
+        self.save_labelled_images(self.labelled_indices)
         
         
         
@@ -69,7 +69,7 @@ class ActiveLearner():
     def save_labelled_images(self, new_labelled_idxs: List[int]) -> None:
         logger.info(f' => Iteration {self.iter} Method {self.strategy_name} - Saving the new labelled images for further visual analysis...')
         create_class_dir(self.path, self.iter, self.dataset.classes)
-        for idx_top, (_, img, gt) in enumerate(Subset(self.dataset.unlab_train_ds, new_labelled_idxs)): # type: ignore
+        for idx_top, (_, img, gt, _) in enumerate(Subset(self.dataset.unlab_train_ds, new_labelled_idxs)): # type: ignore
             if self.ct_p["task"] != 'clf': 
                 unique_labs = np.unique(np.array([labs[-1] for labs in gt]))
                 for lab in unique_labs: 
@@ -118,8 +118,7 @@ class ActiveLearner():
         with torch.inference_mode():
             
             for data in dataloader:
-                if len(data) > 3: idxs, images, labels, _ = data # in case on TiDAL
-                else: idxs, images, labels = data
+                idxs, images, labels, _ = data # in case on TiDAL
                 
                 images = images.to(self.device)
                 
@@ -133,24 +132,18 @@ class ActiveLearner():
                 # could be both LL (1 output) and GTG (2 outputs)
                 if 'module_out' in dict_to_modify:
                     if self.model.added_module != None:
-                        if self.model.added_module_name == 'GTGModule':
-                            dict_to_modify["module_out"] = torch.cat((
-                                dict_to_modify["module_out"], 
-                                self.model(images, labels.to(self.device), mode='module_out')[0][0].cpu().squeeze()
-                            ), dim=0)
-                        else:
-                            dict_to_modify["module_out"] = torch.cat((
-                                dict_to_modify["module_out"], 
-                                self.model(images, mode='module_out').cpu().squeeze()
-                            ), dim=0)
+                        dict_to_modify["module_out"] = torch.cat((
+                            dict_to_modify["module_out"], 
+                            self.model(images, mode='module_out',
+                                        labels=labels.to(self.device) if self.model.added_module_name == 'GTGModule'
+                                        else None).cpu().squeeze()
+                        ), dim=0)    
                     else:
                         raise AttributeError("Can't get the module_out if there is no additional module specified")    
 
                 if 'labels' in dict_to_modify: dict_to_modify["labels"] = torch.cat((dict_to_modify["labels"], labels), dim=0)
                 if 'idxs' in dict_to_modify: dict_to_modify["idxs"] = torch.cat((dict_to_modify["idxs"], idxs), dim=0)
-                
-            gc.collect()
-            torch.cuda.empty_cache()
+
                 
                 
 
@@ -331,15 +324,15 @@ class ActiveLearner():
                 Subset(self.dataset.unlab_train_ds, self.rand_unlab_sample), self.al_p["n_top_k_obs"]
             )
             
-            #d_labels = count_class_observation(self.dataset.classes, self.dataset.train_ds, topk_idx_obs)
-            #logger.info(f' Number of observations per class added to the labelled set:\n {d_labels}\n')
+            d_labels = count_class_observation(self.dataset.classes, self.dataset.train_ds, topk_idx_obs)
+            logger.info(f' Number of observations per class added to the labelled set:\n {d_labels}\n')
             
             # Saving the tsne embeddings plot
-            #if 'GTG_off' in self.method_name:
+            if 'GTG_off' in self.method_name:
                 # if we are performing GTG Offline plot also the GTG predictions in the TSNE plot 
-                #self.save_tsne(idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction) # type: ignore
+                self.save_tsne(idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction) # type: ignore
             
-            #elif self.model.added_module_name == 'GTGModule': self.save_tsne(idxs_new_labels, d_labels, str(self.iter))
+            elif self.model.added_module_name == 'GTGModule': self.save_tsne(idxs_new_labels, d_labels, str(self.iter))
 
             # modify the datasets and dataloader and plot the tsne
             self.update_sets(topk_idx_obs)
@@ -351,10 +344,10 @@ class ActiveLearner():
                 
                 
         # plotting the cumulative train results
-        '''print_cumulative_train_results(list(self.t_p["results_dict"]["train"].keys()), 
+        print_cumulative_train_results(list(self.t_p["results_dict"]["train"].keys()), 
                                        self.train_results, self.strategy_name, len(self.train_results["1"]["train_pred_loss"]),
                                        self.ct_p["timestamp"], self.ct_p["dataset_name"], 
-                                       self.ct_p["trial"])'''
+                                       self.ct_p["trial"])
         
         
         return results_format["test"]
