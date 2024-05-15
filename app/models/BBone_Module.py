@@ -63,7 +63,7 @@ class Master_Model(nn.Module):
             if self.added_module != None:
                 _, embedds = self.backbone(x)
                 if self.added_module.name == 'GTGModule':
-                    return self.added_module(self.backbone.get_features(), embedds, labels)
+                    return self.added_module(self.backbone.get_features(), embedds, labels)[0][0]
                 else: return self.added_module(self.backbone.get_features())
             else:
                 raise AttributeError("The Master_Model hasn't got any additional module")

@@ -118,39 +118,31 @@ class ActiveLearner():
         with torch.inference_mode():
             
             for data in dataloader:
-                if len(data) > 3: idxs, images, labels, _ = data # in case on TiDAL
-                else: idxs, images, labels = data
+                idxs, images, labels, _ = data # in case on TiDAL
                 
                 images = images.to(self.device)
                 
                 if 'embedds' in dict_to_modify:
                     embed = self.model(images, mode='embedds')
-                    dict_to_modify['embedds'] = torch.cat((dict_to_modify['embedds'], embed.cpu() if embedds2cpu else embed), dim=0)
+                    dict_to_modify["embedds"] = torch.cat((dict_to_modify["embedds"], embed.cpu() if embedds2cpu else embed), dim=0)
 
                 if 'probs' in dict_to_modify:
-                    dict_to_modify['probs'] = torch.cat((dict_to_modify['probs'], self.model(images, mode='probs').cpu()), dim=0)
+                    dict_to_modify["probs"] = torch.cat((dict_to_modify["probs"], self.model(images, mode='probs').cpu()), dim=0)
 
                 # could be both LL (1 output) and GTG (2 outputs)
                 if 'module_out' in dict_to_modify:
                     if self.model.added_module != None:
-                        if self.model.added_module_name == 'GTGModule':
-                            dict_to_modify['module_out'] = torch.cat((
-                                dict_to_modify['module_out'], 
-                                self.model(images, labels.to(self.device), mode='module_out')[0][0].cpu().squeeze()
-                            ), dim=0)
-                        else:
-                            dict_to_modify['module_out'] = torch.cat((
-                                dict_to_modify['module_out'], 
-                                self.model(images, mode='module_out').cpu().squeeze()
-                            ), dim=0)
+                        dict_to_modify["module_out"] = torch.cat((
+                            dict_to_modify["module_out"], 
+                            self.model(images, mode='module_out',
+                                        labels=labels.to(self.device) if self.model.added_module_name == 'GTGModule'
+                                        else None).cpu().squeeze()
+                        ), dim=0)    
                     else:
                         raise AttributeError("Can't get the module_out if there is no additional module specified")    
 
-                if 'labels' in dict_to_modify: dict_to_modify['labels'] = torch.cat((dict_to_modify['labels'], labels), dim=0)
-                if 'idxs' in dict_to_modify: dict_to_modify['idxs'] = torch.cat((dict_to_modify['idxs'], idxs), dim=0)
-                
-            gc.collect()
-            torch.cuda.empty_cache()
+                if 'labels' in dict_to_modify: dict_to_modify["labels"] = torch.cat((dict_to_modify["labels"], labels), dim=0)
+                if 'idxs' in dict_to_modify: dict_to_modify["idxs"] = torch.cat((dict_to_modify["idxs"], idxs), dim=0)
                 
                 
 

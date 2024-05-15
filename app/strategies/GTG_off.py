@@ -76,16 +76,10 @@ class GTG_off(ActiveLearner):
             A = 1 - A
         elif self.AM_strategy == 'mixed':    
             # set the unlabelled submatrix as distance matrix and not similarity matrix
-            n_lab_obs = len(self.labelled_indices)
+            labelled_indices = torch.tensor(self.labelled_indices)
             
-            if self.AM_function == 'rbfk':
-                A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL to similarity
-                
-            else:
-                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #UU to distance
-                
-                A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #UL to distance
-                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #LU to distance
+            if self.AM_function != 'rbfk': A = 1 - A # -> all distance matrix
+            A[labelled_indices[:, None], labelled_indices] = 1 - A[labelled_indices[:, None], labelled_indices]
 
                 
         # plot the TSNE fo the original and modified affinity matrix
@@ -97,11 +91,6 @@ class GTG_off(ActiveLearner):
         )
         
         self.A = A.to(self.device)
-        
-        del A
-        del initial_A
-        del concat_embedds
-        gc.collect()
         logger.info(' DONE\n')
 
 
@@ -121,9 +110,6 @@ class GTG_off(ActiveLearner):
         A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(device)
         A = torch.clamp(A, min=0., max=1.)
         
-        del A_matrix
-        del sigmas
-        
         return A
     
     
@@ -140,7 +126,6 @@ class GTG_off(ActiveLearner):
         A.fill_diagonal_(1.)
         A = torch.clamp(A, min=0., max=1.)
 
-        del normalized_embedding
         return A
         
         
@@ -160,7 +145,6 @@ class GTG_off(ActiveLearner):
         for idx in range(len(self.labelled_indices), len(self.labelled_indices) + self.len_unlab_sample):
             for label in range(self.dataset.n_classes): self.X[idx][label] = 1. / self.dataset.n_classes
         
-        del self.lab_embedds_dict
         logger.info(' DONE\n')
         
         
@@ -190,11 +174,6 @@ class GTG_off(ActiveLearner):
                         
             err = torch.norm(self.X - X_old)
             i += 1
-        
-            '''del X_old
-            del iter_entropy
-            logger.info(gc.collect())
-            torch.cuda.empty_cache()'''
             
         logger.info(' DONE\n')
 
