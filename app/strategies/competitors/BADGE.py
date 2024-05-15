@@ -23,17 +23,17 @@ class BADGE(ActiveLearner):
     
     
     def init_centers(self, n_top_k_obs: int) -> List[int]:
-        ind = torch.argmax(torch.norm(self.embedds_dict["embedds"], dim=1))
-        mu = self.embedds_dict["embedds"][ind].unsqueeze(0)
+        ind = torch.argmax(torch.norm(self.embedds_dict['embedds'], dim=1))
+        mu = self.embedds_dict['embedds'][ind].unsqueeze(0)
         indsAll = [int(ind.item())]
-        centInds = [0] * len(self.embedds_dict["embedds"])
+        centInds = [0] * len(self.embedds_dict['embedds'])
         cent = 0
         while len(mu) < n_top_k_obs:
             if len(mu) == 1:
-                D2 = torch.cdist(self.embedds_dict["embedds"], mu).ravel().float()
+                D2 = torch.cdist(self.embedds_dict['embedds'], mu).ravel().float()
             else:
-                newD = torch.cdist(self.embedds_dict["embedds"], mu[-1].unsqueeze(0)).ravel().float()
-                for i in range(len(self.embedds_dict["embedds"])):
+                newD = torch.cdist(self.embedds_dict['embedds'], mu[-1].unsqueeze(0)).ravel().float()
+                for i in range(len(self.embedds_dict['embedds'])):
                     if D2[i] > newD[i]:
                         centInds[i] = cent
                         D2[i] = newD[i]
@@ -44,7 +44,7 @@ class BADGE(ActiveLearner):
             while ind.item() in indsAll:
                 ind = customDist.sample()
             
-            mu = torch.cat((mu, self.embedds_dict["embedds"][ind].unsqueeze(0)))
+            mu = torch.cat((mu, self.embedds_dict['embedds'][ind].unsqueeze(0)))
             
             indsAll.append(int(ind.item()))
             cent += 1

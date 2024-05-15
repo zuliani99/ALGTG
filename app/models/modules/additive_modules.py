@@ -16,9 +16,9 @@ class Custom_MLP(nn.Module):
         super(Custom_MLP, self).__init__()
 
         # same parameters of loss net
-        feature_sizes = params["feature_sizes"]
-        num_channels = params["num_channels"]
-        interm_dim = params["interm_dim"]
+        feature_sizes = params['feature_sizes']
+        num_channels = params['num_channels']
+        interm_dim = params['interm_dim']
 
         self.module_list, self.sequentials_1, self.sequentials_2 = [], [], []
 
@@ -64,9 +64,9 @@ class Custom_Module(nn.Module):
         super(Custom_Module, self).__init__()
         
         # same parameters of loss net
-        feature_sizes = params["feature_sizes"]
-        num_channels = params["num_channels"]
-        interm_dim = params["interm_dim"]
+        feature_sizes = params['feature_sizes']
+        num_channels = params['num_channels']
+        interm_dim = params['interm_dim']
 
         self.module_list, self.sequentials_1, self.sequentials_2 = [], [], []
 
@@ -109,9 +109,9 @@ class Custom_Module_2(nn.Module):
         super(Custom_Module_2, self).__init__()
 
         # same parameters of loss net
-        feature_sizes = params["feature_sizes"]
-        num_channels = params["num_channels"]
-        interm_dim = params["interm_dim"]
+        feature_sizes = params['feature_sizes']
+        num_channels = params['num_channels']
+        interm_dim = params['interm_dim']
 
         self.module_list, self.sequentials_1, self.sequentials_2 = [], [], []
 
@@ -154,9 +154,9 @@ class Custom_Module_3(nn.Module):
         super(Custom_Module_3, self).__init__()
 
         # same parameters of loss net
-        feature_sizes = params["feature_sizes"]
-        num_channels = params["num_channels"]
-        interm_dim = params["interm_dim"]
+        feature_sizes = params['feature_sizes']
+        num_channels = params['num_channels']
+        interm_dim = params['interm_dim']
 
         self.module_list, self.sequentials_1, self.sequentials_2 = [], [], []
 
@@ -237,8 +237,8 @@ class Custom_Module(nn.Module):
         super(Custom_Module, self).__init__()
 
         # same parameters of loss net
-        feature_sizes = params["feature_sizes"]
-        num_channels = params["num_channels"]
+        feature_sizes = params['feature_sizes']
+        num_channels = params['num_channels']
         interm_dim = num_channels[-1]
 
         self.module_list, self.sequentials_1, self.sequentials_2 = [], [], []
@@ -283,9 +283,9 @@ class Custom_conv_Module(nn.Module):
         super(Custom_conv_Module, self).__init__()
 
         # same parameters of loss net
-        feature_sizes = params["feature_sizes"]
-        num_channels = params["num_channels"]
-        interm_dim = params["interm_dim"]
+        feature_sizes = params['feature_sizes']
+        num_channels = params['num_channels']
+        interm_dim = params['interm_dim']
 
         self.convs, self.linears = [], []
 
@@ -417,9 +417,9 @@ class Custom_GAP_Embedds_Module(nn.Module):
         super(Custom_GAP_Embedds_Module, self).__init__()
 
         # same parameters of loss net
-        feature_sizes = params["feature_sizes"]
-        num_channels = params["num_channels"]
-        interm_dim = params["interm_dim"]
+        feature_sizes = params['feature_sizes']
+        num_channels = params['num_channels']
+        interm_dim = params['interm_dim']
 
         self.convs, self.linears, self.gaps = [], [], []
 

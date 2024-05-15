@@ -30,7 +30,7 @@ class TiDAL(ActiveLearner):
         self.load_best_checkpoint()
         
         self.get_embeddings(self.unlab_train_dl, embeds_dict)
-        sub_prob = torch.softmax(embeds_dict["module_out"], dim=1)
+        sub_prob = torch.softmax(embeds_dict['module_out'], dim=1)
         logger.info(' DONE\n')
         
         logger.info(f' => Extracting the Top-k unlabelled observations')

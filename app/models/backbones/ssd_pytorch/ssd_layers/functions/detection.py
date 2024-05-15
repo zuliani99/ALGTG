@@ -19,7 +19,7 @@ class Detect(Function):
     #     if nms_thresh <= 0:
     #         raise ValueError('nms_threshold must be non negative.')
     #     self.conf_thresh = conf_thresh
-    #     self.variance = cfg["variance"]
+    #     self.variance = cfg['variance']
 
     @staticmethod
     #def forward(self, loc_data, conf_data, prior_data):
@@ -32,7 +32,7 @@ class Detect(Function):
         if nms_thresh <= 0:
             raise ValueError('nms_threshold must be non negative.')
         self.conf_thresh = conf_thresh
-        self.variance = [0.1, 0.2]#voc_config["variance"]
+        self.variance = [0.1, 0.2]#voc_config['variance']
         """
         Args:
             loc_data: (tensor) Loc preds from loc layers

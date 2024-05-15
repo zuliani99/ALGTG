@@ -228,11 +228,11 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
     )
     df_grouped = df_grouped.droplevel(axis=1, level=0).reset_index()
     
-    df_grouped["ci"] = 1.96 * df_grouped["std"] / np.sqrt(df_grouped["count"])
-    df_grouped["ci_lower"] = df_grouped["mean"] - df_grouped["ci"]
-    df_grouped["ci_upper"] = df_grouped["mean"] + df_grouped["ci"]
+    df_grouped['ci'] = 1.96 * df_grouped['std'] / np.sqrt(df_grouped['count'])
+    df_grouped['ci_lower'] = df_grouped['mean'] - df_grouped['ci']
+    df_grouped['ci_upper'] = df_grouped['mean'] + df_grouped['ci']
     
-    methods = df_grouped["method"].unique()
+    methods = df_grouped['method'].unique()
     shapes = ['o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v']
 
     lines_handles = []
@@ -241,11 +241,11 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
     # Plot each method
     plt.figure(figsize=(14, 10))
     for idx, method in enumerate(methods):
-        method_data = df_grouped[df_grouped["method"] == method]
-        plt.plot(method_data["lab_obs"], method_data["mean"], label=method, 
+        method_data = df_grouped[df_grouped['method'] == method]
+        plt.plot(method_data['lab_obs'], method_data['mean'], label=method, 
                  linestyle = 'dashed' if method.split('_')[1] in 'Random' else 'solid', color=palette[idx])
-        plt.fill_between(method_data["lab_obs"], method_data["ci_lower"], method_data["ci_upper"], alpha=0.3, color=palette[idx])
-        plt.scatter(method_data["lab_obs"], method_data["mean"], marker=shapes[idx], color=palette[idx], zorder=5)
+        plt.fill_between(method_data['lab_obs'], method_data['ci_lower'], method_data['ci_upper'], alpha=0.3, color=palette[idx])
+        plt.scatter(method_data['lab_obs'], method_data['mean'], marker=shapes[idx], color=palette[idx], zorder=5)
         lines_handles.append(mlines.Line2D([], [], color=palette[idx], marker=shapes[idx], markersize=5, label=method))
         
 
@@ -262,7 +262,7 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
 def set_seeds(seed: int = 10001) -> None:
     # setting seed and deterministic behaviour of pytorch for reproducibility
     # https://discuss.pytorch.org/t/determinism-in-pytorch-across-multiple-files/156269
-    #os.environ["PYTHONHASHSEED"] = str(seed)
+    #os.environ['PYTHONHASHSEED'] = str(seed)
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -316,8 +316,8 @@ def plot_new_labelled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.
                           classes: List[str], time_stamp: str, samp_iter: int, d_labels: Dict[str, int],
                           gtg_result_prediction = None):
     
-    tsne = TSNE().fit_transform(np.vstack((lab["embedds"].numpy(), unlab["embedds"].numpy())))
-    tsne_lab, tsne_unlab = tsne[:len(lab["embedds"]), :], tsne[len(lab["embedds"]):, :]
+    tsne = TSNE().fit_transform(np.vstack((lab['embedds'].numpy(), unlab['embedds'].numpy())))
+    tsne_lab, tsne_unlab = tsne[:len(lab['embedds']), :], tsne[len(lab['embedds']):, :]
     
     x_lab, y_lab = tsne_lab[:, 0], tsne_lab[:, 1]
     x_unlab, y_unlab = tsne_unlab[:, 0], tsne_unlab[:, 1]
@@ -352,7 +352,7 @@ def plot_new_labelled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.
     axes[0].legend()
     
     sns_p = sns.scatterplot(x=np.hstack((x_lab, x_unlab)), y=np.hstack((y_lab, y_unlab)), 
-                    hue=[classes[l] for l in np.hstack((lab["labels"], unlab["labels"]))], s=17, ax=axes[1])
+                    hue=[classes[l] for l in np.hstack((lab['labels'], unlab['labels']))], s=17, ax=axes[1])
         
     axes[1].set_title('TSNE - Classes', fontsize = 15)
     axes[1].legend()    

@@ -40,12 +40,12 @@ class LossNet(nn.Module):
     def __init__(self, LL_params):
         super(LossNet, self).__init__()
         
-        self.name = f'{self.__class__.__name__}_{LL_params["module_out"]}' # -> or TiDAL LL module
+        self.name = f'{self.__class__.__name__}_{LL_params['module_out']}' # -> or TiDAL LL module
 
-        feature_sizes = LL_params["feature_sizes"]
-        num_channels = LL_params["num_channels"]
-        interm_dim = LL_params["interm_dim"]
-        task = LL_params["task"]
+        feature_sizes = LL_params['feature_sizes']
+        num_channels = LL_params['num_channels']
+        interm_dim = LL_params['interm_dim']
+        task = LL_params['task']
         
         self.GAP = []
         for feature_size in feature_sizes:
@@ -58,7 +58,7 @@ class LossNet(nn.Module):
         for num_channel in num_channels: self.FC.append(nn.Linear(num_channel, interm_dim))
         self.FC = nn.ModuleList(self.FC)
 
-        self.linear = nn.Linear(len(num_channels) * interm_dim, LL_params["module_out"])
+        self.linear = nn.Linear(len(num_channels) * interm_dim, LL_params['module_out'])
         
         #self.apply(init_weights_apply)
 

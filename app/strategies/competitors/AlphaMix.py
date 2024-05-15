@@ -55,9 +55,9 @@ class AlphaMix(ActiveLearner):
         
         idxs_unlabelled = torch.tensor(self.rand_unlab_sample) 
 
-        pred_1 = self.unlab_embedds_dict["probs"] .sort(descending=True)[1][:, 0]
-        ulb_embedding = self.unlab_embedds_dict["embedds"]
-        lb_embedding = self.lab_embedds_dict["embedds"]
+        pred_1 = self.unlab_embedds_dict['probs'] .sort(descending=True)[1][:, 0]
+        ulb_embedding = self.unlab_embedds_dict['embedds']
+        lb_embedding = self.lab_embedds_dict['embedds']
 
         unlabelled_size = ulb_embedding.size(0)
         embedding_size = ulb_embedding.size(1)
@@ -101,7 +101,7 @@ class AlphaMix(ActiveLearner):
             logger.info('alpha_std_mean: %f' % min_alphas[candidate].mean(dim=1).std().item())
             logger.info('alpha_mean_std %f' % min_alphas[candidate].std(dim=1).mean().item())
 
-            c_alpha = F.normalize(self.unlab_embedds_dict["embedds"][candidate].view(int(candidate.sum()), -1), p=2, dim=1).detach().cpu()
+            c_alpha = F.normalize(self.unlab_embedds_dict['embedds'][candidate].view(int(candidate.sum()), -1), p=2, dim=1).detach().cpu()
 
             selected_idxs = self.sample(min(n_top_k_obs, candidate.sum().item()), feats=c_alpha)
             selected_idxs = idxs_unlabelled[candidate.bool().cpu()][selected_idxs]

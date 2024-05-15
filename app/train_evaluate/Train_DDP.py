@@ -14,7 +14,7 @@ from models.BBone_Module import Master_Model
 from utils import set_seeds
 from datasets_creation.Detection import detection_collate
 from .Workers.Cls_TrainWorker import Cls_TrainWorker
-#from .Workers.Det_TrainWorker import Det_TrainWorker
+from .Workers.Det_TrainWorker import Det_TrainWorker
 
 import os
 import gc
@@ -42,18 +42,18 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     
     initialize_preocess(rank, world_size)
     
-    ct_p = params["ct_p"]
-    t_p = params["t_p"]
+    ct_p = params['ct_p']
+    t_p = params['t_p']
     
-    moved_model: Master_Model = copy.deepcopy(ct_p["Master_Model"]).to(rank)
+    moved_model: Master_Model = copy.deepcopy(ct_p['Master_Model']).to(rank)
     module_name = moved_model.added_module_name if moved_model.added_module_name == None else moved_model.added_module_name.split('_')[0]
-    batch_size = t_p[ct_p["dataset_name"]]["batch_size"][module_name]
-    num_workers = int(os.environ["SLURM_CPUS_PER_TASK"])
+    batch_size = t_p[ct_p['dataset_name']]['batch_size'][module_name]
+    num_workers = int(os.environ['SLURM_CPUS_PER_TASK'])
     
     # deep copy the model (it is in the RAM) and then move it to the realive gpu
     
     moved_model = DDP(moved_model, device_ids=[rank], output_device=rank, find_unused_parameters=True) # type: ignore
-    ct_p["Model_train"] = moved_model
+    ct_p['Model_train'] = moved_model
     
     dict_dl = dict(
         batch_size=batch_size,
@@ -63,17 +63,17 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
         num_workers=num_workers
     )
     
-    if ct_p["task"] == 'detection': dict_dl["collate_fn"] = detection_collate
+    if ct_p['task'] == 'detection': dict_dl['collate_fn'] = detection_collate
         
-    if world_size % 2 != 0: dict_dl["drop_last"] = True
+    if world_size % 2 != 0: dict_dl['drop_last'] = True
     
-    train_results = [torch.zeros((4, t_p["epochs"]), device=rank) for _ in range(world_size)]
+    train_results = [torch.zeros((4, t_p['epochs']), device=rank) for _ in range(world_size)]
     test_results = [torch.zeros(1, device=rank) for _ in range(world_size)]
     
-    train_ds = Subset(ct_p["Dataset"].train_ds, params["labelled_subset"])
-    params["train_dl"] = DataLoader(
+    train_ds = Subset(ct_p['Dataset'].train_ds, params['labelled_subset'])
+    params['train_dl'] = DataLoader(
         train_ds,
-        #sampler=DistributedSampler(params["labelled_subset"], num_replicas=world_size,
+        #sampler=DistributedSampler(params['labelled_subset'], num_replicas=world_size,
         
         # TiDAL WON'T WORK SINCE MMOVING_PROBS IS NOT ACCESSIBLE FROM SUBSET
         sampler=DistributedSampler(train_ds, num_replicas=world_size,
@@ -81,21 +81,21 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
         **dict_dl
     )
     
-    params["test_dl"] = DataLoader(
-        ct_p["Dataset"].test_ds, 
-        sampler=DistributedSampler(ct_p["Dataset"].test_ds, num_replicas=world_size, 
+    params['test_dl'] = DataLoader(
+        ct_p['Dataset'].test_ds, 
+        sampler=DistributedSampler(ct_p['Dataset'].test_ds, num_replicas=world_size, 
                                    rank=rank, shuffle=False, seed=100001),
         **dict_dl
     )
     
     
-    if ct_p["task"] == 'detection':  
+    if ct_p['task'] == 'detection':  
         # determine the number of iterations by -> iterations = epochs * (len(splitted_train_ds) // batch_size)
         #                                               x     =  300   * (len(train_ds)/world_size) / batch_size)
-        t_p["epoch_size"] = len(params["train_dl"].dataset) // batch_size # type: ignore
-        t_p["max_iter"] = t_p["epochs"] * t_p["epoch_size"]
+        t_p['epoch_size'] = len(params['train_dl'].dataset) // batch_size # type: ignore
+        t_p['max_iter'] = t_p['epochs'] * t_p['epoch_size']
         
-        #train_test = Det_TrainWorker(rank, params, world_size)
+        train_test = Det_TrainWorker(rank, params, world_size)
         
     else: train_test = Cls_TrainWorker(rank, params, world_size)
         
@@ -111,8 +111,8 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     
     
     # shutdown the worker
-    del params["train_dl"]._iterator
-    del params["test_dl"]._iterator
+    del params['train_dl']._iterator
+    del params['test_dl']._iterator
     
     gc.collect()
     
@@ -131,29 +131,29 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
 def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
     set_seeds()
     
-    ct_p = params["ct_p"]
-    t_p = params["t_p"]   
+    ct_p = params['ct_p']
+    t_p = params['t_p']   
     
-    ct_p["Master_Model"] = ct_p["Master_Model"].to(params["ct_p"]["device"])
-    module_name = ct_p["Master_Model"].added_module_name if ct_p["Master_Model"].added_module_name == None else ct_p["Master_Model"].added_module_name.split('_')[0]
-    batch_size = t_p[ct_p["dataset_name"]]["batch_size"][module_name]
+    ct_p['Master_Model'] = ct_p['Master_Model'].to(params['ct_p']['device'])
+    module_name = ct_p['Master_Model'].added_module_name if ct_p['Master_Model'].added_module_name == None else ct_p['Master_Model'].added_module_name.split('_')[0]
+    batch_size = t_p[ct_p['dataset_name']]['batch_size'][module_name]
     
     dict_dl = dict(batch_size=batch_size, pin_memory=True)
     
-    if ct_p["task"] == 'detection': 
-        dict_dl["collate_fn"] = detection_collate
+    if ct_p['task'] == 'detection': 
+        dict_dl['collate_fn'] = detection_collate
         
-        t_p["epoch_size"] = len(params["labelled_subset"]) // batch_size
-        t_p["max_iter"] = t_p["epochs"] * t_p["epoch_size"]
+        t_p['epoch_size'] = len(params['labelled_subset']) // batch_size
+        t_p['max_iter'] = t_p['epochs'] * t_p['epoch_size']
         
-        #TrainWorker = Det_TrainWorker
+        TrainWorker = Det_TrainWorker
     
     else: TrainWorker = Cls_TrainWorker
     
-    params["train_dl"] = DataLoader(ct_p["Dataset"].train_ds, sampler=SubsetRandomSampler(params["labelled_indices"]), **dict_dl)
-    params["test_dl"] = DataLoader(ct_p["Dataset"].test_ds, shuffle=False, **dict_dl)
+    params['train_dl'] = DataLoader(ct_p['Dataset'].train_ds, sampler=SubsetRandomSampler(params['labelled_indices']), **dict_dl)
+    params['test_dl'] = DataLoader(ct_p['Dataset'].test_ds, shuffle=False, **dict_dl)
     
-    train_test = TrainWorker(params["ct_p"]["device"], params)
+    train_test = TrainWorker(params['ct_p']['device'], params)
         
     train_results = train_test.train().cpu().tolist()
     test_results = train_test.test().cpu().tolist()

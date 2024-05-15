@@ -31,7 +31,7 @@ class LearningLoss(ActiveLearner):
         self.get_embeddings(self.unlab_train_dl, embeds_dict)
         
         logger.info(f' => Extracting the Top-k unlabelled observations')
-        overall_topk = torch.topk(embeds_dict["module_out"], n_top_k_obs).indices.tolist()
+        overall_topk = torch.topk(embeds_dict['module_out'], n_top_k_obs).indices.tolist()
         logger.info(' DONE\n')
         
         return overall_topk, [self.rand_unlab_sample[id] for id in overall_topk]
