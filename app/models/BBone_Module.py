@@ -33,7 +33,8 @@ class Master_Model(nn.Module):
         logger.info(' DONE\n')
         
         
-    def forward(self, x, epoch=0, labels=None, mode='all'):
+
+    def forward(self, x, labels=None, epoch=0, mode='all'):
         if mode == 'all':
             
             outs, embedds = self.backbone(x)

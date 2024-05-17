@@ -85,10 +85,10 @@ def get_strategies_object(methods: List[str], Masters: Dict[str, Master_Model],
                           ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any]) -> List[Any]:
     strategies: List[Random | Entropy | CoreSet | BADGE | BALD | CDAL | GTG_off | LearningLoss | TA_VAAL | GTG] = []
     
-    gtg_p_2 = copy.deepcopy(gtg_p) # temporary copy
-    
     for method in methods:
         if 'gtg' in method.split('_'):
+            
+            gtg_p_2 = copy.deepcopy(gtg_p) # temporary copy
             
             am_ts = gtg_p_2['am_ts']
             am = gtg_p_2['am']

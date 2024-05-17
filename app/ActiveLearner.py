@@ -122,7 +122,7 @@ class ActiveLearner():
             
             for data in dataloader:
                 if len(data) > 3: idxs, images, labels, _ = data # in case on TiDAL
-                else: idxs, images, labels = data                
+                else: idxs, images, labels = data  
                 
                 images = images.to(self.device)
                 
@@ -147,7 +147,6 @@ class ActiveLearner():
 
                 if 'labels' in dict_to_modify: dict_to_modify["labels"] = torch.cat((dict_to_modify["labels"], labels), dim=0)
                 if 'idxs' in dict_to_modify: dict_to_modify["idxs"] = torch.cat((dict_to_modify["idxs"], idxs), dim=0)
-
                 
                 
 
