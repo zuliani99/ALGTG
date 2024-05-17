@@ -28,12 +28,12 @@ class Master_Model(nn.Module):
             self.name = f'{self.backbone.__class__.__name__}'
             
         # backbone and additional module have initialized their respecive layers, so I can save the initial checkpoint
-        logger.info(f' => Saving Initial {self.name} checkpoint')
+        logger.info(f' => Saving Initial {self.name} checkpoint app/checkpoints/{dataset_name}/{self.name}_init.pth.tar')
         torch.save(dict(state_dict = self.state_dict()), f'app/checkpoints/{dataset_name}/{self.name}_init.pth.tar')
         logger.info(' DONE\n')
         
         
-    def forward(self, x, labels=None, mode='all'):
+    def forward(self, x, epoch=0, labels=None, mode='all'):
         if mode == 'all':
             
             outs, embedds = self.backbone(x)
@@ -48,8 +48,9 @@ class Master_Model(nn.Module):
 
             if self.added_module != None:
                 features = self.backbone.get_features()
+                if epoch >= 120: features = [feature.detach() for feature in features]
                 if self.added_module.name == 'GTGModule':
-                    module_out = self.added_module(features, embedds, labels)
+                    module_out = self.added_module(features, embedds, labels, outs)
                 else: module_out = self.added_module(features)
                 return outs, embedds, module_out
             else:
@@ -61,9 +62,9 @@ class Master_Model(nn.Module):
             
         elif mode == 'module_out':
             if self.added_module != None:
-                _, embedds = self.backbone(x)
+                outs, embedds = self.backbone(x)
                 if self.added_module.name == 'GTGModule':
-                    return self.added_module(self.backbone.get_features(), embedds, labels)[0][0]
+                    return self.added_module(self.backbone.get_features(), embedds, labels, outs)[0][0]
                 else: return self.added_module(self.backbone.get_features())
             else:
                 raise AttributeError("The Master_Model hasn't got any additional module")

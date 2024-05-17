@@ -23,7 +23,6 @@ cls_datasets = {
                         
                     ]),
             'test': transforms.Compose([
-                        
                         transforms.ToTensor(),
                         transforms.Normalize(mean=[0.49139968, 0.48215841, 0.44653091],
                                      std=[0.24703223, 0.24348513, 0.26158784])
@@ -54,7 +53,6 @@ cls_datasets = {
                                      std=[0.26733429, 0.25643846, 0.27615047])
                     ]),
             'test': transforms.Compose([
-                        
                         transforms.ToTensor(),
                         transforms.Normalize(mean=[0.50707516, 0.48654887, 0.44091784],
                                      std=[0.26733429, 0.25643846, 0.27615047])
@@ -70,7 +68,6 @@ cls_datasets = {
         'classes': ['0','1','2','3','4','5','6','7','8','9'],
         'transforms': {
             'train': transforms.Compose([
-                        
                         transforms.RandomHorizontalFlip(),
                         transforms.RandomCrop(32, padding=4),
                         transforms.ToTensor(),
@@ -78,7 +75,6 @@ cls_datasets = {
                         #             std=[0.19803012, 0.20101562, 0.19703614])
                     ]),
             'test': transforms.Compose([
-                        
                         transforms.ToTensor(),
                         #transforms.Normalize(mean=[0.4376821 , 0.4437697 , 0.47280442], # -> remove normalization since it can produce black images
                         #             std=[0.19803012, 0.20101562, 0.19703614])
@@ -93,7 +89,6 @@ cls_datasets = {
         'classes': [],
         'transforms': {
             'train': transforms.Compose([
-                        
                         transforms.RandomHorizontalFlip(),
                         transforms.RandomCrop(64, padding=8),
                         transforms.ToTensor(),
@@ -101,7 +96,6 @@ cls_datasets = {
                                      std=[0.27643974, 0.26888656, 0.28166852])
                     ]),
             'test': transforms.Compose([
-                        
                         transforms.ToTensor(),
                         transforms.Normalize(mean=[0.48042979, 0.44819701, 0.39755623],
                                      std=[0.27643974, 0.26888656, 0.28166852])
@@ -116,13 +110,11 @@ cls_datasets = {
         'classes':[],
         'transforms': {
             'train': [
-                        
                         transforms.RandomHorizontalFlip(),
                         transforms.RandomCrop(224, padding=28),
                         transforms.ToTensor(),
                     ],
             'test': [
-                        
                         transforms.ToTensor(),
                     ],
         }   
@@ -136,14 +128,12 @@ cls_datasets = {
         'classes': ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot'],
         'transforms': {
             'train': transforms.Compose([
-                        
                         transforms.RandomHorizontalFlip(),
                         transforms.RandomCrop(28, padding=3),
                         transforms.ToTensor(),
                         transforms.Normalize(mean=[0.2860405969887955], std=[0.3530242445149223])
                     ]),
             'test': transforms.Compose([
-                        
                         transforms.ToTensor(),
                         transforms.Normalize(mean=[0.2860405969887955], std=[0.3530242445149223])
                     ]),
@@ -157,7 +147,7 @@ cls_datasets = {
 
 al_params = {
     'init_lab_obs': 1000,
-    'al_iters': 10, 
+    'al_iters': 5,#10, 
     'n_top_k_obs': 1000,
 }
     
@@ -173,7 +163,7 @@ cls_config = {
             'backbone': {
                 'type': torch.optim.SGD,
                 'optim_p': {
-                    'lr': 0.1,
+                    'lr': 0.01, # 0.01 -> for the GTG module is ok
                     'momentum': 0.9,
                     'weight_decay': 5e-4
                 }
@@ -188,9 +178,9 @@ cls_config = {
                     }
                 },
                 'GTGModule': {
-                    'type': torch.optim.SGD,
+                    'type': torch.optim.SGD,#Adam,
                     'optim_p': {
-                        'lr': 0.01,
+                        'lr': 0.005,
                         'momentum': 0.9,
                         'weight_decay': 5e-4
                     }

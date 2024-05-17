@@ -5,7 +5,7 @@ from models.BBone_Module import Master_Model
 from datasets_creation.Classification import Cls_Datasets
 from datasets_creation.Detection import Det_Dataset
 from train_evaluate.Train_DDP import train, train_ddp
-from utils import count_class_observation, print_cumulative_train_results, set_seeds,\
+from utils import count_class_observation, print_cumulative_train_results, print_state_dict, set_seeds,\
     create_class_dir, create_method_res_dir, plot_new_labelled_tsne, save_train_val_curves, write_csv
 
 from torch.utils.data import Subset, DataLoader
@@ -69,7 +69,7 @@ class ActiveLearner():
     def save_labelled_images(self, new_labelled_idxs: List[int]) -> None:
         logger.info(f' => Iteration {self.iter} Method {self.strategy_name} - Saving the new labelled images for further visual analysis...')
         create_class_dir(self.path, self.iter, self.dataset.classes)
-        for idx_top, (_, img, gt, _) in enumerate(Subset(self.dataset.unlab_train_ds, new_labelled_idxs)): # type: ignore
+        for idx_top, (_, img, gt) in enumerate(Subset(self.dataset.unlab_train_ds, new_labelled_idxs)): # type: ignore
             if self.ct_p["task"] != 'clf': 
                 unique_labs = np.unique(np.array([labs[-1] for labs in gt]))
                 for lab in unique_labs: 
@@ -106,9 +106,12 @@ class ActiveLearner():
             else: device = 'cuda' 
         else: device = 'cpu'
 
-        checkpoint: Dict = torch.load(f'{self.best_check_filename}_{device}.pth.tar', map_location=self.device)
+        filename = f'{self.best_check_filename}_{device}.pth.tar'
+        checkpoint: Dict = torch.load(filename, map_location=self.device)
+        logger.info(f' => Loading {filename} Checkpoint')
         self.model.load_state_dict(checkpoint["state_dict"])
-    
+        #print_state_dict(self.model)
+            
     
     def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, Any], embedds2cpu = False) -> None:
                 
@@ -118,7 +121,8 @@ class ActiveLearner():
         with torch.inference_mode():
             
             for data in dataloader:
-                idxs, images, labels, _ = data # in case on TiDAL
+                if len(data) > 3: idxs, images, labels, _ = data # in case on TiDAL
+                else: idxs, images, labels = data                
                 
                 images = images.to(self.device)
                 
@@ -248,7 +252,7 @@ class ActiveLearner():
             task = self.ct_p["task"],
             ts_dir = self.ct_p["timestamp"],
             dataset_name = self.ct_p["dataset_name"],
-            head = ["method', 'iter', 'lab_obs"] + test_res_keys,
+            head = ['method', 'iter', 'lab_obs'] + test_res_keys,
             values = [self.strategy_name, self.ct_p["trial"], lab_obs] + list(iter_test_results.values())
         )
         
@@ -332,7 +336,8 @@ class ActiveLearner():
                 # if we are performing GTG Offline plot also the GTG predictions in the TSNE plot 
                 self.save_tsne(idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction) # type: ignore
             
-            elif self.model.added_module_name == 'GTGModule': self.save_tsne(idxs_new_labels, d_labels, str(self.iter))
+            #elif self.model.added_module_name == 'GTGModule': self.save_tsne(idxs_new_labels, d_labels, str(self.iter))
+            else: self.save_tsne(idxs_new_labels, d_labels, str(self.iter))
 
             # modify the datasets and dataloader and plot the tsne
             self.update_sets(topk_idx_obs)

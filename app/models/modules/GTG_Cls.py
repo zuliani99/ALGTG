@@ -110,7 +110,7 @@ class GAP_Module_Out(nn.Module):
 
 
 # can overfit a batch
-class MLP_Out(nn.Module):
+'''class MLP_Out(nn.Module):
     def __init__(self, in_dim):
         super(MLP_Out, self).__init__()
 
@@ -126,9 +126,9 @@ class MLP_Out(nn.Module):
         out = self.linear3(out)
         out = self.classifier(out)
         return out
+'''
     
-    
-class MLP_LatentSpace(nn.Module):
+'''class MLP_LatentSpace(nn.Module):
     def __init__(self, in_dim):
         super(MLP_LatentSpace, self).__init__()
 
@@ -143,8 +143,24 @@ class MLP_LatentSpace(nn.Module):
         out = self.linear2(out)
         out = self.lienar3(out)
         out = self.lienar4(out)
-        return out
+        return out'''
     
+class MLP_LatentSpace(nn.Module):
+    def __init__(self, in_dim):
+        super(MLP_LatentSpace, self).__init__()
+
+        self.linear1 = nn.Sequential(nn.Linear(in_dim+1, in_dim), nn.ReLU()) # 513 -> 256
+        self.linear2 = nn.Sequential(nn.Linear(in_dim, in_dim), nn.ReLU()) # 256 -> 128 
+        self.lienar3 = nn.Sequential(nn.Linear(in_dim, in_dim), nn.ReLU()) # 128 -> 64
+        #self.lienar4 = nn.Sequential(nn.Linear(in_dim, in_dim), nn.ReLU()) # 128 -> 64
+            
+
+    def forward(self, x, t): 
+        out = self.linear1(torch.cat((x, t), dim=1))
+        out = self.linear2(out)
+        out = self.lienar3(out)
+        #out = self.lienar4(out)
+        return out
 
 
 class GTGModule(nn.Module):
@@ -177,8 +193,8 @@ class GTGModule(nn.Module):
 
         self.mod_gap = GAP_Module_Out(ll_p).to(self.device)
         self.mlp_out = MLP_Out_2(self.n_classes, self.gtg_max_iter).to(self.device)
-        self.mlp_pred = MLP_Out(ll_p["num_channels"][-1]).to(self.device)
-        self.mlp_lat_space = MLP_LatentSpace(ll_p["num_channels"][-1]).to(self.device)
+        #self.mlp_pred = MLP_Out(ll_p["num_channels"][-1]).to(self.device)
+        #self.mlp_lat_space = MLP_LatentSpace(ll_p["interm_dim"]).to(self.device)
         
         
         
@@ -256,12 +272,14 @@ class GTGModule(nn.Module):
         
         
 
-    def get_X(self) -> None:
+    def get_X(self, probs: torch.Tensor) -> None:
         self.X: torch.Tensor = torch.zeros((self.batch_size, self.n_classes), dtype=torch.float32, device=self.device)
-        for idx, label in zip(self.labelled_indices, self.lab_labels):
-            self.X[idx][int(label.item())] = 1.
+        #for idx, label in zip(self.labelled_indices, self.lab_labels):
+            #self.X[idx][int(label.item())] = 
+        self.X[self.labelled_indices, :] = probs[self.labelled_indices]
         for idx in self.unlabelled_indices:
             for label in range(self.n_classes): self.X[idx.item()][label] = 1. / self.n_classes
+        self.X.requires_grad_(True)
 
 
 
@@ -270,114 +288,92 @@ class GTGModule(nn.Module):
         
         entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
         self.get_A(embedding)
-        self.get_X()
+        #self.get_X(probs)
                 
         err = float('Inf')
         i = 0
+        X = self.X.clone()
                 
         while err > self.gtg_tol and i < self.gtg_max_iter:
-            X_old = torch.clone(self.X)
-            self.X *= torch.mm(self.A, self.X)
-            self.X /= torch.sum(self.X, dim=1, keepdim=True)
-            iter_entropy = entropy(self.X).to(self.device)
-            entropy_hist[self.unlabelled_indices, i] = iter_entropy[self.unlabelled_indices]
+            X_old = torch.clone(X)
+            X *= torch.mm(self.A, X)
+            X /= torch.sum(X, dim=1, keepdim=True)
+            entropy_hist[:, i] = entropy(X).to(self.device)
+            err = torch.norm(X - X_old)
             i += 1
-            err = torch.norm(self.X - X_old)
         return entropy_hist
 
 
 
     def graph_trasduction_game(self, embedding: torch.Tensor) -> torch.Tensor:
                         
-        entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)#, requires_grad=True)        
+        entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device,)# requires_grad=True)        
         
         self.get_A(embedding)
-        self.get_X()
-        self.X.requires_grad_(True)
-        
-        self.Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device, requires_grad=True)        
+        X = self.X.clone()
+        self.Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device)#, requires_grad=True)        
         
         err = float('Inf')
         i = 0
                 
         while err > self.gtg_tol and i < self.gtg_max_iter:
                         
-            #i_tensor = torch.tensor([[i]], dtype=torch.float32, device=self.device, requires_grad=True)
-            #i_tensor = torch.full((embedding.shape[0], 1), i, dtype=torch.float32, device=self.device, requires_grad=True)
-            #lat_space = self.mlp_lat_space(embedding, i_tensor)
+            '''
+            i_tensor = torch.full((embedding.shape[0], 1), i, dtype=torch.float32, device=self.device, requires_grad=True)
+            lat_space = self.mlp_lat_space(embedding, i_tensor)
+            self.get_A(lat_space)
+            '''
             
-            #self.get_A(lat_space)
+            X_old = X.detach().clone()
             
-            X_old = self.X.detach().clone()
-            
-            mm_A_X = torch.mm(self.A, self.X)
-            mult_X_A_X = self.X * mm_A_X
+            mm_A_X = torch.mm(self.A, X)
+            mult_X_A_X = X * mm_A_X
             sum_X_A_X = torch.sum(mult_X_A_X, dim=1, keepdim=True)
             div_sum_X_A_X = mult_X_A_X / sum_X_A_X
             
-            entropy_hist[:, i] = entropy(div_sum_X_A_X).to(self.device)
+            entropy_hist[:, i] = entropy(div_sum_X_A_X.detach()).to(self.device)
             
             err = torch.norm(div_sum_X_A_X.detach() - X_old)
-            self.X = div_sum_X_A_X
-            self.Xs = torch.cat((self.Xs, self.X.unsqueeze(dim=-1)), dim=-1)
+            X = div_sum_X_A_X
+            self.Xs = torch.cat((self.Xs, X.unsqueeze(dim=-1)), dim=-1)
                         
             i += 1
         
         # fill in case we early extit by the norm err
         for _ in range(self.gtg_max_iter - self.Xs.shape[-1]): 
             self.Xs = torch.cat((
-                self.Xs, torch.zeros(self.batch_size, self.n_classes, 1, device=self.device, dtype=torch.float32, requires_grad=True)
+                self.Xs, torch.zeros(self.batch_size, self.n_classes, 1, device=self.device, dtype=torch.float32)#, requires_grad=True)
             ), dim=-1)
                            
-        return entropy_hist.requires_grad_(True)
+        return entropy_hist
     
         
         
     # List[torch.Tensor] -> detection
-    # , mode: int
-    def preprocess_inputs(self, embedding: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        #indices = torch.randperm(self.batch_size)
-
-        '''if mode == 1:
-            self.labelled_indices: List[int] = indices[:self.n_lab_obs].tolist()
-            self.unlabelled_indices: List[int] = indices[self.n_lab_obs:].tolist()
-        else:
-            self.unlabelled_indices: List[int] = indices[:self.n_lab_obs].tolist()
-            self.labelled_indices: List[int] = indices[self.n_lab_obs:].tolist()'''
-        
-        #self.labelled_indices: List[int] = indices[:self.n_lab_obs].tolist()
-        #self.unlabelled_indices: List[int] = indices[self.n_lab_obs:].tolist()
-        
-        
+    def preprocess_inputs(self, embedding: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:     
                 
-        #entropy_hist = self.graph_trasduction_game_detached(embedding)
         entropy_hist = self.graph_trasduction_game(embedding)
-        
-        if self.ent_strategy == 'mean':
-            # computing the mean of the entropis history
-            quantity_result = torch.mean(entropy_hist, dim=1)
-            
-        elif self.ent_strategy == 'integral':
-            # computing the area of the entropis history using trapezoid formula 
-            quantity_result = torch.trapezoid(entropy_hist, dim=1)
-            
+
+        if self.ent_strategy == 'mean': quantity_result = torch.mean(entropy_hist, dim=1)
+        # computing the mean of the entropis history    
+        elif self.ent_strategy == 'integral': quantity_result = torch.trapezoid(entropy_hist, dim=1)
+        # computing the area of the entropis history using trapezoid formula    
         else:
             logger.exception(' Invlaid GTG Strategy') 
             raise AttributeError(' Invlaid GTG Strategy')
-         
-           
+
         #return entropy_hist, quantity_result, labelled_mask
         return self.Xs, quantity_result
         #return quantity_result, labelled_mask
     
     
     
-    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, labels: torch.Tensor) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]: 
+    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, labels: torch.Tensor, outs: torch.Tensor) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]: 
         
         self.batch_size = len(embedds)
         self.n_lab_obs = int(self.batch_size * self.perc_labelled_batch)
         
-        indices = torch.arange(self.batch_size)
+        indices = torch.randperm(self.batch_size) # -> unique for each batch
         
         self.labelled_indices: torch.Tensor = indices[:self.n_lab_obs].to(self.device)
         self.unlabelled_indices: torch.Tensor = indices[self.n_lab_obs:].to(self.device)
@@ -388,11 +384,12 @@ class GTGModule(nn.Module):
         self.lab_labels = labels[self.labelled_indices]
         self.unlab_labels = labels[self.unlabelled_indices]
         
+        self.get_X(F.softmax(outs, dim=1))
+                
         y_pred = self.mlp_out(
             [self.preprocess_inputs(self.mod_gap(feature, id))[0] for id, feature in enumerate(features)]
-        ).squeeze()
+        ).squeeze()    
         
-        _, y_true = self.preprocess_inputs(embedds, labels)
-        #logger.info(f'y_pred {y_pred}\ny_true {y_true}')
+        _, y_true = self.preprocess_inputs(embedds)
             
         return (y_pred, y_true), labelled_mask.bool()
