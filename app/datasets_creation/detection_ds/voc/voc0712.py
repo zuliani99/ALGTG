@@ -64,7 +64,7 @@ class VOCAnnotationTransform(object):
             name = obj.find('name').text.lower().strip()
             bbox = obj.find('bndbox')
 
-            pts = ['xmin', 'ymin', 'xmax', 'ymax']
+            pts = ["xmin', 'ymin', 'xmax', 'ymax"]
             bndbox = []
             for i, pt in enumerate(pts):
                 cur_pt = int(bbox.find(pt).text) - 1

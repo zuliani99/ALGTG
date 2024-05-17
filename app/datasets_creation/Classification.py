@@ -8,7 +8,7 @@ from typing import List, Tuple
 import os
 import shutil
 
-from torchvision.transforms import v2
+from torchvision import transforms
 
 from utils import count_class_observation, log_assert
 from config import cls_datasets 
@@ -108,23 +108,23 @@ def compute_mean_std(data: Dataset, idxs=None) -> Tuple[np.ndarray, np.ndarray]:
 
 def complete_caltech_transforms(mean_std: Tuple[np.ndarray, np.ndarray]) -> None:
     mean, std = mean_std
-    cls_datasets['caltech256']['transforms']['train'].append(v2.Normalize(mean=mean.tolist(), std=std.tolist()))
-    cls_datasets['caltech256']['transforms']['train'] = v2.Compose(cls_datasets['caltech256']['transforms']['train'])
+    cls_datasets["caltech256"]["transforms"]["train"].append(transforms.Normalize(mean=mean.tolist(), std=std.tolist()))
+    cls_datasets["caltech256"]["transforms"]["train"] = transforms.Compose(cls_datasets["caltech256"]["transforms"]["train"])
                 
-    cls_datasets['caltech256']['transforms']['test'].append(v2.Normalize(mean=mean.tolist(), std=std.tolist()))
-    cls_datasets['caltech256']['transforms']['test'] = v2.Compose(cls_datasets['caltech256']['transforms']['test'])
+    cls_datasets["caltech256"]["transforms"]["test"].append(transforms.Normalize(mean=mean.tolist(), std=std.tolist()))
+    cls_datasets["caltech256"]["transforms"]["test"] = transforms.Compose(cls_datasets["caltech256"]["transforms"]["test"])
 
 
 def init_caltech256() -> None:
     if os.path.exists('./datasets/caltech256/256_ObjectCategories'): 
         logger.info(' Caltech256 dataset already obtained and ready!')
-        cls_datasets['caltech256']['classes'] = sorted(os.listdir('./datasets/caltech256/256_ObjectCategories/train'))
+        cls_datasets["caltech256"]["classes"] = sorted(os.listdir('./datasets/caltech256/256_ObjectCategories/train'))
         complete_caltech_transforms(compute_mean_std(datasets.ImageFolder('./datasets/caltech256/256_ObjectCategories')))
         return 
     
     n_images = download_caltech256()
     classes = sorted(os.listdir('./datasets/caltech256/256_ObjectCategories'))
-    cls_datasets['caltech256']['classes'] = classes    
+    cls_datasets["caltech256"]["classes"] = classes    
         
     logger.info(' => Generating new train test split datasets...')
     
@@ -135,7 +135,7 @@ def init_caltech256() -> None:
     train_idxs = rand_perm[:train_size].tolist()
     test_idxs = rand_perm[train_size:].tolist()
                 
-    train_data = datasets.ImageFolder('./datasets/caltech256/256_ObjectCategories', transform=v2.Compose([v2.Resize((224,224))]))
+    train_data = datasets.ImageFolder('./datasets/caltech256/256_ObjectCategories', transform=transforms.Compose([transforms.Resize((224,224))]))
         
     split_path = './datasets/caltech256/256_ObjectCategories_new'
     os.mkdir(split_path)
@@ -154,10 +154,10 @@ class Cls_Datasets():
     
     def __init__(self, dataset_name: str, init_lab_obs: int) -> None:
 
-        self.n_classes: int = cls_datasets[dataset_name]['n_classes']
-        self.n_channels: int = cls_datasets[dataset_name]['channels']
-        self.dataset_id: int = cls_datasets[dataset_name]['id']
-        self.image_size: int = cls_datasets[dataset_name]['image_size']
+        self.n_classes: int = cls_datasets[dataset_name]["n_classes"]
+        self.n_channels: int = cls_datasets[dataset_name]["channels"]
+        self.dataset_id: int = cls_datasets[dataset_name]["id"]
+        self.image_size: int = cls_datasets[dataset_name]["image_size"]
         
         self.train_ds = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=True, n_classes=self.n_classes)
         self.unlab_train_ds = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=False)
@@ -165,9 +165,9 @@ class Cls_Datasets():
         self.test_ds = Cls_Dataset(dataset_name=dataset_name, bool_train=False, bool_transform=False)
  
         if dataset_name == 'tinyimagenet':
-            cls_datasets[dataset_name]['classes'] = os.listdir('./datasets/tiny-imagenet-200/train')
+            cls_datasets[dataset_name]["classes"] = os.listdir('./datasets/tiny-imagenet-200/train')
             
-        self.classes: List[str] = cls_datasets[dataset_name]['classes']
+        self.classes: List[str] = cls_datasets[dataset_name]["classes"]
         
         self.get_initial_subsets(init_lab_obs)
     
@@ -185,9 +185,7 @@ class Cls_Datasets():
         self.labelled_indices: List[int] = shuffled_indices[:init_lab_obs].tolist()
         self.unlabelled_indices: List[int] = shuffled_indices[init_lab_obs:].tolist()
         
-        logger.info(f' Initial subset of labelled observations composed with: {count_class_observation(
-            self.classes, Subset(self.train_ds, self.labelled_indices)
-        )}')
+        #logger.info(f' Initial subset of labelled observations composed with: {count_class_observation(self.classes, Subset(self.train_ds, self.labelled_indices))}')
 
 
 
@@ -201,22 +199,22 @@ class Cls_Dataset(Dataset):
                 download_tinyimagenet()
                 create_val_img_folder('./datasets/tiny-imagenet-200')
                 self.ds: Dataset = datasets.ImageFolder('./datasets/tiny-imagenet-200/train',
-                    transform=cls_datasets['tinyimagenet']['transforms']['train']
+                    transform=cls_datasets["tinyimagenet"]["transforms"]["train"]
                 )
             elif dataset_name == 'svhn':
-                self.ds: Dataset = cls_datasets['svhn']['method']('./datasets/svhn', 
+                self.ds: Dataset = cls_datasets["svhn"]["method"]('./datasets/svhn', 
                     split='train', download=True,
-                    transform=cls_datasets['svhn']['transforms']['train']
+                    transform=cls_datasets["svhn"]["transforms"]["train"]
                 )
             elif dataset_name == 'caltech256':
                 init_caltech256()
                 self.ds: Dataset = datasets.ImageFolder('./datasets/caltech256/256_ObjectCategories/train',
-                    transform=cls_datasets['caltech256']['transforms']['train']
+                    transform=cls_datasets["caltech256"]["transforms"]["train"]
                 )
             else:
-                self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',
+                self.ds: Dataset = cls_datasets[dataset_name]["method"](f'./datasets/{dataset_name}',
                     train=bool_train, download=True,
-                    transform=cls_datasets[dataset_name]['transforms']['train']
+                    transform=cls_datasets[dataset_name]["transforms"]["train"]
                 ) 
 
             log_assert(n_classes != -1, 'Invalid n_classes')
@@ -225,22 +223,22 @@ class Cls_Dataset(Dataset):
         else:
             # unlabelled or test dataset
             if dataset_name == 'tinyimagenet':
-                self.ds: Dataset = datasets.ImageFolder(f'./datasets/tiny-imagenet-200/{'train' if bool_train else 'val/images'}', 
-                    transform=cls_datasets['tinyimagenet']['transforms']['test']
+                self.ds: Dataset = datasets.ImageFolder(f'./datasets/tiny-imagenet-200/{"train" if bool_train else "val/images"}', 
+                    transform=cls_datasets["tinyimagenet"]["transforms"]["test"]
                 )
             elif dataset_name == 'svhn':
-                self.ds: Dataset = cls_datasets['svhn']['method']('./datasets/svhn', split='train' 
+                self.ds: Dataset = cls_datasets["svhn"]["method"]('./datasets/svhn', split='train' 
                     if bool_train else 'test', download=True,
-                    transform=cls_datasets['svhn']['transforms']['test']
+                    transform=cls_datasets["svhn"]["transforms"]["test"]
                 )
             elif dataset_name == 'caltech256':
-                self.ds: Dataset = datasets.ImageFolder(f'./datasets/caltech256/256_ObjectCategories/{'train' if bool_train else 'test'}', 
-                    transform=cls_datasets['caltech256']['transforms']['test']
+                self.ds: Dataset = datasets.ImageFolder(f'./datasets/caltech256/256_ObjectCategories/{"train" if bool_train else "test"}', 
+                    transform=cls_datasets["caltech256"]["transforms"]["test"]
                 )            
             else:
-                self.ds: Dataset = cls_datasets[dataset_name]['method'](f'./datasets/{dataset_name}',
+                self.ds: Dataset = cls_datasets[dataset_name]["method"](f'./datasets/{dataset_name}',
                     train=bool_train, download=True,
-                    transform=cls_datasets[dataset_name]['transforms']['test']
+                    transform=cls_datasets[dataset_name]["transforms"]["test"]
                 )           
         
         
