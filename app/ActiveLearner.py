@@ -118,7 +118,8 @@ class ActiveLearner():
         with torch.inference_mode():
             
             for data in dataloader:
-                idxs, images, labels, _ = data # in case on TiDAL
+                if len(data) > 3: idxs, images, labels, _ = data # in case on TiDAL
+                else: idxs, images, labels = data  
                 
                 images = images.to(self.device)
                 
