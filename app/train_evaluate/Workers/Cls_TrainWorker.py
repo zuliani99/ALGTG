@@ -166,7 +166,7 @@ class Cls_TrainWorker():
                 
                 for optimizer in self.optimizers: optimizer.zero_grad(set_to_none=True)
                     
-                outputs, _, module_out = self.model(images, labels=labels, epoch=epoch)
+                outputs, _, module_out = self.model(images, epoch=epoch, labels=labels)
                                                                         
                 loss, train_loss_ce, train_loss_pred = self.compute_losses(
                             weight=weight, module_out=module_out, outputs=outputs, labels=labels,
@@ -174,17 +174,9 @@ class Cls_TrainWorker():
                             tidal=(idxs, moving_prob, epoch),
                         )  
                     
-                    
-                #a_modgap = list(self.model.added_module.mod_gap.parameters())[0].clone()
-                #a_mlp = list(self.model.added_module.mlp_out.parameters())[0].clone()
                 loss.backward()                
                 for optimizer in self.optimizers: optimizer.step()
-                #b_modgap = list(self.model.added_module.mod_gap.parameters())[0].clone()
-                #b_mlp = list(self.model.added_module.mlp_out.parameters())[0].clone()
-                
-                #logger.info(f' ARE WEIGHTS THE SAME? -> {torch.equal(a_modgap.data, b_modgap.data)} - {torch.equal(a_mlp.data, b_mlp.data)}')
-                
-                
+
                 train_loss += loss.item()
                 train_accuracy += self.score_fn(outputs, labels)
                 

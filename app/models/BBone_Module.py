@@ -50,7 +50,7 @@ class Master_Model(nn.Module):
                 features = self.backbone.get_features()
                 if epoch >= 120: features = [feature.detach() for feature in features]
                 if self.added_module.name == 'GTGModule':
-                    module_out = self.added_module(features, embedds, labels, outs)
+                    module_out = self.added_module(features, embedds, outs, labels)
                 else: module_out = self.added_module(features)
                 return outs, embedds, module_out
             else:
@@ -60,11 +60,11 @@ class Master_Model(nn.Module):
             
         elif mode == 'embedds': return self.backbone(x)[1]
             
-        elif mode == 'module_out':
+        elif mode == 'module_out': # -> it is only used for the learning loss
             if self.added_module != None:
                 outs, embedds = self.backbone(x)
                 if self.added_module.name == 'GTGModule':
-                    return self.added_module(self.backbone.get_features(), embedds, labels, outs)[0][0]
+                    return self.added_module(self.backbone.get_features(), embedds, outs, labels)[0][0]
                 else: return self.added_module(self.backbone.get_features())
             else:
                 raise AttributeError("The Master_Model hasn't got any additional module")

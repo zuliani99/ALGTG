@@ -1,6 +1,6 @@
 
 import torch
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, RandomSampler
 
 from ActiveLearner import ActiveLearner
 
@@ -25,23 +25,44 @@ class GTG(ActiveLearner):
         
         if self.model.added_module != None: self.model.added_module.define_A_function(gtg_p["am"])
         
-                
+    
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
-        unlab_train_dl = DataLoader(
-            sample_unlab_subset, batch_size=self.batch_size, shuffle=False, pin_memory=True
-        )
-                
-        logger.info(' => Evaluating unlabelled observations')
-        embeds_dict = { 'module_out': torch.empty(0, dtype=torch.float32, device=torch.device('cpu')) }
+       
+        dl_dict = dict(batch_size=self.batch_size//2, shuffle=False, pin_memory=True)
+        unlab_train_dl = DataLoader(sample_unlab_subset, **dl_dict)
+        
+        #random sample with replacement, each batch has different set of labelled observation drown ad random from the entire set
+        labeleld_random_sampler = RandomSampler(Subset(self.dataset.unlab_train_ds, self.labelled_indices), num_samples=len(unlab_train_dl.dataset), replacement=True)
+        lab_train_dl = DataLoader(Subset(self.dataset.unlab_train_ds, self.labelled_indices), sampler=labeleld_random_sampler, batch_size=self.batch_size//2)
         
         self.load_best_checkpoint()
-
-        self.get_embeddings(unlab_train_dl, embeds_dict)
         
-        logger.info(torch.topk(embeds_dict["module_out"], n_top_k_obs))
+        pred_entropies = torch.empty(0, dtype=torch.float32, device=torch.device(self.device))
+        idxs = torch.empty(0, dtype=torch.int8, device=torch.device('cpu'))
+        
+        self.model.eval()
+        with torch.inference_mode():
+            
+            for (_, lab_images, _, _), (unlab_idxs, unlab_images, _) in zip(lab_train_dl, unlab_train_dl):
+                                            
+                lab_outs, lab_embedds = self.model.backbone(lab_images.to(self.device))
+                lab_features = self.model.backbone.get_features()
+                unlab_outs, unlab_embedds = self.model.backbone(unlab_images.to(self.device))
+                unlab_features = self.model.backbone.get_features()
+
+                (y_pred, _) ,_ = self.model.added_module(
+                    features=[torch.cat((lab_feature, unlab_feature), dim=0) for lab_feature, unlab_feature in zip(lab_features, unlab_features)], 
+                    embedds=torch.cat((lab_embedds, unlab_embedds), dim=0), 
+                    outs=torch.cat((lab_outs, unlab_outs), dim=0),
+                    labels=torch.cat((lab_images, unlab_images), dim=0)
+                )
                 
+                pred_entropies = torch.cat((pred_entropies, y_pred[self.batch_size//2:]), dim=0) # save only the unalbelled entropies
+                idxs = torch.cat((idxs, unlab_idxs), dim=0)
+                                            
         logger.info(f' => Extracting the Top-k unlabelled observations')
-        overall_topk = torch.topk(embeds_dict["module_out"], n_top_k_obs).indices.tolist()
+        overall_topk = torch.topk(pred_entropies, n_top_k_obs).indices.tolist()
         logger.info(' DONE\n')
         
         return overall_topk, [self.rand_unlab_sample[id] for id in overall_topk]
+        

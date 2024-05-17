@@ -274,9 +274,14 @@ class GTGModule(nn.Module):
 
     def get_X(self, probs: torch.Tensor) -> None:
         self.X: torch.Tensor = torch.zeros((self.batch_size, self.n_classes), dtype=torch.float32, device=self.device)
-        #for idx, label in zip(self.labelled_indices, self.lab_labels):
-            #self.X[idx][int(label.item())] = 
-        self.X[self.labelled_indices, :] = probs[self.labelled_indices]
+       
+        ##################################################################
+        for idx, label in zip(self.labelled_indices, self.lab_labels):
+            self.X[int(idx.item())][int(label.item())] = 1.
+        
+        #self.X[self.labelled_indices, :] = probs[self.labelled_indices]
+        ##################################################################
+        
         for idx in self.unlabelled_indices:
             for label in range(self.n_classes): self.X[idx.item()][label] = 1. / self.n_classes
         self.X.requires_grad_(True)
@@ -311,7 +316,7 @@ class GTGModule(nn.Module):
         
         self.get_A(embedding)
         X = self.X.clone()
-        self.Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device)#, requires_grad=True)        
+        self.Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device, requires_grad=True)        
         
         err = float('Inf')
         i = 0
@@ -342,7 +347,7 @@ class GTGModule(nn.Module):
         # fill in case we early extit by the norm err
         for _ in range(self.gtg_max_iter - self.Xs.shape[-1]): 
             self.Xs = torch.cat((
-                self.Xs, torch.zeros(self.batch_size, self.n_classes, 1, device=self.device, dtype=torch.float32)#, requires_grad=True)
+                self.Xs, torch.zeros(self.batch_size, self.n_classes, 1, device=self.device, dtype=torch.float32, requires_grad=True)
             ), dim=-1)
                            
         return entropy_hist
@@ -368,28 +373,34 @@ class GTGModule(nn.Module):
     
     
     
-    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, labels: torch.Tensor, outs: torch.Tensor) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]: 
-        
+    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, outs: torch.Tensor, labels) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]: 
+                    
         self.batch_size = len(embedds)
-        self.n_lab_obs = int(self.batch_size * self.perc_labelled_batch)
         
-        indices = torch.randperm(self.batch_size) # -> unique for each batch
+        if self.training:
+            indices = torch.randperm(self.batch_size) # -> unique for each batch
+            self.n_lab_obs = int(self.batch_size * self.perc_labelled_batch)
+        else: 
+            indices = torch.arange(self.batch_size) # -> unique for each batch
+            self.n_lab_obs = self.batch_size // 2
         
         self.labelled_indices: torch.Tensor = indices[:self.n_lab_obs].to(self.device)
         self.unlabelled_indices: torch.Tensor = indices[self.n_lab_obs:].to(self.device)
         
-        labelled_mask = torch.zeros(self.batch_size, device=self.device)
-        labelled_mask[self.labelled_indices] = 1.
-        
         self.lab_labels = labels[self.labelled_indices]
-        self.unlab_labels = labels[self.unlabelled_indices]
         
         self.get_X(F.softmax(outs, dim=1))
-                
+                    
         y_pred = self.mlp_out(
             [self.preprocess_inputs(self.mod_gap(feature, id))[0] for id, feature in enumerate(features)]
         ).squeeze()    
-        
-        _, y_true = self.preprocess_inputs(embedds)
             
-        return (y_pred, y_true), labelled_mask.bool()
+            
+        if self.training:
+            
+            labelled_mask = torch.zeros(self.batch_size, device=self.device)
+            labelled_mask[self.labelled_indices] = 1.
+            _, y_true = self.preprocess_inputs(embedds)
+            return (y_pred, y_true), labelled_mask.bool()
+        
+        else: return (y_pred, None), None
