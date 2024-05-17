@@ -43,7 +43,7 @@ class GTG(ActiveLearner):
         self.model.eval()
         with torch.inference_mode():
             
-            for (_, lab_images, _, _), (unlab_idxs, unlab_images, _) in zip(lab_train_dl, unlab_train_dl):
+            for (_, lab_images, lab_labels), (unlab_idxs, unlab_images, unlab_labels) in zip(lab_train_dl, unlab_train_dl):
                                             
                 lab_outs, lab_embedds = self.model.backbone(lab_images.to(self.device))
                 lab_features = self.model.backbone.get_features()
@@ -54,7 +54,7 @@ class GTG(ActiveLearner):
                     features=[torch.cat((lab_feature, unlab_feature), dim=0) for lab_feature, unlab_feature in zip(lab_features, unlab_features)], 
                     embedds=torch.cat((lab_embedds, unlab_embedds), dim=0), 
                     outs=torch.cat((lab_outs, unlab_outs), dim=0),
-                    labels=torch.cat((lab_images, unlab_images), dim=0)
+                    labels=torch.cat((lab_labels, unlab_labels), dim=0)
                 )
                 
                 pred_entropies = torch.cat((pred_entropies, y_pred[self.batch_size//2:]), dim=0) # save only the unalbelled entropies
