@@ -32,7 +32,7 @@ class GTG(ActiveLearner):
         unlab_train_dl = DataLoader(sample_unlab_subset, **dl_dict)
         
         #random sample with replacement, each batch has different set of labelled observation drown ad random from the entire set
-        labeleld_random_sampler = RandomSampler(Subset(self.dataset.unlab_train_ds, self.labelled_indices), num_samples=len(unlab_train_dl.dataset), replacement=True)
+        labeleld_random_sampler = RandomSampler(Subset(self.dataset.unlab_train_ds, self.labelled_indices), num_samples=len(unlab_train_dl.dataset))#, replacement=True)
         lab_train_dl = DataLoader(Subset(self.dataset.unlab_train_ds, self.labelled_indices), sampler=labeleld_random_sampler, batch_size=self.batch_size//2)
         
         self.load_best_checkpoint()
@@ -59,6 +59,8 @@ class GTG(ActiveLearner):
                 
                 pred_entropies = torch.cat((pred_entropies, y_pred[self.batch_size//2:]), dim=0) # save only the unalbelled entropies
                 idxs = torch.cat((idxs, unlab_idxs), dim=0)
+        
+        # plot entropy hisstory tensor
                                             
         logger.info(f' => Extracting the Top-k unlabelled observations')
         overall_topk = torch.topk(pred_entropies, n_top_k_obs).indices.tolist()

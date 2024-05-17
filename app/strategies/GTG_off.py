@@ -262,10 +262,10 @@ class GTG_off(ActiveLearner):
             raise Exception('Unrecognized derivates computation strategy')
         
         # plot entropy hisstory tensor
-        '''plot_gtg_entropy_tensor(
+        plot_gtg_entropy_tensor(
             tensor=self.unlab_entropy_hist, topk=overall_topk, lab_unlabels=self.unlab_embedds_dict["labels"].tolist(), classes=self.dataset.classes, 
             path=self.path, iter=self.iter - 1, max_x=self.gtg_max_iter, dir='history'
-        )'''
+        )
                     
         del self.unlab_entropy_hist
         gc.collect()

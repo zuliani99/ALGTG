@@ -400,7 +400,8 @@ class GTGModule(nn.Module):
             
             labelled_mask = torch.zeros(self.batch_size, device=self.device)
             labelled_mask[self.labelled_indices] = 1.
-            _, y_true = self.preprocess_inputs(embedds)
+            Xs, y_true = self.preprocess_inputs(embedds)
+            #logger.info(entropy(Xs))
             return (y_pred, y_true), labelled_mask.bool()
         
         else: return (y_pred, None), None
