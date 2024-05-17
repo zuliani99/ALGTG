@@ -160,7 +160,7 @@ class Cls_TrainWorker():
                 
                 for optimizer in self.optimizers: optimizer.zero_grad()
                 
-                outputs, _, module_out = self.model(images, labels=labels)
+                outputs, _, module_out = self.model(images, labels=labels, epoch=epoch)
                                                                     
                 loss, train_loss_ce, train_loss_pred = self.compute_losses(
                         weight=weight, module_out=module_out, outputs=outputs, labels=labels,
