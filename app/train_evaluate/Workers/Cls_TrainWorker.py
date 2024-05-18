@@ -54,12 +54,13 @@ class Cls_TrainWorker():
 
     def init_opt_sched(self):
         optimizers = self.ds_t_p["optimizers"]
+        module_name = self.model.added_module_name if self.model.added_module == None else self.model.added_module_name.split('_')[0]
         self.optimizers: List[torch.optim.SGD | torch.optim.Adam] = []
-        self.optimizers.append(optimizers["backbone"]["type"](self.model.backbone.parameters(), **optimizers["backbone"]["optim_p"]))
+        self.optimizers.append(optimizers["backbone"]["type"][module_name](self.model.backbone.parameters(), **optimizers["backbone"]["optim_p"][module_name]))
         self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1)
-        if self.model.added_module != None:
-            module_name = self.model.added_module_name if self.model.added_module == None else self.model.added_module_name.split('_')[0]
-            self.optimizers.append(optimizers["modules"][module_name]["type"](self.model.added_module.parameters(), **optimizers["modules"][module_name]["optim_p"]))
+        if module_name != None:
+            self.optimizers.append(optimizers["modules"]["type"][module_name](self.model.added_module.parameters(), **optimizers["modules"]["optim_p"][module_name]))
+            
     
     def __save_checkpoint(self, filename: str) -> None:
         logger.info(f' => Saving {filename} Checkpoint')
@@ -92,8 +93,10 @@ class Cls_TrainWorker():
                 
             entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
 
+            ################################################
             lab_ce_loss = torch.mean(ce_loss[labelled_mask])
             entr_loss = torch.mean(entr_loss)
+            ################################################
             
             loss = lab_ce_loss + entr_loss
             

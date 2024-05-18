@@ -311,7 +311,7 @@ def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor
     
     
     
-def plot_new_labelled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor],
+'''def plot_new_labelled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor],
                           iter: str, method: str, ds_name: str, idxs_new_labels: List[int], 
                           classes: List[str], time_stamp: str, samp_iter: int, d_labels: Dict[str, int],
                           gtg_result_prediction = None):
@@ -361,6 +361,69 @@ def plot_new_labelled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.
     else: sns_p.legend([],[], frameon=False)
     
     plt.suptitle(f'TSNE Plot - Iteration {iter}', fontsize = 30)
+    plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{iter}.png')'''
+    
+    
+def plot_new_labelled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor],
+                           iter: str, method: str, ds_name: str, idxs_new_labels: List[int], 
+                           classes: List[str], time_stamp: str, samp_iter: int, d_labels: Dict[str, int],
+                           gtg_result_prediction=None):
+    
+    tsne = TSNE().fit_transform(np.vstack((lab["embedds"].numpy(), unlab["embedds"].numpy())))
+    tsne_lab, tsne_unlab = tsne[:len(lab["embedds"]), :], tsne[len(lab["embedds"]):, :]
+    
+    x_lab, y_lab = tsne_lab[:, 0], tsne_lab[:, 1]
+    x_unlab, y_unlab = tsne_unlab[:, 0], tsne_unlab[:, 1]
+    
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(25, 14))
+    
+    if isinstance(gtg_result_prediction, np.ndarray):
+        
+        idxs_unlab_again = [id for id in range(len(gtg_result_prediction)) if id not in idxs_new_labels]
+        
+        true_unlab = np.array(gtg_result_prediction[idxs_unlab_again]) == 1
+        false_unlab = np.array(gtg_result_prediction[idxs_unlab_again]) == 0
+        true_new_lab = np.array(gtg_result_prediction[idxs_new_labels]) == 1
+        false_new_lab = np.array(gtg_result_prediction[idxs_new_labels]) == 0
+        
+        sns.scatterplot(x=x_unlab[idxs_unlab_again][true_unlab], y=y_unlab[idxs_unlab_again][true_unlab], 
+                        color='blue', s=17, ax=axes[0], marker='o', label='True Unlabelled Obs')
+        
+        sns.scatterplot(x=x_unlab[idxs_unlab_again][false_unlab], y=y_unlab[idxs_unlab_again][false_unlab], 
+                        color='blue', s=17, ax=axes[0], marker='X', label='False Unlabelled Obs')
+        
+        sns.scatterplot(x=x_lab, y=y_lab, color='orange', s=17, ax=axes[0], marker='o', label='Old Labeled Obs')
+        
+        sns.scatterplot(x=x_unlab[idxs_new_labels][true_new_lab], y=y_unlab[idxs_new_labels][true_new_lab], 
+                        s=17, color='red', ax=axes[0], marker='o', label='True New-Labelled Obs')
+        
+        sns.scatterplot(x=x_unlab[idxs_new_labels][false_new_lab], y=y_unlab[idxs_new_labels][false_new_lab], 
+                        s=17, color='red', ax=axes[0], marker='X', label='False New-Labelled Obs')
+        
+    else:
+        
+        sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabelled', color='blue', s=17, ax=axes[0], marker='o')
+        sns.scatterplot(x=x_lab, y=y_lab, label='labelled', color='orange', s=17, ax=axes[0], marker='o')
+        sns.scatterplot(x=x_unlab[idxs_new_labels], y=y_unlab[idxs_new_labels], label='new_labelled', 
+                        s=17, color='red', ax=axes[0], marker='o')
+    
+    axes[0].set_title('TSNE -- Labelled - Unlabelled - NewLabelled', fontsize=15)
+    
+    handles, labels = axes[0].get_legend_handles_labels()
+    unique_labels = dict(zip(labels, handles))
+    axes[0].legend(unique_labels.values(), unique_labels.keys())
+    
+    sns_p = sns.scatterplot(x=np.hstack((x_lab, x_unlab)), y=np.hstack((y_lab, y_unlab)), 
+                            hue=[classes[l] for l in np.hstack((lab["labels"], unlab["labels"]))], s=17, ax=axes[1])
+        
+    axes[1].set_title('TSNE - Classes', fontsize=15)
+    
+    if len(classes) <= 10: 
+        fig.text(0.5, 0.05, f'New Labelled Observations: {d_labels}', ha='center', va='center', fontdict={'size': 17})
+    else: 
+        sns_p.legend([], [], frameon=False)
+    
+    plt.suptitle(f'TSNE Plot - Iteration {iter}', fontsize=30)
     plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{iter}.png')
 
     

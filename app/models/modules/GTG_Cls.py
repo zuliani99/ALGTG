@@ -67,28 +67,11 @@ class Module_LS(nn.Module):
         self.linears = nn.ModuleList(self.linears)
         self.gaps = nn.ModuleList(self.gaps)
 
-        #self.linear = nn.Sequential(nn.Linear(interm_dim * len(num_channels), 1))
 
     def forward(self, features, id_feat):
         out = self.gaps[id_feat](features)
         out = out.view(out.size(0), -1)
         return self.linears[id_feat](out)
-
-    '''def forward(self, features, id_feat=-1):
-        if id_feat == -1:
-            outs = []
-            for i in range(len(features)):
-                out = self.gaps[i](features[i])
-                out = out.view(out.size(0), -1)
-                out = self.linears[i](out)
-                outs.append(out)
-
-            out = self.linear(torch.cat(outs, 1))
-            return out
-        else:
-            out = self.gaps[id_feat](features)
-            out = out.view(out.size(0), -1)
-            return self.linears[id_feat](out)'''
 
     
 
@@ -313,12 +296,7 @@ class GTGModule(nn.Module):
         
         '''y_pred = torch.mean(
             torch.cat([self.preprocess_inputs(self.graph_trasduction_game, self.mod_ls(feature, id))[1].unsqueeze(dim=0) for id, feature in enumerate(features)], dim=0)
-        , dim=0)'''
-        
-        '''for feature in [self.mod_ls(feature, id) for id, feature in enumerate(features)]:
-            logger.info(feature.shape)
-            logger.info(self.preprocess_inputs(self.graph_trasduction_game, feature)[1].view(-1,1).shape)
-            logger.info(torch.cat((feature, self.preprocess_inputs(self.graph_trasduction_game, feature)[1].view(-1,1)), dim=1).shape)'''        
+        , dim=0)'''     
         
         
         y_pred = self.mod_mlp(

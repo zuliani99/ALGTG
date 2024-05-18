@@ -160,30 +160,19 @@ cls_config = {
         'unlab_sample_dim': 10000,
         'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 250 },
         'optimizers': {
-            'backbone': {
-                'type': torch.optim.SGD,
+            'backbone':{
+                'type': { None: torch.optim.SGD, 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.SGD, },
                 'optim_p': {
-                    'lr': 0.01, # 0.01 -> for the GTG module is ok with the mlp_out
-                    'momentum': 0.9,
-                    'weight_decay': 5e-4
+                    None: { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'GTGModule': { 'lr': 0.01, 'momentum': 0.9, 'weight_decay': 5e-4 }, # 0.01 -> for the GTG module is ok with the mlp_out
                 }
             },
             'modules': {
-                'LossNet': {
-                    'type': torch.optim.SGD,
-                    'optim_p': {
-                        'lr': 0.1,
-                        'momentum': 0.9,
-                        'weight_decay': 5e-4
-                    }
-                },
-                'GTGModule': {
-                    'type': torch.optim.SGD,#Adam,
-                    'optim_p': {
-                        'lr': 0.005, # SGD with 0.005 work
-                        'momentum': 0.9,
-                        'weight_decay': 5e-4
-                    }
+                'type': { None: torch.optim.SGD, 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.SGD, },
+                'optim_p': {
+                    'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'GTGModule': { 'lr': 0.005, 'momentum': 0.9, 'weight_decay': 5e-4 }, # SGD with 0.005 work
                 }
             }
         }
@@ -193,30 +182,19 @@ cls_config = {
         'unlab_sample_dim': 10000,
         'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 250 },
         'optimizers': {
-            'backbone': {
-                'type': torch.optim.SGD,
+            'backbone':{
+                'type': { None: torch.optim.SGD, 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.SGD, },
                 'optim_p': {
-                    'lr': 0.1,
-                    'momentum': 0.9,
-                    'weight_decay': 5e-4
+                    None: { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'GTGModule': { 'lr': 0.01, 'momentum': 0.9, 'weight_decay': 5e-4 }, # 0.01 -> for the GTG module is ok with the mlp_out
                 }
             },
             'modules': {
-                'LossNet': {
-                    'type': torch.optim.SGD,
-                    'optim_p': {
-                        'lr': 0.1,
-                        'momentum': 0.9,
-                        'weight_decay': 5e-4
-                    }
-                },
-                'GTGModule': {
-                    'type': torch.optim.SGD,
-                    'optim_p': {
-                        'lr': 0.001,
-                        'momentum': 0.9,
-                        'weight_decay': 5e-4
-                    }
+                'type': { None: torch.optim.SGD, 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.SGD, },
+                'optim_p': {
+                    'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'GTGModule': { 'lr': 0.005, 'momentum': 0.9, 'weight_decay': 5e-4 }, # SGD with 0.005 work
                 }
             }
         }
@@ -225,30 +203,19 @@ cls_config = {
         'unlab_sample_dim': 10000,
         'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 250 },
         'optimizers': {
-            'backbone': {
-                'type': torch.optim.SGD,
+            'backbone':{
+                'type': { None: torch.optim.SGD, 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.SGD, },
                 'optim_p': {
-                    'lr': 0.1,
-                    'momentum': 0.9,
-                    'weight_decay': 5e-4
+                    None: { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'GTGModule': { 'lr': 0.01, 'momentum': 0.9, 'weight_decay': 5e-4 }, # 0.01 -> for the GTG module is ok with the mlp_out
                 }
             },
             'modules': {
-                'LossNet': {
-                    'type': torch.optim.SGD,
-                    'optim_p': {
-                        'lr': 0.1,
-                        'momentum': 0.9,
-                        'weight_decay': 5e-4
-                    }
-                },
-                'GTGModule': {
-                    'type': torch.optim.SGD,
-                    'optim_p': {
-                        'lr': 0.001,
-                        'momentum': 0.9,
-                        'weight_decay': 5e-4
-                    }
+                'type': { None: torch.optim.SGD, 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.SGD, },
+                'optim_p': {
+                    'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'GTGModule': { 'lr': 0.005, 'momentum': 0.9, 'weight_decay': 5e-4 }, # SGD with 0.005 work
                 }
             }
         }
@@ -257,30 +224,19 @@ cls_config = {
         'unlab_sample_dim': 10000,
         'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 250 },
         'optimizers': {
-            'backbone': {
-                'type': torch.optim.SGD,
+            'backbone':{
+                'type': { None: torch.optim.SGD, 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.SGD, },
                 'optim_p': {
-                    'lr': 0.1,
-                    'momentum': 0.9,
-                    'weight_decay': 5e-4
+                    None: { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'GTGModule': { 'lr': 0.01, 'momentum': 0.9, 'weight_decay': 5e-4 }, # 0.01 -> for the GTG module is ok with the mlp_out
                 }
             },
             'modules': {
-                'LossNet': {
-                    'type': torch.optim.SGD,
-                    'optim_p': {
-                        'lr': 0.1,
-                        'momentum': 0.9,
-                        'weight_decay': 5e-4
-                    }
-                },
-                'GTGModule': {
-                    'type': torch.optim.SGD,
-                    'optim_p': {
-                        'lr': 0.001,
-                        'momentum': 0.9,
-                        'weight_decay': 5e-4
-                    }
+                'type': { None: torch.optim.SGD, 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.SGD, },
+                'optim_p': {
+                    'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'GTGModule': { 'lr': 0.005, 'momentum': 0.9, 'weight_decay': 5e-4 }, # SGD with 0.005 work
                 }
             }
         }
@@ -289,30 +245,19 @@ cls_config = {
         'unlab_sample_dim': 10000,
         'batch_size': { None: 16, 'LossNet': 16, 'GTGModule': 32 },
         'optimizers': {
-            'backbone': {
-                'type': torch.optim.SGD,
+            'backbone':{
+                'type': { None: torch.optim.SGD, 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.SGD, },
                 'optim_p': {
-                    'lr': 0.1,
-                    'momentum': 0.9,
-                    'weight_decay': 5e-4
+                    None: { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'GTGModule': { 'lr': 0.01, 'momentum': 0.9, 'weight_decay': 5e-4 }, # 0.01 -> for the GTG module is ok with the mlp_out
                 }
             },
             'modules': {
-                'LossNet': {
-                    'type': torch.optim.SGD,
-                    'optim_p': {
-                        'lr': 0.1,
-                        'momentum': 0.9,
-                        'weight_decay': 5e-4
-                    }
-                },
-                'GTGModule': {
-                    'type': torch.optim.SGD,
-                    'optim_p': {
-                        'lr': 0.001,
-                        'momentum': 0.9,
-                        'weight_decay': 5e-4
-                    }
+                'type': { None: torch.optim.SGD, 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.SGD, },
+                'optim_p': {
+                    'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'GTGModule': { 'lr': 0.005, 'momentum': 0.9, 'weight_decay': 5e-4 }, # SGD with 0.005 work
                 }
             }
         }
@@ -321,30 +266,19 @@ cls_config = {
         'unlab_sample_dim': 10000,
         'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 250 },
         'optimizers': {
-            'backbone': {
-                'type': torch.optim.SGD,
+            'backbone':{
+                'type': { None: torch.optim.SGD, 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.SGD, },
                 'optim_p': {
-                    'lr': 0.1,
-                    'momentum': 0.9,
-                    'weight_decay': 5e-4
+                    None: { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'GTGModule': { 'lr': 0.01, 'momentum': 0.9, 'weight_decay': 5e-4 }, # 0.01 -> for the GTG module is ok with the mlp_out
                 }
             },
             'modules': {
-                'LossNet': {
-                    'type': torch.optim.SGD,
-                    'optim_p': {
-                        'lr': 0.1,
-                        'momentum': 0.9,
-                        'weight_decay': 5e-4
-                    }
-                },
-                'GTGModule': {
-                    'type': torch.optim.SGD,
-                    'optim_p': {
-                        'lr': 0.001,
-                        'momentum': 0.9,
-                        'weight_decay': 5e-4
-                    }
+                'type': { None: torch.optim.SGD, 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.SGD, },
+                'optim_p': {
+                    'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
+                    'GTGModule': { 'lr': 0.005, 'momentum': 0.9, 'weight_decay': 5e-4 }, # SGD with 0.005 work
                 }
             }
         }

@@ -24,17 +24,23 @@ class GTG(ActiveLearner):
         if self.model.added_module != None: self.model.added_module.define_A_function(gtg_p["am"])
         
     
-    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:   
-        unlab_train_dl = DataLoader(sample_unlab_subset, batch_size=self.batch_size//2, shuffle=False, pin_memory=True)
-    
-        #random sample with replacement, each batch has different set of labelled observation drown ad random from the entire set
+    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
+        query_bs = self.batch_size//2
+           
+        unlab_train_dl = DataLoader(sample_unlab_subset, batch_size=query_bs, shuffle=False, pin_memory=True)
         labelled_subset = Subset(self.dataset.unlab_train_ds, self.labelled_indices)
-        labeleld_random_sampler = RandomSampler(labelled_subset, num_samples=len(unlab_train_dl.dataset))
-        lab_train_dl = DataLoader(labelled_subset, sampler=labeleld_random_sampler, batch_size=self.batch_size//2)
+        lab_train_dl = DataLoader(
+            dataset=labelled_subset, 
+            batch_size=query_bs,
+            sampler=RandomSampler(labelled_subset, num_samples=len(unlab_train_dl.dataset)), 
+            #random sample with replacement, each batch has different set of labelled observation drown ad random from the entire set
+        )
         
         self.load_best_checkpoint()
         
-        pred_entropies = torch.empty(0, dtype=torch.float32, device=torch.device(self.device))
+        pred_entropies = torch.empty(0, dtype=torch.float32, device=self.device)
+        
+        logger.info(' => Eunning GTG in inference mode...')
         
         self.model.eval()
         with torch.inference_mode():
@@ -53,8 +59,9 @@ class GTG(ActiveLearner):
                     labels=torch.cat((lab_labels, unlab_labels), dim=0)
                 )
                 
-                pred_entropies = torch.cat((pred_entropies, y_pred[self.batch_size//2:]), dim=0) # save only the unalbelled entropies
-                                                    
+                pred_entropies = torch.cat((pred_entropies, y_pred[query_bs:]), dim=0) # save only the unalbelled entropies
+        logger.info(' DONE\n')
+                                
         logger.info(f' => Extracting the Top-k unlabelled observations')
         overall_topk = torch.topk(pred_entropies, n_top_k_obs).indices.tolist()
         logger.info(' DONE\n')
