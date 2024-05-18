@@ -51,25 +51,19 @@ class Module_LS(nn.Module):
         super(Module_LS, self).__init__()
 
         # same parameters of loss net
-        feature_sizes = params['feature_sizes']
-        num_channels = params['num_channels']
-        interm_dim = params['interm_dim']
+        feature_sizes = params["feature_sizes"]
+        num_channels = params["num_channels"]
+        interm_dim = params["interm_dim"]
 
         self.linears, self.gaps = [], []
 
         for n_c, e_d in zip(num_channels, feature_sizes):
-            self.convs.append(nn.Sequential(
-                nn.Conv2d(n_c, n_c, kernel_size=3, stride=1, padding=1),
-                nn.BatchNorm2d(n_c),
-                nn.ReLU(),
-            ))
             self.gaps.append(nn.AvgPool2d(e_d))
             self.linears.append(nn.Sequential(
                 nn.Linear(n_c, interm_dim),
                 nn.ReLU(),
             ))
 
-        self.convs = nn.ModuleList(self.convs)
         self.linears = nn.ModuleList(self.linears)
         self.gaps = nn.ModuleList(self.gaps)
 
@@ -108,19 +102,19 @@ class GTGModule(nn.Module):
 
         self.get_A_fn = { 'cos_sim': self.get_A_cos_sim, 'corr': self.get_A_corr, 'rbfk': self.get_A_rbfk, }
         
-        self.gtg_tol: float = gtg_p['gtg_t']
-        self.gtg_max_iter: int = gtg_p['gtg_i']
+        self.gtg_tol: float = gtg_p["gtg_t"]
+        self.gtg_max_iter: int = gtg_p["gtg_i"]
         
-        self.AM_strategy: str = gtg_p['am_s']
-        self.AM_threshold_strategy: str = gtg_p['am_ts']
-        self.AM_threshold: float = gtg_p['am_t']
+        self.AM_strategy: str = gtg_p["am_s"]
+        self.AM_threshold_strategy: str = gtg_p["am_ts"]
+        self.AM_threshold: float = gtg_p["am_t"]
         
-        self.ent_strategy: str = gtg_p['e_s']
-        self.perc_labelled_batch: int = gtg_p['plb']
+        self.ent_strategy: str = gtg_p["e_s"]
+        self.perc_labelled_batch: int = gtg_p["plb"]
         
-        self.n_top_k_obs: int = gtg_p['n_top_k_obs']
-        self.n_classes: int = gtg_p['n_classes']
-        self.device: int = gtg_p['device']
+        self.n_top_k_obs: int = gtg_p["n_top_k_obs"]
+        self.n_classes: int = gtg_p["n_classes"]
+        self.device: int = gtg_p["device"]
 
         self.mod_ls = Module_LS(ll_p).to(self.device)
         #self.mod_mlp = Module_MLP(self.n_classes, self.gtg_max_iter).to(self.device)
@@ -193,23 +187,15 @@ class GTGModule(nn.Module):
             A = 1 - A
         elif self.AM_strategy == 'mixed':    
             # set the unlabelled submatrix as distance matrix and not similarity matrix
-            
-            if self.AM_function == 'rbfk':
-                for i in self.labelled_indices:  # -> insert the similarity for the labelled observations
-                    for j in self.labelled_indices:
-                        A[i,j] = 1 - A[i,j]
-                        A[j,i] = 1 - A[j,i]
-            else:
-                A = 1 - A # -> all distance matrix
-                for i in self.labelled_indices:  # -> reinsert the similarity for the labelled observations
-                    for j in self.labelled_indices:
-                        A[i,j] = 1 - A[i,j]
-                        A[j,i] = 1 - A[j,i]                        
+
+            if self.AM_function != 'rbfk': A = 1 - A # -> all distance matrix
+            A[self.labelled_indices[:, None], self.labelled_indices] = 1 - A[self.labelled_indices[:, None], self.labelled_indices]
         
         self.A = A
         
+        
 
-    def get_X(self) -> None:
+    def get_X(self, probs: torch.Tensor) -> None:
         self.X: torch.Tensor = torch.zeros((self.batch_size, self.n_classes), dtype=torch.float32, device=self.device)
        
         ##################################################################
@@ -226,12 +212,12 @@ class GTGModule(nn.Module):
     def graph_trasduction_game_detached(self, embedding: torch.Tensor) -> torch.Tensor:
         
         entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
-        
         self.get_A(embedding)
-        self.get_X()
+        #self.get_X(probs)
                 
         err = float('Inf')
         i = 0
+        X = self.X.clone()
                 
         while err > self.gtg_tol and i < self.gtg_max_iter:
             X_old = torch.clone(X)
@@ -243,19 +229,17 @@ class GTGModule(nn.Module):
             
             err = torch.norm(X - X_old)
             i += 1
-            err = torch.norm(self.X - X_old)
-
         return entropy_hist
 
 
 
     def graph_trasduction_game(self, embedding: torch.Tensor) -> torch.Tensor:
-        
-        entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)#, requires_grad=True)        
+                        
+        entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device,)# requires_grad=True)        
         
         self.get_A(embedding)
-        self.get_X()
-        self.X.requires_grad_(True)
+        X = self.X.clone()
+        self.Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device, requires_grad=True)        
         
         err = float('Inf')
         i = 0
@@ -269,11 +253,12 @@ class GTGModule(nn.Module):
             sum_X_A_X = torch.sum(mult_X_A_X, dim=1, keepdim=True) + 1e-8
             div_sum_X_A_X = mult_X_A_X / sum_X_A_X
             
-            entropy_hist[:, i] = entropy(div_sum_X_A_X).to(self.device)
+            entropy_hist[:, i] = entropy(div_sum_X_A_X.detach()).to(self.device)
             
-            err = torch.norm(div_sum_X_A_X.detach() - X_old)            
-            self.X = div_sum_X_A_X
-            
+            err = torch.norm(div_sum_X_A_X.detach() - X_old)
+            X = div_sum_X_A_X
+            self.Xs = torch.cat((self.Xs, X.unsqueeze(dim=-1)), dim=-1)
+                        
             i += 1
         
         # fill in case we early extit by the norm err
@@ -287,41 +272,14 @@ class GTGModule(nn.Module):
         
         
     # List[torch.Tensor] -> detection
-    def preprocess_inputs(self, gtg_func, embedding: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:     
+    def preprocess_inputs(self, embedding: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:     
                 
-        #entropy_hist = self.graph_trasduction_game(embedding)
-        entropy_hist = gtg_func(embedding)
+        entropy_hist = self.graph_trasduction_game(embedding)
 
-        indices = torch.arange(self.batch_size)
-        #indices = torch.randperm(self.batch_size)
-
-        '''if mode == 1:
-            self.labelled_indices: List[int] = indices[:self.n_lab_obs].tolist()
-            self.unlabelled_indices: List[int] = indices[self.n_lab_obs:].tolist()
-        else:
-            self.unlabelled_indices: List[int] = indices[:self.n_lab_obs].tolist()
-            self.labelled_indices: List[int] = indices[self.n_lab_obs:].tolist()'''
-        
-        self.labelled_indices: List[int] = indices[:self.n_lab_obs].tolist()
-        self.unlabelled_indices: List[int] = indices[self.n_lab_obs:].tolist()
-                                
-        labelled_mask = torch.zeros(self.batch_size, device=self.device)
-        labelled_mask[self.labelled_indices] = 1.
-        
-        self.lab_labels = labels[self.labelled_indices]
-        self.unlab_labels = labels[self.unlabelled_indices]
-                
-        entropy_hist = self.graph_trasduction_game_detached(embedding)
-        #entropy_hist = self.graph_trasduction_game(embedding)
-        
-        if self.ent_strategy == 'mean':
-            # computing the mean of the entropis history
-            quantity_result = torch.mean(entropy_hist, dim=1)
-            
-        elif self.ent_strategy == 'integral':
-            # computing the area of the entropis history using trapezoid formula 
-            quantity_result = torch.trapezoid(entropy_hist, dim=1)
-            
+        if self.ent_strategy == 'mean': quantity_result = torch.mean(entropy_hist, dim=1)
+        # computing the mean of the entropis history    
+        elif self.ent_strategy == 'integral': quantity_result = torch.trapezoid(entropy_hist, dim=1)
+        # computing the area of the entropis history using trapezoid formula    
         else:
             logger.exception(' Invlaid GTG Strategy') 
             raise AttributeError(' Invlaid GTG Strategy')
@@ -330,16 +288,9 @@ class GTGModule(nn.Module):
     
     
     
-    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, labels: torch.Tensor) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
-    # Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
-    # Tuple[Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]], Tuple[torch.Tensor, torch.Tensor]]:
-    
-        #y_pred = self.c_mod(features, embedds).squeeze()
-        y_pred = self.c_mod(embedds).squeeze()
-        #y_pred = self.c_mod(features).squeeze()
-        
+    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, outs: torch.Tensor, labels) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]: 
+                    
         self.batch_size = len(embedds)
-        self.n_lab_obs = int(self.batch_size * self.perc_labelled_batch) 
         
         if self.training:
             indices = torch.randperm(self.batch_size) # -> unique for each batch

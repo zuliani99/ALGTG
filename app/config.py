@@ -1,6 +1,6 @@
 
 from torchvision import datasets
-from torchvision.transforms import v2
+from torchvision import transforms
 import torch
 
 
@@ -13,20 +13,18 @@ cls_datasets = {
         'image_size': 32,
         'classes': ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck'],
         'transforms': {
-            'train': v2.Compose([
-                        v2.ToImage(),
-                        v2.RandomHorizontalFlip(),
-                        v2.RandomCrop(32, padding=4),
-                        v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(mean=[0.49139968, 0.48215841, 0.44653091],
+            'train': transforms.Compose([
+                        transforms.RandomHorizontalFlip(),
+                        transforms.RandomCrop(32, padding=4),
+                        transforms.ToTensor(),
+                        transforms.Normalize(mean=[0.49139968, 0.48215841, 0.44653091],
                                      std=[0.24703223, 0.24348513, 0.26158784])
                         
                         
                     ]),
-            'test': v2.Compose([
-                        v2.ToImage(),
-                        v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(mean=[0.49139968, 0.48215841, 0.44653091],
+            'test': transforms.Compose([
+                        transforms.ToTensor(),
+                        transforms.Normalize(mean=[0.49139968, 0.48215841, 0.44653091],
                                      std=[0.24703223, 0.24348513, 0.26158784])
                     ])
         }
@@ -46,18 +44,17 @@ cls_datasets = {
                     "skyscraper","snail","snake","spider","squirrel","streetcar","sunflower","sweet_pepper","table","tank","telephone",
                     "television","tiger","tractor","train","trout","tulip","turtle","wardrobe","whale","willow_tree","wolf","woman","worm"],
         'transforms': {
-            'train': v2.Compose([
-                        v2.ToImage(),
-                        v2.RandomHorizontalFlip(),
-                        v2.RandomCrop(32, padding=4),
-                        v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(mean=[0.50707516, 0.48654887, 0.44091784],
+            'train': transforms.Compose([
+                        
+                        transforms.RandomHorizontalFlip(),
+                        transforms.RandomCrop(32, padding=4),
+                        transforms.ToTensor(),
+                        transforms.Normalize(mean=[0.50707516, 0.48654887, 0.44091784],
                                      std=[0.26733429, 0.25643846, 0.27615047])
                     ]),
-            'test': v2.Compose([
-                        v2.ToImage(),
-                        v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(mean=[0.50707516, 0.48654887, 0.44091784],
+            'test': transforms.Compose([
+                        transforms.ToTensor(),
+                        transforms.Normalize(mean=[0.50707516, 0.48654887, 0.44091784],
                                      std=[0.26733429, 0.25643846, 0.27615047])
                     ])
         }
@@ -70,18 +67,16 @@ cls_datasets = {
         'channels': 3,
         'classes': ['0','1','2','3','4','5','6','7','8','9'],
         'transforms': {
-            'train': v2.Compose([
-                        v2.ToImage(),
-                        v2.RandomHorizontalFlip(),
-                        v2.RandomCrop(32, padding=4),
-                        v2.ToDtype(torch.float32, scale=True),
-                        #v2.Normalize(mean=[0.4376821 , 0.4437697 , 0.47280442], # -> remove normalization since it can produce black images
+            'train': transforms.Compose([
+                        transforms.RandomHorizontalFlip(),
+                        transforms.RandomCrop(32, padding=4),
+                        transforms.ToTensor(),
+                        #transforms.Normalize(mean=[0.4376821 , 0.4437697 , 0.47280442], # -> remove normalization since it can produce black images
                         #             std=[0.19803012, 0.20101562, 0.19703614])
                     ]),
-            'test': v2.Compose([
-                        v2.ToImage(),
-                        v2.ToDtype(torch.float32, scale=True),
-                        #v2.Normalize(mean=[0.4376821 , 0.4437697 , 0.47280442], # -> remove normalization since it can produce black images
+            'test': transforms.Compose([
+                        transforms.ToTensor(),
+                        #transforms.Normalize(mean=[0.4376821 , 0.4437697 , 0.47280442], # -> remove normalization since it can produce black images
                         #             std=[0.19803012, 0.20101562, 0.19703614])
                     ])
         }
@@ -93,18 +88,16 @@ cls_datasets = {
         'image_size': 64,
         'classes': [],
         'transforms': {
-            'train': v2.Compose([
-                        v2.ToImage(),
-                        v2.RandomHorizontalFlip(),
-                        v2.RandomCrop(64, padding=8),
-                        v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(mean=[0.48042979, 0.44819701, 0.39755623],
+            'train': transforms.Compose([
+                        transforms.RandomHorizontalFlip(),
+                        transforms.RandomCrop(64, padding=8),
+                        transforms.ToTensor(),
+                        transforms.Normalize(mean=[0.48042979, 0.44819701, 0.39755623],
                                      std=[0.27643974, 0.26888656, 0.28166852])
                     ]),
-            'test': v2.Compose([
-                        v2.ToImage(),
-                        v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(mean=[0.48042979, 0.44819701, 0.39755623],
+            'test': transforms.Compose([
+                        transforms.ToTensor(),
+                        transforms.Normalize(mean=[0.48042979, 0.44819701, 0.39755623],
                                      std=[0.27643974, 0.26888656, 0.28166852])
                     ])
         }
@@ -117,14 +110,12 @@ cls_datasets = {
         'classes':[],
         'transforms': {
             'train': [
-                        v2.ToImage(),
-                        v2.RandomHorizontalFlip(),
-                        v2.RandomCrop(224, padding=28),
-                        v2.ToDtype(torch.float32, scale=True),
+                        transforms.RandomHorizontalFlip(),
+                        transforms.RandomCrop(224, padding=28),
+                        transforms.ToTensor(),
                     ],
             'test': [
-                        v2.ToImage(),
-                        v2.ToDtype(torch.float32, scale=True),
+                        transforms.ToTensor(),
                     ],
         }   
     },
@@ -136,17 +127,15 @@ cls_datasets = {
         'image_size': 28,
         'classes': ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot'],
         'transforms': {
-            'train': v2.Compose([
-                        v2.ToImage(),
-                        v2.RandomHorizontalFlip(),
-                        v2.RandomCrop(28, padding=3),
-                        v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(mean=[0.2860405969887955], std=[0.3530242445149223])
+            'train': transforms.Compose([
+                        transforms.RandomHorizontalFlip(),
+                        transforms.RandomCrop(28, padding=3),
+                        transforms.ToTensor(),
+                        transforms.Normalize(mean=[0.2860405969887955], std=[0.3530242445149223])
                     ]),
-            'test': v2.Compose([
-                        v2.ToImage(),
-                        v2.ToDtype(torch.float32, scale=True),
-                        v2.Normalize(mean=[0.2860405969887955], std=[0.3530242445149223])
+            'test': transforms.Compose([
+                        transforms.ToTensor(),
+                        transforms.Normalize(mean=[0.2860405969887955], std=[0.3530242445149223])
                     ]),
         } 
     }
@@ -158,7 +147,7 @@ cls_datasets = {
 
 al_params = {
     'init_lab_obs': 1000,
-    'al_iters': 10, 
+    'al_iters': 5,#10, 
     'n_top_k_obs': 1000,
 }
     
@@ -169,7 +158,7 @@ cls_config = {
                      'test': {'test_accuracy': []}},
     'cifar10': {
         'unlab_sample_dim': 10000,
-        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 256 },
+        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 250 },
         'optimizers': {
             'backbone': {
                 'type': torch.optim.SGD,
@@ -189,7 +178,7 @@ cls_config = {
                     }
                 },
                 'GTGModule': {
-                    'type': torch.optim.SGD,#.Adam,
+                    'type': torch.optim.SGD,#Adam,
                     'optim_p': {
                         'lr': 0.005, # SGD with 0.005 work
                         'momentum': 0.9,
@@ -202,7 +191,7 @@ cls_config = {
     
     'cifar100': {
         'unlab_sample_dim': 10000,
-        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 256 },
+        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 250 },
         'optimizers': {
             'backbone': {
                 'type': torch.optim.SGD,
@@ -234,7 +223,7 @@ cls_config = {
     },
     'svhn': {
         'unlab_sample_dim': 10000,
-        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 256 },
+        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 250 },
         'optimizers': {
             'backbone': {
                 'type': torch.optim.SGD,
@@ -266,7 +255,7 @@ cls_config = {
     },
     'fmnist': {
         'unlab_sample_dim': 10000,
-        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 256 },
+        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 250 },
         'optimizers': {
             'backbone': {
                 'type': torch.optim.SGD,
@@ -330,7 +319,7 @@ cls_config = {
     },
     'tinyimagenet': {
         'unlab_sample_dim': 10000,
-        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 256 },
+        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 250 },
         'optimizers': {
             'backbone': {
                 'type': torch.optim.SGD,

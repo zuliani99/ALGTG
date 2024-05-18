@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 
 from models.backbones.ResNet18 import ResNet
-from models.backbones.ssd_pytorch.SSD import SSD
+#from models.backbones.ssd_pytorch.SSD import SSD
 from models.backbones.VGG import VGG
 
 from models.modules.GTG_Cls import GTGModule
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class Master_Model(nn.Module):
-    def __init__(self, backbone: SSD | ResNet | VGG, added_module: LossNet | GTGModule | None, dataset_name: str) -> None:
+    def __init__(self, backbone: ResNet | VGG, added_module: LossNet | GTGModule | None, dataset_name: str) -> None:
         
         super(Master_Model, self).__init__()
         
@@ -28,16 +28,17 @@ class Master_Model(nn.Module):
             self.name = f'{self.backbone.__class__.__name__}'
             
         # backbone and additional module have initialized their respecive layers, so I can save the initial checkpoint
-        logger.info(f' => Saving Initial {self.name} checkpoint')
+        logger.info(f' => Saving Initial {self.name} checkpoint app/checkpoints/{dataset_name}/{self.name}_init.pth.tar')
         torch.save(dict(state_dict = self.state_dict()), f'app/checkpoints/{dataset_name}/{self.name}_init.pth.tar')
         logger.info(' DONE\n')
         
         
-    def forward(self, x, labels=None, mode='all'):
+
+    def forward(self, x, labels=None, epoch=0, mode='all'):
         if mode == 'all':
             
             outs, embedds = self.backbone(x)
-            
+                        
             if torch.any(torch.isnan(embedds)): print(embedds)
             assert not torch.any(torch.isnan(embedds)), 'embedding is nan'
             assert torch.std(embedds) > 0, 'std is zero or negative'
@@ -48,8 +49,9 @@ class Master_Model(nn.Module):
 
             if self.added_module != None:
                 features = self.backbone.get_features()
+                if epoch >= 120: features = [feature.detach() for feature in features]
                 if self.added_module.name == 'GTGModule':
-                    module_out = self.added_module(features, embedds, labels)
+                    module_out = self.added_module(features, embedds, outs, labels)
                 else: module_out = self.added_module(features)
                 return outs, embedds, module_out
             else:
@@ -59,11 +61,11 @@ class Master_Model(nn.Module):
             
         elif mode == 'embedds': return self.backbone(x)[1]
             
-        elif mode == 'module_out':
+        elif mode == 'module_out': # -> it is only used for the learning loss
             if self.added_module != None:
-                _, embedds = self.backbone(x)
+                outs, embedds = self.backbone(x)
                 if self.added_module.name == 'GTGModule':
-                    return self.added_module(self.backbone.get_features(), embedds, labels)
+                    return self.added_module(self.backbone.get_features(), embedds, outs, labels)[0][0]
                 else: return self.added_module(self.backbone.get_features())
             else:
                 raise AttributeError("The Master_Model hasn't got any additional module")

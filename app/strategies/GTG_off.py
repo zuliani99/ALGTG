@@ -24,15 +24,15 @@ class GTG_off(ActiveLearner):
             'rbfk': self.get_A_rbfk,
         }
 
-        self.gtg_tol: float = gtg_p['gtg_t']
-        self.gtg_max_iter: int = gtg_p['gtg_i']
+        self.gtg_tol: float = gtg_p["gtg_t"]
+        self.gtg_max_iter: int = gtg_p["gtg_i"]
         
-        self.AM_function: str = gtg_p['am']
-        self.AM_strategy: str = gtg_p['am_s']
-        self.AM_threshold_strategy: str = gtg_p['am_ts']
-        self.AM_threshold: float = gtg_p['am_t']
+        self.AM_function: str = gtg_p["am"]
+        self.AM_strategy: str = gtg_p["am_s"]
+        self.AM_threshold_strategy: str = gtg_p["am_ts"]
+        self.AM_threshold: float = gtg_p["am_t"]
         
-        self.ent_strategy: str = gtg_p['e_s']
+        self.ent_strategy: str = gtg_p["e_s"]
 
         if self.AM_threshold_strategy != None:
             str_tresh_strat = f'{self.AM_threshold_strategy}_{self.AM_threshold}' if self.AM_threshold_strategy != 'mean' else 'ts-mean'            
@@ -56,7 +56,7 @@ class GTG_off(ActiveLearner):
         
         logger.info(' => Computing Affinity Matrix...')
 
-        concat_embedds = torch.cat((self.lab_embedds_dict['embedds'], self.unlab_embedds_dict['embedds']))
+        concat_embedds = torch.cat((self.lab_embedds_dict["embedds"], self.unlab_embedds_dict["embedds"]))
                 
         # compute the affinity matrix
         A = self.get_A_fn[self.AM_function](concat_embedds, to_cpu=True)
@@ -65,8 +65,7 @@ class GTG_off(ActiveLearner):
                
         if self.AM_threshold_strategy != None:
             # remove weak connections with the choosen threshold strategy and value
-            logger.info(f' Affinity Matrix Threshold to be used: {self.AM_threshold_strategy} -> {\
-                self.get_A_treshold(A) if self.AM_threshold_strategy == 'mean' else self.AM_threshold}')
+            logger.info(f' Affinity Matrix Threshold to be used: {self.AM_threshold_strategy} -> {self.get_A_treshold(A) if self.AM_threshold_strategy == "mean" else self.AM_threshold}')
                 
             if self.AM_function != 'rbfk': A = torch.where(A < self.get_A_treshold(A), 0, A)
             else: A = torch.where(A > self.get_A_treshold(A), 1, A)
@@ -76,32 +75,21 @@ class GTG_off(ActiveLearner):
             A = 1 - A
         elif self.AM_strategy == 'mixed':    
             # set the unlabelled submatrix as distance matrix and not similarity matrix
-            n_lab_obs = len(self.labelled_indices)
+            labelled_indices = torch.tensor(self.labelled_indices)
             
-            if self.AM_function == 'rbfk':
-                A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL to similarity
-                
-            else:
-                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #UU to distance
-                
-                A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #UL to distance
-                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #LU to distance
+            if self.AM_function != 'rbfk': A = 1 - A # -> all distance matrix
+            A[labelled_indices[:, None], labelled_indices] = 1 - A[labelled_indices[:, None], labelled_indices]
 
                 
         # plot the TSNE fo the original and modified affinity matrix
         logger.info('Plotting TSNE of the original and modified Affinity Matrix...')
-        plot_tsne_A(
+        '''plot_tsne_A(
             (initial_A, A),
-            (self.lab_embedds_dict['labels'], self.unlab_embedds_dict['labels']), self.dataset.classes,
-            self.ct_p['timestamp'], self.ct_p['dataset_name'], self.ct_p['trial'], self.strategy_name, self.AM_function, self.AM_strategy, self.iter
-        )
+            (self.lab_embedds_dict["labels"], self.unlab_embedds_dict["labels"]), self.dataset.classes,
+            self.ct_p["timestamp"], self.ct_p["dataset_name"], self.ct_p["trial"], self.strategy_name, self.AM_function, self.AM_strategy, self.iter
+        )'''
         
         self.A = A.to(self.device)
-        
-        del A
-        del initial_A
-        del concat_embedds
-        gc.collect()
         logger.info(' DONE\n')
 
 
@@ -121,9 +109,6 @@ class GTG_off(ActiveLearner):
         A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(device)
         A = torch.clamp(A, min=0., max=1.)
         
-        del A_matrix
-        del sigmas
-        
         return A
     
     
@@ -140,7 +125,6 @@ class GTG_off(ActiveLearner):
         A.fill_diagonal_(1.)
         A = torch.clamp(A, min=0., max=1.)
 
-        del normalized_embedding
         return A
         
         
@@ -156,11 +140,10 @@ class GTG_off(ActiveLearner):
             (len(self.labelled_indices) + self.len_unlab_sample, self.dataset.n_classes),
             dtype=torch.float32, device=self.device
         )
-        for idx, label in enumerate(self.lab_embedds_dict['labels']): self.X[idx][int(label.item())] = 1.
+        for idx, label in enumerate(self.lab_embedds_dict["labels"]): self.X[idx][int(label.item())] = 1.
         for idx in range(len(self.labelled_indices), len(self.labelled_indices) + self.len_unlab_sample):
             for label in range(self.dataset.n_classes): self.X[idx][label] = 1. / self.dataset.n_classes
         
-        del self.lab_embedds_dict
         logger.info(' DONE\n')
         
         
@@ -190,11 +173,6 @@ class GTG_off(ActiveLearner):
                         
             err = torch.norm(self.X - X_old)
             i += 1
-        
-            '''del X_old
-            del iter_entropy
-            logger.info(gc.collect())
-            torch.cuda.empty_cache()'''
             
         logger.info(' DONE\n')
 
@@ -210,7 +188,7 @@ class GTG_off(ActiveLearner):
         # thus there is no needs on shuffling the unlabelled dataloader            
         
         unlab_train_dl = DataLoader(sample_unlab_subset, **dl_dict)
-        lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labelled_indices), **dl_dict)
+        lab_train_dl = DataLoader(Subset(self.dataset.unlab_train_ds, self.labelled_indices), **dl_dict)
                         
         logger.info(' => Getting the labelled and unlabelled embeddings')
         self.lab_embedds_dict = {
@@ -237,7 +215,7 @@ class GTG_off(ActiveLearner):
         logger.info(' DONE\n')
                         
         # TRUE / FALSE np.ndarray
-        self.gtg_result_prediction = (torch.argmax(self.X[len(self.labelled_indices):], dim=1).cpu() == self.unlab_embedds_dict['labels']).numpy()
+        self.gtg_result_prediction = (torch.argmax(self.X[len(self.labelled_indices):], dim=1).cpu() == self.unlab_embedds_dict["labels"]).numpy()
 
         
         del self.A
@@ -264,7 +242,7 @@ class GTG_off(ActiveLearner):
         
         # plot entropy hisstory tensor
         plot_gtg_entropy_tensor(
-            tensor=self.unlab_entropy_hist, topk=overall_topk, lab_unlabels=self.unlab_embedds_dict['labels'].tolist(), classes=self.dataset.classes, 
+            tensor=self.unlab_entropy_hist, topk=overall_topk, lab_unlabels=self.unlab_embedds_dict["labels"].tolist(), classes=self.dataset.classes, 
             path=self.path, iter=self.iter - 1, max_x=self.gtg_max_iter, dir='history'
         )
                     
@@ -274,5 +252,5 @@ class GTG_off(ActiveLearner):
         
         logger.info(' DONE\n')
         
-        return overall_topk, [int(self.unlab_embedds_dict['idxs'][id].item()) for id in overall_topk]
+        return overall_topk, [int(self.unlab_embedds_dict["idxs"][id].item()) for id in overall_topk]
     

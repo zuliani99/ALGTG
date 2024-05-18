@@ -1,6 +1,6 @@
 
 import torch
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, RandomSampler
 
 from ActiveLearner import ActiveLearner
 
@@ -21,7 +21,7 @@ class GTG(ActiveLearner):
                 
         super().__init__(ct_p, t_p, al_p, strategy_name)
         
-        if self.model.added_module != None: self.model.added_module.define_A_function(gtg_p['am'])
+        if self.model.added_module != None: self.model.added_module.define_A_function(gtg_p["am"])
         
     
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:   
@@ -56,7 +56,8 @@ class GTG(ActiveLearner):
                 pred_entropies = torch.cat((pred_entropies, y_pred[self.batch_size//2:]), dim=0) # save only the unalbelled entropies
                                                     
         logger.info(f' => Extracting the Top-k unlabelled observations')
-        overall_topk = torch.topk(embeds_dict['module_out'], n_top_k_obs).indices.tolist()
+        overall_topk = torch.topk(pred_entropies, n_top_k_obs).indices.tolist()
         logger.info(' DONE\n')
         
         return overall_topk, [self.rand_unlab_sample[id] for id in overall_topk]
+        

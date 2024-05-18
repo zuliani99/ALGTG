@@ -32,7 +32,7 @@ def get_voc_data(dataset_path:str) -> Tuple[VOCDetection, VOCDetection, VOCDetec
 
     
     train = VOCDetection(root=f'{dataset_path}/VOCdevkit',
-                                    transform=SSDAugmentation(voc_config['min_dim'], voc_means))
+                                    transform=SSDAugmentation(voc_config["min_dim"], voc_means))
     unlabelled = VOCDetection(root=f'{dataset_path}/VOCdevkit',
                                         transform=BaseTransform(300, voc_means),
                                         target_transform=VOCAnnotationTransform())
@@ -71,12 +71,12 @@ class Det_Dataset():
 
         self.train_ds, self.unlab_train_ds, self.test_ds = get_detection_dataset(dataset_name, 'datasets/voc')
         
-        self.n_classes: int = det_datasets[dataset_name]['n_classes']
-        self.dataset_id: int = det_datasets[dataset_name]['id']
-        self.classes: List[str] = det_datasets[dataset_name]['classes']
-        self.n_channels: int = det_datasets[dataset_name]['channels']
-        self.image_size: int = det_datasets[dataset_name]['image_size']
-        self.dataset_path: str = det_datasets[dataset_name]['dataset_path']
+        self.n_classes: int = det_datasets[dataset_name]["n_classes"]
+        self.dataset_id: int = det_datasets[dataset_name]["id"]
+        self.classes: List[str] = det_datasets[dataset_name]["classes"]
+        self.n_channels: int = det_datasets[dataset_name]["channels"]
+        self.image_size: int = det_datasets[dataset_name]["image_size"]
+        self.dataset_path: str = det_datasets[dataset_name]["dataset_path"]
         
         self.get_initial_subsets(init_lab_obs)
     

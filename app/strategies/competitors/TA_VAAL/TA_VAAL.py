@@ -105,9 +105,9 @@ class TA_VAAL(ActiveLearner):
                            
                 total_vae_loss = unsup_loss + transductive_loss + adversary_param * dsc_loss
                 
-                optimizers['vae'].zero_grad()
+                optimizers["vae"].zero_grad()
                 total_vae_loss.backward()
-                optimizers['vae'].step()
+                optimizers["vae"].step()
 
                 # sample new batch if needed to train the adversarial network
                 if count < (num_vae_steps - 1):
@@ -137,9 +137,9 @@ class TA_VAAL(ActiveLearner):
                 dsc_loss = bce_loss(labelled_preds[:,0], lab_real_preds) + \
                            bce_loss(unlabelled_preds[:,0], unlab_fake_preds)
 
-                optimizers['discriminator'].zero_grad()
+                optimizers["discriminator"].zero_grad()
                 dsc_loss.backward()
-                optimizers['discriminator'].step()
+                optimizers["discriminator"].step()
 
                 # sample new batch if needed to train the adversarial network
                 if count < (num_adv_steps-1):
@@ -165,7 +165,7 @@ class TA_VAAL(ActiveLearner):
         self.vae = VAE(
             z_dim=self.dataset.image_size,
             nc=self.dataset.n_channels,
-            f_filt=3 if self.ct_p['dataset_name'] == 'fmnist' else 4
+            f_filt=3 if self.ct_p["dataset_name"] == 'fmnist' else 4
         ).to(self.device)
         
         self.discriminator = Discriminator(z_dim=self.dataset.image_size).to(self.device)

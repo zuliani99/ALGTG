@@ -18,11 +18,11 @@ class CoreSet(ActiveLearner):
         
     
     def furthest_first(self, n_top_k_obs: int) -> List[int]:
-        unlabelled_size = self.unlab_embedds_dict['embedds'].size(0)
-        if self.lab_embedds_dict['embedds'].size(0) == 0:
+        unlabelled_size = self.unlab_embedds_dict["embedds"].size(0)
+        if self.lab_embedds_dict["embedds"].size(0) == 0:
             min_dist = float('inf') * torch.ones(unlabelled_size)
         else:
-            dist_ctr = torch.cdist(self.unlab_embedds_dict['embedds'], self.lab_embedds_dict['embedds'])
+            dist_ctr = torch.cdist(self.unlab_embedds_dict["embedds"], self.lab_embedds_dict["embedds"])
             min_dist, _ = torch.min(dist_ctr, dim=1)
         
         overall_topk = []
@@ -30,8 +30,8 @@ class CoreSet(ActiveLearner):
         while len(overall_topk) < n_top_k_obs:
             idx = torch.argmax(min_dist)
             overall_topk.append(idx.item())
-            dist_new_ctr = torch.cdist(self.unlab_embedds_dict['embedds'],
-                                       self.unlab_embedds_dict['embedds'][idx].unsqueeze(0))
+            dist_new_ctr = torch.cdist(self.unlab_embedds_dict["embedds"],
+                                       self.unlab_embedds_dict["embedds"][idx].unsqueeze(0))
             min_dist = torch.min(min_dist, dist_new_ctr[:, 0])
 
         return overall_topk
@@ -43,7 +43,7 @@ class CoreSet(ActiveLearner):
         dl_dict = dict( batch_size=self.batch_size, shuffle=False, pin_memory=True )
             
         unlab_train_dl = DataLoader(sample_unlab_subset, **dl_dict)
-        lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labelled_indices), **dl_dict)
+        lab_train_dl = DataLoader(Subset(self.dataset.unlab_train_ds, self.labelled_indices), **dl_dict)
             
         logger.info(' => Getting the labelled and unlabelled embeddings')
         self.lab_embedds_dict = { 'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device) }
