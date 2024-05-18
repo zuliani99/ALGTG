@@ -185,7 +185,7 @@ class Cls_Datasets():
         self.labelled_indices: List[int] = shuffled_indices[:init_lab_obs].tolist()
         self.unlabelled_indices: List[int] = shuffled_indices[init_lab_obs:].tolist()
         
-        #logger.info(f' Initial subset of labelled observations composed with: {count_class_observation(self.classes, Subset(self.train_ds, self.labelled_indices))}')
+        logger.info(f' Initial subset of labelled observations composed with: {count_class_observation(self.classes, Subset(self.train_ds, self.labelled_indices))}')
 
 
 

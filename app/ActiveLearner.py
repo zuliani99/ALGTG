@@ -1,11 +1,9 @@
 
-#import wandb
-
 from models.BBone_Module import Master_Model
 from datasets_creation.Classification import Cls_Datasets
 from datasets_creation.Detection import Det_Dataset
 from train_evaluate.Train_DDP import train, train_ddp
-from utils import count_class_observation, print_cumulative_train_results, print_state_dict, set_seeds,\
+from utils import count_class_observation, print_cumulative_train_results, set_seeds,\
     create_class_dir, create_method_res_dir, plot_new_labelled_tsne, save_train_val_curves, write_csv
 
 from torch.utils.data import Subset, DataLoader
@@ -18,7 +16,6 @@ import numpy as np
 from typing import List, Dict, Any
 import copy
 import os
-import gc
 
 import logging
 logger = logging.getLogger(__name__)
@@ -110,7 +107,6 @@ class ActiveLearner():
         checkpoint: Dict = torch.load(filename, map_location=self.device)
         logger.info(f' => Loading {filename} Checkpoint')
         self.model.load_state_dict(checkpoint["state_dict"])
-        #print_state_dict(self.model)
             
     
     def get_embeddings(self, dataloader: DataLoader, dict_to_modify: Dict[str, Any], embedds2cpu = False) -> None:
@@ -152,8 +148,7 @@ class ActiveLearner():
 
     
     
-    def save_tsne(self, idxs_new_labels: List[int], \
-                  d_labels: Dict[str, int], al_iter: str, gtg_result_prediction = None) -> None:
+    def save_tsne(self, idxs_new_labels: List[int], d_labels: Dict[str, int], al_iter: str, gtg_result_prediction = None) -> None:
         # plot the tsne graph for each iteration
         
         logger.info(' => Saving the TSNE embeddings plot with labelled, unlabelled and new labelled observations')
@@ -199,11 +194,6 @@ class ActiveLearner():
             'iter': iter, 'labelled_indices': self.labelled_indices 
         }
         
-        # wandb dictionary hyperparameters
-        hps = dict( **self.ct_p, **self.t_p, **self.al_p, strategy_name=self.strategy_name, iter=iter)
-        del hps["Dataset"]
-        hps["Master_Model"] = hps["Master_Model"].__class__.__name__
-        
         
         # if we are using multiple gpus
         if self.world_size > 1:
@@ -216,10 +206,6 @@ class ActiveLearner():
             
             logger.info(' => RUNNING DISTRIBUTED TRAINING')
             
-            #if (self.ct_p["wandb_logs"]):
-            #    logger.info(' => Logging in WandB!!!')
-            #    params["wandb_p"] = wandb.init(project="AL_GTG", group="DDP", config=hps)
-            
             # spawn the process
             mp.spawn(fn=train_ddp, args=(self.world_size, params, child_conn, ), nprocs=self.world_size, join=True) # type: ignore
             # obtain the results
@@ -228,10 +214,6 @@ class ActiveLearner():
         else:
             logger.info(' => RUNNING TRAINING')
             # add the already created labeeld train dataloader
-                        
-            #if (self.ct_p["wandb_logs"]):
-            #    logger.info(' => Logging in WandB!!!')
-            #    params["wandb_p"] = wandb.init(project="AL_GTG", config=hps)
                 
             train_recv, test_recv = train(params)
             
@@ -264,7 +246,7 @@ class ActiveLearner():
     
     def update_sets(self, overall_topk: List[int]) -> None:        
         # save the new labelled images to further visual analysis
-        #self.save_labelled_images(overall_topk)
+        self.save_labelled_images(overall_topk)
         
         # Update the labeeld and unlabelled training set
         logger.info(' => Modifing the labelled and Unlabelled Indices Lists')

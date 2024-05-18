@@ -29,7 +29,7 @@ class GTG(ActiveLearner):
     
         #random sample with replacement, each batch has different set of labelled observation drown ad random from the entire set
         labelled_subset = Subset(self.dataset.unlab_train_ds, self.labelled_indices)
-        labeleld_random_sampler = RandomSampler(labelled_subset, num_samples=len(unlab_train_dl.dataset))#, replacement=True)
+        labeleld_random_sampler = RandomSampler(labelled_subset, num_samples=len(unlab_train_dl.dataset))
         lab_train_dl = DataLoader(labelled_subset, sampler=labeleld_random_sampler, batch_size=self.batch_size//2)
         
         self.load_best_checkpoint()

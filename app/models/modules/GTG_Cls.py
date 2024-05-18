@@ -18,7 +18,7 @@ class Module_MLP(nn.Module):
         super(Module_MLP, self).__init__()       
         
         #in_feat = n_classes * gtg_iter 
-        in_feat = interm_dim + 1 
+        in_feat = interm_dim + 1 # interm_dim + mean entropy 
         
         self.sqe_linears = [
             nn.Sequential(
@@ -117,8 +117,8 @@ class GTGModule(nn.Module):
         self.device: int = gtg_p["device"]
 
         self.mod_ls = Module_LS(ll_p).to(self.device)
-        #self.mod_mlp = Module_MLP(self.n_classes, self.gtg_max_iter).to(self.device)
         self.mod_mlp = Module_MLP(ll_p["interm_dim"]).to(self.device)
+        #self.mod_mlp = Module_MLP(self.n_classes, self.gtg_max_iter).to(self.device)
         
         
         
@@ -213,7 +213,6 @@ class GTGModule(nn.Module):
         
         entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
         self.get_A(embedding)
-        #self.get_X(probs)
                 
         err = float('Inf')
         i = 0
@@ -250,7 +249,7 @@ class GTGModule(nn.Module):
             
             mm_A_X = torch.mm(self.A, X)
             mult_X_A_X = X * mm_A_X
-            sum_X_A_X = torch.sum(mult_X_A_X, dim=1, keepdim=True) + 1e-8
+            sum_X_A_X = torch.sum(mult_X_A_X, dim=1, keepdim=True)# + 1e-8
             div_sum_X_A_X = mult_X_A_X / sum_X_A_X
             
             entropy_hist[:, i] = entropy(div_sum_X_A_X.detach()).to(self.device)
@@ -297,7 +296,7 @@ class GTGModule(nn.Module):
             self.n_lab_obs = int(self.batch_size * self.perc_labelled_batch)
         else: 
             logger.info('evaluation mode')
-            indices = torch.arange(self.batch_size) # -> unique for each batch
+            indices = torch.arange(self.batch_size)
             self.n_lab_obs = self.batch_size // 2
         
         self.labelled_indices: torch.Tensor = indices[:self.n_lab_obs].to(self.device)
@@ -307,8 +306,7 @@ class GTGModule(nn.Module):
         
         self.get_X(F.softmax(outs, dim=1))
         
-        
-        
+
         '''y_pred = self.mod_mlp(
             [self.preprocess_inputs(self.graph_trasduction_game, self.mod_gap(feature, id))[0] for id, feature in enumerate(features)]
         ).squeeze()'''
@@ -320,20 +318,18 @@ class GTGModule(nn.Module):
         '''for feature in [self.mod_ls(feature, id) for id, feature in enumerate(features)]:
             logger.info(feature.shape)
             logger.info(self.preprocess_inputs(self.graph_trasduction_game, feature)[1].view(-1,1).shape)
-            logger.info(torch.cat((feature, self.preprocess_inputs(self.graph_trasduction_game, feature)[1].view(-1,1)), dim=1).shape)'''
-        
+            logger.info(torch.cat((feature, self.preprocess_inputs(self.graph_trasduction_game, feature)[1].view(-1,1)), dim=1).shape)'''        
         
         
         y_pred = self.mod_mlp(
-            [
-                torch.cat((feature, self.preprocess_inputs(self.graph_trasduction_game, feature)[1].view(-1,1)), dim=1) 
-                for feature in [self.mod_ls(feature, id) for id, feature in enumerate(features)]
+            [            #[n x 128]          +               #[n x 1]           =           [n x 129]
+                torch.cat((feature, self.preprocess_inputs(self.graph_trasduction_game, feature)[1].view(-1,1)), dim=1) # [n x 1] each
+                for feature in [self.mod_ls(feature, id) for id, feature in enumerate(features)] # -> [n x 128]
             ]
         ).squeeze()
             
             
         if self.training:
-            
             labelled_mask = torch.zeros(self.batch_size, device=self.device)
             labelled_mask[self.labelled_indices] = 1.
             _, y_true = self.preprocess_inputs(self.graph_trasduction_game_detached, embedds)

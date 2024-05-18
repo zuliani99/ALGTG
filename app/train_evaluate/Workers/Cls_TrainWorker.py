@@ -4,7 +4,7 @@ import torch.nn as nn
 
 from models.BBone_Module import Master_Model
 from models.modules.LossNet import LossPredLoss
-from utils import accuracy_score, log_assert, print_state_dict
+from utils import accuracy_score, log_assert
 
 from torch.utils.data import DataLoader
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -23,7 +23,6 @@ class Cls_TrainWorker():
         self.iter: int = params["iter"]
         
         self.world_size: int = world_size
-        self.wandb_run = params["wandb_p"] if 'wandb_p' in params else None
 
         self.model: Master_Model | DDP = params["ct_p"]["Master_Model"]
         
@@ -191,15 +190,6 @@ class Cls_TrainWorker():
             
             for pos, metric in zip(range(results.shape[0]), [train_accuracy, train_loss, train_loss_ce, train_loss_pred]):
                 results[pos][epoch] = metric
-
-                
-            if self.wandb_run != None:
-                self.wandb_run.log({
-                    'train_accuracy': train_accuracy,
-                    'train_loss': train_loss,
-                    'train_loss_ce': train_loss_ce,
-                    'train_loss_pred': train_loss_pred
-                })        
 
             # MultiStepLR
             self.lr_scheduler.step()

@@ -7,7 +7,6 @@ from torch.utils.data import DataLoader, Subset
 import torch.nn.functional as F
 
 import gc
-import os
 from typing import Dict, Any, List, Tuple
     
 import logging
@@ -61,7 +60,7 @@ class GTG_off(ActiveLearner):
         # compute the affinity matrix
         A = self.get_A_fn[self.AM_function](concat_embedds, to_cpu=True)
     
-        initial_A = torch.clone(A)
+        #initial_A = torch.clone(A)
                
         if self.AM_threshold_strategy != None:
             # remove weak connections with the choosen threshold strategy and value
@@ -75,15 +74,22 @@ class GTG_off(ActiveLearner):
             A = 1 - A
         elif self.AM_strategy == 'mixed':    
             # set the unlabelled submatrix as distance matrix and not similarity matrix
-            labelled_indices = torch.tensor(self.labelled_indices)
+            n_lab_obs = len(self.labelled_indices)
             
-            if self.AM_function != 'rbfk': A = 1 - A # -> all distance matrix
-            A[labelled_indices[:, None], labelled_indices] = 1 - A[labelled_indices[:, None], labelled_indices]
+            if self.AM_function == 'rbfk':
+                A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL to similarity
+                
+            else:
+                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #UU to distance
+                
+                A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #UL to distance
+                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #LU to distance
+
 
                 
         # plot the TSNE fo the original and modified affinity matrix
-        logger.info('Plotting TSNE of the original and modified Affinity Matrix...')
-        '''plot_tsne_A(
+        '''logger.info('Plotting TSNE of the original and modified Affinity Matrix...')
+        plot_tsne_A(
             (initial_A, A),
             (self.lab_embedds_dict["labels"], self.unlab_embedds_dict["labels"]), self.dataset.classes,
             self.ct_p["timestamp"], self.ct_p["dataset_name"], self.ct_p["trial"], self.strategy_name, self.AM_function, self.AM_strategy, self.iter
@@ -152,9 +158,7 @@ class GTG_off(ActiveLearner):
         
         self.get_A()
         self.get_X()
-                
-        # from here to the end will be all on cuda
-        
+                        
         err = float('Inf')
         i = 0
         
@@ -166,10 +170,7 @@ class GTG_off(ActiveLearner):
             self.X *= torch.mm(self.A, self.X)
             self.X /= torch.sum(self.X, dim=1, keepdim=True)            
         
-            iter_entropy = entropy(self.X) # there are both labelled and sample unlabelled
-            # I have to map only the sample_unlabelled to the correct position
-        
-            self.unlab_entropy_hist[:, i] = iter_entropy[len(self.labelled_indices):]
+            self.unlab_entropy_hist[:, i] = entropy(self.X)[len(self.labelled_indices):]
                         
             err = torch.norm(self.X - X_old)
             i += 1
@@ -181,11 +182,7 @@ class GTG_off(ActiveLearner):
         # set the entire batch size to the dimension of the sampled unlabelled set
         self.len_unlab_sample = len(sample_unlab_subset)
 
-        dl_dict = dict(batch_size=self.batch_size, shuffle=False, pin_memory=True)
-        
-        # we have the batch size which is equal to the number of sampled observation from the unlabelled set
-        # set shuffle to false since I do not have interest on shufflind the dataloader, since I have only to get the embeddings
-        # thus there is no needs on shuffling the unlabelled dataloader            
+        dl_dict = dict(batch_size=self.batch_size, shuffle=False, pin_memory=True)           
         
         unlab_train_dl = DataLoader(sample_unlab_subset, **dl_dict)
         lab_train_dl = DataLoader(Subset(self.dataset.unlab_train_ds, self.labelled_indices), **dl_dict)

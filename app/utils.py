@@ -400,17 +400,6 @@ def log_assert(condition: bool | torch.Tensor, message: str):
     except AssertionError as err:
         logger.exception(message)
         raise err
-    
-    
-def print_state_dict(model, optimizers=None):
-    logger.info("Model's state_dict:") # Print model's state_dict# Print model's state_dict
-    for name, param in model.named_parameters(): 
-        if param.requires_grad: logger.info(f'{name} - {param.data}')
-    
-    if optimizers!=None:
-        for optimizer in optimizers:
-            logger.info("Optimizer's state_dict:") # Print optimizer's state_dict
-            for var_name in optimizer.state_dict(): logger.info(f'{var_name}\t{optimizer.state_dict()[var_name]}')
             
     
 

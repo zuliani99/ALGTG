@@ -6,7 +6,6 @@ https://github.com/kuangliu/pytorch-cifar
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from typing import List, Tuple
 
 from utils import init_weights_apply
