@@ -49,7 +49,8 @@ class Cls_TrainWorker():
         
         # RETRAIN FROM SCRATCH THE NETWORK (different from what LL4AL have done)
         self.__load_checkpoint(self.init_check_filename)
-        logger.info(' => Loading Initial Checkpoint')
+        self.init_opt_sched()
+        self.i = 0
 
 
     def init_opt_sched(self):
@@ -69,9 +70,8 @@ class Cls_TrainWorker():
     
     def __load_checkpoint(self, filename: str) -> None:
         checkpoint = torch.load(filename, map_location=self.device)
-        self.model.module.load_state_dict(checkpoint['state_dict']) if self.world_size > 1 else self.model.load_state_dict(checkpoint['state_dict'])
-        self.init_opt_sched()
-
+        self.model.module.load_state_dict(checkpoint["state_dict"]) if self.world_size > 1 else self.model.load_state_dict(checkpoint["state_dict"])
+        
 
     def compute_losses(self, weight: float, module_out: torch.Tensor | None, outputs: torch.Tensor, \
                        labels: torch.Tensor, tot_loss_ce: float, tot_pred_loss: float,
@@ -80,7 +80,8 @@ class Cls_TrainWorker():
                 
         ce_loss = self.ce_loss_fn(outputs, labels)
         backbone = torch.mean(ce_loss)
-                
+        self.i += 1
+            
         if module_out == None:
             tot_loss_ce += backbone.item()
             return backbone, tot_loss_ce, tot_pred_loss
@@ -92,12 +93,13 @@ class Cls_TrainWorker():
             entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
 
             lab_ce_loss = torch.mean(ce_loss[labelled_mask])
-            entr_loss = torch.mean(entr_loss[labelled_mask]) + torch.mean(entr_loss[torch.logical_not(labelled_mask)])
+            entr_loss = torch.mean(entr_loss)
             
             loss = lab_ce_loss + entr_loss
             
             tot_loss_ce += lab_ce_loss.item()
             tot_pred_loss += entr_loss.item()
+            
             
             return loss, tot_loss_ce, tot_pred_loss
             
@@ -163,11 +165,11 @@ class Cls_TrainWorker():
                 outputs, _, module_out = self.model(images, labels=labels)
                                                                     
                 loss, train_loss_ce, train_loss_pred = self.compute_losses(
-                        weight=weight, module_out=module_out, outputs=outputs, labels=labels,
-                        tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred, tidal=(idxs, moving_prob, epoch),
-                        #iterations=iterations
-                    )  
-                
+                            weight=weight, module_out=module_out, outputs=outputs, labels=labels,
+                            tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred, epoch=epoch, 
+                            tidal=(idxs, moving_prob, epoch),
+                        )  
+                    
                 loss.backward()
                 for optimizer in self.optimizers: optimizer.step()
                         
@@ -208,9 +210,11 @@ class Cls_TrainWorker():
 
 
     def test(self) -> torch.Tensor:
+        
+        #self.__load_checkpoint(self.check_best_path)
         test_accuracy = .0
         
-        self.model.backbone.eval()    
+        self.model.eval()    
 
         with torch.inference_mode():
             for _, images, labels in self.test_dl:

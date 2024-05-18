@@ -174,7 +174,7 @@ cls_config = {
             'backbone': {
                 'type': torch.optim.SGD,
                 'optim_p': {
-                    'lr': 0.1,
+                    'lr': 0.01, # 0.01 -> for the GTG module is ok with the mlp_out
                     'momentum': 0.9,
                     'weight_decay': 5e-4
                 }
@@ -191,7 +191,7 @@ cls_config = {
                 'GTGModule': {
                     'type': torch.optim.SGD,#.Adam,
                     'optim_p': {
-                        'lr': 0.0001, #0.001,
+                        'lr': 0.005, # SGD with 0.005 work
                         'momentum': 0.9,
                         'weight_decay': 5e-4
                     }
