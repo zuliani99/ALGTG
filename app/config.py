@@ -147,7 +147,7 @@ cls_datasets = {
 
 al_params = {
     'init_lab_obs': 1000,
-    'al_iters': 5,#10, 
+    'al_iters': 10, 
     'n_top_k_obs': 1000,
 }
     
