@@ -155,7 +155,7 @@ class ActiveLearner():
         
         dl_dict = dict(batch_size=self.batch_size, shuffle=False)
         unlab_train_dl = DataLoader(Subset(self.dataset.unlab_train_ds, self.rand_unlab_sample), **dl_dict)
-        lab_train_dl = DataLoader(Subset(self.dataset.train_ds, self.labelled_indices), **dl_dict)
+        lab_train_dl = DataLoader(Subset(self.dataset.unlab_train_ds, self.labelled_indices), **dl_dict)
         
         lab_embedds_dict = {
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu')),

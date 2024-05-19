@@ -50,6 +50,7 @@ class Master_Model(nn.Module):
             if self.added_module != None:
                 features = self.backbone.get_features()
                 if epoch >= 120: features = [feature.detach() for feature in features]
+                #if epoch >= 60: features = [feature.detach() for feature in features]
                 if self.added_module.name == 'GTGModule':
                     module_out = self.added_module(features, embedds, outs, labels)
                 else: module_out = self.added_module(features)

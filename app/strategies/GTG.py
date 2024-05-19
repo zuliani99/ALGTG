@@ -24,14 +24,13 @@ class GTG(ActiveLearner):
         if self.model.added_module != None: self.model.added_module.define_A_function(gtg_p["am"])
         
     
-    '''def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
+    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
         query_bs = self.batch_size//2
            
         unlab_train_dl = DataLoader(sample_unlab_subset, batch_size=query_bs, shuffle=False, pin_memory=True)
         labelled_subset = Subset(self.dataset.unlab_train_ds, self.labelled_indices)
         lab_train_dl = DataLoader(
-            dataset=labelled_subset, 
-            batch_size=query_bs,
+            dataset=labelled_subset, batch_size=query_bs,
             sampler=RandomSampler(labelled_subset, num_samples=len(unlab_train_dl.dataset)), 
             #random sample with replacement, each batch has different set of labelled observation drown ad random from the entire set
         )
@@ -68,24 +67,5 @@ class GTG(ActiveLearner):
         overall_topk = torch.topk(pred_entropies, n_top_k_obs).indices.tolist()
         logger.info(' DONE\n')
         
-        return overall_topk, [self.rand_unlab_sample[id] for id in overall_topk]'''    
-        
-    
-    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
-        self.unlab_train_dl = DataLoader(
-            sample_unlab_subset,
-            batch_size=self.batch_size, shuffle=False, pin_memory=True
-        )
-                
-        logger.info(' => Evaluating unlabelled observations')
-        embeds_dict = { 'module_out': torch.empty(0, dtype=torch.float32) }
-        
-        self.load_best_checkpoint()
-        
-        self.get_embeddings(self.unlab_train_dl, embeds_dict)
-        
-        logger.info(f' => Extracting the Top-k unlabelled observations')
-        overall_topk = torch.topk(embeds_dict["module_out"], n_top_k_obs).indices.tolist()
-        logger.info(' DONE\n')
-        
         return overall_topk, [self.rand_unlab_sample[id] for id in overall_topk]
+        

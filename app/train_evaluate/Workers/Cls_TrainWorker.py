@@ -96,6 +96,7 @@ class Cls_TrainWorker():
             ################################################
             lab_ce_loss = torch.mean(ce_loss[labelled_mask])
             entr_loss = torch.mean(entr_loss)
+            #entr_loss = torch.mean(entr_loss[labelled_mask]) + torch.mean(entr_loss[torch.logical_not(labelled_mask)])
             ################################################
             
             loss = lab_ce_loss + entr_loss
@@ -161,6 +162,7 @@ class Cls_TrainWorker():
             
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore  
             if epoch >= 120: weight = 0.
+            #if epoch >= 60: weight = 0.
              
             for idxs, images, labels, moving_prob in self.train_dl:
                 images, labels = self.return_moved_imgs_labs(images, labels)
