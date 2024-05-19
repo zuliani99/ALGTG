@@ -78,7 +78,7 @@ class Module_LS(nn.Module):
 
 class Module_LS_MLP(nn.Module):
     def __init__(self, params: Dict[str, Any]):
-        super(Module_LS, self).__init__()
+        super(Module_LS_MLP, self).__init__()
 
         # same parameters of loss net
         feature_sizes = params["feature_sizes"]
