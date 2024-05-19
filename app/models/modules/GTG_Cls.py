@@ -20,7 +20,7 @@ class Module_MLP(nn.Module):
         #in_feat = n_classes * gtg_iter 
         in_feat = interm_dim + 1 # interm_dim + mean entropy 
         
-        self.sqe_linears = [
+        self.seq_linears = [
             nn.Sequential(
                 nn.Linear(in_feat, in_feat), nn.BatchNorm1d(in_feat), nn.ReLU(), 
                 nn.Linear(in_feat, in_feat//2), nn.BatchNorm1d(in_feat//2), nn.ReLU(),
@@ -30,8 +30,8 @@ class Module_MLP(nn.Module):
             ) for _ in range(4)
         ]
         
-        self.linears = nn.ModuleList(self.sqe_linears)
-        self.linear = nn.Linear(in_feat//4 * len(self.sqe_linears), 1)
+        self.linears = nn.ModuleList(self.seq_linears)
+        self.linear = nn.Linear(in_feat//4 * len(self.seq_linears), 1)
 
 
     def forward(self, features):
@@ -104,7 +104,7 @@ class Module_LS_MLP(nn.Module):
         self.gap_linears = nn.ModuleList(self.gap_linears)
         self.linears = nn.ModuleList(self.linears)
         
-        self.linear = nn.Linear(interm_dim//4 * len(self.sqe_linears), 1)
+        self.linear = nn.Linear(interm_dim//4 * len(self.linears), 1)
         
         
     def forward(self, features):
