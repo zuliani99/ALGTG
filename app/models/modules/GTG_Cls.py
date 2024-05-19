@@ -319,7 +319,7 @@ class GTGModule(nn.Module):
     
     
     
-    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, outs: torch.Tensor, labels) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]: 
+    '''def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, outs: torch.Tensor, labels) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]: 
                     
         self.batch_size = len(embedds)
         
@@ -338,13 +338,13 @@ class GTGModule(nn.Module):
         self.get_X(F.softmax(outs, dim=1))
         
 
-        '''y_pred = self.mod_mlp(
-            [self.preprocess_inputs(self.graph_trasduction_game, self.mod_gap(feature, id))[0] for id, feature in enumerate(features)]
-        ).squeeze()'''
+        #y_pred = self.mod_mlp(
+        #    [self.preprocess_inputs(self.graph_trasduction_game, self.mod_gap(feature, id))[0] for id, feature in enumerate(features)]
+        #).squeeze()
         
-        '''y_pred = torch.mean(
-            torch.cat([self.preprocess_inputs(self.graph_trasduction_game, self.mod_ls(feature, id))[1].unsqueeze(dim=0) for id, feature in enumerate(features)], dim=0)
-        , dim=0)'''     
+        #y_pred = torch.mean(
+        #    torch.cat([self.preprocess_inputs(self.graph_trasduction_game, self.mod_ls(feature, id))[1].unsqueeze(dim=0) for id, feature in enumerate(features)], dim=0)
+        #, dim=0)
         
         
         y_pred = self.mod_mlp(
@@ -361,11 +361,11 @@ class GTGModule(nn.Module):
             _, y_true = self.preprocess_inputs(self.graph_trasduction_game_detached, embedds)
             return (y_pred, y_true), labelled_mask.bool()
         
-        else: return (y_pred, None), None
+        else: return (y_pred, None), None'''
 
 
 
-    def forward_2(self, features: List[torch.Tensor], embedds: torch.Tensor, outs: torch.Tensor, labels) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]: 
+    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, outs: torch.Tensor, labels) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]: 
         
         y_pred = self.moulde_ls_gap(features).squeeze()
             

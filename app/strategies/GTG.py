@@ -24,7 +24,7 @@ class GTG(ActiveLearner):
         if self.model.added_module != None: self.model.added_module.define_A_function(gtg_p["am"])
         
     
-    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
+    '''def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
         query_bs = self.batch_size//2
            
         unlab_train_dl = DataLoader(sample_unlab_subset, batch_size=query_bs, shuffle=False, pin_memory=True)
@@ -68,11 +68,10 @@ class GTG(ActiveLearner):
         overall_topk = torch.topk(pred_entropies, n_top_k_obs).indices.tolist()
         logger.info(' DONE\n')
         
-        return overall_topk, [self.rand_unlab_sample[id] for id in overall_topk]
-        
+        return overall_topk, [self.rand_unlab_sample[id] for id in overall_topk]'''    
         
     
-    def query_2(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
+    def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
         self.unlab_train_dl = DataLoader(
             sample_unlab_subset,
             batch_size=self.batch_size, shuffle=False, pin_memory=True

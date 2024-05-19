@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=exp    # Job name
+#SBATCH --job-name=exp_mod    # Job name
 #SBATCH --mail-type=END          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=875532@stud.unive.it     # Where to send mail	
 #SBATCH --nodes=1
@@ -16,5 +16,4 @@
 
 conda activate al_env
 
-#python3 app/main.py -gpus 1 -m lq_gtg -ds cifar10 -tr 1 -am corr -am_ts none -e_s mean -gtg_iter 20
-python3 app/main.py -gpus 1 -m gtg ll_gtg -ds fmnist -tr 5 -am corr -e_s mean
+python3 app/main.py -gpus 1 -m lq_gtg -ds cifar10 -tr 1 -am corr -am_ts mean -e_s mean -gtg_iter 10 #30
