@@ -76,7 +76,7 @@ class Cls_TrainWorker():
 
     def compute_losses(self, weight: float, module_out: torch.Tensor | None, outputs: torch.Tensor, \
                        labels: torch.Tensor, tot_loss_ce: float, tot_pred_loss: float, epoch: int,
-                       tidal: None | Tuple[torch.Tensor, torch.Tensor , int] = None,) -> Tuple[torch.Tensor, float, float]:
+                       tidal: None | Tuple[torch.Tensor, torch.Tensor, int] = None,) -> Tuple[torch.Tensor, float, float]:
                 
         ce_loss = self.ce_loss_fn(outputs, labels)
         backbone = torch.mean(ce_loss)
@@ -89,7 +89,7 @@ class Cls_TrainWorker():
         elif self.method_name.split('_')[0] == 'GTG' and self.model.added_module_name == 'GTGModule':
                         
             (pred_entr, true_entr), labelled_mask = module_out
-            if self.i%20 == 0: logger.info(f'y_pred {pred_entr}\ny_true {true_entr}')
+            if self.i%20 == 0: logger.info(f'y_pred {pred_entr}\ny_true {true_entr}') 
                 
             entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
 
@@ -102,8 +102,6 @@ class Cls_TrainWorker():
             
             tot_loss_ce += lab_ce_loss.item()
             tot_pred_loss += entr_loss.item()
-            self.i += 1
-            
             
             return loss, tot_loss_ce, tot_pred_loss
             

@@ -40,7 +40,7 @@ class GTG(ActiveLearner):
         
         pred_entropies = torch.empty(0, dtype=torch.float32, device=self.device)
         
-        logger.info(' => Eunning GTG in inference mode...')
+        logger.info(' => Running GTG in inference mode...')
         
         self.model.eval()
         with torch.inference_mode():
@@ -61,6 +61,8 @@ class GTG(ActiveLearner):
                 
                 pred_entropies = torch.cat((pred_entropies, y_pred[query_bs:]), dim=0) # save only the unalbelled entropies
         logger.info(' DONE\n')
+        
+        logger.info(torch.topk(pred_entropies, n_top_k_obs))
                                 
         logger.info(f' => Extracting the Top-k unlabelled observations')
         overall_topk = torch.topk(pred_entropies, n_top_k_obs).indices.tolist()
@@ -68,3 +70,23 @@ class GTG(ActiveLearner):
         
         return overall_topk, [self.rand_unlab_sample[id] for id in overall_topk]
         
+        
+    
+    def query_2(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
+        self.unlab_train_dl = DataLoader(
+            sample_unlab_subset,
+            batch_size=self.batch_size, shuffle=False, pin_memory=True
+        )
+                
+        logger.info(' => Evaluating unlabelled observations')
+        embeds_dict = { 'module_out': torch.empty(0, dtype=torch.float32) }
+        
+        self.load_best_checkpoint()
+        
+        self.get_embeddings(self.unlab_train_dl, embeds_dict)
+        
+        logger.info(f' => Extracting the Top-k unlabelled observations')
+        overall_topk = torch.topk(embeds_dict["module_out"], n_top_k_obs).indices.tolist()
+        logger.info(' DONE\n')
+        
+        return overall_topk, [self.rand_unlab_sample[id] for id in overall_topk]

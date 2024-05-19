@@ -165,7 +165,7 @@ cls_config = {
                 'optim_p': {
                     None: { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
                     'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
-                    'GTGModule': { 'lr': 0.01, 'momentum': 0.9, 'weight_decay': 5e-4 }, # 0.01 -> for the GTG module is ok with the mlp_out
+                    'GTGModule': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 }, # 0.01 -> for the GTG module is ok with the mlp_out
                 }
             },
             'modules': {
