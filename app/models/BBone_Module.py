@@ -34,7 +34,7 @@ class Master_Model(nn.Module):
         
         
 
-    def forward(self, x, labels=None, epoch=0, mode='all'):
+    def forward(self, x, labels=None, weight=1, mode='all'):
         if mode == 'all':
             
             outs, embedds = self.backbone(x)
@@ -42,18 +42,13 @@ class Master_Model(nn.Module):
             if torch.any(torch.isnan(embedds)): print(embedds)
             assert not torch.any(torch.isnan(embedds)), 'embedding is nan'
             assert torch.std(embedds) > 0, 'std is zero or negative'
-            
-            # module out is:
-            # LL -> loss
-            # GTG -> (y_true, y_pred), mask
 
             if self.added_module != None:
                 features = self.backbone.get_features()
-                if epoch >= 120: features = [feature.detach() for feature in features]
-                #if epoch >= 60: features = [feature.detach() for feature in features]
+                if weight: features = [feature.detach() for feature in features]
                 if self.added_module.name == 'GTGModule':
-                    module_out = self.added_module(features, embedds, outs, labels)
-                else: module_out = self.added_module(features)
+                    module_out = self.added_module(features=features, embedds=embedds, outs=outs, labels=labels)
+                else: module_out = self.added_module(features=features)
                 return outs, embedds, module_out
             else:
                 return outs, embedds, None
@@ -66,8 +61,8 @@ class Master_Model(nn.Module):
             if self.added_module != None:
                 outs, embedds = self.backbone(x)
                 if self.added_module.name == 'GTGModule':
-                    return self.added_module(self.backbone.get_features(), embedds, outs, labels)[0][0]
-                else: return self.added_module(self.backbone.get_features())
+                    return self.added_module(features=features, embedds=embedds, outs=outs, labels=labels)[0][0]
+                else: return self.added_module(features=self.backbone.get_features())
             else:
                 raise AttributeError("The Master_Model hasn't got any additional module")
 

@@ -55,6 +55,8 @@ class Cls_TrainWorker():
     def init_opt_sched(self):
         optimizers = self.ds_t_p["optimizers"]
         module_name = self.model.added_module_name if self.model.added_module == None else self.model.added_module_name.split('_')[0]
+        self.decay = optimizers["modules"]["decay"][module_name] if module_name != None else None
+        
         self.optimizers: List[torch.optim.SGD | torch.optim.Adam] = []
         self.optimizers.append(optimizers["backbone"]["type"][module_name](self.model.backbone.parameters(), **optimizers["backbone"]["optim_p"][module_name]))
         self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1)
@@ -96,7 +98,6 @@ class Cls_TrainWorker():
             ################################################
             lab_ce_loss = torch.mean(ce_loss[labelled_mask])
             entr_loss = torch.mean(entr_loss)
-            #entr_loss = torch.mean(entr_loss[labelled_mask]) + torch.mean(entr_loss[torch.logical_not(labelled_mask)])
             ################################################
             
             loss = lab_ce_loss + entr_loss
@@ -161,15 +162,14 @@ class Cls_TrainWorker():
             train_loss, train_loss_ce, train_loss_pred, train_accuracy = .0, .0, .0, .0
             
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore  
-            if epoch >= 120: weight = 0.
-            #if epoch >= 60: weight = 0.
+            if epoch >= self.decay: weight = 0.
              
             for idxs, images, labels, moving_prob in self.train_dl:
                 images, labels = self.return_moved_imgs_labs(images, labels)
                 
                 for optimizer in self.optimizers: optimizer.zero_grad(set_to_none=True)
                     
-                outputs, _, module_out = self.model(images, epoch=epoch, labels=labels)
+                outputs, _, module_out = self.model(images, weight=weight, labels=labels)
                                                                         
                 loss, train_loss_ce, train_loss_pred = self.compute_losses(
                             weight=weight, module_out=module_out, outputs=outputs, labels=labels,
@@ -207,7 +207,7 @@ class Cls_TrainWorker():
 
     def test(self) -> torch.Tensor:
         
-        #self.__load_checkpoint(self.check_best_path)
+        self.__load_checkpoint(self.check_best_path)
         test_accuracy = .0
         
         self.model.eval()    

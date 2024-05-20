@@ -24,8 +24,8 @@ class Module_MLP(nn.Module):
         
         self.seq_linears = [
             nn.Sequential(
-                #nn.Linear(in_feat, in_feat//4), nn.BatchNorm1d(in_feat//4), nn.ReLU()
-                nn.Linear(in_feat, in_feat//4), nn.ReLU()
+                nn.Linear(in_feat, in_feat//4), nn.BatchNorm1d(in_feat//4), nn.ReLU(),
+                #nn.Dropout(p=0.3)
             ) for _ in range(4)
         ]
         
@@ -185,7 +185,7 @@ class GTGModule(nn.Module):
         ##################################################################
         
         self.X[self.unlabelled_indices, :] = torch.ones(self.n_classes, device=self.device) * (1./self.n_classes)
-        self.X.requires_grad_(True)
+        #self.X.requires_grad_(True)
 
 
 
@@ -219,7 +219,7 @@ class GTGModule(nn.Module):
         
         self.get_A(embedding)
         X = self.X.clone()
-        self.Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device, requires_grad=True)        
+        self.Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device)    
         
         err = float('Inf')
         i = 0
@@ -302,12 +302,12 @@ class GTGModule(nn.Module):
                 for feature in [self.mod_ls(feature, id) for id, feature in enumerate(features)] # -> [n x 128]
             ]
         ).squeeze()
-            
+
+        _, y_true = self.preprocess_inputs(self.graph_trasduction_game_detached, embedds)    
             
         if self.training:
             labelled_mask = torch.zeros(self.batch_size, device=self.device)
             labelled_mask[self.labelled_indices] = 1.
-            _, y_true = self.preprocess_inputs(self.graph_trasduction_game_detached, embedds)
             return (y_pred, y_true), labelled_mask.bool()
         
-        else: return (y_pred, None), None
+        else: return (y_pred, y_true), None

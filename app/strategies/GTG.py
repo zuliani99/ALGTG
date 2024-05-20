@@ -1,5 +1,6 @@
 
 import torch
+import torch.nn.functional as F
 from torch.utils.data import DataLoader, Subset, RandomSampler
 
 from ActiveLearner import ActiveLearner
@@ -31,13 +32,14 @@ class GTG(ActiveLearner):
         labelled_subset = Subset(self.dataset.unlab_train_ds, self.labelled_indices)
         lab_train_dl = DataLoader(
             dataset=labelled_subset, batch_size=query_bs,
-            sampler=RandomSampler(labelled_subset, num_samples=len(unlab_train_dl.dataset)), 
+            sampler=RandomSampler(labelled_subset, num_samples=len(sample_unlab_subset)), 
             #random sample with replacement, each batch has different set of labelled observation drown ad random from the entire set
         )
         
         self.load_best_checkpoint()
         
         pred_entropies = torch.empty(0, dtype=torch.float32, device=self.device)
+        true_entropies = torch.empty(0, dtype=torch.float32, device=self.device)
         
         logger.info(' => Running GTG in inference mode...')
         
@@ -51,18 +53,40 @@ class GTG(ActiveLearner):
                 unlab_outs, unlab_embedds = self.model.backbone(unlab_images.to(self.device))
                 unlab_features = self.model.backbone.get_features()
 
-                (y_pred, _) ,_ = self.model.added_module(
+                (y_pred, y_true) ,_ = self.model.added_module(
                     features=[torch.cat((lab_feature, unlab_feature), dim=0) for lab_feature, unlab_feature in zip(lab_features, unlab_features)], 
                     embedds=torch.cat((lab_embedds, unlab_embedds), dim=0), 
                     outs=torch.cat((lab_outs, unlab_outs), dim=0),
                     labels=torch.cat((lab_labels, unlab_labels), dim=0)
                 )
                 
-                pred_entropies = torch.cat((pred_entropies, y_pred[query_bs:]), dim=0) # save only the unalbelled entropies
+                # save only the unalbelled entropies
+                pred_entropies = torch.cat((pred_entropies, y_pred[query_bs:]), dim=0) 
+                true_entropies = torch.cat((true_entropies, y_true[query_bs:]), dim=0)
+                
         logger.info(' DONE\n')
         
+        
+        ############# DEBUG PORPUSE ############# 
+        top_k_pred = torch.topk(pred_entropies, n_top_k_obs).indices.to(self.device)
+        top_k_true = torch.topk(true_entropies, n_top_k_obs).indices.to(self.device)
+        
         logger.info(torch.topk(pred_entropies, n_top_k_obs))
-                                
+        logger.info(torch.topk(true_entropies, n_top_k_obs))
+        
+        intersection_count = len(set(top_k_pred.cpu().tolist()) & set(top_k_true.cpu().tolist()))
+        intersection_ratio = intersection_count / len(top_k_pred)
+        
+        logger.info(f' => Intersection ratio between predicted and true entropies: {intersection_ratio}')
+                
+        #mse_true_entr = ((pred_entropies[top_k_true].double() - true_entropies[top_k_true].double()) ** 2).mean()
+        #mse_pred_entr = ((pred_entropies[top_k_pred].double() - true_entropies[top_k_pred].double()) ** 2).mean()
+        
+        logger.info(f'MSE true_entr: {F.mse_loss(pred_entropies[top_k_true], true_entropies[top_k_true])}')
+        logger.info(f'MSE pred_entr: {F.mse_loss(pred_entropies[top_k_pred], true_entropies[top_k_pred])}')
+        ############# DEBUG PORPUSE ############# 
+        
+        
         logger.info(f' => Extracting the Top-k unlabelled observations')
         overall_topk = torch.topk(pred_entropies, n_top_k_obs).indices.tolist()
         logger.info(' DONE\n')
