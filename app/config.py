@@ -170,10 +170,10 @@ cls_config = {
             },
             'modules': {
                 'type': { 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.Adam},#SGD, },
-                'decay': { 'LossNet': 120, 'GTGModule': 120, },
+                'decay': { 'LossNet': 120, 'GTGModule': 200, }, #120
                 'optim_p': {
                     'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
-                    'GTGModule': { 'lr': 0.001, }#'momentum': 0.9, 'weight_decay': 5e-4 }, # SGD with 0.005 work
+                    'GTGModule': { 'lr': 0.001, 'weight_decay': 5e-4 }#'momentum': 0.9, 'weight_decay': 5e-4 }, # SGD with 0.005 work
                 }
             }
         }

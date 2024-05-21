@@ -48,27 +48,29 @@ class Module_MLP(nn.Module):
         
         in_feat = gtg_iter * n_classes # -> [128 , 10*10] = [128, 100] 
         
-        '''self.seq_linears = [
-            nn.Sequential(
-                nn.Linear(in_feat, in_feat//2), nn.ReLU(),
-                #nn.Linear(in_feat//2, in_feat//2), nn.ReLU(),
-                #nn.Linear(in_feat//2, in_feat//2), nn.ReLU(),
-                #nn.Linear(in_feat//2, in_feat//2), nn.ReLU(),
-                nn.Linear(in_feat//2, in_feat//4), nn.ReLU(),
-                #nn.Linear(in_feat, in_feat//4), nn.BatchNorm1d(in_feat//4), nn.ReLU(),
-            ) for _ in range(4)
-        ]'''
-        
         self.seq_linears = nn.Sequential(
             nn.Linear(in_feat, in_feat//2), nn.ReLU(),
+            nn.Dropout(0.3),
             nn.Linear(in_feat//2, in_feat//4), nn.ReLU(),
         )
         
         
         #self.linears = nn.ModuleList(self.seq_linears)
         #self.linears = nn.ModuleList(self.seq_linears)
-        self.linear = nn.Linear(in_feat//4 * len(self.seq_linears), 1)
+        self.linear = nn.Linear(in_feat//4 * 4, 1)
         #self.linear = nn.Linear(in_feat * len(self.seq_linears), 1)
+
+
+    def forward(self, features):
+        outs = []
+        for i in range(len(features)):
+            out = features[i].view(features[i].size(0), -1)
+            #out = self.linears[i](out)
+            out = self.seq_linears(out)
+            outs.append(out)
+        
+        out = self.linear(torch.cat(outs, 1))
+        return out
 
 
     def forward(self, features):

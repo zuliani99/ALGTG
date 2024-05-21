@@ -191,7 +191,7 @@ class ActiveLearner():
         
         params = { 
             'ct_p': self.ct_p, 't_p': self.t_p, 'strategy_name': self.strategy_name, 
-            'iter': iter, 'labelled_indices': self.labelled_indices 
+            'iter': iter, 'labelled_indices': self.labelled_indices, 'unlabelled_indices': self.unlabelled_indices,
         }
         
         

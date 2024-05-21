@@ -2,11 +2,12 @@
 import torch
 import torch.nn as nn
 
+from train_evaluate.PreTrain import PreTrain
 from models.BBone_Module import Master_Model
 from models.modules.LossNet import LossPredLoss
 from utils import accuracy_score, log_assert
 
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.nn.functional as F
 
@@ -48,6 +49,17 @@ class Cls_TrainWorker():
         
         # RETRAIN FROM SCRATCH THE NETWORK (different from what LL4AL have done)
         self.__load_checkpoint(self.init_check_filename)
+        if self.model.added_module_name == 'GTGModule':
+            logger.info(' => Running BackBone PreTraining')
+            # Pretrain our backbone via Binary classification task (labelled, unlabelled)
+            pt = PreTrain(
+                device=self.device, backbone=self.model.backbone,
+                lab_subset=Subset(params["ct_p"]["Dataset"].train_ds, params["labelled_indices"]),
+                unlab_subset=Subset(params["ct_p"]["Dataset"].train_ds, params["unlabelled_indices"])
+            )
+            self.model.backbone = pt.train()
+            logger.info(' => DONE\n')
+            logger.info('')
         self.init_opt_sched()
         self.i = 0
 
