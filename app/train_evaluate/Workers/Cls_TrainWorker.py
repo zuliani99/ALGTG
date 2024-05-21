@@ -58,10 +58,13 @@ class Cls_TrainWorker():
         self.decay = optimizers["modules"]["decay"][module_name] if module_name != None else None
         
         self.optimizers: List[torch.optim.SGD | torch.optim.Adam] = []
+        self.lr_schedulers = []
         self.optimizers.append(optimizers["backbone"]["type"][module_name](self.model.backbone.parameters(), **optimizers["backbone"]["optim_p"][module_name]))
-        self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1)
+        self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1))
         if module_name != None:
             self.optimizers.append(optimizers["modules"]["type"][module_name](self.model.added_module.parameters(), **optimizers["modules"]["optim_p"][module_name]))
+            #self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
+            
             
     
     def __save_checkpoint(self, filename: str) -> None:
@@ -195,7 +198,7 @@ class Cls_TrainWorker():
                 results[pos][epoch] = metric
 
             # MultiStepLR
-            self.lr_scheduler.step()
+            for lr_scheduler in self.lr_schedulers: lr_scheduler.step()
             
         # Save checkpoint
         self.__save_checkpoint(self.check_best_path)

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
                 nn.Linear(in_feat//2, in_feat//4), nn.BatchNorm1d(in_feat//4), nn.ReLU(),
                 nn.Linear(in_feat//4, in_feat//4), nn.BatchNorm1d(in_feat//4), nn.ReLU(),'''
 
-class Module_MLP(nn.Module):
+'''class Module_MLP(nn.Module):
     def __init__(self, interm_dim):
         super(Module_MLP, self).__init__()       
         
@@ -24,8 +24,7 @@ class Module_MLP(nn.Module):
         
         self.seq_linears = [
             nn.Sequential(
-                nn.Linear(in_feat, in_feat//4), nn.BatchNorm1d(in_feat//4), nn.ReLU(),
-                #nn.Dropout(p=0.3)
+                nn.Linear(in_feat, in_feat//4), nn.ReLU(),
             ) for _ in range(4)
         ]
         
@@ -40,8 +39,48 @@ class Module_MLP(nn.Module):
             outs.append(out)
         
         out = self.linear(torch.cat(outs, 1))
-        return out
+        return out'''
 
+
+class Module_MLP(nn.Module):
+    def __init__(self, gtg_iter, n_classes):
+        super(Module_MLP, self).__init__()
+        
+        in_feat = gtg_iter * n_classes # -> [128 , 10*10] = [128, 100] 
+        
+        '''self.seq_linears = [
+            nn.Sequential(
+                nn.Linear(in_feat, in_feat//2), nn.ReLU(),
+                #nn.Linear(in_feat//2, in_feat//2), nn.ReLU(),
+                #nn.Linear(in_feat//2, in_feat//2), nn.ReLU(),
+                #nn.Linear(in_feat//2, in_feat//2), nn.ReLU(),
+                nn.Linear(in_feat//2, in_feat//4), nn.ReLU(),
+                #nn.Linear(in_feat, in_feat//4), nn.BatchNorm1d(in_feat//4), nn.ReLU(),
+            ) for _ in range(4)
+        ]'''
+        
+        self.seq_linears = nn.Sequential(
+            nn.Linear(in_feat, in_feat//2), nn.ReLU(),
+            nn.Linear(in_feat//2, in_feat//4), nn.ReLU(),
+        )
+        
+        
+        #self.linears = nn.ModuleList(self.seq_linears)
+        #self.linears = nn.ModuleList(self.seq_linears)
+        self.linear = nn.Linear(in_feat//4 * len(self.seq_linears), 1)
+        #self.linear = nn.Linear(in_feat * len(self.seq_linears), 1)
+
+
+    def forward(self, features):
+        outs = []
+        for i in range(len(features)):
+            out = features[i].view(features[i].size(0), -1)
+            #out = self.linears[i](out)
+            out = self.seq_linears(out)
+            outs.append(out)
+        
+        out = self.linear(torch.cat(outs, 1))
+        return out
 
 
 class Module_LS(nn.Module):
@@ -58,8 +97,7 @@ class Module_LS(nn.Module):
         for n_c, e_d in zip(num_channels, feature_sizes):
             self.gaps.append(nn.AvgPool2d(e_d))
             self.linears.append(nn.Sequential(
-                nn.Linear(n_c, interm_dim),
-                nn.ReLU(),
+                nn.Linear(n_c, interm_dim), nn.BatchNorm1d(interm_dim), nn.ReLU(),
             ))
 
         self.linears = nn.ModuleList(self.linears)
@@ -72,6 +110,40 @@ class Module_LS(nn.Module):
         return self.linears[id_feat](out)
 
 
+'''class MLP(nn.Module):
+    def __init__(self, params: Dict[str, Any]):
+        super(MLP, self).__init__()
+
+        # same parameters of loss net
+        feature_sizes = params["feature_sizes"]
+        num_channels = params["num_channels"]
+        interm_dim = params["interm_dim"]
+
+        self.seq_linears, self.gaps = [], []
+
+        for n_c, e_d in zip(num_channels, feature_sizes):
+            self.gaps.append(nn.AvgPool2d(e_d))
+            self.seq_linears.append(nn.Sequential(
+                nn.Linear(n_c, interm_dim), nn.BatchNorm1d(interm_dim), nn.ReLU(),
+                nn.Linear(interm_dim, interm_dim//4), nn.BatchNorm1d(interm_dim//4), nn.ReLU(),
+            ))
+
+        self.linears = nn.ModuleList(self.seq_linears)
+        self.gaps = nn.ModuleList(self.gaps)
+        self.linear = nn.Linear(interm_dim//4 * len(self.seq_linears), 1)
+        
+        
+    def forward(self, features):
+        outs = []
+        for i in range(len(features)):
+            out = self.gaps[i](features[i])
+            out = out.view(out.size(0), -1)
+            out = self.linears[i](out)
+            outs.append(out)
+        
+        out = self.linear(torch.cat(outs, 1))
+        return out
+'''
         
 
 class GTGModule(nn.Module):
@@ -99,8 +171,19 @@ class GTGModule(nn.Module):
         self.device: int = gtg_p["device"]
 
         self.mod_ls = Module_LS(ll_p).to(self.device)
-        self.mod_mlp = Module_MLP(ll_p["interm_dim"]).to(self.device)
+        #self.mod_mlp = Module_MLP(ll_p["interm_dim"]).to(self.device)
+        self.mod_mlp = Module_MLP(self.gtg_max_iter, self.n_classes).to(self.device)
+        #self.mlp = MLP(ll_p).to(self.device)
         
+        '''def weights_init(m):
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)'''
+        
+        #self.mod_mlp.apply(weights_init)
+        #self.mod_ls.apply(weights_init)
+        #self.mlp.apply(weights_init)
         
         
     def define_A_function(self, AM_function: str) -> None: self.AM_function: str = AM_function
@@ -180,12 +263,12 @@ class GTGModule(nn.Module):
         self.X: torch.Tensor = torch.zeros((self.batch_size, self.n_classes), dtype=torch.float32, device=self.device)
        
         ##################################################################
-        #self.X[self.labelled_indices, self.lab_labels] = 1.
-        self.X[self.labelled_indices, :] = probs[self.labelled_indices]
+        self.X[self.labelled_indices, self.lab_labels] = 1.
+        #self.X[self.labelled_indices, :] = probs[self.labelled_indices]
         ##################################################################
         
         self.X[self.unlabelled_indices, :] = torch.ones(self.n_classes, device=self.device) * (1./self.n_classes)
-        #self.X.requires_grad_(True)
+        self.X.requires_grad_(True)
 
 
 
@@ -200,7 +283,7 @@ class GTGModule(nn.Module):
         X = self.X.clone()
                 
         while err > self.gtg_tol and i < self.gtg_max_iter:
-            X_old = torch.clone(X)
+            X_old = X.detach().clone()
             
             X *= torch.mm(self.A, X)
             X /= torch.sum(X, dim=1, keepdim=True)
@@ -219,7 +302,7 @@ class GTGModule(nn.Module):
         
         self.get_A(embedding)
         X = self.X.clone()
-        self.Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device)    
+        self.Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device, requires_grad=True, dtype=torch.float32)
         
         err = float('Inf')
         i = 0
@@ -230,9 +313,9 @@ class GTGModule(nn.Module):
             
             mm_A_X = torch.mm(self.A, X)
             mult_X_A_X = X * mm_A_X
-            sum_X_A_X = torch.sum(mult_X_A_X, dim=1, keepdim=True)
+            sum_X_A_X = torch.sum(mult_X_A_X, dim=1, keepdim=True)# + 1e-8
             div_sum_X_A_X = mult_X_A_X / sum_X_A_X
-            
+                        
             entropy_hist[:, i] = entropy(div_sum_X_A_X.detach()).to(self.device)
             
             err = torch.norm(div_sum_X_A_X.detach() - X_old)
@@ -252,19 +335,20 @@ class GTGModule(nn.Module):
         
         
     # List[torch.Tensor] -> detection
-    def preprocess_inputs(self, gtg_func, embedding: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:     
+    def preprocess_inputs(self, embedding: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:     
                 
-        entropy_hist = gtg_func(embedding)
+        entropy_hist = self.graph_trasduction_game(embedding)
 
         if self.ent_strategy == 'mean': quantity_result = torch.mean(entropy_hist, dim=1)
         # computing the mean of the entropis history    
         elif self.ent_strategy == 'integral': quantity_result = torch.trapezoid(entropy_hist, dim=1)
         # computing the area of the entropis history using trapezoid formula    
         else:
-            logger.exception(' Invlaid GTG Strategy') 
-            raise AttributeError(' Invlaid GTG Strategy')
+            logger.exception(' Invalid GTG Strategy') 
+            raise AttributeError(' Invalid GTG Strategy')
 
         return self.Xs, quantity_result
+        #return quantity_result # ------------> FOR THE LOSSNET MODULE ONLY
     
     
     
@@ -287,25 +371,43 @@ class GTGModule(nn.Module):
         self.get_X(F.softmax(outs, dim=1))
         
 
-        #y_pred = self.mod_mlp(
-        #    [self.preprocess_inputs(self.graph_trasduction_game, self.mod_gap(feature, id))[0] for id, feature in enumerate(features)]
-        #).squeeze()
+        y_pred = self.mod_mlp(
+            [self.preprocess_inputs(self.mod_ls(feature, id))[0] for id, feature in enumerate(features)]
+        ).squeeze()
         
         #y_pred = torch.mean(
         #    torch.cat([self.preprocess_inputs(self.graph_trasduction_game, self.mod_ls(feature, id))[1].unsqueeze(dim=0) for id, feature in enumerate(features)], dim=0)
         #, dim=0)
         
         
-        y_pred = self.mod_mlp(
+        '''y_pred = self.mod_mlp(
             [            #[n x 128]          +               #[n x 1]           =           [n x 129]
                 torch.cat((feature, self.preprocess_inputs(self.graph_trasduction_game, feature)[1].view(-1,1)), dim=1) # [n x 1] each
                 for feature in [self.mod_ls(feature, id) for id, feature in enumerate(features)] # -> [n x 128]
             ]
-        ).squeeze()
+        ).squeeze()'''
 
-        _, y_true = self.preprocess_inputs(self.graph_trasduction_game_detached, embedds)    
+        _, y_true = self.preprocess_inputs(embedds)            
+        
+        
+        '''y_pred = self.mlp(features).squeeze()
             
-        if self.training:
+        labels = labels.to(self.device)
+        self.batch_size = len(embedds)
+            
+        indices = torch.randperm(self.batch_size) # -> unique for each batch
+        self.n_lab_obs = int(self.batch_size * self.perc_labelled_batch)
+            
+        self.labelled_indices: torch.Tensor = indices[:self.n_lab_obs].to(self.device)
+        self.unlabelled_indices: torch.Tensor = indices[self.n_lab_obs:].to(self.device)
+            
+        self.lab_labels = labels[self.labelled_indices]
+            
+        self.get_X(F.softmax(outs, dim=1))
+            
+        y_true = self.preprocess_inputs(self.graph_trasduction_game_detached, embedds)'''
+            
+        if self.training:    
             labelled_mask = torch.zeros(self.batch_size, device=self.device)
             labelled_mask[self.labelled_indices] = 1.
             return (y_pred, y_true), labelled_mask.bool()
