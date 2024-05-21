@@ -67,5 +67,5 @@ class PreTrain:
             
             logger.info(f' Epoch: {epoch} | loss -> {loss}')
         
-        return self.pt_bb
+        return self.pt_bb.backbone.state_dict()
     

@@ -57,7 +57,7 @@ class Cls_TrainWorker():
                 lab_subset=Subset(params["ct_p"]["Dataset"].train_ds, params["labelled_indices"]),
                 unlab_subset=Subset(params["ct_p"]["Dataset"].train_ds, params["unlabelled_indices"])
             )
-            self.model.backbone = pt.train()
+            self.model.backbone.load_state_dict(pt.train())
             logger.info(' => DONE\n')
             logger.info('')
         self.init_opt_sched()
