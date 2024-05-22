@@ -38,10 +38,10 @@ class ActiveLearner():
         self.dataset: Cls_Datasets | Det_Dataset = self.ct_p["Dataset"]
         
         self.ds_t_p = self.t_p[self.ct_p["dataset_name"]]
-        self.batch_size = self.ds_t_p["batch_size"][
-            self.model.added_module_name if self.model.added_module == None else self.model.added_module_name.split('_')[0] # type: ignore
-        ]
-                
+        self.module_name_only = self.model.added_module_name if self.model.added_module == None else self.model.added_module_name.split('_')[0] # type: ignore
+        self.batch_size = self.ds_t_p["batch_size"][self.module_name_only]
+
+        # each strategy will have a separate labelled and unlabelled set to work independently from the original sets
         self.labelled_indices: List[int] = copy.deepcopy(self.dataset.labelled_indices)
         self.unlabelled_indices: List[int] = copy.deepcopy(self.dataset.unlabelled_indices)
         self.temp_unlab_pool = []
@@ -129,7 +129,7 @@ class ActiveLearner():
                 if 'probs' in dict_to_modify:
                     dict_to_modify["probs"] = torch.cat((dict_to_modify["probs"], self.model(images, mode='probs').cpu()), dim=0)
 
-                # could be both LL (1 output) and GTG (2 outputs)
+                # could be both LL (1 output) and GTG (3 outputs)
                 if 'module_out' in dict_to_modify:
                     if self.model.added_module != None:
                         dict_to_modify["module_out"] = torch.cat((
@@ -192,14 +192,15 @@ class ActiveLearner():
         params = { 
             'ct_p': self.ct_p, 't_p': self.t_p, 'strategy_name': self.strategy_name, 
             'iter': iter, 'labelled_indices': self.labelled_indices, 'unlabelled_indices': self.unlabelled_indices,
+            'module_name_only': self.module_name_only
         }
         
         
         # if we are using multiple gpus
         if self.world_size > 1:
             
-            os.environ["MASTER_ADDR"] = "ppv-gpu1"
-            os.environ["MASTER_PORT"] = "16217"
+            os.environ["MASTER_ADDR"] = "xxxxxxxxxx" # -> replace with the correct address
+            os.environ["MASTER_PORT"] = "yyyyyyyyyy" # -> repalce with a free port
             
             # Pipe for the itra-process communication of the results
             parent_conn, child_conn = mp.Pipe()
@@ -288,12 +289,12 @@ class ActiveLearner():
         
         logger.info(f'----------------------- ITERATION {self.iter} / {self.al_p["al_iters"]} -----------------------\n')
         
-        self.train_results[str(self.iter)] = self.train_evaluate_save(self.al_p["n_top_k_obs"], self.iter, results_format)
+        self.train_results[self.iter] = self.train_evaluate_save(self.al_p["n_top_k_obs"], self.iter, results_format)
         
         
         # start of the loop
         while self.iter < self.al_p["al_iters"]:
-
+            
             self.iter += 1
             
             logger.info(f'----------------------- ITERATION {self.iter} / {self.al_p["al_iters"]} -----------------------\n')
@@ -315,16 +316,16 @@ class ActiveLearner():
             # Saving the tsne embeddings plot
             if 'GTG_off' in self.method_name:
                 # if we are performing GTG Offline plot also the GTG predictions in the TSNE plot 
-                self.save_tsne(idxs_new_labels, d_labels, str(self.iter), self.gtg_result_prediction) # type: ignore
+                self.save_tsne(idxs_new_labels, d_labels, self.iter, self.gtg_result_prediction) # type: ignore
             
             #elif self.model.added_module_name == 'GTGModule': self.save_tsne(idxs_new_labels, d_labels, str(self.iter))
-            else: self.save_tsne(idxs_new_labels, d_labels, str(self.iter))
+            else: self.save_tsne(idxs_new_labels, d_labels, self.iter)
 
             # modify the datasets and dataloader and plot the tsne
             self.update_sets(topk_idx_obs)
 
             # iter + 1
-            self.train_results[str(self.iter)] = self.train_evaluate_save(
+            self.train_results[self.iter] = self.train_evaluate_save(
                 self.al_p["init_lab_obs"] + ((self.iter - 1) * self.al_p["n_top_k_obs"]), self.iter, results_format
             )
                 

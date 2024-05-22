@@ -450,3 +450,177 @@ class Custom_GAP_Embedds_Module(nn.Module):
         outs.append(self.linear_embedds(embedds))
         out = self.linear(torch.cat(outs, 1))
         return out
+
+
+
+
+'''class MLP(nn.Module):
+    def __init__(self, params: Dict[str, Any]):
+        super(MLP, self).__init__()
+
+        # same parameters of loss net
+        feature_sizes = params["feature_sizes"]
+        num_channels = params["num_channels"]
+        interm_dim = params["interm_dim"]
+
+        self.seq_linears, self.gaps = [], []
+
+        for n_c, e_d in zip(num_channels, feature_sizes):
+            self.gaps.append(nn.AvgPool2d(e_d))
+            self.seq_linears.append(nn.Sequential(
+                nn.Linear(n_c, interm_dim), nn.BatchNorm1d(interm_dim), nn.ReLU(),
+                nn.Linear(interm_dim, interm_dim//4), nn.BatchNorm1d(interm_dim//4), nn.ReLU(),
+            ))
+
+        self.linears = nn.ModuleList(self.seq_linears)
+        self.gaps = nn.ModuleList(self.gaps)
+        self.linear = nn.Linear(interm_dim//4 * len(self.seq_linears), 1)
+        
+        
+    def forward(self, features):
+        outs = []
+        for i in range(len(features)):
+            out = self.gaps[i](features[i])
+            out = out.view(out.size(0), -1)
+            out = self.linears[i](out)
+            outs.append(out)
+        
+        out = self.linear(torch.cat(outs, 1))
+        return out
+'''
+
+
+
+'''nn.Linear(in_feat, in_feat), nn.BatchNorm1d(in_feat), nn.ReLU(), 
+                nn.Linear(in_feat, in_feat//2), nn.BatchNorm1d(in_feat//2), nn.ReLU(),
+                nn.Linear(in_feat//2, in_feat//2), nn.BatchNorm1d(in_feat//2), nn.ReLU(),
+                nn.Linear(in_feat//2, in_feat//4), nn.BatchNorm1d(in_feat//4), nn.ReLU(),
+                nn.Linear(in_feat//4, in_feat//4), nn.BatchNorm1d(in_feat//4), nn.ReLU(),'''
+
+'''class Module_MLP(nn.Module):
+    def __init__(self, interm_dim):
+        super(Module_MLP, self).__init__()       
+        
+        in_feat = interm_dim + 1 
+        
+        self.seq_linears = [
+            nn.Sequential(
+                nn.Linear(in_feat, in_feat//4), nn.ReLU(),
+            ) for _ in range(4)
+        ]
+        
+        self.linears = nn.ModuleList(self.seq_linears)
+        self.linear = nn.Linear(in_feat//4 * len(self.seq_linears), 1)
+
+
+    def forward(self, features):
+        outs = []
+        for i in range(len(features)):
+            out = self.linears[i](features[i])
+            outs.append(out)
+        
+        out = self.linear(torch.cat(outs, 1))
+        return out'''
+        
+        
+class Module_MLP(nn.Module):
+    def __init__(self, gtg_iter, n_classes):
+        super(Module_MLP, self).__init__()
+        
+        in_feat = gtg_iter * n_classes # -> [128 , 10*10] = [128, 100] 
+        
+        self.seq_linears = nn.Sequential(
+            nn.Linear(in_feat, in_feat//2), nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(in_feat//2, in_feat//4), nn.ReLU(),
+        )
+        
+        
+        #self.linears = nn.ModuleList(self.seq_linears)
+        #self.linears = nn.ModuleList(self.seq_linears)
+        self.linear = nn.Linear(in_feat//4 * 4, 1)
+        #self.linear = nn.Linear(in_feat * len(self.seq_linears), 1)
+
+
+    def forward(self, features):
+        outs = []
+        for i in range(len(features)):
+            out = features[i].view(features[i].size(0), -1)
+            #out = self.linears[i](out)
+            out = self.seq_linears(out)
+            outs.append(out)
+        
+        out = self.linear(torch.cat(outs, 1))
+        return out
+
+
+    def forward(self, features):
+        outs = []
+        for i in range(len(features)):
+            out = features[i].view(features[i].size(0), -1)
+            #out = self.linears[i](out)
+            out = self.seq_linears(out)
+            outs.append(out)
+        
+        out = self.linear(torch.cat(outs, 1))
+        return out
+    
+    
+    
+    
+class MLP(nn.Module):
+    def __init__(self, params: Dict[str, Any]):
+        super(MLP, self).__init__()
+
+        # same parameters of loss net
+        feature_sizes = params["feature_sizes"]
+        num_channels = params["num_channels"]
+        interm_dim = params["interm_dim"]
+
+        self.seq_linears = []
+
+        for n_c, e_d in zip(num_channels, feature_sizes):
+            size = n_c * e_d * e_d
+            '''self.seq_linears.append(nn.Sequential(
+                nn.Linear(size, size//10), nn.BatchNorm1d(size//10), nn.ReLU(),#65536, 32768, 16384, 8192 
+                nn.Linear(size//10, interm_dim), nn.BatchNorm1d(interm_dim), nn.ReLU()
+            ))'''
+            self.seq_linears.append(nn.Sequential(
+                nn.Linear(size, interm_dim), nn.BatchNorm1d(interm_dim), nn.ReLU()
+            ))
+
+        self.linears_1 = nn.ModuleList(self.seq_linears)
+        size = interm_dim * len(self.seq_linears)
+        '''self.linears_2 = nn.Sequential( #262144
+            nn.Linear(size, size//2), nn.BatchNorm1d(size//2), nn.ReLU(),
+            nn.Linear(size//2, size//4), nn.BatchNorm1d(size//4), nn.ReLU(),
+            nn.Linear(size//4, 1),
+        )'''
+        self.linear = nn.Linear(interm_dim * len(self.seq_linears), 1)
+        
+        
+    def forward(self, features):
+        outs = []
+        for i in range(len(features)):
+            out = features[i].view(features[i].size(0), -1)
+            out = self.linears_1[i](out)
+            outs.append(out)
+        
+        #out = self.linears_2(torch.cat(outs, 1))
+        out = self.linear(torch.cat(outs, 1))
+        return out
+
+
+class MLP_embedds(nn.Module):
+    def __init__(self, embedd_dim):
+        super(MLP_embedds, self).__init__()
+        
+        self.linears = nn.Sequential(
+            nn.Linear(embedd_dim, embedd_dim//2), nn.BatchNorm1d(embedd_dim//2), nn.ReLU(),
+            nn.Linear(embedd_dim//2, embedd_dim//4), nn.BatchNorm1d(embedd_dim//4), nn.ReLU(),
+            nn.Linear(embedd_dim//4, embedd_dim//8), nn.BatchNorm1d(embedd_dim//8), nn.ReLU(),
+            nn.Linear(embedd_dim//8, 1),
+        )
+        
+    def forward(self, embedds):
+        return self.linears(embedds)

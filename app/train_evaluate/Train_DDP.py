@@ -46,8 +46,7 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     t_p = params["t_p"]
     
     moved_model: Master_Model = copy.deepcopy(ct_p["Master_Model"]).to(rank)
-    module_name = moved_model.added_module_name if moved_model.added_module_name == None else moved_model.added_module_name.split('_')[0]
-    batch_size = t_p[ct_p["dataset_name"]]["batch_size"][module_name]
+    batch_size = t_p[ct_p["dataset_name"]]["batch_size"][params["module_name_only"]]
     num_workers = int(os.environ["SLURM_CPUS_PER_TASK"])
     
     # deep copy the model (it is in the RAM) and then move it to the realive gpu
@@ -135,8 +134,7 @@ def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
     t_p = params["t_p"]   
     
     ct_p["Master_Model"] = ct_p["Master_Model"].to(params["ct_p"]["device"])
-    module_name = ct_p["Master_Model"].added_module_name if ct_p["Master_Model"].added_module_name == None else ct_p["Master_Model"].added_module_name.split('_')[0]
-    batch_size = t_p[ct_p["dataset_name"]]["batch_size"][module_name]
+    batch_size = t_p[ct_p["dataset_name"]]["batch_size"][params["module_name_only"]]
     
     dict_dl = dict(batch_size=batch_size, pin_memory=True)
     

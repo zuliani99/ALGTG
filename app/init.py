@@ -23,9 +23,8 @@ from models.BBone_Module import Master_Model
 from datasets_creation.Classification import Cls_Datasets
 from datasets_creation.Detection import Det_Dataset
 
-from config import voc_config
+#from config import voc_config
 from typing import Dict, Any, List, Tuple
-import copy
 
 
 def get_dataset(task: str, dataset_name: str, init_lab_obs: int) -> Cls_Datasets | Det_Dataset:
@@ -88,25 +87,15 @@ def get_strategies_object(methods: List[str], Masters: Dict[str, Master_Model],
     for method in methods:
         if 'gtg' in method.split('_'):
             
-            gtg_p_2 = copy.deepcopy(gtg_p) # temporary copy
-            
-            am_ts = gtg_p_2['am_ts']
-            am = gtg_p_2['am']
-            
-            del gtg_p_2['am_ts']
-            del gtg_p_2['am']
+            for id_am_ts in range(len(gtg_p['am_ts'])):
                 
-            for a_t_strategy in am_ts:
-                
-                if a_t_strategy == 'none': a_t_strategy = None
-                    
-                for a_matrix in am:
+                for id_am in range(len(gtg_p['am'])):
                     if method == 'gtg': m_model = Masters['M_None']
                     elif method.split('_')[0] == 'lq': m_model = Masters['M_GTG']
                     else: m_model = Masters['M_LL']
 
                     strategies.append(dict_strategies[method](
-                        {**ct_p, 'Master_Model': copy.deepcopy(m_model)}, t_p, al_p, {**gtg_p_2, 'am_ts': a_t_strategy, 'am': a_matrix})
+                        {**ct_p, 'Master_Model': m_model}, t_p, al_p, {**gtg_p, 'id_am_ts': id_am_ts, 'id_am': id_am})
                     )
                 
         elif method in ['ll', 'tavaal', 'tidal']:

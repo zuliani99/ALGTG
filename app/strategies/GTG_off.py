@@ -26,9 +26,9 @@ class GTG_off(ActiveLearner):
         self.gtg_tol: float = gtg_p["gtg_t"]
         self.gtg_max_iter: int = gtg_p["gtg_i"]
         
-        self.AM_function: str = gtg_p["am"]
+        self.AM_function: str = gtg_p["am"][gtg_p["id_am"]]
         self.AM_strategy: str = gtg_p["am_s"]
-        self.AM_threshold_strategy: str = gtg_p["am_ts"]
+        self.AM_threshold_strategy: str = gtg_p["am_ts"][gtg_p["id_am_ts"]]
         self.AM_threshold: float = gtg_p["am_t"]
         
         self.ent_strategy: str = gtg_p["e_s"]
@@ -76,17 +76,10 @@ class GTG_off(ActiveLearner):
             # set the unlabelled submatrix as distance matrix and not similarity matrix
             n_lab_obs = len(self.labelled_indices)
             
-            if self.AM_function == 'rbfk':
-                A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #LL to similarity
+            if self.AM_function == 'rbfk': A = 1 - A 
+            A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs]
                 
-            else:
-                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #UU to distance
-                
-                A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] #UL to distance
-                A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] #LU to distance
-
-
-                
+        
         # plot the TSNE fo the original and modified affinity matrix
         '''logger.info('Plotting TSNE of the original and modified Affinity Matrix...')
         plot_tsne_A(
@@ -146,9 +139,15 @@ class GTG_off(ActiveLearner):
             (len(self.labelled_indices) + self.len_unlab_sample, self.dataset.n_classes),
             dtype=torch.float32, device=self.device
         )
+        
+        # Set the labels for the labelled samples
         for idx, label in enumerate(self.lab_embedds_dict["labels"]): self.X[idx][int(label.item())] = 1.
+        
+        # Set the initial probabilities for the unlabelled samples
+        initial_prob = 1. / self.dataset.n_classes
         for idx in range(len(self.labelled_indices), len(self.labelled_indices) + self.len_unlab_sample):
-            for label in range(self.dataset.n_classes): self.X[idx][label] = 1. / self.dataset.n_classes
+            for label in range(self.dataset.n_classes):
+                self.X[idx][label] = initial_prob
         
         logger.info(' DONE\n')
         
@@ -179,7 +178,6 @@ class GTG_off(ActiveLearner):
 
 
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:            
-        # set the entire batch size to the dimension of the sampled unlabelled set
         self.len_unlab_sample = len(sample_unlab_subset)
 
         dl_dict = dict(batch_size=self.batch_size, shuffle=False, pin_memory=True)           
@@ -231,7 +229,7 @@ class GTG_off(ActiveLearner):
         elif self.ent_strategy == 'integral':
             # computing the area of the entropis history using trapezoid formula 
             area = torch.trapezoid(self.unlab_entropy_hist, dim=1)
-            overall_topk = torch.topk(area, k=n_top_k_obs, largest=True).indices.tolist()
+            overall_topk = torch.topk(area, k=n_top_k_obs).indices.tolist()
         
         else: 
             logger.exception('Unrecognized derivates computation strategy')

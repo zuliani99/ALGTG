@@ -51,8 +51,6 @@ def get_args() -> argparse.Namespace:
         
     parser.add_argument('-plb', '--perc_labelled_batch', type=float,  required=False, default=0.5,
                         help='Number of labelled observations to mantain in each batch during GTG end-to-end version')
-    parser.add_argument('--wandb', action='store_true', 
-                        help='Log benchmark stats into Weights & Biases web app service')
 
     args = parser.parse_args()
     return args
@@ -79,6 +77,21 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
     return results, n_lab_obs               
 
 
+def get_device(args) -> torch.device:
+    if torch.cuda.is_available():
+        logger.info(f'Using {args.gpus} / {torch.cuda.device_count()} of the available GPUs')
+        device = torch.device('cuda')
+        if dist.is_available(): logger.info('We can train on multiple GPU')
+        if dist.is_nccl_available(): logger.info('NCCL backend available')
+    else:
+        logger.info('CUDA is not available. Using CPU')
+        device = torch.device('cpu')
+
+    logger.info(f'Application running on {device}\n')
+    
+    return device
+
+
 
 def main() -> None:
     args = get_args()
@@ -94,16 +107,7 @@ def main() -> None:
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    if torch.cuda.is_available():
-        logger.info(f'Using {args.gpus} / {torch.cuda.device_count()} of the available GPUs')
-        device = torch.device('cuda')
-        if dist.is_available(): logger.info('We can train on multiple GPU')
-        if dist.is_nccl_available(): logger.info('NCCL backend available')
-    else:
-        logger.info('CUDA is not available. Using CPU')
-        device = torch.device('cpu')
-
-    logger.info(f'Application running on {device}\n')
+    device = get_device(args)
     
     # setting seed and deterministic behaviour of pytorch for reproducibility
     set_seeds()
@@ -154,8 +158,7 @@ def main() -> None:
             
         common_training_params = {
             'Dataset': Dataset, 'device': device, 'timestamp': timestamp,
-            'dataset_name': dataset_name, 'task': task, 'wandb_logs': args.wandb,
-            'gpus': args.gpus
+            'dataset_name': dataset_name, 'task': task, 'gpus': args.gpus
         }
         
         for trial in range(args.trials):

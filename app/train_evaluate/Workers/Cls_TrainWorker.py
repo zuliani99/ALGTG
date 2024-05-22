@@ -42,6 +42,7 @@ class Cls_TrainWorker():
         self.l1_loss_fn = nn.L1Loss(reduction='none').to(self.device)
         self.kld_loss_fn = nn.KLDivLoss(reduction='batchmean').to(self.device)
         self.ll_loss_fn = LossPredLoss(self.device).to(self.device)
+        self.bce_loss_fn = nn.BCELoss(reduction='none').to(self.device)
         
         self.score_fn = accuracy_score
         self.init_check_filename = f'app/checkpoints/{self.dataset_name}/{self.model.module.name if self.world_size > 1 else self.model.name}_init.pth.tar'
@@ -49,7 +50,7 @@ class Cls_TrainWorker():
         
         # RETRAIN FROM SCRATCH THE NETWORK (different from what LL4AL have done)
         self.__load_checkpoint(self.init_check_filename)
-        if self.model.added_module_name == 'GTGModule':
+        '''if self.model.added_module_name == 'GTGModule':
             logger.info(' => Running BackBone PreTraining')
             # Pretrain our backbone via Binary classification task (labelled, unlabelled)
             pt = PreTrain(
@@ -58,8 +59,7 @@ class Cls_TrainWorker():
                 unlab_subset=Subset(params["ct_p"]["Dataset"].train_ds, params["unlabelled_indices"])
             )
             self.model.backbone.load_state_dict(pt.train())
-            logger.info(' => DONE\n')
-            logger.info('')
+            logger.info(' => DONE\n')'''
         self.init_opt_sched()
         self.i = 0
 
@@ -103,12 +103,14 @@ class Cls_TrainWorker():
             tot_loss_ce += backbone.item()
             return backbone, tot_loss_ce, tot_pred_loss
         
-        elif self.method_name.split('_')[0] == 'GTG' and self.model.added_module_name == 'GTGModule':
+        #elif self.method_name.split('_')[0] == 'GTG' and self.model.added_module_name == 'GTGModule':
+        elif self.model.added_module_name == 'GTGModule':
                         
             (pred_entr, true_entr), labelled_mask = module_out
             if self.i%20 == 0: logger.info(f'y_pred {pred_entr}\ny_true {true_entr}') 
                 
             entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
+            #entr_loss = weight * self.bce_loss_fn(pred_entr, true_entr.detach()) # -> LSTM
 
             ################################################
             lab_ce_loss = torch.mean(ce_loss[labelled_mask])
@@ -177,7 +179,7 @@ class Cls_TrainWorker():
             train_loss, train_loss_ce, train_loss_pred, train_accuracy = .0, .0, .0, .0
             
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore  
-            if epoch >= self.decay: weight = 0.
+            if self.decay != None and epoch >= self.decay: weight = 0.
              
             for idxs, images, labels, moving_prob in self.train_dl:
                 images, labels = self.return_moved_imgs_labs(images, labels)

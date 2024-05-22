@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, ConcatDataset
 from torch.optim import Adam
 
 import logging
@@ -13,11 +13,13 @@ logger = logging.getLogger(__name__)
 class PreTrain_BackBone(nn.Module):
     def __init__(self, backbone):
         super(PreTrain_BackBone, self).__init__()
+        
         self.backbone = backbone
         self.mlp = nn.Sequential(
             nn.Linear(512, 256), nn.ReLU(),
             nn.Linear(256, 128), nn.ReLU(),
-            nn.Linear(128, 1), nn.Sigmoid()
+            nn.Linear(128, 64), nn.ReLU(),
+            nn.Linear(64, 1), nn.Sigmoid()
         )
         
     def forward(self, x):
@@ -30,14 +32,20 @@ class BinaryDataset(Dataset):
     def __init__(self, lab_subset, unlab_subset):
         self.lab_subset = lab_subset
         self.unlab_subset = unlab_subset
+        self.ds = ConcatDataset([lab_subset, unlab_subset])
         
     def __len__(self):
-        return len(self.lab_subset) + len(self.unlab_subset)
+        return len(self.ds)
     
     def __getitem__(self, idx): 
-        data = self.lab_subset[self.lab_subset.indices.index(idx)] if idx in self.lab_subset.indices else self.unlab_subset[self.unlab_subset.indices.index(idx)]
-        return data[1], 1. if idx in self.lab_subset.indices else 0.
-        
+        if idx < len(self.lab_subset):
+            image = self.lab_subset[idx][1]
+            label = 1.
+        else:
+            image = self.unlab_subset[idx - len(self.lab_subset)][1]
+            label = 0.
+        return image, label
+
 
 class PreTrain:
     def __init__(self, device, lab_subset, unlab_subset, backbone) -> None:
@@ -47,7 +55,7 @@ class PreTrain:
         self.pt_bb = PreTrain_BackBone(backbone).to(device)
     
     def train(self):
-        optimizer = Adam(self.pt_bb.parameters(), lr=1e-3)
+        optimizer = Adam(self.pt_bb.parameters(), lr=1e-4)
         criterion = nn.BCELoss()
         loss = 0.
 

@@ -45,7 +45,6 @@ cls_datasets = {
                     "television","tiger","tractor","train","trout","tulip","turtle","wardrobe","whale","willow_tree","wolf","woman","worm"],
         'transforms': {
             'train': transforms.Compose([
-                        
                         transforms.RandomHorizontalFlip(),
                         transforms.RandomCrop(32, padding=4),
                         transforms.ToTensor(),
@@ -158,43 +157,26 @@ cls_config = {
                      'test': {'test_accuracy': []}},
     'cifar10': {
         'unlab_sample_dim': 10000,
-        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 250 },
+        'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 256 }, #250 #160 -> for the MLP module only
         'optimizers': {
             'backbone':{
                 'type': { None: torch.optim.SGD, 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.SGD, },
                 'optim_p': {
                     None: { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
                     'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
-                    'GTGModule': { 'lr': 0.01, 'momentum': 0.9, 'weight_decay': 5e-4 }, # 0.01 -> for the GTG module is ok with the mlp_out
+                    'GTGModule': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
                 }
             },
             'modules': {
-                'type': { 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.Adam},#SGD, },
-                'decay': { 'LossNet': 120, 'GTGModule': 200, }, #120
+                'type': { 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.Adam, }, #SGD
+                'decay': { 'LossNet': 120, 'GTGModule': 120, }, #120
                 'optim_p': {
                     'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
-                    'GTGModule': { 'lr': 0.001, 'weight_decay': 5e-4 }#'momentum': 0.9, 'weight_decay': 5e-4 }, # SGD with 0.005 work
+                    'GTGModule': { 'lr': 0.001, } # SGD with 0.005 work, Adam with 0.001 work
                 }
             }
         }
     },
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     'cifar100': {
         'unlab_sample_dim': 10000,
         'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 250 },

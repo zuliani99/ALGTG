@@ -46,7 +46,7 @@ class Master_Model(nn.Module):
             if self.added_module != None:
                 features = self.backbone.get_features()
                 if weight: features = [feature.detach() for feature in features]
-                if self.added_module.name == 'GTGModule':
+                if self.added_module_name == 'GTGModule':
                     module_out = self.added_module(features=features, embedds=embedds, outs=outs, labels=labels)
                 else: module_out = self.added_module(features=features)
                 return outs, embedds, module_out
@@ -60,7 +60,7 @@ class Master_Model(nn.Module):
         elif mode == 'module_out': # -> it is only used for the learning loss
             if self.added_module != None:
                 outs, embedds = self.backbone(x)
-                if self.added_module.name == 'GTGModule':
+                if self.added_module_name == 'GTGModule':
                     return self.added_module(features=features, embedds=embedds, outs=outs, labels=labels)[0][0]
                 else: return self.added_module(features=self.backbone.get_features())
             else:
