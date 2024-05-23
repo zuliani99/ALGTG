@@ -332,7 +332,7 @@ class ActiveLearner():
                 
         # plotting the cumulative train results
         print_cumulative_train_results(list(self.t_p["results_dict"]["train"].keys()), 
-                                       self.train_results, self.strategy_name, len(self.train_results["1"]["train_pred_loss"]),
+                                       self.train_results, self.strategy_name, len(self.train_results[1]["train_pred_loss"]),
                                        self.ct_p["timestamp"], self.ct_p["dataset_name"], 
                                        self.ct_p["trial"])
         

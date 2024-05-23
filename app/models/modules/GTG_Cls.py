@@ -30,7 +30,7 @@ class Module_LSTM(nn.Module):
     
 
 
-##########################################################################
+
 class Module_MLP(nn.Module):
     def __init__(self, gtg_iter, n_classes):
         super(Module_MLP, self).__init__()
@@ -39,9 +39,9 @@ class Module_MLP(nn.Module):
         
         # shared weights
         self.seq_linears = nn.Sequential(
-            nn.Linear(in_feat, in_feat//2), nn.ReLU(),
-            #nn.Linear(in_feat//2, in_feat//4), nn.ReLU(),
-            #nn.Linear(in_feat//4, in_feat//8), nn.ReLU(), 
+            nn.Linear(in_feat, in_feat//2), nn.ReLU(), nn.Dropout(),#nn.BatchNorm1d(in_feat//2),
+            #nn.Linear(in_feat//2, in_feat//4), nn.ReLU(), #nn.BatchNorm1d(in_feat//4),
+            #nn.Linear(in_feat//4, in_feat//8), nn.ReLU(), #nn.BatchNorm1d(in_feat//4),
         )
         
         self.linear = nn.Linear(in_feat//2 * 4, 1)
@@ -58,7 +58,8 @@ class Module_MLP(nn.Module):
         
         out = self.linear(torch.cat(outs, 1))
         return out
-##########################################################################
+
+
 
 
 class Module_LS(nn.Module):
@@ -75,7 +76,7 @@ class Module_LS(nn.Module):
         for n_c, e_d in zip(num_channels, feature_sizes):
             self.gaps.append(nn.AvgPool2d(e_d))
             self.linears.append(nn.Sequential(
-                nn.Linear(n_c, interm_dim), nn.ReLU(),
+                nn.Linear(n_c, interm_dim), nn.ReLU(), #nn.BatchNorm1d(interm_dim), 
             ))
 
         self.linears = nn.ModuleList(self.linears)
@@ -196,7 +197,8 @@ class GTGModule(nn.Module):
         self.A = A
         
 
-    def get_X(self, probs: torch.Tensor) -> None:
+    #def get_X(self, probs: torch.Tensor) -> None:
+    def get_X(self) -> None:
         self.X: torch.Tensor = torch.zeros((self.batch_size, self.n_classes), dtype=torch.float32, device=self.device)
        
         self.X[torch.arange(self.n_lab_obs), self.lab_labels] = 1.
@@ -272,9 +274,10 @@ class GTGModule(nn.Module):
         
         
     # List[torch.Tensor] -> detection
-    def preprocess_inputs(self, embedding: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:     
+    def preprocess_inputs(self, gtg_func, embedding: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:     
                 
-        entropy_hist = self.graph_trasduction_game(embedding)
+        entropy_hist = gtg_func(embedding)
+        #entropy_hist = self.graph_trasduction_game(embedding)
 
         if self.ent_strategy == 'mean': quantity_result = torch.mean(entropy_hist, dim=1)
         # computing the mean of the entropis history    
@@ -296,13 +299,14 @@ class GTGModule(nn.Module):
         self.n_lab_obs = int(self.batch_size * self.perc_labelled_batch) if labelled_dim == -1 else labelled_dim
         self.lab_labels = labels[:self.n_lab_obs]
         
-        self.get_X(F.softmax(outs, dim=1))
+        self.get_X()
+        #self.get_X(F.softmax(outs, dim=1))
         
         y_pred = self.mod_mlp(
-            [self.preprocess_inputs(self.mod_ls(feature, id))[0] for id, feature in enumerate(features)]
+            [self.preprocess_inputs(self.graph_trasduction_game, self.mod_ls(feature, id))[0] for id, feature in enumerate(features)]
         ).squeeze()
 
-        y_true = self.preprocess_inputs(embedds)[1]
+        y_true = self.preprocess_inputs(self.graph_trasduction_game_detached, embedds)[1]
 
         if self.training:    
             labelled_mask = torch.zeros(self.batch_size, device=self.device)
