@@ -103,7 +103,6 @@ class Cls_TrainWorker():
             tot_loss_ce += backbone.item()
             return backbone, tot_loss_ce, tot_pred_loss
         
-        #elif self.method_name.split('_')[0] == 'GTG' and self.model.added_module_name == 'GTGModule':
         elif self.model.added_module_name == 'GTGModule':
                         
             (pred_entr, true_entr), labelled_mask = module_out
@@ -115,6 +114,7 @@ class Cls_TrainWorker():
             ################################################
             lab_ce_loss = torch.mean(ce_loss[labelled_mask])
             entr_loss = torch.mean(entr_loss)
+            #entr_loss = torch.mean(entr_loss[labelled_mask]) + torch.mean(entr_loss[~labelled_mask])
             ################################################
             
             loss = lab_ce_loss + entr_loss

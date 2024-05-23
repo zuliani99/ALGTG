@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 ##########################################################################################################################
-class Module_LSTM(nn.Module):
+'''class Module_LSTM(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, output_size):
         super(Module_LSTM, self).__init__()
         
@@ -25,7 +25,7 @@ class Module_LSTM(nn.Module):
     def forward(self, x):
         x, _ = self.lstm(x)
         x = self.classifier(x[:, -1, :])
-        return x
+        return x'''
 ##########################################################################################################################
     
 
@@ -42,11 +42,13 @@ class Module_MLP(nn.Module):
             nn.Linear(in_feat, in_feat//2), nn.ReLU(), #nn.BatchNorm1d(in_feat//2),
             nn.Linear(in_feat//2, in_feat//4), nn.ReLU(), #nn.BatchNorm1d(in_feat//4),
             nn.Linear(in_feat//4, in_feat//8), nn.ReLU(), #nn.BatchNorm1d(in_feat//4),
+            #nn.Linear(in_feat//8, 1), nn.ReLU(), #nn.BatchNorm1d(in_feat//4),# to test after
         )
         
         #self.linear = nn.Linear(in_feat//2 * 4, 1)
         #self.linear = nn.Linear(in_feat//4 * 4, 1)
         self.linear = nn.Linear(in_feat//8 * 4, 1)
+        #self.linear = nn.Linear(4, 1)
 
 
     def forward(self, features):

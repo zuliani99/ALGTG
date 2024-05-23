@@ -360,7 +360,7 @@ def plot_new_labelled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.
     
     handles, labels = axes[0].get_legend_handles_labels()
     unique_labels = dict(zip(labels, handles))
-    axes[0].legend(unique_labels.values(), unique_labels.keys())
+    axes[0].legend(unique_labels.values(), unique_labels.keys(), markerscale=1)
     
     sns_p = sns.scatterplot(x=np.hstack((x_lab, x_unlab)), y=np.hstack((y_lab, y_unlab)), 
                             hue=[classes[l] for l in np.hstack((lab["labels"], unlab["labels"]))], s=20, ax=axes[1])

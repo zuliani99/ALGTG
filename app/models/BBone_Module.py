@@ -45,7 +45,7 @@ class Master_Model(nn.Module):
 
             if self.added_module != None:
                 features = self.backbone.get_features()
-                if weight: features = [feature.detach() for feature in features]
+                if weight == 0: features = [feature.detach() for feature in features]
                 if self.added_module_name == 'GTGModule':
                     module_out = self.added_module(features=features, embedds=embedds, outs=outs, labels=labels)
                 else: module_out = self.added_module(features=features)
