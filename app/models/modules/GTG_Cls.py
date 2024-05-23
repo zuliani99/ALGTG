@@ -41,13 +41,13 @@ class Module_MLP(nn.Module):
         self.seq_linears = nn.Sequential(
             nn.Linear(in_feat, in_feat//2), nn.ReLU(), #nn.BatchNorm1d(in_feat//2),
             nn.Linear(in_feat//2, in_feat//4), nn.ReLU(), #nn.BatchNorm1d(in_feat//4),
-            nn.Linear(in_feat//4, in_feat//8), nn.ReLU(), #nn.BatchNorm1d(in_feat//4),
+            #nn.Linear(in_feat//4, in_feat//8), nn.ReLU(), #nn.BatchNorm1d(in_feat//4),
             #nn.Linear(in_feat//8, 1), nn.ReLU(), #nn.BatchNorm1d(in_feat//4),# to test after
         )
         
         #self.linear = nn.Linear(in_feat//2 * 4, 1)
-        #self.linear = nn.Linear(in_feat//4 * 4, 1)
-        self.linear = nn.Linear(in_feat//8 * 4, 1)
+        self.linear = nn.Linear(in_feat//4 * 4, 1)
+        #self.linear = nn.Linear(in_feat//8 * 4, 1)
         #self.linear = nn.Linear(4, 1)
 
 
