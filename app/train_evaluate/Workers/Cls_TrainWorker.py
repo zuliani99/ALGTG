@@ -153,12 +153,11 @@ class Cls_TrainWorker():
         else: raise AttributeError('Invalid method_name')
     
     
-    def return_moved_imgs_labs(self, images, labels):
+    def return_moved_imgs_labs(self, images: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         if self.world_size > 1:
             images = images.to(self.device, non_blocking=True)
             labels = labels.to(self.device, non_blocking=True)
-        else:
-            images, labels = images.to(self.device), labels.to(self.device)
+        else: images, labels = images.to(self.device), labels.to(self.device)
         return images, labels
     
     
@@ -167,10 +166,10 @@ class Cls_TrainWorker():
         weight = 1.
         results = torch.zeros((4, self.epochs), device=self.device)
         
-        ###########################################################
+        #############################################################
         #idxs, images, labels, moving_prob = next(iter(self.train_dl))
         #images, labels = self.return_moved_imgs_labs(images, labels)
-        ###########################################################
+        #############################################################
                 
         self.model.train()
                 
@@ -186,7 +185,7 @@ class Cls_TrainWorker():
                 
                 for optimizer in self.optimizers: optimizer.zero_grad(set_to_none=True)
                     
-                outputs, _, module_out = self.model(images, weight=weight, labels=labels)
+                outputs, module_out = self.model(images, weight=weight, labels=labels)
                                                                         
                 loss, train_loss_ce, train_loss_pred = self.compute_losses(
                             weight=weight, module_out=module_out, outputs=outputs, labels=labels,
@@ -227,7 +226,7 @@ class Cls_TrainWorker():
         self.__load_checkpoint(self.check_best_path)
         test_accuracy = .0
         
-        self.model.eval()    
+        self.model.backbone.eval()    
 
         with torch.inference_mode():
             for _, images, labels in self.test_dl:

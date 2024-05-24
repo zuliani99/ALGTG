@@ -46,23 +46,29 @@ class Master_Model(nn.Module):
             if self.added_module != None:
                 features = self.backbone.get_features()
                 if weight == 0: features = [feature.detach() for feature in features]
+                #for feature in features: logger.info(f'feature.grad_fn-> {feature.grad_fn if feature.grad_fn != None else None}')
                 if self.added_module_name == 'GTGModule':
                     module_out = self.added_module(features=features, embedds=embedds, outs=outs, labels=labels)
                 else: module_out = self.added_module(features=features)
-                return outs, embedds, module_out
+                return outs, module_out
             else:
-                return outs, embedds, None
+                return outs, None
         
-        elif mode == 'probs': return self.backbone(x)[0] 
+        elif mode == 'probs': 
+            if not self.training: return self.backbone(x)[0]
+            else: raise AttributeError("The Master_Model is in training mode, so it can't return the probabilities") 
             
-        elif mode == 'embedds': return self.backbone(x)[1]
+        elif mode == 'embedds': 
+            if not self.training: return self.backbone(x)[1]
+            else: raise AttributeError("The Master_Model is in training mode, so it can't return the embeddings")
             
         elif mode == 'module_out': # -> it is only used for the learning loss
-            if self.added_module != None:
-                outs, embedds = self.backbone(x)
-                if self.added_module_name == 'GTGModule':
-                    return self.added_module(features=features, embedds=embedds, outs=outs, labels=labels)[0][0]
-                else: return self.added_module(features=self.backbone.get_features())
-            else:
-                raise AttributeError("The Master_Model hasn't got any additional module")
-
+            if not self.training:
+                if self.added_module != None:
+                    outs, embedds = self.backbone(x)
+                    if self.added_module_name == 'GTGModule':
+                        return self.added_module(features=features, embedds=embedds, outs=outs, labels=labels)[0][0]
+                    else: return self.added_module(features=self.backbone.get_features())
+                else: raise AttributeError("The Master_Model hasn't got any additional module")   
+            else: raise AttributeError("The Master_Model is in training mode, so it can't return the module_out")
+        else: raise AttributeError("The mode is not valid")

@@ -41,13 +41,13 @@ class Module_MLP(nn.Module):
         self.seq_linears = nn.Sequential(
             nn.Linear(in_feat, in_feat//2), nn.ReLU(), #nn.BatchNorm1d(in_feat//2),
             nn.Linear(in_feat//2, in_feat//4), nn.ReLU(), #nn.BatchNorm1d(in_feat//4),
-            #nn.Linear(in_feat//4, in_feat//8), nn.ReLU(), #nn.BatchNorm1d(in_feat//4),
+            nn.Linear(in_feat//4, in_feat//8), nn.ReLU(), #nn.BatchNorm1d(in_feat//4),
             #nn.Linear(in_feat//8, 1), nn.ReLU(), #nn.BatchNorm1d(in_feat//4),# to test after
         )
         
         #self.linear = nn.Linear(in_feat//2 * 4, 1)
-        self.linear = nn.Linear(in_feat//4 * 4, 1)
-        #self.linear = nn.Linear(in_feat//8 * 4, 1)
+        #self.linear = nn.Linear(in_feat//4 * 4, 1)
+        self.linear = nn.Linear(in_feat//8 * 4, 1)
         #self.linear = nn.Linear(4, 1)
 
 
@@ -78,7 +78,7 @@ class Module_LS(nn.Module):
         for n_c, e_d in zip(num_channels, feature_sizes):
             self.gaps.append(nn.AvgPool2d(e_d))
             self.linears.append(nn.Sequential(
-                nn.Linear(n_c, interm_dim), nn.ReLU(), #nn.BatchNorm1d(interm_dim), 
+                nn.Linear(n_c, interm_dim), nn.ReLU(),
             ))
 
         self.linears = nn.ModuleList(self.linears)
@@ -158,7 +158,7 @@ class GTGModule(nn.Module):
         
     def get_A_e_d(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         A = torch.cdist(concat_embedds, concat_embedds).to(self.device)
-        return torch.clamp(A, min=0.1, max=1.)
+        return torch.clamp(A, min=0., max=1.)
     
 
     def get_A_cos_sim(self, concat_embedds: torch.Tensor) -> torch.Tensor: 
@@ -178,9 +178,8 @@ class GTGModule(nn.Module):
         return torch.clamp(A, min=0., max=1.)
     
     
-    def get_A(self, embedding: torch.Tensor) -> None:
-        # compute the affinity matrix
-        if self.AM_function != None: A = self.get_A_fn[self.AM_function](embedding)
+    def get_A(self, embedding: torch.Tensor) -> torch.Tensor:
+        if self.AM_function != None: A = self.get_A_fn[self.AM_function](embedding) # compute the affinity matrix
         else: raise AttributeError('A Fucntion is None')
                 
         if self.AM_threshold_strategy != None and self.AM_threshold!= None:
@@ -188,15 +187,12 @@ class GTGModule(nn.Module):
             else: A = torch.where(A > self.get_A_treshold(A), 1, A)
 
         if self.AM_strategy == 'diversity':
-            # set the whole matrix as a distance matrix and not similarity matrix
-            A = 1 - A
+            A = 1 - A # set the whole matrix as a distance matrix and not similarity matrix
         elif self.AM_strategy == 'mixed':    
-            # set the unlabelled submatrix as distance matrix and not similarity matrix
-
-            if self.AM_function == 'rbfk': A = 1 - A
+            if self.AM_function == 'rbfk': A = 1 - A # set the unlabelled submatrix as distance matrix and not similarity matrix
             A[:self.n_lab_obs, :self.n_lab_obs] = 1 - A[:self.n_lab_obs, :self.n_lab_obs] # -> LL distance
         
-        self.A = A
+        return A
         
 
     #def get_X(self, probs: torch.Tensor) -> None:
@@ -206,25 +202,24 @@ class GTGModule(nn.Module):
         self.X[torch.arange(self.n_lab_obs), self.lab_labels] = 1.
         #self.X[torch.arange(self.n_lab_obs), :] = probs[torch.arange(self.n_lab_obs)]
 
-        self.X[self.n_lab_obs:, :] = torch.ones(self.n_classes, device=self.device) * (1./self.n_classes)
+        self.X[self.n_lab_obs:, :] = torch.ones(self.n_classes, device=self.device) * (1. / self.n_classes)
         self.X.requires_grad_(True)
 
         
 
-    @torch.no_grad()
     def graph_trasduction_game_detached(self, embedding: torch.Tensor) -> torch.Tensor:
         
         entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
-        self.get_A(embedding)
+        A = self.get_A(embedding).detach()
                 
         err = float('Inf')
         i = 0
         X = self.X.clone()
-                
+        
         while err > self.gtg_tol and i < self.gtg_max_iter:
-            X_old = X.detach().clone()
+            X_old = X.clone()
             
-            X *= torch.mm(self.A, X)
+            X *= torch.mm(A, X)
             X /= torch.sum(X, dim=1, keepdim=True)
             
             entropy_hist[:, i] = entropy(X).to(self.device)
@@ -235,13 +230,13 @@ class GTGModule(nn.Module):
 
 
 
-    def graph_trasduction_game(self, embedding: torch.Tensor) -> torch.Tensor:
+    def graph_trasduction_game(self, features_embedding: torch.Tensor) -> torch.Tensor:
                         
-        entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
+        #entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
         
-        self.get_A(embedding)
+        A = self.get_A(features_embedding)
         X = self.X.clone()
-        self.Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device, dtype=torch.float32, requires_grad=True)
+        Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device, dtype=torch.float32, requires_grad=True)
         
         err = float('Inf')
         i = 0
@@ -250,38 +245,38 @@ class GTGModule(nn.Module):
             
             X_old = X.detach().clone()
             
-            mm_A_X = torch.mm(self.A, X)
+            mm_A_X = torch.mm(A, X)
             mult_X_A_X = X * mm_A_X
             sum_X_A_X = torch.sum(mult_X_A_X, dim=1, keepdim=True)
             div_sum_X_A_X = mult_X_A_X / (sum_X_A_X + 1e-8)  # Add a small epsilon to avoid division by zero
             
-            X = X + div_sum_X_A_X # Add residual connection
-            
-            entropy_hist[:, i] = entropy(div_sum_X_A_X.detach()).to(self.device)
+            #entropy_hist[:, i] = entropy(div_sum_X_A_X.detach()).to(self.device)
             
             err = torch.norm(div_sum_X_A_X.detach() - X_old)
-            self.Xs = torch.cat((self.Xs, X.unsqueeze(dim=-1)), dim=-1)
-                        
+            Xs = torch.cat((Xs, div_sum_X_A_X.unsqueeze(dim=-1)), dim=-1)
+            X = X + div_sum_X_A_X # Add residual connection
+            
             i += 1
         
         # fill in case we early extit by the norm err
-        for _ in range(self.gtg_max_iter - self.Xs.shape[-1]): 
-            self.Xs = torch.cat((
-                self.Xs, torch.zeros(self.batch_size, self.n_classes, 1, device=self.device, dtype=torch.float32, requires_grad=True)
+        for _ in range(self.gtg_max_iter - Xs.shape[-1]): 
+            Xs = torch.cat((
+                Xs, torch.zeros((self.batch_size, self.n_classes, 1), device=self.device, dtype=torch.float32, requires_grad=True)
             ), dim=-1)
-                           
-        return entropy_hist
+            
+        #return entropy_hist
+        return Xs
     
     
         
         
     # List[torch.Tensor] -> detection
-    #def preprocess_inputs(self, gtg_func, embedding: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:     
-    def preprocess_inputs(self, embedding: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:     
-                
-        #entropy_hist = gtg_func(embedding)
-        entropy_hist = self.graph_trasduction_game(embedding)
-
+    def get_true_entropies(self, embedding: torch.Tensor) -> torch.Tensor: #Tuple[torch.Tensor, torch.Tensor]:     
+        #logger.info(embedding)
+        #logger.info(f'embedding.grad_fn -> {embedding.grad_fn if embedding.grad_fn != None else None}')
+                  
+        entropy_hist = self.graph_trasduction_game_detached(embedding)
+ 
         if self.ent_strategy == 'mean': quantity_result = torch.mean(entropy_hist, dim=1)
         # computing the mean of the entropis history    
         elif self.ent_strategy == 'integral': quantity_result = torch.trapezoid(entropy_hist, dim=1)
@@ -289,9 +284,8 @@ class GTGModule(nn.Module):
         else:
             logger.exception(' Invalid GTG Strategy') 
             raise AttributeError(' Invalid GTG Strategy')
-
-        return self.Xs, quantity_result, entropy_hist
-        #return quantity_result # ------------> FOR THE LOSSNET MODULE ONLY
+            
+        return quantity_result
     
     
     
@@ -306,14 +300,13 @@ class GTGModule(nn.Module):
         #self.get_X(F.softmax(outs, dim=1))
         
         y_pred = self.mod_mlp(
-            #[self.preprocess_inputs(self.graph_trasduction_game, self.mod_ls(feature, id))[0] for id, feature in enumerate(features)]
-            [self.preprocess_inputs(self.mod_ls(feature, id))[0] for id, feature in enumerate(features)]
+            [self.graph_trasduction_game(self.mod_ls(features_embedding, id))#[0] # -> takes always the first Xs
+            for id, features_embedding in enumerate(features)]
         ).squeeze()
 
-        y_true = self.preprocess_inputs(embedds)[1]
-        #y_true = self.preprocess_inputs(self.graph_trasduction_game_detached, embedds)[1]
+        y_true = self.get_true_entropies(embedds)
 
-        if self.training:    
+        if self.training:
             labelled_mask = torch.zeros(self.batch_size, device=self.device)
             labelled_mask[:self.n_lab_obs] = 1.
             return (y_pred, y_true), labelled_mask.bool()
