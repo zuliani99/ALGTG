@@ -191,7 +191,7 @@ class GTG_off(ActiveLearner):
             'labels': torch.empty(0, dtype=torch.int8, device=torch.device('cpu'))
         }
         self.unlab_embedds_dict = {
-            'idxs': torch.empty(0, dtype=torch.int8, device=torch.device('cpu')),
+            #'idxs': torch.empty(0, dtype=torch.int8, device=torch.device('cpu')),
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu')),
             'labels': torch.empty(0, dtype=torch.int8, device=torch.device('cpu'))
         }        
@@ -235,7 +235,7 @@ class GTG_off(ActiveLearner):
             logger.exception('Unrecognized derivates computation strategy')
             raise Exception('Unrecognized derivates computation strategy')
         
-        # plot entropy hisstory tensor
+        # plot entropy history tensor
         plot_gtg_entropy_tensor(
             tensor=self.unlab_entropy_hist, topk=overall_topk, lab_unlabels=self.unlab_embedds_dict["labels"].tolist(), classes=self.dataset.classes, 
             path=self.path, iter=self.iter - 1, max_x=self.gtg_max_iter, dir='history'
@@ -247,5 +247,6 @@ class GTG_off(ActiveLearner):
         
         logger.info(' DONE\n')
         
-        return overall_topk, [int(self.unlab_embedds_dict["idxs"][id].item()) for id in overall_topk]
+        #return overall_topk, [int(self.unlab_embedds_dict["idxs"][id].item()) for id in overall_topk]
+        return overall_topk, [self.rand_unlab_sample[id] for id in overall_topk]
     

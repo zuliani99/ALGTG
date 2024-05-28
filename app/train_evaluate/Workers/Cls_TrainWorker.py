@@ -106,15 +106,16 @@ class Cls_TrainWorker():
         elif self.model.added_module_name == 'GTGModule':
                         
             (pred_entr, true_entr), labelled_mask = module_out
-            if self.i%20 == 0: logger.info(f'y_pred {pred_entr}\ny_true {true_entr}') 
-                
+            #if self.i%20 == 0: logger.info(f'y_pred {pred_entr}\ny_true {true_entr}') 
+            logger.info(f'y_pred {pred_entr}\ny_true {true_entr}') 
+            
             entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
             #entr_loss = weight * self.bce_loss_fn(pred_entr, true_entr.detach()) # -> LSTM
 
             ################################################
             lab_ce_loss = torch.mean(ce_loss[labelled_mask])
-            entr_loss = torch.mean(entr_loss)
-            #entr_loss = torch.mean(entr_loss[labelled_mask]) + torch.mean(entr_loss[~labelled_mask])
+            #entr_loss = torch.mean(entr_loss)
+            entr_loss = torch.mean(entr_loss[labelled_mask])  + torch.mean(entr_loss[~labelled_mask])
             ################################################
             
             loss = lab_ce_loss + entr_loss
@@ -165,11 +166,6 @@ class Cls_TrainWorker():
         
         weight = 1.
         results = torch.zeros((4, self.epochs), device=self.device)
-        
-        #############################################################
-        #idxs, images, labels, moving_prob = next(iter(self.train_dl))
-        #images, labels = self.return_moved_imgs_labs(images, labels)
-        #############################################################
                 
         self.model.train()
                 

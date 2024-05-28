@@ -165,7 +165,7 @@ class ActiveLearner():
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu')),
             'labels': torch.empty(0, dtype=torch.int8, device=torch.device('cpu'))
         }
-            
+        self.load_best_checkpoint()
         logger.info(' Getting the embeddings...')
         self.get_embeddings(lab_train_dl, lab_embedds_dict, embedds2cpu=True)
         self.get_embeddings(unlab_train_dl, unlab_embedds_dict, embedds2cpu=True)

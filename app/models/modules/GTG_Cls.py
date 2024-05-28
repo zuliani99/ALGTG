@@ -13,19 +13,24 @@ logger = logging.getLogger(__name__)
 
 
 ##########################################################################################################################
-'''class Module_LSTM(nn.Module):
+class Module_LSTM(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, output_size):
         super(Module_LSTM, self).__init__()
         
         self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
         self.classifier = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size//2), nn.ReLU(), #nn.Dropout(),
-            nn.Linear(hidden_size//2, output_size), nn.Sigmoid()
+            #nn.Linear(hidden_size, hidden_size//2), nn.ReLU(), #nn.Dropout(),
+            #nn.Linear(hidden_size//2, output_size), nn.Sigmoid()
+            nn.Linear(hidden_size, output_size), nn.Sigmoid()
         )
     def forward(self, x):
-        x, _ = self.lstm(x)
-        x = self.classifier(x[:, -1, :])
-        return x'''
+        hiddens = (
+            torch.zeros(1, self.lstm.hidden_size, device=x.device), torch.zeros(1, self.lstm.hidden_size, device=x.device)
+        )
+        out, _ = self.lstm(x, hiddens)
+        #out = self.classifier(out[:, -1, :])# -> -1 takes the output of the last LSTM cell
+        out = self.classifier(out)
+        return out
 ##########################################################################################################################
     
 
@@ -35,19 +40,21 @@ class Module_MLP(nn.Module):
     def __init__(self, gtg_iter, n_classes):
         super(Module_MLP, self).__init__()
         
-        in_feat = gtg_iter * n_classes # -> [128 , 10*10] = [128, 100] 
+        in_feat = gtg_iter * n_classes # -> [128 , n_classes * gtg_iter] = [128, 100] 
         
         # shared weights
         self.seq_linears = nn.Sequential(
-            nn.Linear(in_feat, in_feat//2), nn.ReLU(), #nn.BatchNorm1d(in_feat//2),
-            nn.Linear(in_feat//2, in_feat//4), nn.ReLU(), #nn.BatchNorm1d(in_feat//4),
-            nn.Linear(in_feat//4, in_feat//8), nn.ReLU(), #nn.BatchNorm1d(in_feat//4),
+            nn.Linear(in_feat, in_feat//2), nn.ReLU(), nn.Dropout(), nn.BatchNorm1d(in_feat//2),
+            #nn.Linear(in_feat//2, in_feat//2), nn.ReLU(), nn.BatchNorm1d(in_feat//2),
+            nn.Linear(in_feat//2, in_feat//4), nn.ReLU(), nn.Dropout(), nn.BatchNorm1d(in_feat//4),
+            #nn.Linear(in_feat//4, in_feat//4), nn.ReLU(), nn.BatchNorm1d(in_feat//4),
+            #nn.Linear(in_feat//4, in_feat//8), nn.ReLU(), nn.Dropout(), nn.BatchNorm1d(in_feat//8),
             #nn.Linear(in_feat//8, 1), nn.ReLU(), #nn.BatchNorm1d(in_feat//4),# to test after
         )
         
         #self.linear = nn.Linear(in_feat//2 * 4, 1)
-        #self.linear = nn.Linear(in_feat//4 * 4, 1)
-        self.linear = nn.Linear(in_feat//8 * 4, 1)
+        self.linear = nn.Linear(in_feat//4 * 4, 1)
+        #self.linear = nn.Linear(in_feat//8 * 4, 1)
         #self.linear = nn.Linear(4, 1)
 
 
@@ -110,8 +117,8 @@ class GTGModule(nn.Module):
         
         self.AM_threshold: float = gtg_p["am_t"]
         
-        self.AM_threshold_strategy: str | List[str] = gtg_p["am_ts"] # now is a list
-        self.AM_function: str | List[str] = gtg_p["am"] # now is a list
+        self.list_AM_threshold_strategy: List[str] = gtg_p["am_ts"]
+        self.list_AM_function: List[str] = gtg_p["am"]
         
         self.ent_strategy: str = gtg_p["e_s"]
         self.perc_labelled_batch: int = gtg_p["plb"]
@@ -122,12 +129,12 @@ class GTGModule(nn.Module):
 
         self.mod_ls = Module_LS(ll_p).to(self.device)
         self.mod_mlp = Module_MLP(self.gtg_max_iter, self.n_classes).to(self.device)
-        #self.mod_lstm = Module_LSTM(input_size=self.gtg_max_iter, hidden_size=self.gtg_max_iter, num_layers=2, output_size=1).to(self.device)
+        #self.mod_lstm = Module_LSTM(input_size=self.gtg_max_iter, hidden_size=self.gtg_max_iter, num_layers=1, output_size=1).to(self.device)
         
         
     def define_idx_params(self, id_am_ts: int, id_am: int) -> None: # in order to define the indices of AM_threshold_strategy and AM_function
-        self.AM_threshold_strategy: str = self.AM_threshold_strategy[id_am_ts]
-        self.AM_function: str = self.AM_function[id_am]
+        self.AM_threshold_strategy: str = self.list_AM_threshold_strategy[id_am_ts]
+        self.AM_function: str = self.list_AM_function[id_am]
 
     
     def get_A_treshold(self, A: torch.Tensor) -> Any:
@@ -207,7 +214,7 @@ class GTGModule(nn.Module):
 
         
 
-    def graph_trasduction_game_detached(self, embedding: torch.Tensor) -> torch.Tensor:
+    '''def graph_trasduction_game_detached(self, embedding: torch.Tensor) -> torch.Tensor:
         
         entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
         A = self.get_A(embedding).detach()
@@ -222,17 +229,17 @@ class GTGModule(nn.Module):
             X *= torch.mm(A, X)
             X /= torch.sum(X, dim=1, keepdim=True)
             
-            entropy_hist[:, i] = entropy(X).to(self.device)
+            entropy_hist[self.n_lab_obs:, i] = entropy(X)[self.n_lab_obs:].to(self.device)
             
             err = torch.norm(X - X_old)
             i += 1
-        return entropy_hist
+        return entropy_hist'''
 
 
 
     def graph_trasduction_game(self, features_embedding: torch.Tensor) -> torch.Tensor:
                         
-        #entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
+        entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
         
         A = self.get_A(features_embedding)
         X = self.X.clone()
@@ -248,14 +255,15 @@ class GTGModule(nn.Module):
             mm_A_X = torch.mm(A, X)
             mult_X_A_X = X * mm_A_X
             sum_X_A_X = torch.sum(mult_X_A_X, dim=1, keepdim=True)
-            div_sum_X_A_X = mult_X_A_X / (sum_X_A_X + 1e-8)  # Add a small epsilon to avoid division by zero
+            div_sum_X_A_X = mult_X_A_X / (sum_X_A_X + 1e-8)  # Add a small epsilon to avoid division by zero, 1e-8
             
-            #entropy_hist[:, i] = entropy(div_sum_X_A_X.detach()).to(self.device)
-            
-            err = torch.norm(div_sum_X_A_X.detach() - X_old)
-            Xs = torch.cat((Xs, div_sum_X_A_X.unsqueeze(dim=-1)), dim=-1)
+            entropy_hist[self.n_lab_obs:, i] = entropy(div_sum_X_A_X.detach())[self.n_lab_obs:].to(self.device)
             X = X + div_sum_X_A_X # Add residual connection
             
+            err = torch.norm(div_sum_X_A_X.detach() - X_old)
+            #Xs = torch.cat((Xs, div_sum_X_A_X.unsqueeze(dim=-1).detach()), dim=-1)
+            Xs = torch.cat((Xs, div_sum_X_A_X.unsqueeze(dim=-1)), dim=-1)
+
             i += 1
         
         # fill in case we early extit by the norm err
@@ -264,18 +272,16 @@ class GTGModule(nn.Module):
                 Xs, torch.zeros((self.batch_size, self.n_classes, 1), device=self.device, dtype=torch.float32, requires_grad=True)
             ), dim=-1)
             
-        #return entropy_hist
-        return Xs
+        return Xs, entropy_hist
     
     
         
         
     # List[torch.Tensor] -> detection
-    def get_true_entropies(self, embedding: torch.Tensor) -> torch.Tensor: #Tuple[torch.Tensor, torch.Tensor]:     
-        #logger.info(embedding)
-        #logger.info(f'embedding.grad_fn -> {embedding.grad_fn if embedding.grad_fn != None else None}')
+    def get_entropies(self, embedding: torch.Tensor) -> torch.Tensor: #Tuple[torch.Tensor, torch.Tensor]:     
                   
-        entropy_hist = self.graph_trasduction_game_detached(embedding)
+        #entropy_hist = self.graph_trasduction_game_detached(embedding)
+        entropy_hist = self.graph_trasduction_game(embedding)[1]
  
         if self.ent_strategy == 'mean': quantity_result = torch.mean(entropy_hist, dim=1)
         # computing the mean of the entropis history    
@@ -288,23 +294,33 @@ class GTGModule(nn.Module):
         return quantity_result
     
     
-    
-    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, outs: torch.Tensor, labels: torch.Tensor, labelled_dim = -1)\
-                -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]: 
+    #labelled_dim = -1
+    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, outs: torch.Tensor, labels: torch.Tensor) \
+        -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]: 
         
         self.batch_size = len(embedds)
-        self.n_lab_obs = int(self.batch_size * self.perc_labelled_batch) if labelled_dim == -1 else labelled_dim
+        self.n_lab_obs = int(self.batch_size * self.perc_labelled_batch)# if labelled_dim == -1 else labelled_dim
         self.lab_labels = labels[:self.n_lab_obs]
         
         self.get_X()
         #self.get_X(F.softmax(outs, dim=1))
-        
-        y_pred = self.mod_mlp(
-            [self.graph_trasduction_game(self.mod_ls(features_embedding, id))#[0] # -> takes always the first Xs
-            for id, features_embedding in enumerate(features)]
-        ).squeeze()
+        latent_features = [
+            self.graph_trasduction_game(self.mod_ls(features_embedding, id))[0] # -> takes always the first Xs
+            for id, features_embedding in enumerate(features)
+        ]
+        y_pred = self.mod_mlp(latent_features).squeeze()
 
-        y_true = self.get_true_entropies(embedds)
+        if torch.any(torch.isnan(y_pred)):
+            print(latent_features)
+            print(y_pred)
+        assert not torch.any(torch.isnan(y_pred)), 'y_pred is nan'
+        
+        y_true = self.get_entropies(embedds)
+        
+        if torch.any(torch.isnan(y_true)):
+            print(embedds)
+            print(y_true)
+        assert not torch.any(torch.isnan(y_true)), 'y_true is nan'
 
         if self.training:
             labelled_mask = torch.zeros(self.batch_size, device=self.device)
@@ -313,7 +329,20 @@ class GTGModule(nn.Module):
         
         else: return (y_pred, y_true), None
 
+        #LSTM MODULE
+'''self.batch_size = len(embedds)
+        self.n_lab_obs = int(self.batch_size * self.perc_labelled_batch) if labelled_dim == -1 else labelled_dim
+        self.lab_labels = labels[:self.n_lab_obs]
+        
+        self.get_X(F.softmax(outs, dim=1))
+        
+        y_pred = torch.clamp(self.mod_lstm(self.graph_trasduction_game(embedds)[1]).squeeze(), 0., 1.)
 
+        y_true = torch.zeros(self.batch_size, device=self.device)
+        y_true[:self.n_lab_obs] = 1.
+        
+        if self.training: return (y_pred, y_true), y_true.bool()
+        else: return (y_pred, y_true), None'''
 
 
         #y_pred = torch.mean(

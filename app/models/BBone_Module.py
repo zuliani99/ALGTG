@@ -38,7 +38,7 @@ class Master_Model(nn.Module):
         if mode == 'all':
             
             outs, embedds = self.backbone(x)
-                        
+            
             if torch.any(torch.isnan(embedds)): print(embedds)
             assert not torch.any(torch.isnan(embedds)), 'embedding is nan'
             assert torch.std(embedds) > 0, 'std is zero or negative'
@@ -46,7 +46,6 @@ class Master_Model(nn.Module):
             if self.added_module != None:
                 features = self.backbone.get_features()
                 if weight == 0: features = [feature.detach() for feature in features]
-                #for feature in features: logger.info(f'feature.grad_fn-> {feature.grad_fn if feature.grad_fn != None else None}')
                 if self.added_module_name == 'GTGModule':
                     module_out = self.added_module(features=features, embedds=embedds, outs=outs, labels=labels)
                 else: module_out = self.added_module(features=features)
@@ -66,9 +65,10 @@ class Master_Model(nn.Module):
             if not self.training:
                 if self.added_module != None:
                     outs, embedds = self.backbone(x)
+                    features = self.backbone.get_features()
                     if self.added_module_name == 'GTGModule':
                         return self.added_module(features=features, embedds=embedds, outs=outs, labels=labels)[0][0]
-                    else: return self.added_module(features=self.backbone.get_features())
+                    else: return self.added_module(features=features)
                 else: raise AttributeError("The Master_Model hasn't got any additional module")   
             else: raise AttributeError("The Master_Model is in training mode, so it can't return the module_out")
         else: raise AttributeError("The mode is not valid")

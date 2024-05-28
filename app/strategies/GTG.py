@@ -151,10 +151,10 @@ class GTG(ActiveLearner):
         
         
         logger.info(f' => Extracting the Top-k unlabelled observations')
-        overall_topk = torch.topk(pred_entropies, n_top_k_obs).indices.tolist()
-        #########################################################################
-        #overall_topk = torch.topk(true_entropies, n_top_k_obs).indices.tolist() # -> DEBUB PORPUSE
-        #########################################################################
+        overall_topk = top_k_pred.tolist()
+        ######################################################
+        #overall_topk = top_k_true.tolist() # -> DEBUB PORPUSE
+        ######################################################
         logger.info(' DONE\n')
         
         return overall_topk, [self.rand_unlab_sample[id] for id in overall_topk]
