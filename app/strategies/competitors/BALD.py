@@ -29,7 +29,7 @@ class BALD(ActiveLearner):
         self.model.backbone.train()
         
         prob_dist_drop = torch.zeros((n_drop, len(self.unlab_train_dl.dataset), self.dataset.n_classes), dtype=torch.float32, device=self.device)  # type: ignore
-        indices = torch.empty(0, dtype=torch.int8, device=self.device) 
+        indices = torch.empty(0, device=self.device) 
         
         for drop in range(n_drop):
             with torch.inference_mode(): # Allow inference mode

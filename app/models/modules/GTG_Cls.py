@@ -44,11 +44,11 @@ class Module_MLP(nn.Module):
         
         # shared weights
         self.seq_linears = nn.Sequential(
-            nn.Linear(in_feat, in_feat//2), nn.ReLU(), nn.Dropout(), nn.BatchNorm1d(in_feat//2),
+            nn.Linear(in_feat, in_feat//2), nn.ReLU(),# nn.BatchNorm1d(in_feat//2),# nn.Dropout(), #nn.BatchNorm1d(in_feat//2),
             #nn.Linear(in_feat//2, in_feat//2), nn.ReLU(), nn.BatchNorm1d(in_feat//2),
-            nn.Linear(in_feat//2, in_feat//4), nn.ReLU(), nn.Dropout(), nn.BatchNorm1d(in_feat//4),
+            nn.Linear(in_feat//2, in_feat//4), nn.ReLU(),# nn.BatchNorm1d(in_feat//4),# nn.Dropout(), #nn.BatchNorm1d(in_feat//4),
             #nn.Linear(in_feat//4, in_feat//4), nn.ReLU(), nn.BatchNorm1d(in_feat//4),
-            #nn.Linear(in_feat//4, in_feat//8), nn.ReLU(), nn.Dropout(), nn.BatchNorm1d(in_feat//8),
+            #nn.Linear(in_feat//4, in_feat//8), nn.ReLU(), nn.Dropout(), #nn.BatchNorm1d(in_feat//8),
             #nn.Linear(in_feat//8, 1), nn.ReLU(), #nn.BatchNorm1d(in_feat//4),# to test after
         )
         
@@ -85,7 +85,7 @@ class Module_LS(nn.Module):
         for n_c, e_d in zip(num_channels, feature_sizes):
             self.gaps.append(nn.AvgPool2d(e_d))
             self.linears.append(nn.Sequential(
-                nn.Linear(n_c, interm_dim), nn.ReLU(),
+                nn.Linear(n_c, interm_dim), nn.ReLU(), nn.BatchNorm1d(interm_dim)
             ))
 
         self.linears = nn.ModuleList(self.linears)
@@ -210,11 +210,11 @@ class GTGModule(nn.Module):
         #self.X[torch.arange(self.n_lab_obs), :] = probs[torch.arange(self.n_lab_obs)]
 
         self.X[self.n_lab_obs:, :] = torch.ones(self.n_classes, device=self.device) * (1. / self.n_classes)
-        self.X.requires_grad_(True)
+        #self.X.requires_grad_(True)
 
         
 
-    '''def graph_trasduction_game_detached(self, embedding: torch.Tensor) -> torch.Tensor:
+    def graph_trasduction_game_detached(self, embedding: torch.Tensor) -> torch.Tensor:
         
         entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
         A = self.get_A(embedding).detach()
@@ -233,7 +233,7 @@ class GTGModule(nn.Module):
             
             err = torch.norm(X - X_old)
             i += 1
-        return entropy_hist'''
+        return entropy_hist
 
 
 
@@ -241,41 +241,53 @@ class GTGModule(nn.Module):
                         
         entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
         
-        A = self.get_A(features_embedding)
-        X = self.X.clone()
-        Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device, dtype=torch.float32, requires_grad=True)
+        A = self.get_A(features_embedding) # -> nxn
+        X = self.X.clone() # -> nxm
+        if A.requires_grad: X.requires_grad_(True)
+        Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device, dtype=torch.float32, requires_grad=True if A.requires_grad else False)        
         
         err = float('Inf')
         i = 0
-                
+                        
         while err > self.gtg_tol and i < self.gtg_max_iter:
             
-            X_old = X.detach().clone()
+            if X.requires_grad: X.register_hook(lambda grad: logger.info(f'X grad: {grad.sum()}'))
             
-            mm_A_X = torch.mm(A, X)
+            X_old = X.detach().clone()
+                        
+            mm_A_X = torch.mm(A, X) # -> nxm
+            if mm_A_X.requires_grad: mm_A_X.register_hook(lambda grad: logger.info(f'mm_A_X grad: {grad.sum()}'))
+            
             mult_X_A_X = X * mm_A_X
+            if mult_X_A_X.requires_grad: mult_X_A_X.register_hook(lambda grad: logger.info(f'mult_X_A_X grad: {grad.sum()}'))
+            
             sum_X_A_X = torch.sum(mult_X_A_X, dim=1, keepdim=True)
+            if sum_X_A_X.requires_grad: sum_X_A_X.register_hook(lambda grad: logger.info(f'sum_X_A_X grad: {grad.sum()}'))
+            
             div_sum_X_A_X = mult_X_A_X / (sum_X_A_X + 1e-8)  # Add a small epsilon to avoid division by zero, 1e-8
+            if div_sum_X_A_X.requires_grad: div_sum_X_A_X.register_hook(lambda grad: logger.info(f'div_sum_X_A_X grad: {grad.sum()}'))
             
             entropy_hist[self.n_lab_obs:, i] = entropy(div_sum_X_A_X.detach())[self.n_lab_obs:].to(self.device)
-            X = X + div_sum_X_A_X # Add residual connection
-            
+
+
             err = torch.norm(div_sum_X_A_X.detach() - X_old)
             #Xs = torch.cat((Xs, div_sum_X_A_X.unsqueeze(dim=-1).detach()), dim=-1)
             Xs = torch.cat((Xs, div_sum_X_A_X.unsqueeze(dim=-1)), dim=-1)
 
+            X = X + div_sum_X_A_X
+            X = X / torch.sum(X, dim=1, keepdim=True)
+            
             i += 1
         
         # fill in case we early extit by the norm err
         for _ in range(self.gtg_max_iter - Xs.shape[-1]): 
             Xs = torch.cat((
-                Xs, torch.zeros((self.batch_size, self.n_classes, 1), device=self.device, dtype=torch.float32, requires_grad=True)
+                Xs, torch.zeros((self.batch_size, self.n_classes, 1), device=self.device, dtype=torch.float32, requires_grad=True if A.requires_grad else False)
             ), dim=-1)
-            
+
         return Xs, entropy_hist
     
-    
-        
+          
         
     # List[torch.Tensor] -> detection
     def get_entropies(self, embedding: torch.Tensor) -> torch.Tensor: #Tuple[torch.Tensor, torch.Tensor]:     
@@ -295,7 +307,7 @@ class GTGModule(nn.Module):
     
     
     #labelled_dim = -1
-    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, outs: torch.Tensor, labels: torch.Tensor) \
+    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, outs: torch.Tensor, labels: torch.Tensor, weight: int = 1) \
         -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]: 
         
         self.batch_size = len(embedds)
@@ -304,11 +316,29 @@ class GTGModule(nn.Module):
         
         self.get_X()
         #self.get_X(F.softmax(outs, dim=1))
-        latent_features = [
+        
+        '''latent_features = [
             self.graph_trasduction_game(self.mod_ls(features_embedding, id))[0] # -> takes always the first Xs
             for id, features_embedding in enumerate(features)
-        ]
+        ]'''
+        latent_features = [ ]
+        for id, features_embedding in enumerate(features):
+            emb_ls = self.mod_ls(features_embedding, id)
+            if weight == 0: emb_ls = emb_ls.detach()
+            latent_features.append(self.graph_trasduction_game(emb_ls)[0]) # -> takes always the first Xs
+            
+        
+        '''if latent_features[0].requires_grad:
+            latent_features[0].register_hook(lambda grad: logger.info(f'latent feature 0 grad: {grad.sum()}'))
+            latent_features[1].register_hook(lambda grad: logger.info(f'latent feature 1 grad: {grad.sum()}'))
+            latent_features[2].register_hook(lambda grad: logger.info(f'latent feature 2 grad: {grad.sum()}'))
+            latent_features[3].register_hook(lambda grad: logger.info(f'latent feature 3 grad: {grad.sum()}'))'''
+        
         y_pred = self.mod_mlp(latent_features).squeeze()
+        
+        #y_pred.register_hook(lambda grad: logger.info(f'y_pred grad: {grad.sum()}'))
+        
+        if weight == 0: y_pred = y_pred.detach()
 
         if torch.any(torch.isnan(y_pred)):
             print(latent_features)

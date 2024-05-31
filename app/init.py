@@ -82,7 +82,7 @@ dict_backbone = dict(
 
 def get_strategies_object(methods: List[str], Masters: Dict[str, Master_Model], 
                           ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any]) -> List[Any]:
-    strategies: List[Random | Entropy | CoreSet | BADGE | BALD | CDAL | GTG_off | LearningLoss | TA_VAAL | GTG] = []
+    strategies: List[Random | Entropy | CoreSet | AlphaMix | BADGE | BALD | CDAL | GTG_off | LearningLoss | GTG_off | TiDAL | TA_VAAL | GTG] = []
     
     for method in methods:
         if 'gtg' in method.split('_'):

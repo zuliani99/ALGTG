@@ -46,7 +46,7 @@ class ActiveLearner():
         self.unlabelled_indices: List[int] = copy.deepcopy(self.dataset.unlabelled_indices)
         self.temp_unlab_pool = []
 
-        self.train_results: Dict[str, Any] = {}
+        self.train_results: Dict[int, Any] = {}
         
         self.method_name = method_name
         self.strategy_name = f'{self.model.name}_{method_name}' # define strategy name    
@@ -148,7 +148,7 @@ class ActiveLearner():
 
     
     
-    def save_tsne(self, idxs_new_labels: List[int], d_labels: Dict[str, int], al_iter: str, gtg_result_prediction = None) -> None:
+    def save_tsne(self, idxs_new_labels: List[int], d_labels: Dict[str, int], al_iter: int, gtg_result_prediction = None) -> None:
         # plot the tsne graph for each iteration
         
         logger.info(' => Saving the TSNE embeddings plot with labelled, unlabelled and new labelled observations')

@@ -213,7 +213,7 @@ class Cls_Dataset(Dataset):
                 )
             else:
                 self.ds: Dataset = cls_datasets[dataset_name]["method"](f'./datasets/{dataset_name}',
-                    train=bool_train, download=True,
+                    train=True, download=True,
                     transform=cls_datasets[dataset_name]["transforms"]["train"]
                 ) 
 
@@ -227,18 +227,16 @@ class Cls_Dataset(Dataset):
                     transform=cls_datasets["tinyimagenet"]["transforms"]["test"]
                 )
             elif dataset_name == 'svhn':
-                self.ds: Dataset = cls_datasets["svhn"]["method"]('./datasets/svhn', split='train' 
-                    if bool_train else 'test', download=True,
-                    transform=cls_datasets["svhn"]["transforms"]["test"]
+                self.ds: Dataset = cls_datasets["svhn"]["method"]('./datasets/svhn', split='train' if bool_train else 'test', 
+                    download=True, transform=cls_datasets["svhn"]["transforms"]["test"]
                 )
             elif dataset_name == 'caltech256':
                 self.ds: Dataset = datasets.ImageFolder(f'./datasets/caltech256/256_ObjectCategories/{"train" if bool_train else "test"}', 
                     transform=cls_datasets["caltech256"]["transforms"]["test"]
                 )            
             else:
-                self.ds: Dataset = cls_datasets[dataset_name]["method"](f'./datasets/{dataset_name}',
-                    train=bool_train, download=True,
-                    transform=cls_datasets[dataset_name]["transforms"]["test"]
+                self.ds: Dataset = cls_datasets[dataset_name]["method"](f'./datasets/{dataset_name}', train=bool_train, 
+                    download=True, transform=cls_datasets[dataset_name]["transforms"]["test"]
                 )           
         
         

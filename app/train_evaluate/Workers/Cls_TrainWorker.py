@@ -106,10 +106,10 @@ class Cls_TrainWorker():
         elif self.model.added_module_name == 'GTGModule':
                         
             (pred_entr, true_entr), labelled_mask = module_out
-            #if self.i%20 == 0: logger.info(f'y_pred {pred_entr}\ny_true {true_entr}') 
-            logger.info(f'y_pred {pred_entr}\ny_true {true_entr}') 
+            if self.i%20 == 0: logger.info(f'y_pred {pred_entr}\ny_true {true_entr}') 
+            #logger.info(f'y_pred {pred_entr}\ny_true {true_entr}') 
             
-            entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
+            entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr)#.detach())
             #entr_loss = weight * self.bce_loss_fn(pred_entr, true_entr.detach()) # -> LSTM
 
             ################################################
@@ -189,8 +189,17 @@ class Cls_TrainWorker():
                             tidal=(idxs, moving_prob, epoch),
                         )  
                     
+                #param_ls_1 = list(self.model.added_module.mod_ls.parameters())[0].clone() ###############################
+                #param_mlp_1 = list(self.model.added_module.mod_mlp.parameters())[0].clone() #############################
+                    
                 loss.backward()                
+                #torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1., norm_type=2)
                 for optimizer in self.optimizers: optimizer.step()
+
+                #param_ls_2 = list(self.model.added_module.mod_ls.parameters())[0].clone() #################################
+                #param_mlp_2 = list(self.model.added_module.mod_mlp.parameters())[0].clone() ###############################
+                
+                #logger.info(f'param mod ls equal -> {torch.equal(param_ls_1, param_ls_2)}\tparam mlp equal -> {torch.equal(param_mlp_1, param_mlp_2)}') ###############################
 
                 train_loss += loss.item()
                 train_accuracy += self.score_fn(outputs, labels)

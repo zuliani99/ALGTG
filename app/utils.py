@@ -1,9 +1,7 @@
 
-from matplotlib.typing import ColorType
 import torch
+from torch.backends import cudnn
 from torch.utils.data import Dataset
-
-import torch
 import torch.nn as nn
 import torch.nn.init as init
 
@@ -18,6 +16,7 @@ import numpy as np
 import csv
 import os
 import random
+from matplotlib.typing import ColorType
 from typing import List, Dict, Any, Tuple
 
 
@@ -89,7 +88,7 @@ def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any
 
 
 
-def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results: Dict[str, Any], strategy_name: str,\
+def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results: Dict[int, Any], strategy_name: str,\
                                    epochs: int, ts_dir: str, dataset_name: str, cicle_iter: int):
 
     _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
@@ -268,8 +267,8 @@ def set_seeds(seed: int = 10001) -> None:
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    cudnn.deterministic = True
+    cudnn.benchmark = False
     
 
 
@@ -314,7 +313,7 @@ def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor
     
     
 def plot_new_labelled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor],
-                           iter: str, method: str, ds_name: str, idxs_new_labels: List[int], 
+                           iter: int, method: str, ds_name: str, idxs_new_labels: List[int], 
                            classes: List[str], time_stamp: str, samp_iter: int, d_labels: Dict[str, int],
                            gtg_result_prediction=None):
     
