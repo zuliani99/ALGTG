@@ -45,16 +45,12 @@ class Master_Model(nn.Module):
 
                 if self.added_module != None:
                     features = self.backbone.get_features()
-                    '''features[0].register_hook(lambda grad: logger.info(f'feature 0 grad: {grad.sum()}')) 
-                    features[1].register_hook(lambda grad: logger.info(f'feature 1 grad: {grad.sum()}')) 
-                    features[2].register_hook(lambda grad: logger.info(f'feature 2 grad: {grad.sum()}')) 
-                    features[3].register_hook(lambda grad: logger.info(f'feature 3 grad: {grad.sum()}'))''' 
                     if weight == 0: 
                         features = [feature.detach() for feature in features]
                         #for feature in features: logger.info(feature.requires_grad)
                         
                     if self.added_module_name == 'GTGModule':
-                        module_out = self.added_module(features=features, embedds=embedds.detach(), outs=outs, labels=labels, weight=weight)
+                        module_out = self.added_module(features=features, embedds=embedds, outs=outs, labels=labels, weight=weight)
                     else: module_out = self.added_module(features=features)
                     return outs, module_out
                 else: return outs, None

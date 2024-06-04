@@ -7,7 +7,7 @@ from models.BBone_Module import Master_Model
 from models.modules.LossNet import LossPredLoss
 from utils import accuracy_score, log_assert
 
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, RandomSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.nn.functional as F
 
@@ -32,9 +32,10 @@ class Cls_TrainWorker():
         self.method_name: str = self.strategy_name.split(f'{self.model.name}_')[1]
         
         self.epochs = params["t_p"]["epochs"]
+        self.batch_size = params["batch_size"]
         self.ds_t_p = params["t_p"][self.dataset_name]
         
-        self.train_dl: DataLoader = params["train_dl"]
+        self.train_dl: DataLoader | Tuple[DataLoader, DataLoader] = params["train_dl"]
         self.test_dl: DataLoader = params["test_dl"]
         
         self.ce_loss_fn = nn.CrossEntropyLoss(reduction='none').to(self.device)
@@ -92,7 +93,7 @@ class Cls_TrainWorker():
         
 
     def compute_losses(self, weight: float, module_out: torch.Tensor | None, outputs: torch.Tensor, \
-                       labels: torch.Tensor, tot_loss_ce: float, tot_pred_loss: float, epoch: int,
+                       labels: torch.Tensor, epoch: int,
                        tidal: None | Tuple[torch.Tensor, torch.Tensor, int] = None,) -> Tuple[torch.Tensor, float, float]:
                 
         ce_loss = self.ce_loss_fn(outputs, labels)
@@ -101,39 +102,28 @@ class Cls_TrainWorker():
             
         if module_out == None:
             tot_loss_ce += backbone.item()
-            return backbone, tot_loss_ce, tot_pred_loss
+            return self.score_fn(outputs, labels), backbone, tot_loss_ce, 0 #, tot_loss_ce, tot_pred_loss
         
         elif self.model.added_module_name == 'GTGModule':
                         
             (pred_entr, true_entr), labelled_mask = module_out
             if self.i%20 == 0: logger.info(f'y_pred {pred_entr}\ny_true {true_entr}') 
-            #logger.info(f'y_pred {pred_entr}\ny_true {true_entr}') 
             
-            entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr)#.detach())
-            #entr_loss = weight * self.bce_loss_fn(pred_entr, true_entr.detach()) # -> LSTM
+            entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
 
-            ################################################
             lab_ce_loss = torch.mean(ce_loss[labelled_mask])
-            #entr_loss = torch.mean(entr_loss)
-            entr_loss = torch.mean(entr_loss[labelled_mask])  + torch.mean(entr_loss[~labelled_mask])
-            ################################################
+            entr_loss = torch.mean(entr_loss[labelled_mask]) + torch.mean(entr_loss[~labelled_mask])
             
             loss = lab_ce_loss + entr_loss
             
-            tot_loss_ce += lab_ce_loss.item()
-            tot_pred_loss += entr_loss.item()
-            
-            return loss, tot_loss_ce, tot_pred_loss
+            return self.score_fn(outputs[labelled_mask], labels[labelled_mask]), loss, lab_ce_loss.item(), entr_loss.item() #, tot_loss_ce, tot_pred_loss
             
         
         elif self.method_name in ['LearningLoss', 'TAVAAL'] or 'GTG_off' in self.method_name:
             loss_weird = weight * self.ll_loss_fn(module_out, ce_loss)
             loss = backbone + loss_weird
-
-            tot_loss_ce += backbone.item()
-            tot_pred_loss += loss_weird.item()
                 
-            return loss, tot_loss_ce, tot_pred_loss
+            return self.score_fn(outputs, labels), loss, backbone.item(), loss_weird.item()#, tot_loss_ce, tot_pred_loss
         
         elif self.method_name == 'TiDAL':
             log_assert(tidal != None, 'TiDAL parameters are None')
@@ -145,11 +135,8 @@ class Cls_TrainWorker():
                         
             m_module_loss = weight * self.kld_loss_fn(F.log_softmax(module_out, 1), moving_prob.detach())
             loss = backbone + m_module_loss
-            
-            tot_loss_ce += backbone.item()
-            tot_pred_loss += m_module_loss.item()
                 
-            return loss, tot_loss_ce, tot_pred_loss
+            return self.score_fn(outputs, labels), loss, backbone.item(), m_module_loss.item()#, tot_loss_ce, tot_pred_loss
 
         else: raise AttributeError('Invalid method_name')
     
@@ -160,6 +147,33 @@ class Cls_TrainWorker():
             labels = labels.to(self.device, non_blocking=True)
         else: images, labels = images.to(self.device), labels.to(self.device)
         return images, labels
+    
+    
+    def train_epoch(self, images, labels,  weight, idxs, moving_prob, epoch, train_loss_ce, train_loss_pred) -> torch.Tensor:
+        images, labels = self.return_moved_imgs_labs(images, labels)
+                
+        for optimizer in self.optimizers: optimizer.zero_grad(set_to_none=True)
+                    
+        outputs, module_out = self.model(images, weight=weight, labels=labels)
+                                                                        
+        score, loss, train_loss_ce, train_loss_pred = self.compute_losses(
+            weight=weight, module_out=module_out, outputs=outputs, labels=labels,
+            epoch=epoch, tidal=(idxs, moving_prob, epoch),
+        )  
+                    
+        #param_ls_1 = list(self.model.added_module.mod_ls.parameters())[0].clone() ###############################
+        #param_mlp_1 = list(self.model.added_module.mod_mlp.parameters())[0].clone() #############################
+        
+        loss.backward()                
+        #torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1., norm_type=2)
+        for optimizer in self.optimizers: optimizer.step()
+
+        #param_ls_2 = list(self.model.added_module.mod_ls.parameters())[0].clone() #################################
+        #param_mlp_2 = list(self.model.added_module.mod_mlp.parameters())[0].clone() ###############################
+                
+        #logger.info(f'param mod ls equal -> {torch.equal(param_ls_1, param_ls_2)}\tparam mlp equal -> {torch.equal(param_mlp_1, param_mlp_2)}') ###############################
+        return score, loss.item(), train_loss_ce, train_loss_pred
+    
     
     
     def train(self) -> torch.Tensor:
@@ -175,40 +189,50 @@ class Cls_TrainWorker():
             
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore  
             if self.decay != None and epoch >= self.decay: weight = 0.
-             
-            for idxs, images, labels, moving_prob in self.train_dl:
-                images, labels = self.return_moved_imgs_labs(images, labels)
+            
+            if isinstance(self.train_dl, tuple):
                 
-                for optimizer in self.optimizers: optimizer.zero_grad(set_to_none=True)
-                    
-                outputs, module_out = self.model(images, weight=weight, labels=labels)
-                                                                        
-                loss, train_loss_ce, train_loss_pred = self.compute_losses(
-                            weight=weight, module_out=module_out, outputs=outputs, labels=labels,
-                            tot_loss_ce=train_loss_ce, tot_pred_loss=train_loss_pred, epoch=epoch, 
-                            tidal=(idxs, moving_prob, epoch),
-                        )  
-                    
-                #param_ls_1 = list(self.model.added_module.mod_ls.parameters())[0].clone() ###############################
-                #param_mlp_1 = list(self.model.added_module.mod_mlp.parameters())[0].clone() #############################
-                    
-                loss.backward()                
-                #torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1., norm_type=2)
-                for optimizer in self.optimizers: optimizer.step()
-
-                #param_ls_2 = list(self.model.added_module.mod_ls.parameters())[0].clone() #################################
-                #param_mlp_2 = list(self.model.added_module.mod_mlp.parameters())[0].clone() ###############################
+                lab_subset, unlab_subset = self.train_dl
                 
-                #logger.info(f'param mod ls equal -> {torch.equal(param_ls_1, param_ls_2)}\tparam mlp equal -> {torch.equal(param_mlp_1, param_mlp_2)}') ###############################
-
-                train_loss += loss.item()
-                train_accuracy += self.score_fn(outputs, labels)
+                unlab_train_dl = DataLoader(
+                    dataset=unlab_subset, batch_size=self.batch_size // 2, shuffle=True, pin_memory=True)
+                lab_train_dl = DataLoader(
+                    dataset=lab_subset, batch_size=self.batch_size // 2,
+                    sampler=RandomSampler(lab_subset, num_samples=len(unlab_subset)),
+                    pin_memory=True
+                )        
                 
+                n_batches = len(unlab_train_dl)
+                
+                for (idxs_l, images_l, labels_l, _), (idxs_u, images_u, labels_u, _) in zip(lab_train_dl, unlab_train_dl):
+                    
+                    idxs = torch.cat((idxs_l, idxs_u), dim=0)
+                    images = torch.cat((images_l, images_u), dim=0)
+                    labels = torch.cat((labels_l, labels_u), dim=0)
+                    
+                    train_a, train_l, train_l_ce, train_l_pred = self.train_epoch(images, labels, weight, idxs, None, epoch, train_loss_ce, train_loss_pred)
+                    
+                    train_loss += train_l
+                    train_accuracy += train_a
+                    train_loss_ce += train_l_ce
+                    train_loss_pred += train_l_pred
 
-            train_accuracy /= len(self.train_dl)
-            train_loss /= len(self.train_dl)
-            train_loss_ce /= len(self.train_dl)
-            train_loss_pred /= len(self.train_dl)
+            else:
+                n_batches = len(self.train_dl)
+                
+                for idxs, images, labels, moving_prob in self.train_dl:
+                    train_a, train_l, train_l_ce, train_l_pred = self.train_epoch(images, labels, weight, idxs, moving_prob, epoch)
+                    
+                    train_accuracy += train_a
+                    train_loss += train_l
+                    train_loss_ce += train_l_ce
+                    train_loss_pred += train_l_pred
+                    
+
+            train_accuracy /= n_batches
+            train_loss /= n_batches
+            train_loss_ce /= n_batches
+            train_loss_pred /= n_batches
             
             logger.info(f' Epoch: {epoch} | train_accuracy -> {train_accuracy}\ttrain_loss -> {train_loss}\ttrain_loss_ce -> {train_loss_ce}\ttrain_pred -> {train_loss_pred}')
             

@@ -135,6 +135,7 @@ def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
     
     ct_p["Master_Model"] = ct_p["Master_Model"].to(params["ct_p"]["device"])
     batch_size = t_p[ct_p["dataset_name"]]["batch_size"][params["module_name_only"]]
+    params["batch_size"] = batch_size
     
     dict_dl = dict(batch_size=batch_size, pin_memory=True)
     
@@ -148,7 +149,14 @@ def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
     
     else: TrainWorker = Cls_TrainWorker
     
-    params["train_dl"] = DataLoader(ct_p["Dataset"].train_ds, sampler=SubsetRandomSampler(params["labelled_indices"]), **dict_dl)
+    if params["module_name_only"] == 'GTGModule':
+        train_dl = (
+            Subset(ct_p["Dataset"].train_ds, params["labelled_indices"]),
+            Subset(ct_p["Dataset"].train_ds, params["unlabelled_indices"])
+        )
+    else: 
+        train_dl = DataLoader(ct_p["Dataset"].train_ds, sampler=SubsetRandomSampler(params["labelled_indices"]), **dict_dl)
+    params["train_dl"] = train_dl
     params["test_dl"] = DataLoader(ct_p["Dataset"].test_ds, shuffle=False, **dict_dl)
     
     train_test = TrainWorker(params["ct_p"]["device"], params)

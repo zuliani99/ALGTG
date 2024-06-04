@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import entropy
+from utils import entropy, init_weights_apply
 
 from typing import Any, List, Tuple, Dict
 
@@ -68,8 +68,122 @@ class Module_MLP(nn.Module):
         out = self.linear(torch.cat(outs, 1))
         return out
 
+'''class MLP(nn.Module):
+    def __init__(self, params: Dict[str, Any]):
+        super(MLP, self).__init__()
+
+        # same parameters of loss net
+        feature_sizes = params["feature_sizes"]
+        num_channels = params["num_channels"]
+        interm_dim = params["interm_dim"]
+
+        self.seq_linears = []
+        self.convs = []
+        
+        for n_c, e_d in zip(num_channels, feature_sizes):
+            size = n_c * e_d * e_d
+            self.seq_linears.append(nn.Sequential(
+                #65536, 32768, 16384, 8192 
+                nn.Linear(size, size//10), nn.BatchNorm1d(size//10), nn.ReLU(),
+                nn.Linear(size//10, interm_dim), nn.ReLU(), nn.BatchNorm1d(interm_dim), nn.ReLU()
+            ))
+            self.convs.append(nn.Conv2d(n_c, n_c, kernel_size=3, stride=1, padding=1))
+
+        self.linears_1 = nn.ModuleList(self.seq_linears)
+        self.convs = nn.ModuleList(self.convs)
+        size = interm_dim * len(self.seq_linears)
+        self.linears_2 = nn.Sequential( #262144
+            nn.Linear(size, size//2), nn.ReLU(), nn.BatchNorm1d(size//2), nn.ReLU(),
+            nn.Linear(size//2, size//4), nn.ReLU(), nn.BatchNorm1d(size//4), nn.ReLU(),
+            nn.Linear(size//4, 1),
+        )
+        #self.linear = nn.Linear(interm_dim * len(self.seq_linears), 1)
+        
+        
+    def forward(self, features):
+        outs = []
+        for i in range(len(features)):
+            out = self.convs[i](features[i])
+            out = out.view(out.size(0), -1)
+            out = self.linears_1[i](out)
+            outs.append(out)
+        
+        out = self.linears_2(torch.cat(outs, 1))
+        #out = self.linear(torch.cat(outs, 1))
+        return out'''
+
+'''def init_weights(net):
+    for m in net.modules():
+        if type(m) == nn.Linear:
+            torch.nn.init.kaiming_uniform_(m.weight)
+            m.bias.data.fill_(0.01)'''
 
 
+'''class MLP(nn.Module):
+    def __init__(self, embedd_dim):
+        super(MLP, self).__init__()
+
+        self.linears = nn.Sequential(
+            nn.Linear(embedd_dim, embedd_dim//2), nn.ReLU(), # nn.BatchNorm1d(embedd_dim//2), nn.ReLU(), nn.Dropout(0.5),
+            nn.Linear(embedd_dim//2, embedd_dim//4), nn.ReLU(),# nn.BatchNorm1d(embedd_dim//4), nn.ReLU(), nn.Dropout(0.5),
+            nn.Linear(embedd_dim//4, embedd_dim//8), nn.ReLU(),# nn.BatchNorm1d(embedd_dim//8), nn.ReLU(), nn.Dropout(0.5),
+            nn.Linear(embedd_dim//8, embedd_dim//16), nn.ReLU(),# nn.BatchNorm1d(embedd_dim//16), nn.ReLU(), nn.Dropout(0.5),
+            nn.Linear(embedd_dim//16, 1),
+        )
+        
+        #self.apply(init_weights)
+    
+    def forward(self, embedds): # [bs, 512, 4, 4]
+        embedds = embedds.view(embedds.size(0), -1) # [bs, 512*4*4] -> [bs, 8192]
+        return self.linears(embedds)'''
+        
+
+class MLP(nn.Module):
+    def __init__(self, params: Dict[str, Any]):
+        super(MLP, self).__init__()
+        
+        # same parameters of loss net
+        feature_sizes = params["feature_sizes"]
+        num_channels = params["num_channels"]
+        interm_dim = params["interm_dim"]
+
+        self.sequentials_1, self.sequentials_2 = [], []
+        dim_class = interm_dim * len(num_channels)
+
+        for n_c, e_d in zip(num_channels, feature_sizes):
+            out_features = n_c // (e_d // 2)
+            self.sequentials_1.append(nn.Sequential(
+                nn.Conv2d(n_c ,out_features, kernel_size=3, stride=2, padding=1),
+                nn.BatchNorm2d(out_features),
+                nn.ReLU(),
+            ))
+            self.sequentials_2.append(nn.Sequential(
+                nn.Linear(n_c * (e_d // 2), interm_dim),
+                nn.ReLU(),
+            ))
+
+        self.sequentials_1 = nn.ModuleList(self.sequentials_1)
+        self.sequentials_2 = nn.ModuleList(self.sequentials_2)
+        self.linear = nn.Sequential(
+            nn.Linear(dim_class, dim_class//2), nn.ReLU(),
+            nn.Linear(dim_class//2, dim_class//4 ), nn.ReLU(),
+            nn.Linear(dim_class//4, 1)
+        )
+        
+        #self.apply(init_weights_apply)
+
+
+    def forward(self, features):
+        outs = []
+        for i in range(len(features)):
+            out = self.sequentials_1[i](features[i])
+            out = out.view(out.size(0), -1)
+            out = self.sequentials_2[i](out)
+            outs.append(out)
+
+        out = self.linear(torch.cat(outs, 1))
+        return out
+        
 
 class Module_LS(nn.Module):
     def __init__(self, params: Dict[str, Any]):
@@ -85,7 +199,7 @@ class Module_LS(nn.Module):
         for n_c, e_d in zip(num_channels, feature_sizes):
             self.gaps.append(nn.AvgPool2d(e_d))
             self.linears.append(nn.Sequential(
-                nn.Linear(n_c, interm_dim), nn.ReLU(), nn.BatchNorm1d(interm_dim)
+                nn.Linear(n_c, interm_dim), nn.ReLU(), #nn.BatchNorm1d(interm_dim)
             ))
 
         self.linears = nn.ModuleList(self.linears)
@@ -96,6 +210,39 @@ class Module_LS(nn.Module):
         out = self.gaps[id_feat](features)
         out = out.view(out.size(0), -1)
         return self.linears[id_feat](out)
+    
+    
+class Module_MLP(nn.Module):
+    def __init__(self, params: Dict[str, Any]):
+        super(Module_MLP, self).__init__()
+
+        # same parameters of loss net
+        feature_sizes = params["feature_sizes"]
+        num_channels = params["num_channels"]
+        interm_dim = params["interm_dim"]
+
+        self.linears, self.gaps = [], []
+
+        for n_c, e_d in zip(num_channels, feature_sizes):
+            self.gaps.append(nn.AvgPool2d(e_d))
+            self.linears.append(nn.Sequential(
+                nn.Linear(n_c, interm_dim), nn.ReLU(), #nn.BatchNorm1d(interm_dim)
+            ))
+
+        self.linears = nn.ModuleList(self.linears)
+        self.gaps = nn.ModuleList(self.gaps)
+        self.classifier = nn.Linear(interm_dim * len(num_channels, 1))
+
+
+    def forward(self, features):
+        outs = []
+        for i in range(len(features)):
+            out = self.gaps[i](features[i])
+            out = out.view(out.size(0), -1)
+            out = self.linears[i](out)
+            outs.append(out)
+        out = torch.cat(outs, 1)
+        return self.classifier(out)
 
 
         
@@ -127,9 +274,8 @@ class GTGModule(nn.Module):
         self.n_classes: int = gtg_p["n_classes"]
         self.device: int = gtg_p["device"]
 
-        self.mod_ls = Module_LS(ll_p).to(self.device)
-        self.mod_mlp = Module_MLP(self.gtg_max_iter, self.n_classes).to(self.device)
         #self.mod_lstm = Module_LSTM(input_size=self.gtg_max_iter, hidden_size=self.gtg_max_iter, num_layers=1, output_size=1).to(self.device)
+        self.mlp = MLP(ll_p).to(self.device)
         
         
     def define_idx_params(self, id_am_ts: int, id_am: int) -> None: # in order to define the indices of AM_threshold_strategy and AM_function
@@ -213,7 +359,7 @@ class GTGModule(nn.Module):
         #self.X.requires_grad_(True)
 
         
-
+    @torch.no_grad()
     def graph_trasduction_game_detached(self, embedding: torch.Tensor) -> torch.Tensor:
         
         entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
@@ -230,6 +376,7 @@ class GTGModule(nn.Module):
             X /= torch.sum(X, dim=1, keepdim=True)
             
             entropy_hist[self.n_lab_obs:, i] = entropy(X)[self.n_lab_obs:].to(self.device)
+            #entropy_hist[:, i] = entropy(X).to(self.device)
             
             err = torch.norm(X - X_old)
             i += 1
@@ -267,15 +414,16 @@ class GTGModule(nn.Module):
             div_sum_X_A_X = mult_X_A_X / (sum_X_A_X + 1e-8)  # Add a small epsilon to avoid division by zero, 1e-8
             if div_sum_X_A_X.requires_grad: div_sum_X_A_X.register_hook(lambda grad: logger.info(f'div_sum_X_A_X grad: {grad.sum()}'))
             
-            entropy_hist[self.n_lab_obs:, i] = entropy(div_sum_X_A_X.detach())[self.n_lab_obs:].to(self.device)
+            #entropy_hist[self.n_lab_obs:, i] = entropy(div_sum_X_A_X.detach())[self.n_lab_obs:].to(self.device)
+            entropy_hist[:, i] = entropy(div_sum_X_A_X.detach()).to(self.device)
 
 
             err = torch.norm(div_sum_X_A_X.detach() - X_old)
-            #Xs = torch.cat((Xs, div_sum_X_A_X.unsqueeze(dim=-1).detach()), dim=-1)
             Xs = torch.cat((Xs, div_sum_X_A_X.unsqueeze(dim=-1)), dim=-1)
 
             X = X + div_sum_X_A_X
-            X = X / torch.sum(X, dim=1, keepdim=True)
+            #X = X + div_sum_X_A_X
+            #X = X / torch.sum(X, dim=1, keepdim=True)
             
             i += 1
         
@@ -292,8 +440,8 @@ class GTGModule(nn.Module):
     # List[torch.Tensor] -> detection
     def get_entropies(self, embedding: torch.Tensor) -> torch.Tensor: #Tuple[torch.Tensor, torch.Tensor]:     
                   
-        #entropy_hist = self.graph_trasduction_game_detached(embedding)
-        entropy_hist = self.graph_trasduction_game(embedding)[1]
+        entropy_hist = self.graph_trasduction_game_detached(embedding)
+        #entropy_hist = self.graph_trasduction_game(embedding)[1]
  
         if self.ent_strategy == 'mean': quantity_result = torch.mean(entropy_hist, dim=1)
         # computing the mean of the entropis history    
@@ -311,41 +459,31 @@ class GTGModule(nn.Module):
         -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]: 
         
         self.batch_size = len(embedds)
-        self.n_lab_obs = int(self.batch_size * self.perc_labelled_batch)# if labelled_dim == -1 else labelled_dim
+        self.n_lab_obs = int(self.batch_size * self.perc_labelled_batch)
+        #logger.info(f'self.n_lab_obs {self.n_lab_obs} of {self.batch_size}')
         self.lab_labels = labels[:self.n_lab_obs]
         
         self.get_X()
         #self.get_X(F.softmax(outs, dim=1))
         
-        '''latent_features = [
-            self.graph_trasduction_game(self.mod_ls(features_embedding, id))[0] # -> takes always the first Xs
-            for id, features_embedding in enumerate(features)
-        ]'''
-        latent_features = [ ]
+        '''latent_features = [ ]
         for id, features_embedding in enumerate(features):
             emb_ls = self.mod_ls(features_embedding, id)
             if weight == 0: emb_ls = emb_ls.detach()
             latent_features.append(self.graph_trasduction_game(emb_ls)[0]) # -> takes always the first Xs
             
+        y_pred = self.mod_mlp(latent_features).squeeze()'''
         
-        '''if latent_features[0].requires_grad:
-            latent_features[0].register_hook(lambda grad: logger.info(f'latent feature 0 grad: {grad.sum()}'))
-            latent_features[1].register_hook(lambda grad: logger.info(f'latent feature 1 grad: {grad.sum()}'))
-            latent_features[2].register_hook(lambda grad: logger.info(f'latent feature 2 grad: {grad.sum()}'))
-            latent_features[3].register_hook(lambda grad: logger.info(f'latent feature 3 grad: {grad.sum()}'))'''
-        
-        y_pred = self.mod_mlp(latent_features).squeeze()
-        
-        #y_pred.register_hook(lambda grad: logger.info(f'y_pred grad: {grad.sum()}'))
-        
+        y_pred = self.mlp(features).squeeze()
+
         if weight == 0: y_pred = y_pred.detach()
 
         if torch.any(torch.isnan(y_pred)):
-            print(latent_features)
+            print(features)
             print(y_pred)
         assert not torch.any(torch.isnan(y_pred)), 'y_pred is nan'
         
-        y_true = self.get_entropies(embedds)
+        y_true = self.get_entropies(embedds.detach())
         
         if torch.any(torch.isnan(y_true)):
             print(embedds)
