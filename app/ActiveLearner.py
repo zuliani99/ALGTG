@@ -191,9 +191,11 @@ class ActiveLearner():
         
         params = { 
             'ct_p': self.ct_p, 't_p': self.t_p, 'strategy_name': self.strategy_name, 
-            'iter': iter, 'labelled_indices': self.labelled_indices, 'unlabelled_indices': self.unlabelled_indices,
+            'iter': iter, 'labelled_indices': self.labelled_indices, 'rand_unlab_sample': self.rand_unlab_sample,
             'module_name_only': self.module_name_only
         }
+        
+        if self.module_name_only == 'GTGModule': params["perc_labelled_batch"] = self.perc_labelled_batch
         
         
         # if we are using multiple gpus
@@ -287,21 +289,20 @@ class ActiveLearner():
                 
         results_format = copy.deepcopy(self.t_p["results_dict"])
         
-        logger.info(f'----------------------- ITERATION {self.iter} / {self.al_p["al_iters"]} -----------------------\n')
-        
-        self.train_results[self.iter] = self.train_evaluate_save(self.al_p["n_top_k_obs"], self.iter, results_format)
-        
-        
         # start of the loop
-        while self.iter < self.al_p["al_iters"]:
+        while self.iter <= self.al_p["al_iters"]:
             
-            self.iter += 1
+            #self.iter += 1
             
             logger.info(f'----------------------- ITERATION {self.iter} / {self.al_p["al_iters"]} -----------------------\n')
             
             logger.info(f' => Getting the sampled unalbeled indices for the current iteration...')
             self.get_rand_unlab_sample()
             logger.info(' DONE\n')
+            
+            self.train_results[self.iter] = self.train_evaluate_save(
+                self.al_p["init_lab_obs"] + ((self.iter - 1) * self.al_p["n_top_k_obs"]), self.iter, results_format
+            )
             
             logger.info(' START QUERY PROCESS\n')
             
@@ -323,11 +324,9 @@ class ActiveLearner():
 
             # modify the datasets and dataloader and plot the tsne
             self.update_sets(topk_idx_obs)
-
-            # iter + 1
-            self.train_results[self.iter] = self.train_evaluate_save(
-                self.al_p["init_lab_obs"] + ((self.iter - 1) * self.al_p["n_top_k_obs"]), self.iter, results_format
-            )
+            
+            self.iter += 1
+            
                 
                 
         # plotting the cumulative train results

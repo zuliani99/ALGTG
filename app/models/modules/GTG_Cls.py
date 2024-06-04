@@ -212,9 +212,9 @@ class Module_LS(nn.Module):
         return self.linears[id_feat](out)
     
     
-class Module_MLP(nn.Module):
+class LL_Module(nn.Module):
     def __init__(self, params: Dict[str, Any]):
-        super(Module_MLP, self).__init__()
+        super(LL_Module, self).__init__()
 
         # same parameters of loss net
         feature_sizes = params["feature_sizes"]
@@ -226,12 +226,12 @@ class Module_MLP(nn.Module):
         for n_c, e_d in zip(num_channels, feature_sizes):
             self.gaps.append(nn.AvgPool2d(e_d))
             self.linears.append(nn.Sequential(
-                nn.Linear(n_c, interm_dim), nn.ReLU(), #nn.BatchNorm1d(interm_dim)
+                nn.Linear(n_c, interm_dim), nn.ReLU(),
             ))
 
         self.linears = nn.ModuleList(self.linears)
         self.gaps = nn.ModuleList(self.gaps)
-        self.classifier = nn.Linear(interm_dim * len(num_channels, 1))
+        self.classifier = nn.Linear(interm_dim * len(num_channels), 1)
 
 
     def forward(self, features):
@@ -275,8 +275,8 @@ class GTGModule(nn.Module):
         self.device: int = gtg_p["device"]
 
         #self.mod_lstm = Module_LSTM(input_size=self.gtg_max_iter, hidden_size=self.gtg_max_iter, num_layers=1, output_size=1).to(self.device)
-        self.mlp = MLP(ll_p).to(self.device)
-        
+        #self.mlp = MLP(ll_p).to(self.device)
+        self.ll_mod = LL_Module(ll_p).to(self.device)
         
     def define_idx_params(self, id_am_ts: int, id_am: int) -> None: # in order to define the indices of AM_threshold_strategy and AM_function
         self.AM_threshold_strategy: str = self.list_AM_threshold_strategy[id_am_ts]
@@ -460,7 +460,6 @@ class GTGModule(nn.Module):
         
         self.batch_size = len(embedds)
         self.n_lab_obs = int(self.batch_size * self.perc_labelled_batch)
-        #logger.info(f'self.n_lab_obs {self.n_lab_obs} of {self.batch_size}')
         self.lab_labels = labels[:self.n_lab_obs]
         
         self.get_X()
@@ -474,7 +473,7 @@ class GTGModule(nn.Module):
             
         y_pred = self.mod_mlp(latent_features).squeeze()'''
         
-        y_pred = self.mlp(features).squeeze()
+        y_pred = self.ll_mod(features).squeeze()
 
         if weight == 0: y_pred = y_pred.detach()
 

@@ -152,7 +152,7 @@ def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
     if params["module_name_only"] == 'GTGModule':
         train_dl = (
             Subset(ct_p["Dataset"].train_ds, params["labelled_indices"]),
-            Subset(ct_p["Dataset"].train_ds, params["unlabelled_indices"])
+            Subset(ct_p["Dataset"].train_ds, params["rand_unlab_sample"])
         )
     else: 
         train_dl = DataLoader(ct_p["Dataset"].train_ds, sampler=SubsetRandomSampler(params["labelled_indices"]), **dict_dl)
