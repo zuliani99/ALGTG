@@ -219,51 +219,50 @@ class Module_MLP(nn.Module):
         return self.linears(embedds)'''
         
 
-class MLP(nn.Module):
+class CNN_MLP(nn.Module):
     def __init__(self, params: Dict[str, Any]):
-        super(MLP, self).__init__()
+        super(CNN_MLP, self).__init__()
         
         # same parameters of loss net
         feature_sizes = params["feature_sizes"]
         num_channels = params["num_channels"]
         interm_dim = params["interm_dim"]
 
-        self.sequentials_1, self.sequentials_2 = [], []
+        self.convs, self.linears = [], []
         dim_class = interm_dim * len(num_channels)
 
         for n_c, e_d in zip(num_channels, feature_sizes):
             out_features = n_c // (e_d // 2)
-            self.sequentials_1.append(nn.Sequential(
-                nn.Conv2d(n_c ,out_features, kernel_size=3, stride=2, padding=1),
+            self.convs.append(nn.Sequential(
+                nn.Conv2d(n_c ,out_features, kernel_size=3, stride=2, padding=1), # instead og GAP of LL_Module
                 nn.BatchNorm2d(out_features),
                 nn.ReLU(),
             ))
-            self.sequentials_2.append(nn.Sequential(
-                nn.Linear(n_c * (e_d // 2), interm_dim),
+            self.linears.append(nn.Sequential(
+                nn.Linear(n_c * (e_d // 2), interm_dim), # same dimension of the LL_Module latent space
                 nn.ReLU(),
             ))
 
-        self.sequentials_1 = nn.ModuleList(self.sequentials_1)
-        self.sequentials_2 = nn.ModuleList(self.sequentials_2)
-        self.linear = nn.Sequential(
+        self.convs = nn.ModuleList(self.convs)
+        self.linears = nn.ModuleList(self.linears)
+        self.regressor = nn.Sequential(
             nn.Linear(dim_class, dim_class//2), nn.ReLU(),
             nn.Linear(dim_class//2, dim_class//4 ), nn.ReLU(),
             nn.Linear(dim_class//4, 1)
         )
         
-        #self.apply(init_weights_apply)
-
 
     def forward(self, features):
         outs = []
         for i in range(len(features)):
-            out = self.sequentials_1[i](features[i])
+            out = self.convs[i](features[i])
             out = out.view(out.size(0), -1)
-            out = self.sequentials_2[i](out)
+            out = self.linears[i](out)
             outs.append(out)
 
-        out = self.linear(torch.cat(outs, 1))
+        out = self.regressor(torch.cat(outs, 1))
         return out
+        
         
 
 class Module_LS(nn.Module):
@@ -356,8 +355,8 @@ class GTGModule(nn.Module):
         self.device: int = gtg_p["device"]
 
         #self.mod_lstm = Module_LSTM(input_size=self.gtg_max_iter, hidden_size=self.gtg_max_iter, num_layers=1, output_size=1).to(self.device)
-        #self.mlp = MLP(ll_p).to(self.device)
-        self.ll_mod = LL_Module(ll_p).to(self.device)
+        self.cnn_mlp = CNN_MLP(ll_p).to(self.device)
+        #self.ll_mod = LL_Module(ll_p).to(self.device)
         '''self.single_lstm = Module_LSTM(
             input_size=self.gtg_max_iter, #ll_p["num_channels"][-1], 
             hidden_size=self.gtg_max_iter, #ll_p["num_channels"][-1], 
@@ -610,7 +609,8 @@ class GTGModule(nn.Module):
             latent_features.append(emb_ls)
         concat_ls = torch.cat(latent_features, dim=1)'''
         
-        y_pred = self.ll_mod(features).squeeze()
+        #y_pred = self.ll_mod(features).squeeze()
+        y_pred = self.cnn_mlp(features).squeeze()
         
         #LSTM MODULE
         '''pred_Xs = self.graph_trasduction_game(concat_ls)[0]

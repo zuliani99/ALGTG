@@ -52,6 +52,7 @@ class Cls_TrainWorker():
         
         # RETRAIN FROM SCRATCH THE NETWORK (different from what LL4AL have done)
         self.__load_checkpoint(self.init_check_filename)
+        
         '''if self.model.added_module_name == 'GTGModule':
             logger.info(' => Running BackBone PreTraining')
             # Pretrain our backbone via Binary classification task (labelled, unlabelled)
@@ -62,44 +63,49 @@ class Cls_TrainWorker():
             )
             self.model.backbone.load_state_dict(pt.train())
             logger.info(' => DONE\n')'''
-        self.init_opt_sched()
-        self.i = 0
+        
         
         if isinstance(self.train_dl, tuple):
             lab_subset, unlab_subset = self.train_dl
-                    
-            self.unlab_train_dl = DataLoader(
-                dataset=unlab_subset, batch_size=int(self.batch_size * self.perc_labelled_batch), shuffle=True, pin_memory=True
-            )
+            batch_size = int(self.batch_size * self.perc_labelled_batch)
+            
+            self.unlab_train_dl = DataLoader(dataset=unlab_subset, batch_size=batch_size, shuffle=True, pin_memory=True)
             self.lab_train_dl = DataLoader(
-                dataset=lab_subset, batch_size=self.batch_size * self.perc_labelled_batch,
+                dataset=lab_subset, batch_size=batch_size,
                 sampler=RandomSampler(lab_subset, num_samples=len(unlab_subset)),
                 pin_memory=True
             )
 
-            self.len_lab_ds = len(lab_subset)
-            self.len_unlab_ds = len(unlab_subset)
+            self.len_b_lab_dl = len(self.lab_train_dl)
+            self.len_b_unlab_dl = len(self.unlab_train_dl)
             
-            self.n_batches = len(self.unlab_train_dl) # should be 79
-            
-            logger.info(f'{self.len_lab_ds} - {self.len_unlab_ds} - {self.n_batches}')
-            
+            self.rateo_unlab_lab_batch = self.len_b_unlab_dl / self.len_b_lab_dl # how many times I see a labelled images in each epoch
+                        
+            logger.info(f'{self.len_b_lab_dl} - {self.len_b_unlab_dl}')
+            self.n_batches = self.len_b_unlab_dl
         else:
             self.n_batches = len(self.train_dl)
             
+        self.init_opt_sched()
+        self.i = 0
+        
 
     def init_opt_sched(self):
         optimizers = self.ds_t_p["optimizers"]
         module_name = self.model.added_module_name if self.model.added_module == None else self.model.added_module_name.split('_')[0]
         self.decay = optimizers["modules"]["decay"][module_name] if module_name != None else None
         
+        dict_optim_bb = {**optimizers["backbone"]["optim_p"][module_name]}
+        #if module_name == 'GTGModule':
+        #    dict_optim_bb['lr'] = dict_optim_bb['lr'] / (self.len_unlab_ds / self.len_lab_ds)
+        
+        
         self.optimizers: List[torch.optim.SGD | torch.optim.Adam] = []
         self.lr_schedulers = []
-        self.optimizers.append(optimizers["backbone"]["type"][module_name](self.model.backbone.parameters(), **optimizers["backbone"]["optim_p"][module_name]))
+        self.optimizers.append(optimizers["backbone"]["type"][module_name](self.model.backbone.parameters(), **dict_optim_bb))
         self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1))
         if module_name != None:
             self.optimizers.append(optimizers["modules"]["type"][module_name](self.model.added_module.parameters(), **optimizers["modules"]["optim_p"][module_name]))
-            #self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
             
             
     
@@ -125,7 +131,7 @@ class Cls_TrainWorker():
             
         if module_out == None:
             tot_loss_ce += backbone.item()
-            return self.score_fn(outputs, labels), backbone, tot_loss_ce, 0 #, tot_loss_ce, tot_pred_loss
+            return self.score_fn(outputs, labels), backbone, tot_loss_ce, 0
         
         elif self.model.added_module_name == 'GTGModule':
                         
@@ -135,23 +141,22 @@ class Cls_TrainWorker():
             entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
 
             lab_ce_loss = torch.mean(ce_loss[labelled_mask])
-            lab_ce_loss /= (self.len_unlab_ds / self.len_lab_ds) # scaling the importance of the cross entropy loss
-            # by |unlabelled_set| / |labelled_set|
+            lab_ce_loss /= self.rateo_unlab_lab_batch
+            # ce loss scaled by the ratio between unlabelled and labelled batches
+            # es: ma1000 labelled samples, 10000 unlabelled samples 128 batch_size -> scaling factor = (10000/128) / (1000/128) = 9.875
             
             entr_loss = torch.mean(entr_loss[labelled_mask]) + torch.mean(entr_loss[~labelled_mask])
-            #entr_loss /= (self.len_unlab_ds / self.len_lab_ds)
             
             loss = lab_ce_loss + entr_loss
-            #loss = lab_ce_loss + entr_loss
             
-            return self.score_fn(outputs[labelled_mask], labels[labelled_mask]), loss, lab_ce_loss.item(), entr_loss.item() #, tot_loss_ce, tot_pred_loss
+            return self.score_fn(outputs[labelled_mask], labels[labelled_mask]), loss, lab_ce_loss.item(), entr_loss.item()
             
         
         elif self.method_name in ['LearningLoss', 'TAVAAL'] or 'GTG_off' in self.method_name:
             loss_weird = weight * self.ll_loss_fn(module_out, ce_loss)
             loss = backbone + loss_weird
                 
-            return self.score_fn(outputs, labels), loss, backbone.item(), loss_weird.item()#, tot_loss_ce, tot_pred_loss
+            return self.score_fn(outputs, labels), loss, backbone.item(), loss_weird.item()
         
         elif self.method_name == 'TiDAL':
             log_assert(tidal != None, 'TiDAL parameters are None')
@@ -164,7 +169,7 @@ class Cls_TrainWorker():
             m_module_loss = weight * self.kld_loss_fn(F.log_softmax(module_out, 1), moving_prob.detach())
             loss = backbone + m_module_loss
                 
-            return self.score_fn(outputs, labels), loss, backbone.item(), m_module_loss.item()#, tot_loss_ce, tot_pred_loss
+            return self.score_fn(outputs, labels), loss, backbone.item(), m_module_loss.item()
 
         else: raise AttributeError('Invalid method_name')
     
