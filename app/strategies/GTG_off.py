@@ -108,12 +108,12 @@ class GTG_off(ActiveLearner):
         A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(device)
         A = torch.clamp(A, min=0., max=1.)
         
-        return A
+        return A.fill_diagonal_(1.)
     
     
     def get_A_e_d(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         A = torch.cdist(concat_embedds, concat_embedds).to(torch.device('cpu') if to_cpu else self.device)
-        return torch.clamp(A, min=0., max=1.)
+        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1.)
 
 
     def get_A_cos_sim(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
@@ -121,15 +121,14 @@ class GTG_off(ActiveLearner):
         normalized_embedding = F.normalize(concat_embedds, dim=-1).to(device)
         
         A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(device)
-        A.fill_diagonal_(1.)
         A = torch.clamp(A, min=0., max=1.)
 
-        return A
+        return A.fill_diagonal_(0.)
         
         
     def get_A_corr(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         A = torch.corrcoef(concat_embedds).to(torch.device('cpu') if to_cpu else self.device)
-        return torch.clamp(A, min=0., max=1.)
+        return torch.clamp(A, min=0., max=1.).fill_diagonal_(0.)
         
 
     def get_X(self) -> None:
@@ -191,7 +190,6 @@ class GTG_off(ActiveLearner):
             'labels': torch.empty(0, dtype=torch.int8, device=torch.device('cpu'))
         }
         self.unlab_embedds_dict = {
-            #'idxs': torch.empty(0, dtype=torch.int8, device=torch.device('cpu')),
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu')),
             'labels': torch.empty(0, dtype=torch.int8, device=torch.device('cpu'))
         }        
@@ -247,6 +245,5 @@ class GTG_off(ActiveLearner):
         
         logger.info(' DONE\n')
         
-        #return overall_topk, [int(self.unlab_embedds_dict["idxs"][id].item()) for id in overall_topk]
         return overall_topk, [self.rand_unlab_sample[id] for id in overall_topk]
     

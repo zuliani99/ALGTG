@@ -71,7 +71,7 @@ dict_strategies = dict(
     cdal = CDAL, gtg = GTG_off, alphamix = AlphaMix, # -> BB
     
     ll = LearningLoss, ll_gtg = GTG_off, tavaal = TA_VAAL, tidal = TiDAL,# -> BB + LL
-    lq_gtg = GTG # -> BB + GTG
+    llmlp_gtg = GTG, lsmlps_gtg = GTG, lstmreg_gtg = GTG, lstmbc_gtg = GTG # -> BB + GTG
 )
 
 dict_backbone = dict(
@@ -85,17 +85,18 @@ def get_strategies_object(methods: List[str], Masters: Dict[str, Master_Model],
     strategies: List[Random | Entropy | CoreSet | AlphaMix | BADGE | BALD | CDAL | GTG_off | LearningLoss | GTG_off | TiDAL | TA_VAAL | GTG] = []
     
     for method in methods:
-        if 'gtg' in method.split('_'):
+        method_split = method.split('_')
+        if 'gtg' in method_split:
             
             for id_am_ts in range(len(gtg_p['am_ts'])):
                 
                 for id_am in range(len(gtg_p['am'])):
                     if method == 'gtg': m_model = Masters['M_None']
-                    elif method.split('_')[0] == 'lq': m_model = Masters['M_GTG']
-                    else: m_model = Masters['M_LL']
+                    elif method_split[0] == 'll': m_model = Masters['M_LL']
+                    else: m_model = Masters[f'M_GTG_{method_split[0]}']
 
                     strategies.append(dict_strategies[method](
-                        {**ct_p, 'Master_Model': m_model}, t_p, al_p, {**gtg_p, 'id_am_ts': id_am_ts, 'id_am': id_am})
+                        {**ct_p, 'Master_Model': m_model}, t_p, al_p, {**gtg_p, 'id_am_ts': id_am_ts, 'id_am': id_am, 'gtg_model': method_split[0]})
                     )
                 
         elif method in ['ll', 'tavaal', 'tidal']:
@@ -123,8 +124,9 @@ def get_masters(methods: List[str], BBone: ResNet | VGG,
         elif method == 'tidal' and not ll_tidal:
             Masters['M_LL_tidal'] = Master_Model(BBone, get_module('LL', {**ll_module_params, 'module_out': n_classes}), dataset_name)
             ll_tidal = True
-        elif method == 'lq_gtg':
-            Masters['M_GTG'] = Master_Model(BBone, get_module('GTG', (gtg_module_params, {**ll_module_params, 'module_out': 1})), dataset_name)
+        elif method in ['llmlp_gtg', 'lsmlps_gtg', 'lstmreg_gtg', 'lstmbc_gtg']:
+            gtg_module = method.split('_')[0]
+            Masters[f'M_GTG_{gtg_module}'] = Master_Model(BBone, get_module('GTG', ({**gtg_module_params, 'gtg_module': gtg_module}, {**ll_module_params, 'module_out': 1})), dataset_name)
         elif not only_bb:
             Masters['M_None'] = Master_Model(BBone, None, dataset_name)
             only_bb = True

@@ -16,4 +16,4 @@
 
 conda activate al_env
 
-python3 app/main.py -gpus 1 -m lq_gtg -ds cifar10 -tr 1 -am corr -am_ts mean -e_s mean -gtg_iter 10 #30
+python3 app/main.py -gpus 1 -m lsmlps_gtg -ds cifar10 -tr 1 -am corr -am_ts mean -e_s mean -gtg_iter 10 #30

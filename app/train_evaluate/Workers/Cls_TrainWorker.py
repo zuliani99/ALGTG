@@ -30,6 +30,10 @@ class Cls_TrainWorker():
         self.dataset_name: str = params["ct_p"]["dataset_name"]
         self.strategy_name: str = params["strategy_name"]
         self.method_name: str = self.strategy_name.split(f'{self.model.name}_')[1]
+        if self.model.added_module_name != None and self.model.only_module_name == 'GTGModule': 
+            self.gtg_net_type = self.model.added_module.GTG_Model
+            logger.info(f'GTGNet Type: {self.gtg_net_type}')
+
         
         self.epochs = params["t_p"]["epochs"]
         self.batch_size = params["batch_size"]
@@ -72,7 +76,7 @@ class Cls_TrainWorker():
             self.unlab_train_dl = DataLoader(dataset=unlab_subset, batch_size=batch_size, shuffle=True, pin_memory=True)
             self.lab_train_dl = DataLoader(
                 dataset=lab_subset, batch_size=batch_size,
-                sampler=RandomSampler(lab_subset, num_samples=len(unlab_subset)),
+                sampler=RandomSampler(lab_subset, num_samples=len(unlab_subset), replacement=False),
                 pin_memory=True
             )
 
@@ -123,22 +127,23 @@ class Cls_TrainWorker():
 
     def compute_losses(self, weight: float, module_out: torch.Tensor | None, outputs: torch.Tensor, \
                        labels: torch.Tensor, epoch: int,
-                       tidal: None | Tuple[torch.Tensor, torch.Tensor, int] = None,) -> Tuple[torch.Tensor, float, float]:
+                       tidal: None | Tuple[torch.Tensor, torch.Tensor, int] = None,) -> Tuple[float, torch.Tensor, float, float]:
                 
         ce_loss = self.ce_loss_fn(outputs, labels)
         backbone = torch.mean(ce_loss)
         self.i += 1
             
         if module_out == None:
-            tot_loss_ce += backbone.item()
+            tot_loss_ce = backbone.item()
             return self.score_fn(outputs, labels), backbone, tot_loss_ce, 0
         
-        elif self.model.added_module_name == 'GTGModule':
+        elif self.model.only_module_name == 'GTGModule':
                         
             (pred_entr, true_entr), labelled_mask = module_out
             if self.i%20 == 0: logger.info(f'y_pred {pred_entr}\ny_true {true_entr}') 
             
-            entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
+            if self.gtg_net_type != 'lstmbc': entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
+            else: entr_loss = weight * self.bce_loss_fn(pred_entr, true_entr.detach())
 
             lab_ce_loss = torch.mean(ce_loss[labelled_mask])
             lab_ce_loss /= self.rateo_unlab_lab_batch
@@ -182,7 +187,7 @@ class Cls_TrainWorker():
         return images, labels
     
     
-    def train_batch(self, images, labels,  weight, idxs, moving_prob, epoch, train_loss_ce, train_loss_pred) -> torch.Tensor:
+    def train_batch(self, images, labels,  weight, idxs, moving_prob, epoch, train_loss_ce, train_loss_pred) -> Tuple[float, float, float, float]:
         images, labels = self.return_moved_imgs_labs(images, labels)
                 
         for optimizer in self.optimizers: optimizer.zero_grad(set_to_none=True)
@@ -218,6 +223,8 @@ class Cls_TrainWorker():
             
             if isinstance(self.train_dl, tuple):
                 for b_idx, ((idxs_l, images_l, labels_l, _), (idxs_u, images_u, labels_u, _)) in enumerate(zip(self.lab_train_dl, self.unlab_train_dl)):
+                    
+                    logger.info(len(torch.unique(idxs_l)) < idxs_l.numel()) # true if there are duplicates
                     
                     idxs = torch.cat((idxs_l, idxs_u), dim=0)
                     images = torch.cat((images_l, images_u), dim=0)

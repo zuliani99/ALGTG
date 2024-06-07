@@ -20,7 +20,10 @@ class Master_Model(nn.Module):
         
         self.backbone = backbone
         self.added_module = added_module
-        self.added_module_name = added_module.name if added_module != None else None
+        if added_module != None:
+            self.added_module_name = added_module.name
+            self.only_module_name = self.added_module_name.split('_')[0]
+        else: self.added_module_name = None
         
         if added_module != None:
             self.name = f'{self.backbone.__class__.__name__}_{self.added_module_name}' # type: ignore
@@ -49,7 +52,7 @@ class Master_Model(nn.Module):
                         features = [feature.detach() for feature in features]
                         #for feature in features: logger.info(feature.requires_grad)
                         
-                    if self.added_module_name == 'GTGModule':
+                    if self.only_module_name == 'GTGModule':
                         module_out = self.added_module(features=features, embedds=embedds, outs=outs, labels=labels, weight=weight)
                     else: module_out = self.added_module(features=features)
                     return outs, module_out
@@ -69,7 +72,7 @@ class Master_Model(nn.Module):
                 if self.added_module != None:
                     outs, embedds = self.backbone(x)
                     features = self.backbone.get_features()
-                    if self.added_module_name == 'GTGModule':
+                    if self.only_module_name == 'GTGModule':
                         return self.added_module(features=features, embedds=embedds, outs=outs, labels=labels)[0][0]
                     else: return self.added_module(features=features)
                 else: raise AttributeError("The Master_Model hasn't got any additional module")   
