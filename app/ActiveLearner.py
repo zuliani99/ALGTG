@@ -38,8 +38,7 @@ class ActiveLearner():
         self.dataset: Cls_Datasets | Det_Dataset = self.ct_p["Dataset"]
         
         self.ds_t_p = self.t_p[self.ct_p["dataset_name"]]
-        self.module_name_only = self.model.added_module_name if self.model.added_module == None else self.model.added_module_name.split('_')[0] # type: ignore
-        self.batch_size = self.ds_t_p["batch_size"][self.module_name_only]
+        self.batch_size = self.ds_t_p["batch_size"][self.model.only_module_name]
 
         # each strategy will have a separate labelled and unlabelled set to work independently from the original sets
         self.labelled_indices: List[int] = copy.deepcopy(self.dataset.labelled_indices)
@@ -126,8 +125,8 @@ class ActiveLearner():
                     embed = self.model(images, mode='embedds')
                     dict_to_modify["embedds"] = torch.cat((dict_to_modify["embedds"], embed.cpu() if embedds2cpu else embed), dim=0)
 
-                if 'probs' in dict_to_modify:
-                    dict_to_modify["probs"] = torch.cat((dict_to_modify["probs"], self.model(images, mode='probs').cpu()), dim=0)
+                if 'outs' in dict_to_modify:
+                    dict_to_modify["outs"] = torch.cat((dict_to_modify["outs"], self.model(images, mode='outs').cpu()), dim=0)
 
                 # could be both LL (1 output) and GTG (3 outputs)
                 if 'module_out' in dict_to_modify:
@@ -135,7 +134,7 @@ class ActiveLearner():
                         dict_to_modify["module_out"] = torch.cat((
                             dict_to_modify["module_out"], 
                             self.model(images, mode='module_out',
-                                        labels=labels.to(self.device) if self.model.added_module_name == 'GTGModule'
+                                        labels=labels.to(self.device) if self.model.only_module_name == 'GTGModule'
                                         else None).cpu().squeeze()
                         ), dim=0)    
                     else:
@@ -192,10 +191,10 @@ class ActiveLearner():
         params = { 
             'ct_p': self.ct_p, 't_p': self.t_p, 'strategy_name': self.strategy_name, 
             'iter': iter, 'labelled_indices': self.labelled_indices, 'rand_unlab_sample': self.rand_unlab_sample,
-            'module_name_only': self.module_name_only
+            'module_name_only': self.model.only_module_name
         }
         
-        if self.module_name_only == 'GTGModule': params["perc_labelled_batch"] = self.perc_labelled_batch
+        if self.model.only_module_name == 'GTGModule': params["perc_labelled_batch"] = self.perc_labelled_batch
         
         
         # if we are using multiple gpus
@@ -319,7 +318,6 @@ class ActiveLearner():
                 # if we are performing GTG Offline plot also the GTG predictions in the TSNE plot 
                 self.save_tsne(idxs_new_labels, d_labels, self.iter, self.gtg_result_prediction) # type: ignore
             
-            #elif self.model.added_module_name == 'GTGModule': self.save_tsne(idxs_new_labels, d_labels, str(self.iter))
             else: self.save_tsne(idxs_new_labels, d_labels, self.iter)
 
             # modify the datasets and dataloader and plot the tsne

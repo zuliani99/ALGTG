@@ -13,11 +13,13 @@ logger = logging.getLogger(__name__)
 
 
 class Module_LS_GTG_LSTM(nn.Module):
-    def __init__(self, params, input_size, hidden_size, num_layers, output_size, bidirectional, device, is_bin_class=False):
+    def __init__(self, params: Dict[str, Any], input_size: int, hidden_size: int, num_layers: int, output_size: int, \
+                bidirectional: bool, device: torch.device, gtg_func: function, is_bin_class=False) -> None:
         super(Module_LS_GTG_LSTM, self).__init__()
 
         self.mod_ls = Module_LS(params)
         self.is_bin_class = is_bin_class
+        self.gtg_func = gtg_func
         self.sigmoid = nn.Sigmoid()
         
         self.hidden_size = hidden_size
@@ -32,13 +34,13 @@ class Module_LS_GTG_LSTM(nn.Module):
         self.classifier = nn.Linear(in_features_cls, output_size)
         
         
-    def forward(self, features, weight, gtg_func):
+    def forward(self, features: List[torch.Tensor], weight: int) -> torch.Tensor:
         
         ls_features = self.mod_ls(features)
         if weight == 0: ls_features = [ls.detach() for ls in ls_features]
         ls_features = torch.cat(ls_features, dim=1)
         
-        ent_history = gtg_func(ls_features)[1].unsqueeze(dim=1)
+        ent_history = self.gtg_func(ls_features)[1].unsqueeze(dim=1)
         
         hiddens = (
             torch.zeros(self.hiddens_dim, ent_history.shape[0], self.hidden_size, device=self.device),
@@ -51,11 +53,11 @@ class Module_LS_GTG_LSTM(nn.Module):
         
 
 class Module_LS_GTG_MLP(nn.Module):
-    def __init__(self, params: Dict[str, Any], gtg_iter, n_classes):
+    def __init__(self, params: Dict[str, Any], gtg_iter: int, n_classes: int, gtg_func: function) -> None:
         super(Module_LS_GTG_MLP, self).__init__()
 
         self.mod_ls = Module_LS(params)
-        
+        self.gtg_funct = gtg_func
         in_feat = gtg_iter * n_classes
         
         self.seq_linears = nn.Sequential(
@@ -65,12 +67,12 @@ class Module_LS_GTG_MLP(nn.Module):
         self.linear = nn.Linear(in_feat//4 * 4, 1)
         
         
-    def forward(self, features, weight, gtg_func):
+    def forward(self, features: List[torch.Tensor], weight: int) -> torch.Tensor:
         outs = [ ]
         for id, features_embedding in enumerate(features):
             emb_ls = self.mod_ls(features_embedding, id)
             if weight == 0: emb_ls = emb_ls.detach()
-            latent_feature = gtg_func(emb_ls)[0]
+            latent_feature = self.gtg_func(emb_ls)[0]
             out = latent_feature.view(latent_feature.size(0), -1)
             out = self.seq_linears(out)
             outs.append(out)
@@ -81,7 +83,7 @@ class Module_LS_GTG_MLP(nn.Module):
 
 
 class Module_LS(nn.Module):
-    def __init__(self, params: Dict[str, Any]):
+    def __init__(self, params: Dict[str, Any]) -> None:
         super(Module_LS, self).__init__()
 
         # same parameters of loss net
@@ -101,7 +103,7 @@ class Module_LS(nn.Module):
         self.gaps = nn.ModuleList(self.gaps)
 
 
-    def forward(self, features, id_feat=-1):
+    def forward(self, features: torch.Tensor | List[torch.Tensor], id_feat: int =-1) -> torch.Tensor | List[torch.Tensor]:
         if id_feat != -1: 
             out = self.gaps[id_feat](features)
             out = out.view(out.size(0), -1)
@@ -118,7 +120,7 @@ class Module_LS(nn.Module):
     
     
 class Module_LL(nn.Module):
-    def __init__(self, params: Dict[str, Any]):
+    def __init__(self, params: Dict[str, Any]) -> None:
         super(Module_LL, self).__init__()
 
         # same parameters of loss net
@@ -139,7 +141,7 @@ class Module_LL(nn.Module):
         self.classifier = nn.Linear(interm_dim * len(num_channels), 1)
 
 
-    def forward(self, features):
+    def forward(self, features: List[torch.Tensor]) -> torch.Tensor:
         outs = []
         for i in range(len(features)):
             out = self.gaps[i](features[i])
@@ -153,7 +155,7 @@ class Module_LL(nn.Module):
         
 
 class GTGModule(nn.Module):
-    def __init__(self, params):
+    def __init__(self, params) -> None:
         super(GTGModule, self).__init__()
         
         gtg_p, ll_p = params
@@ -183,19 +185,29 @@ class GTGModule(nn.Module):
         self.set_additional_module()
         
     
-    def set_additional_module(self):
+    def set_additional_module(self) -> None:
         logger.info(self.GTG_Model)
+        
         if self.GTG_Model == 'llmlp':
             self.gtg_module = Module_LL(self.ll_p).to(self.device)
+            
         elif self.GTG_Model == 'lsmlps':
-            self.gtg_module = Module_LS_GTG_MLP(self.ll_p, self.gtg_max_iter, self.n_classes).to(self.device)
+            self.gtg_module = Module_LS_GTG_MLP(
+                params=self.ll_p, 
+                gtg_iter=self.gtg_max_iter, 
+                n_classes=self.n_classes, 
+                gtg_func=self.graph_trasduction_game
+            ).to(self.device)
+            
         elif self.GTG_Model in ['lstmreg', 'lstmbc']:
             self.gtg_module = Module_LS_GTG_LSTM(
                 params=self.ll_p, input_size=self.gtg_max_iter,
                 hidden_size=self.gtg_max_iter, num_layers=1,
                 output_size=1, bidirectional=True, device=self.device,
+                gtg_func=self.graph_trasduction_game,
                 is_bin_class=self.GTG_Model == 'lstmbc'
             ).to(self.device)
+            
         else:
             logger.exception(' Invalid GTG Model') 
             raise AttributeError(' Invalid GTG Model')
@@ -210,7 +222,10 @@ class GTGModule(nn.Module):
     def get_A_treshold(self, A: torch.Tensor) -> Any:
         if self.AM_threshold_strategy == 'mean': return torch.mean(A)
         else: return self.AM_threshold
+        
     
+    # sim (1.) dist (0.) -> self loop 
+    # sim (0.) dist (1.) -> no self loop 
     
     def get_A_rbfk(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         A_matrix = self.get_A_e_d(concat_embedds)
@@ -227,23 +242,23 @@ class GTGModule(nn.Module):
         sigma_T = sigmas.T
         sigma_mm = (torch.mm(sigma_T, sigmas))
         A = torch.exp(A_m_2 / sigma_mm)
-        return torch.clamp(A.to(self.device), min=0., max=1.).fill_diagonal_(1.)
+        return torch.clamp(A.to(self.device), min=0., max=1.).fill_diagonal_(0.)#(1.)
     
         
     def get_A_e_d(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         A = torch.cdist(concat_embedds, concat_embedds).to(self.device)
-        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1.)
+        return torch.clamp(A, min=0., max=1.).fill_diagonal_(0.)#(1.)
     
 
     def get_A_cos_sim(self, concat_embedds: torch.Tensor) -> torch.Tensor: 
         normalized_embedding = F.normalize(concat_embedds, dim=-1).to(self.device)
         A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device)   
-        return torch.clamp(A, min=0., max=1.).fill_diagonal_(0.)
+        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1.)#(0.)
 
         
     def get_A_corr(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         A = torch.corrcoef(concat_embedds).to(self.device)
-        return torch.clamp(A, min=0., max=1.).fill_diagonal_(0.)
+        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1.)#(0.)
     
     
     def get_A(self, embedding: torch.Tensor) -> torch.Tensor:
@@ -271,30 +286,6 @@ class GTGModule(nn.Module):
         else: self.X[torch.arange(self.n_lab_obs), :] = probs[torch.arange(self.n_lab_obs)]
 
         self.X[self.n_lab_obs:, :] = torch.ones(self.n_classes, device=self.device) * (1. / self.n_classes)
-
-    
-    
-    '''@torch.no_grad()
-    def graph_trasduction_game_detached(self, embedding: torch.Tensor) -> torch.Tensor:
-        
-        entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
-        A = self.get_A(embedding).detach()
-                
-        err = float('Inf')
-        i = 0
-        X = self.X.clone()
-        
-        while err > self.gtg_tol and i < self.gtg_max_iter:
-            X_old = X.clone()
-            
-            X *= torch.mm(A, X)
-            X /= torch.sum(X, dim=1, keepdim=True)
-            
-            entropy_hist[self.n_lab_obs:, i] = entropy(X)[self.n_lab_obs:].to(self.device)
-            
-            err = torch.norm(X - X_old)
-            i += 1
-        return entropy_hist'''
     
     
     
@@ -309,6 +300,8 @@ class GTGModule(nn.Module):
         
         err = float('Inf')
         i = 0
+        
+        logger.info(f'start {X.argmax(dim=1)}')
                         
         while err > self.gtg_tol and i < self.gtg_max_iter:
             
@@ -334,17 +327,15 @@ class GTGModule(nn.Module):
                 Xs, torch.zeros((self.batch_size, self.n_classes, 1), device=self.device, dtype=torch.float32, requires_grad=True if A.requires_grad else False)
             ), dim=-1)
             
-        logger.info(X.argmax(dim=1))
+        logger.info(f'end {X.argmax(dim=1)}')
 
         return Xs, entropy_hist
-    
     
           
         
     # List[torch.Tensor] -> detection
-    def get_entropies(self, embedding: torch.Tensor) -> torch.Tensor: #Tuple[torch.Tensor, torch.Tensor]:     
+    def get_entropies(self, embedding: torch.Tensor) -> torch.Tensor: #Tuple[torch.Tensor, torch.Tensor]:
                   
-        #entropy_hist = self.graph_trasduction_game_detached(embedding)
         entropy_hist = self.graph_trasduction_game(embedding)[1]
  
         if self.ent_strategy == 'mean': quantity_result = torch.mean(entropy_hist, dim=1)
@@ -358,7 +349,7 @@ class GTGModule(nn.Module):
         return quantity_result
     
     
-    #labelled_dim = -1
+    
     def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, outs: torch.Tensor, labels: torch.Tensor, weight: int = 1) \
         -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor | None]: 
         
@@ -366,10 +357,10 @@ class GTGModule(nn.Module):
         self.n_lab_obs = int(self.batch_size * self.perc_labelled_batch)
         self.lab_labels = labels[:self.n_lab_obs]
         
-        self.get_X(outs)
+        self.get_X(F.softmax(outs, dim=1))
         
         if self.GTG_Model == 'llmlp': y_pred = self.gtg_module(features).squeeze()
-        else: y_pred = self.gtg_module(features, weight, self.graph_trasduction_game).squeeze()
+        else: y_pred = self.gtg_module(features, weight).squeeze()
 
         if weight == 0: y_pred = y_pred.detach()
 
@@ -401,32 +392,3 @@ class GTGModule(nn.Module):
             
         else: return (y_pred, y_true), None
 
-
-
-'''latent_features = [ ]
-        for id, features_embedding in enumerate(features):
-            emb_ls = self.mod_ls(features_embedding, id)
-            if weight == 0: emb_ls = emb_ls.detach()
-            latent_features.append(self.graph_trasduction_game(emb_ls)[0]) # -> takes always the first Xs
-            
-        y_pred = self.mod_mlp(latent_features).squeeze()'''
-        
-        #LSTM MODULE
-'''latent_features = [ ]
-        for id, features_embedding in enumerate(features):
-            emb_ls = self.mod_ls(features_embedding, id)
-            if weight == 0: emb_ls = emb_ls.detach()
-            latent_features.append(emb_ls)
-        concat_ls = torch.cat(latent_features, dim=1)'''
-        
-        #y_pred = self.ll_mod(features).squeeze()
-        #y_pred = self.cnn_mlp(features).squeeze()
-        
-        #LSTM MODULE
-'''pred_Xs = self.graph_trasduction_game(concat_ls)[0]
-        pred_Xs = entropy(pred_Xs, dim=1).unsqueeze(dim=1)
-        
-        #y_pred = self.mod_mlp(latent_features).squeeze()
-        y_pred = self.single_lstm(pred_Xs).squeeze() 
-        '''
-            

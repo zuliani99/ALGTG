@@ -23,7 +23,7 @@ class GTG(ActiveLearner):
         super().__init__(ct_p, t_p, al_p, strategy_name)
         self.perc_labelled_batch: int = gtg_p["plb"]
         self.gtg_model = gtg_p["gtg_model"]
-        if self.model.added_module_name != None: self.model.added_module.define_idx_params(gtg_p["id_am_ts"], gtg_p["id_am"]) # -> for GTG module only
+        if self.model.only_module_name != None: self.model.added_module.define_idx_params(gtg_p["id_am_ts"], gtg_p["id_am"]) # -> for GTG module only
         
         
 

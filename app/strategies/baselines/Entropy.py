@@ -27,12 +27,12 @@ class Entropy(ActiveLearner):
         )
                 
         logger.info(' => Getting the unlabelled logits')
-        embeds_dict = { 'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32, device=torch.device('cpu')) }
+        embeds_dict = { 'outs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32, device=torch.device('cpu')) }
         
         self.load_best_checkpoint()
         
         self.get_embeddings(self.unlab_train_dl, embeds_dict)
-        prob_dist = F.softmax(embeds_dict["probs"], dim=1)
+        prob_dist = F.softmax(embeds_dict["outs"], dim=1)
         logger.info(' DONE\n')
 
         logger.info(f' => Extracting the Top-k unlabelled observations')

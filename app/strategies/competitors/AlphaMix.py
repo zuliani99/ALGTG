@@ -46,7 +46,7 @@ class AlphaMix(ActiveLearner):
             'labels': torch.empty(0, dtype=torch.int8, device=torch.device('cpu'))
         }
         self.unlab_embedds_dict = {
-            'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32, device=torch.device('cpu')),
+            'outs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32, device=torch.device('cpu')),
             'embedds': torch.empty((0, self.model.backbone.get_embedding_dim()), dtype=torch.float32, device=self.device),
         }
 
@@ -55,7 +55,7 @@ class AlphaMix(ActiveLearner):
         
         idxs_unlabelled = torch.tensor(self.rand_unlab_sample) 
 
-        pred_1 = self.unlab_embedds_dict["probs"] .sort(descending=True)[1][:, 0]
+        pred_1 = F.softmax(self.unlab_embedds_dict["outs"], dim=1).sort(descending=True)[1][:, 0]
         ulb_embedding = self.unlab_embedds_dict["embedds"]
         lb_embedding = self.lab_embedds_dict["embedds"]
 

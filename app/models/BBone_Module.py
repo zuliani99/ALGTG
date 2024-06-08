@@ -23,7 +23,8 @@ class Master_Model(nn.Module):
         if added_module != None:
             self.added_module_name = added_module.name
             self.only_module_name = self.added_module_name.split('_')[0]
-        else: self.added_module_name = None
+        else: self.added_module_name, self.only_module_name = None, None
+        
         
         if added_module != None:
             self.name = f'{self.backbone.__class__.__name__}_{self.added_module_name}' # type: ignore
@@ -48,10 +49,7 @@ class Master_Model(nn.Module):
 
                 if self.added_module != None:
                     features = self.backbone.get_features()
-                    if weight == 0: 
-                        features = [feature.detach() for feature in features]
-                        #for feature in features: logger.info(feature.requires_grad)
-                        
+                    if weight == 0: features = [feature.detach() for feature in features]                        
                     if self.only_module_name == 'GTGModule':
                         module_out = self.added_module(features=features, embedds=embedds, outs=outs, labels=labels, weight=weight)
                     else: module_out = self.added_module(features=features)
@@ -59,7 +57,7 @@ class Master_Model(nn.Module):
                 else: return outs, None
             else: raise AttributeError("The Master_Model is in evaluation mode, so it can't return everything")
         
-        elif mode == 'probs': 
+        elif mode == 'outs': 
             if not self.training: return self.backbone(x)[0]
             else: raise AttributeError("The Master_Model is in training mode, so it can't return the probabilities") 
             

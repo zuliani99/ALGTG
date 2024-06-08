@@ -30,7 +30,7 @@ class Cls_TrainWorker():
         self.dataset_name: str = params["ct_p"]["dataset_name"]
         self.strategy_name: str = params["strategy_name"]
         self.method_name: str = self.strategy_name.split(f'{self.model.name}_')[1]
-        if self.model.added_module_name != None and self.model.only_module_name == 'GTGModule': 
+        if self.model.only_module_name == 'GTGModule': 
             self.gtg_net_type = self.model.added_module.GTG_Model
             logger.info(f'GTGNet Type: {self.gtg_net_type}')
 
@@ -40,7 +40,7 @@ class Cls_TrainWorker():
         self.ds_t_p = params["t_p"][self.dataset_name]
         if 'perc_labelled_batch' in params: self.perc_labelled_batch = params['perc_labelled_batch']
         
-        self.train_dl: DataLoader | Tuple[DataLoader, DataLoader] = params["train_dl"]
+        self.train_dl: DataLoader | Tuple[Subset, Subset] = params["train_dl"]
         self.test_dl: DataLoader = params["test_dl"]
         
         self.ce_loss_fn = nn.CrossEntropyLoss(reduction='none').to(self.device)
@@ -57,7 +57,7 @@ class Cls_TrainWorker():
         # RETRAIN FROM SCRATCH THE NETWORK (different from what LL4AL have done)
         self.__load_checkpoint(self.init_check_filename)
         
-        '''if self.model.added_module_name == 'GTGModule':
+        '''if self.model.only_module_name == 'GTGModule':
             logger.info(' => Running BackBone PreTraining')
             # Pretrain our backbone via Binary classification task (labelled, unlabelled)
             pt = PreTrain(
@@ -73,11 +73,11 @@ class Cls_TrainWorker():
             lab_subset, unlab_subset = self.train_dl
             batch_size = int(self.batch_size * self.perc_labelled_batch)
             
-            self.unlab_train_dl = DataLoader(dataset=unlab_subset, batch_size=batch_size, shuffle=True, pin_memory=True)
+            self.unlab_train_dl = DataLoader(dataset=unlab_subset, batch_size=batch_size, shuffle=True, pin_memory=True)#, drop_last=True)
             self.lab_train_dl = DataLoader(
                 dataset=lab_subset, batch_size=batch_size,
                 sampler=RandomSampler(lab_subset, num_samples=len(unlab_subset), replacement=False),
-                pin_memory=True
+                pin_memory=True#, drop_last=True
             )
 
             self.len_b_lab_dl = len(self.lab_train_dl)
@@ -96,7 +96,7 @@ class Cls_TrainWorker():
 
     def init_opt_sched(self):
         optimizers = self.ds_t_p["optimizers"]
-        module_name = self.model.added_module_name if self.model.added_module == None else self.model.added_module_name.split('_')[0]
+        module_name = self.model.only_module_name
         self.decay = optimizers["modules"]["decay"][module_name] if module_name != None else None
         
         dict_optim_bb = {**optimizers["backbone"]["optim_p"][module_name]}
@@ -200,7 +200,6 @@ class Cls_TrainWorker():
         )
                 
         loss.backward()                
-        #torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1., norm_type=2)
         for optimizer in self.optimizers: optimizer.step()
 
         return score, loss.item(), train_loss_ce, train_loss_pred
@@ -276,13 +275,13 @@ class Cls_TrainWorker():
         self.__load_checkpoint(self.check_best_path)
         test_accuracy = .0
         
-        self.model.backbone.eval()    
+        self.model.eval()    
 
         with torch.inference_mode():
             for _, images, labels in self.test_dl:
                 
                 images, labels = self.return_moved_imgs_labs(images, labels)
-                outputs, _  = self.model.backbone(images)
+                outputs  = self.model(images, mode='outs')
                 test_accuracy += self.score_fn(outputs, labels)
 
             test_accuracy /= len(self.test_dl)

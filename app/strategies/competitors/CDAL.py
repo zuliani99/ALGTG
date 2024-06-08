@@ -59,16 +59,16 @@ class CDAL(ActiveLearner):
         lab_train_dl = DataLoader(Subset(self.dataset.unlab_train_ds, self.labelled_indices), **dl_dict)
             
         logger.info(' => Getting the labelled and unlabelled logits')
-        lab_embedds_dict = { 'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32, device=torch.device('cpu')) }
-        unlab_embedds_dict = { 'probs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32, device=torch.device('cpu')) }
+        lab_embedds_dict = { 'outs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32, device=torch.device('cpu')) }
+        unlab_embedds_dict = { 'outs': torch.empty((0, self.dataset.n_classes), dtype=torch.float32, device=torch.device('cpu')) }
         
         self.load_best_checkpoint()
         
         self.get_embeddings(lab_train_dl, lab_embedds_dict)
         self.get_embeddings(unlab_train_dl, unlab_embedds_dict)
         
-        lab_probs = F.softmax(lab_embedds_dict["probs"], dim=1)
-        unlab_probs = F.softmax(unlab_embedds_dict["probs"], dim=1)
+        lab_probs = F.softmax(lab_embedds_dict["outs"], dim=1)
+        unlab_probs = F.softmax(unlab_embedds_dict["outs"], dim=1)
         
         logger.info(' DONE\n')
         
