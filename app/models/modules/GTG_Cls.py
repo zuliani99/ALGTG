@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class Module_LS_GTG_LSTM(nn.Module):
     def __init__(self, params: Dict[str, Any], input_size: int, hidden_size: int, num_layers: int, output_size: int, \
-                bidirectional: bool, device: torch.device, gtg_func: function, is_bin_class=False) -> None:
+                bidirectional: bool, device: torch.device, gtg_func, is_bin_class=False) -> None:
         super(Module_LS_GTG_LSTM, self).__init__()
 
         self.mod_ls = Module_LS(params)
@@ -53,11 +53,11 @@ class Module_LS_GTG_LSTM(nn.Module):
         
 
 class Module_LS_GTG_MLP(nn.Module):
-    def __init__(self, params: Dict[str, Any], gtg_iter: int, n_classes: int, gtg_func: function) -> None:
+    def __init__(self, params: Dict[str, Any], gtg_iter: int, n_classes: int, gtg_func) -> None:
         super(Module_LS_GTG_MLP, self).__init__()
 
         self.mod_ls = Module_LS(params)
-        self.gtg_funct = gtg_func
+        self.gtg_func = gtg_func
         in_feat = gtg_iter * n_classes
         
         '''self.seq_linears = nn.ModuleList([nn.Sequential(
