@@ -60,11 +60,14 @@ class Module_LS_GTG_MLP(nn.Module):
         self.gtg_funct = gtg_func
         in_feat = gtg_iter * n_classes
         
-        self.seq_linears = nn.ModuleList([nn.Sequential(
+        '''self.seq_linears = nn.ModuleList([nn.Sequential(
             nn.Linear(in_feat, in_feat//2), nn.ReLU(),
             nn.Linear(in_feat//2, in_feat//4), nn.ReLU()
-        ) for _ in range(4)])
-        self.linear = nn.Linear(in_feat//4 * 4, 1)
+        ) for _ in range(4)])'''
+        self.seq_linears = nn.ModuleList([nn.Sequential(nn.Linear(in_feat, 1)) for _ in range(4)])
+        
+        #self.linear = nn.Linear(in_feat//4 * 4, 1)
+        self.linear = nn.Linear(len(self.seq_linears), 1)
         
         
     def forward(self, features: List[torch.Tensor], weight: int) -> torch.Tensor:
