@@ -60,10 +60,10 @@ class Module_LS_GTG_MLP(nn.Module):
         self.gtg_funct = gtg_func
         in_feat = gtg_iter * n_classes
         
-        self.seq_linears = nn.Sequential(
+        self.seq_linears = nn.ModuleList([nn.Sequential(
             nn.Linear(in_feat, in_feat//2), nn.ReLU(),
             nn.Linear(in_feat//2, in_feat//4), nn.ReLU()
-        )
+        ) for _ in range(4)])
         self.linear = nn.Linear(in_feat//4 * 4, 1)
         
         
@@ -74,7 +74,7 @@ class Module_LS_GTG_MLP(nn.Module):
             if weight == 0: emb_ls = emb_ls.detach()
             latent_feature = self.gtg_func(emb_ls)[0]
             out = latent_feature.view(latent_feature.size(0), -1)
-            out = self.seq_linears(out)
+            out = self.seq_linears[id](out)
             outs.append(out)
         
         out = self.linear(torch.cat(outs, 1))
