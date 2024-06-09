@@ -76,10 +76,11 @@ class GTG_off(ActiveLearner):
             # set the unlabelled submatrix as distance matrix and not similarity matrix
             n_lab_obs = len(self.labelled_indices)
             
+            # LL -> DISTANCE
             if self.AM_function == 'rbfk': A = 1 - A 
             A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs]
+               
                 
-        
         # plot the TSNE fo the original and modified affinity matrix
         '''logger.info('Plotting TSNE of the original and modified Affinity Matrix...')
         plot_tsne_A(
@@ -161,6 +162,7 @@ class GTG_off(ActiveLearner):
         i = 0
         
         logger.info(' => Running GTG')
+        logger.info(f'starting X: {self.X.argmax(dim=1)}')
         
         while err > self.gtg_tol and i < self.gtg_max_iter:
             X_old = torch.clone(self.X)
@@ -173,7 +175,10 @@ class GTG_off(ActiveLearner):
             err = torch.norm(self.X - X_old)
             i += 1
             
+        logger.info(f'ending X: {self.X[len(self.labelled_indices):].argmax(dim=1).unique(return_counts=True)}')
         logger.info(' DONE\n')
+        
+        
 
 
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:            

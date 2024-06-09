@@ -60,13 +60,8 @@ class Module_LS_GTG_MLP(nn.Module):
         self.gtg_func = gtg_func
         in_feat = gtg_iter * n_classes
         
-        '''self.seq_linears = nn.ModuleList([nn.Sequential(
-            nn.Linear(in_feat, in_feat//2), nn.ReLU(),
-            nn.Linear(in_feat//2, in_feat//4), nn.ReLU()
-        ) for _ in range(4)])'''
         self.seq_linears = nn.ModuleList([nn.Sequential(nn.Linear(in_feat, 1)) for _ in range(4)])
         
-        #self.linear = nn.Linear(in_feat//4 * 4, 1)
         self.linear = nn.Linear(len(self.seq_linears), 1)
         
         
@@ -155,6 +150,51 @@ class Module_LL(nn.Module):
         return self.classifier(out)
 
 
+class Module_CNN_MLP(nn.Module):
+    def __init__(self, params: Dict[str, Any]):
+        super(Module_CNN_MLP, self).__init__()
+        
+        # same parameters of loss net
+        feature_sizes = params["feature_sizes"]
+        num_channels = params["num_channels"]
+        interm_dim = params["interm_dim"]
+
+        self.convs, self.linears = [], []
+        dim_class = interm_dim * len(num_channels)
+
+        for n_c, e_d in zip(num_channels, feature_sizes):
+            out_features = n_c // (e_d // 2)
+            self.convs.append(nn.Sequential(
+                nn.Conv2d(n_c ,out_features, kernel_size=3, stride=2, padding=1), # instead og GAP of LL_Module
+                # we have learnable parameters instead of doing the average
+                nn.BatchNorm2d(out_features),
+                nn.ReLU(),
+            ))
+            self.linears.append(nn.Sequential(
+                nn.Linear(n_c * (e_d // 2), interm_dim), # same dimension of the LL_Module latent space
+                nn.ReLU(),
+            ))
+
+        self.convs = nn.ModuleList(self.convs)
+        self.linears = nn.ModuleList(self.linears)
+        self.regressor = nn.Sequential(
+            nn.Linear(dim_class, dim_class//2), nn.ReLU(),
+            nn.Linear(dim_class//2, dim_class//4 ), nn.ReLU(),
+            nn.Linear(dim_class//4, 1)
+        )
+        
+
+    def forward(self, features):
+        outs = []
+        for i in range(len(features)):
+            out = self.convs[i](features[i])
+            out = out.view(out.size(0), -1)
+            out = self.linears[i](out)
+            outs.append(out)
+
+        out = self.regressor(torch.cat(outs, 1))
+        return out
+
         
 
 class GTGModule(nn.Module):
@@ -192,7 +232,8 @@ class GTGModule(nn.Module):
         logger.info(self.GTG_Model)
         
         if self.GTG_Model == 'llmlp':
-            self.gtg_module = Module_LL(self.ll_p).to(self.device)
+            #self.gtg_module = Module_LL(self.ll_p).to(self.device)
+            self.gtg_module = Module_CNN_MLP(self.ll_p).to(self.device)
             
         elif self.GTG_Model == 'lsmlps':
             self.gtg_module = Module_LS_GTG_MLP(
