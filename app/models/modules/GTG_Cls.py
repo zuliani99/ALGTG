@@ -50,11 +50,31 @@ class Module_LS_GTG_LSTM(nn.Module):
         out = self.classifier(out)
         return self.sigmoid(out) if self.is_bin_class else out
         
+             
+'''class Module_LS_GTG_MLP(nn.Module):
+    def __init__(self, params: Dict[str, Any], gtg_iter, gtg_func) -> None:
+        super(Module_LS_GTG_MLP, self).__init__()
+
+        self.mod_ls = Module_LS(params)
+        self.gtg_func = gtg_func        
+        self.classifier = nn.Linear(gtg_iter, 1)
+        
+        
+    def forward(self, features: List[torch.Tensor], weight: int) -> torch.Tensor:
+        
+        ls_features = self.mod_ls(features)
+        if weight == 0: ls_features = [ls.detach() for ls in ls_features]
+        ls_features = torch.cat(ls_features, dim=1)
+        
+        ent_history = self.gtg_func(ls_features)[1].unsqueeze(dim=1)
+        ent_history = ent_history.view(ent_history.size(0), -1)
+        
+        return self.classifier(ent_history)'''
         
 
-class Module_LS_GTG_MLP(nn.Module):
+class Module_LSs_GTGs_MLPs(nn.Module):
     def __init__(self, params: Dict[str, Any], gtg_iter: int, n_classes: int, gtg_func) -> None:
-        super(Module_LS_GTG_MLP, self).__init__()
+        super(Module_LSs_GTGs_MLPs, self).__init__()
 
         self.mod_ls = Module_LS(params)
         self.gtg_func = gtg_func
@@ -232,17 +252,16 @@ class GTGModule(nn.Module):
         logger.info(self.GTG_Model)
         
         if self.GTG_Model == 'llmlp':
-            #self.gtg_module = Module_LL(self.ll_p).to(self.device)
             self.gtg_module = Module_CNN_MLP(self.ll_p).to(self.device)
             
         elif self.GTG_Model == 'lsmlps':
-            self.gtg_module = Module_LS_GTG_MLP(
+            self.gtg_module = Module_LSs_GTGs_MLPs(
                 params=self.ll_p, 
                 gtg_iter=self.gtg_max_iter, 
                 n_classes=self.n_classes, 
                 gtg_func=self.graph_trasduction_game
             ).to(self.device)
-            
+                 
         elif self.GTG_Model in ['lstmreg', 'lstmbc']:
             self.gtg_module = Module_LS_GTG_LSTM(
                 params=self.ll_p, input_size=self.gtg_max_iter,
@@ -313,11 +332,11 @@ class GTGModule(nn.Module):
             if self.AM_function != 'rbfk': A = torch.where(A < self.get_A_treshold(A), 0, A)
             else: A = torch.where(A > self.get_A_treshold(A), 1, A)
 
-        if self.AM_strategy == 'diversity':
+        '''if self.AM_strategy == 'diversity':
             A = 1 - A # set the whole matrix as a distance matrix and not similarity matrix
         elif self.AM_strategy == 'mixed':    
             if self.AM_function == 'rbfk': A = 1 - A # set the unlabelled submatrix as distance matrix and not similarity matrix
-            A[:self.n_lab_obs, :self.n_lab_obs] = 1 - A[:self.n_lab_obs, :self.n_lab_obs] # -> LL distance
+            A[:self.n_lab_obs, :self.n_lab_obs] = 1 - A[:self.n_lab_obs, :self.n_lab_obs] # -> LL distance'''
         
         return A
         
@@ -338,30 +357,29 @@ class GTGModule(nn.Module):
         entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
         
         A = self.get_A(features_embedding) # -> nxn
-        X = self.X.clone() # -> nxm
-        if A.requires_grad: X.requires_grad_(True)
+        if A.requires_grad: self.X.requires_grad_(True)
         Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device, dtype=torch.float32, requires_grad=True if A.requires_grad else False)        
         
         err = float('Inf')
         i = 0
         
-        logger.info(f'start {X.argmax(dim=1)}')
+        logger.info(f'start {self.X.argmax(dim=1)}')
                         
         while err > self.gtg_tol and i < self.gtg_max_iter:
             
-            if X.requires_grad: X.register_hook(lambda grad: logger.info(f'{i} -- 1- X grad: {grad.sum()}'))
+            if self.X.requires_grad: self.X.register_hook(lambda grad: logger.info(f'{i} -- 1- X grad: {grad.sum()}'))
             
-            X_old = X.detach().clone()
+            X_old = self.X.detach().clone()
                         
-            X = X * torch.mm(A, X)
-            if X.requires_grad: X.register_hook(lambda grad: logger.info(f'{i} -- 2- X grad: {grad.sum()}'))
-            X = X / torch.sum(X, dim=1, keepdim=True)
-            if X.requires_grad: X.register_hook(lambda grad: logger.info(f'{i} -- 3- X grad: {grad.sum()}'))
+            self.X = self.X * torch.mm(A, self.X)
+            if self.X.requires_grad: self.X.register_hook(lambda grad: logger.info(f'{i} -- 2- X grad: {grad.sum()}'))
+            self.X = self.X / torch.sum(self.X, dim=1, keepdim=True)
+            if self.X.requires_grad: self.X.register_hook(lambda grad: logger.info(f'{i} -- 3- X grad: {grad.sum()}'))
             
-            entropy_hist[self.n_lab_obs:, i] = entropy(X[self.n_lab_obs:, :]).to(self.device)
+            entropy_hist[self.n_lab_obs:, i] = entropy(self.X[self.n_lab_obs:, :]).to(self.device)
 
-            err = torch.norm(X.detach() - X_old)
-            Xs = torch.cat((Xs, X.unsqueeze(dim=-1)), dim=-1)
+            err = torch.norm(self.X.detach() - X_old)
+            Xs = torch.cat((Xs, self.X.unsqueeze(dim=-1)), dim=-1)
             
             i += 1
         
@@ -371,7 +389,7 @@ class GTGModule(nn.Module):
                 Xs, torch.zeros((self.batch_size, self.n_classes, 1), device=self.device, dtype=torch.float32, requires_grad=True if A.requires_grad else False)
             ), dim=-1)
             
-        logger.info(f'end {X.argmax(dim=1)}')
+        logger.info(f'end {self.X.argmax(dim=1)}')
 
         return Xs, entropy_hist
     
