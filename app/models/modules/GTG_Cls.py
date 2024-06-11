@@ -80,10 +80,14 @@ class Module_LSs_GTGs_MLPs(nn.Module):
         self.gtg_func = gtg_func
         in_feat = gtg_iter * n_classes
         
-        self.seq_linears = nn.ModuleList([nn.Sequential(nn.Linear(in_feat, 1)) for _ in range(4)])
+        #self.seq_linears = nn.ModuleList([nn.Sequential(nn.Linear(in_feat, 1)) for _ in range(4)])
+        self.seq_linears = nn.ModuleList([nn.Sequential(
+            nn.Linear(in_feat, in_feat//2), nn.ReLU(),
+            nn.Linear(in_feat//2, in_feat//4), nn.ReLU(),
+            nn.Linear(in_feat//4, 1), 
+        ) for _ in range(4)])
         
-        self.linear = nn.Linear(len(self.seq_linears), 1)
-        
+        self.linear = nn.Linear(len(self.seq_linears), 1)        
         
     def forward(self, features: List[torch.Tensor], weight: int) -> torch.Tensor:
         outs = [ ]
@@ -114,7 +118,7 @@ class Module_LS(nn.Module):
         for n_c, e_d in zip(num_channels, feature_sizes):
             self.gaps.append(nn.AvgPool2d(e_d))
             self.linears.append(nn.Sequential(
-                nn.Linear(n_c, interm_dim), nn.ReLU(), nn.BatchNorm1d(interm_dim)
+                nn.Linear(n_c, interm_dim), nn.ReLU()#, nn.BatchNorm1d(interm_dim)
             ))
 
         self.linears = nn.ModuleList(self.linears)
