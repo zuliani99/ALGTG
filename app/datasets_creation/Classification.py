@@ -10,7 +10,7 @@ import shutil
 
 from torchvision import transforms
 
-from utils import count_class_observation, log_assert
+from utils import count_class_observation, log_assert, set_seeds
 from config import cls_datasets 
 
 import logging
@@ -170,13 +170,17 @@ class Cls_Datasets():
         self.classes: List[str] = cls_datasets[dataset_name]["classes"]    
     
     
-    def get_initial_subsets(self, init_lab_obs: int) -> None:
+    def get_initial_subsets(self, init_lab_obs: int, trial_id: int) -> None:
 
         train_size = len(self.train_ds)
+
+        set_seeds(self.dataset_id * trial_id)
         
         # random shuffle of the train indices
         shuffled_indices = torch.randperm(train_size)
         # each time should be a new shuffle, thus a new train-validation, labelled-unlabelled split
+        
+        set_seeds()
 
         # indices for the labelled and unlabelled sets
         self.labelled_indices: List[int] = shuffled_indices[:init_lab_obs].tolist()

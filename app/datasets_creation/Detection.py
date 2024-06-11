@@ -2,6 +2,7 @@
 import torch
 from torchvision import datasets
 
+from utils import set_seeds
 from datasets_creation.detection_ds.voc.voc0712 import VOCAnnotationTransform, VOCDetection
 from datasets_creation.detection_ds.voc.voc_utils import BaseTransform, SSDAugmentation
 
@@ -80,13 +81,17 @@ class Det_Dataset():
             
 
     
-    def get_initial_subsets(self, init_lab_obs: int) -> None:
+    def get_initial_subsets(self, init_lab_obs: int, trial_id: int) -> None:
 
         train_size = len(self.train_ds)
+        
+        set_seeds(self.dataset_id * trial_id)
         
         # random shuffle of the train indices
         shuffled_indices = torch.randperm(train_size)
         # each time should be a new shuffle, thus a new train-validation, labelled-unlabelled split
+        
+        set_seeds()
 
         logger.info(f' Last 5 shuffled train observations: {shuffled_indices[-5:]}')
 

@@ -109,12 +109,12 @@ class GTG_off(ActiveLearner):
         A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(device)
         A = torch.clamp(A, min=0., max=1.)
         
-        return A.fill_diagonal_(1.)
+        return A.fill_diagonal_(0.)
     
     
     def get_A_e_d(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         A = torch.cdist(concat_embedds, concat_embedds).to(torch.device('cpu') if to_cpu else self.device)
-        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1.)
+        return torch.clamp(A, min=0., max=1.).fill_diagonal_(0.)
 
 
     def get_A_cos_sim(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
@@ -124,12 +124,12 @@ class GTG_off(ActiveLearner):
         A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(device)
         A = torch.clamp(A, min=0., max=1.)
 
-        return A.fill_diagonal_(0.)
+        return A.fill_diagonal_(1.)
         
         
     def get_A_corr(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         A = torch.corrcoef(concat_embedds).to(torch.device('cpu') if to_cpu else self.device)
-        return torch.clamp(A, min=0., max=1.).fill_diagonal_(0.)
+        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1.)
         
 
     def get_X(self) -> None:

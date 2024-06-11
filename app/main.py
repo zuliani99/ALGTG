@@ -168,7 +168,7 @@ def main() -> None:
             
             create_ts_dir(timestamp, dataset_name, str(trial))
             
-            Dataset.get_initial_subsets(al_params["init_lab_obs"]) # get the random split of dataset
+            Dataset.get_initial_subsets(al_params["init_lab_obs"], trial) # get the random split of dataset
             
             results, n_lab_obs = run_strategies(
                 ct_p = common_training_params, t_p = task_params, al_p = al_params,
