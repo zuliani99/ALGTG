@@ -152,7 +152,7 @@ def init_caltech256() -> None:
 
 class Cls_Datasets():
     
-    def __init__(self, dataset_name: str, init_lab_obs: int) -> None:
+    def __init__(self, dataset_name: str) -> None:
 
         self.n_classes: int = cls_datasets[dataset_name]["n_classes"]
         self.n_channels: int = cls_datasets[dataset_name]["channels"]
@@ -167,10 +167,7 @@ class Cls_Datasets():
         if dataset_name == 'tinyimagenet':
             cls_datasets[dataset_name]["classes"] = os.listdir('./datasets/tiny-imagenet-200/train')
             
-        self.classes: List[str] = cls_datasets[dataset_name]["classes"]
-        
-        self.get_initial_subsets(init_lab_obs)
-    
+        self.classes: List[str] = cls_datasets[dataset_name]["classes"]    
     
     
     def get_initial_subsets(self, init_lab_obs: int) -> None:

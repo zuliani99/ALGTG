@@ -138,7 +138,7 @@ def main() -> None:
 
         logger.info(f'----------------------- RUNNING ACTIVE LEARNING BENCHMARK ON {dataset_name} -----------------------\n')
         
-        Dataset = get_dataset(task, dataset_name, init_lab_obs = al_params["init_lab_obs"]) # get the dataset
+        Dataset = get_dataset(task, dataset_name) # get the dataset
         BBone = get_backbone(Dataset.n_classes, Dataset.n_channels, dict_backbone[dataset_name]) # the backbone is the same for all
 
         # create gtg dictionary parameters
@@ -167,7 +167,9 @@ def main() -> None:
             logger.info(f'----------------------- SAMPLE ITERATION {trial + 1} / {args.trials} -----------------------\n')
             
             create_ts_dir(timestamp, dataset_name, str(trial))
-
+            
+            Dataset.get_initial_subsets(al_params["init_lab_obs"]) # get the random split of dataset
+            
             results, n_lab_obs = run_strategies(
                 ct_p = common_training_params, t_p = task_params, al_p = al_params,
                 gtg_p = gtg_params, Masters = Masters, methods = args.methods

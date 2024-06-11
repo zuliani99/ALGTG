@@ -67,7 +67,7 @@ def detection_collate(batch):
 
 
 class Det_Dataset():
-    def __init__(self, dataset_name: str, init_lab_obs: int) -> None:
+    def __init__(self, dataset_name: str) -> None:
 
         self.train_ds, self.unlab_train_ds, self.test_ds = get_detection_dataset(dataset_name, 'datasets/voc')
         
@@ -77,9 +77,7 @@ class Det_Dataset():
         self.n_channels: int = det_datasets[dataset_name]["channels"]
         self.image_size: int = det_datasets[dataset_name]["image_size"]
         self.dataset_path: str = det_datasets[dataset_name]["dataset_path"]
-        
-        self.get_initial_subsets(init_lab_obs)
-    
+            
 
     
     def get_initial_subsets(self, init_lab_obs: int) -> None:

@@ -27,9 +27,9 @@ from datasets_creation.Detection import Det_Dataset
 from typing import Dict, Any, List, Tuple
 
 
-def get_dataset(task: str, dataset_name: str, init_lab_obs: int) -> Cls_Datasets | Det_Dataset:
-    if task == 'clf': return Cls_Datasets(dataset_name, init_lab_obs=init_lab_obs)
-    else: return Det_Dataset(dataset_name, init_lab_obs=init_lab_obs)
+def get_dataset(task: str, dataset_name: str) -> Cls_Datasets | Det_Dataset:
+    if task == 'clf': return Cls_Datasets(dataset_name)
+    else: return Det_Dataset(dataset_name)
 
     
 def get_backbone(n_classes: int, n_channels: int, bbone: str) -> ResNet | VGG:# | SSD:

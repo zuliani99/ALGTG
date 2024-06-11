@@ -256,7 +256,7 @@ class GTGModule(nn.Module):
         logger.info(self.GTG_Model)
         
         if self.GTG_Model == 'llmlp':
-            self.gtg_module = Module_CNN_MLP(self.ll_p).to(self.device)
+            self.gtg_module = Module_LL(self.ll_p).to(self.device)
             
         elif self.GTG_Model == 'lsmlps':
             self.gtg_module = Module_LSs_GTGs_MLPs(
