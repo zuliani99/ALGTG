@@ -134,8 +134,7 @@ class Cls_TrainWorker():
         self.i += 1
             
         if module_out == None:
-            tot_loss_ce = backbone.item()
-            return self.score_fn(outputs, labels), backbone, tot_loss_ce, 0
+            return self.score_fn(outputs, labels), backbone, backbone.item(), 0
         
         elif self.model.only_module_name == 'GTGModule':
                         

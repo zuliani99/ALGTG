@@ -309,23 +309,23 @@ class GTGModule(nn.Module):
         sigma_T = sigmas.T
         sigma_mm = (torch.mm(sigma_T, sigmas))
         A = torch.exp(A_m_2 / sigma_mm)
-        return torch.clamp(A.to(self.device), min=0., max=1.).fill_diagonal_(0.)#(1.)
+        return torch.clamp(A.to(self.device), min=0., max=1.)#.fill_diagonal_(0.)#(1.)
     
         
     def get_A_e_d(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         A = torch.cdist(concat_embedds, concat_embedds).to(self.device)
-        return torch.clamp(A, min=0., max=1.).fill_diagonal_(0.)#(1.)
+        return torch.clamp(A, min=0., max=1.)#.fill_diagonal_(0.)#(1.)
     
 
     def get_A_cos_sim(self, concat_embedds: torch.Tensor) -> torch.Tensor: 
         normalized_embedding = F.normalize(concat_embedds, dim=-1).to(self.device)
         A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device)   
-        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1.)#(0.)
+        return torch.clamp(A, min=0., max=1.)#.fill_diagonal_(1.)#(0.)
 
         
     def get_A_corr(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         A = torch.corrcoef(concat_embedds).to(self.device)
-        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1.)#(0.)
+        return torch.clamp(A, min=0., max=1.)#.fill_diagonal_(1.)#(0.)
     
     
     def get_A(self, embedding: torch.Tensor) -> torch.Tensor:
@@ -335,13 +335,13 @@ class GTGModule(nn.Module):
         if self.AM_threshold_strategy != None and self.AM_threshold!= None:
             if self.AM_function != 'rbfk': A = torch.where(A < self.get_A_treshold(A), 0, A)
             else: A = torch.where(A > self.get_A_treshold(A), 1, A)
-
-        '''if self.AM_strategy == 'diversity':
-            A = 1 - A # set the whole matrix as a distance matrix and not similarity matrix
-        elif self.AM_strategy == 'mixed':    
-            if self.AM_function == 'rbfk': A = 1 - A # set the unlabelled submatrix as distance matrix and not similarity matrix
-            A[:self.n_lab_obs, :self.n_lab_obs] = 1 - A[:self.n_lab_obs, :self.n_lab_obs] # -> LL distance'''
-        
+        if self.GTG_Model == 'llmlp':
+            if self.AM_strategy == 'diversity':
+                A = 1 - A # set the whole matrix as a distance matrix and not similarity matrix
+            elif self.AM_strategy == 'mixed':    
+                if self.AM_function == 'rbfk': A = 1 - A # set the unlabelled submatrix as distance matrix and not similarity matrix
+                A[:self.n_lab_obs, :self.n_lab_obs] = 1 - A[:self.n_lab_obs, :self.n_lab_obs] # -> LL distance
+            
         return A
         
         
@@ -361,29 +361,30 @@ class GTGModule(nn.Module):
         entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
         
         A = self.get_A(features_embedding) # -> nxn
-        if A.requires_grad: self.X.requires_grad_(True)
+        X = self.X.clone()
+        if A.requires_grad: X.requires_grad_(True)
         Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device, dtype=torch.float32, requires_grad=True if A.requires_grad else False)        
         
         err = float('Inf')
         i = 0
         
-        logger.info(f'start {self.X.argmax(dim=1)}')
+        logger.info(f'start {X.argmax(dim=1)}')
                         
         while err > self.gtg_tol and i < self.gtg_max_iter:
             
-            if self.X.requires_grad: self.X.register_hook(lambda grad: logger.info(f'{i} -- 1- X grad: {grad.sum()}'))
+            if X.requires_grad: X.register_hook(lambda grad: logger.info(f'{i} -- 1- X grad: {grad.sum()}'))
             
-            X_old = self.X.detach().clone()
+            X_old = X.detach().clone()
                         
-            self.X = self.X * torch.mm(A, self.X)
-            if self.X.requires_grad: self.X.register_hook(lambda grad: logger.info(f'{i} -- 2- X grad: {grad.sum()}'))
-            self.X = self.X / torch.sum(self.X, dim=1, keepdim=True)
-            if self.X.requires_grad: self.X.register_hook(lambda grad: logger.info(f'{i} -- 3- X grad: {grad.sum()}'))
+            X = X * torch.mm(A, X)
+            if X.requires_grad: X.register_hook(lambda grad: logger.info(f'{i} -- 2- X grad: {grad.sum()}'))
+            X = X / torch.sum(X, dim=1, keepdim=True)
+            if X.requires_grad: X.register_hook(lambda grad: logger.info(f'{i} -- 3- X grad: {grad.sum()}'))
             
-            entropy_hist[self.n_lab_obs:, i] = entropy(self.X[self.n_lab_obs:, :]).to(self.device)
+            entropy_hist[self.n_lab_obs:, i] = entropy(X[self.n_lab_obs:, :]).to(self.device)
 
-            err = torch.norm(self.X.detach() - X_old)
-            Xs = torch.cat((Xs, self.X.unsqueeze(dim=-1)), dim=-1)
+            err = torch.norm(X.detach() - X_old)
+            Xs = torch.cat((Xs, X.unsqueeze(dim=-1)), dim=-1)
             
             i += 1
         
@@ -393,7 +394,7 @@ class GTGModule(nn.Module):
                 Xs, torch.zeros((self.batch_size, self.n_classes, 1), device=self.device, dtype=torch.float32, requires_grad=True if A.requires_grad else False)
             ), dim=-1)
             
-        logger.info(f'end {self.X.argmax(dim=1)}')
+        logger.info(f'end {X.argmax(dim=1)}')
 
         return Xs, entropy_hist
     
