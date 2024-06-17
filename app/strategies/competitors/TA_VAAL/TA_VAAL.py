@@ -55,6 +55,7 @@ class TA_VAAL(ActiveLearner):
         labelled_data = self.read_data(self.lab_train_dl)
         unlabelled_data = self.read_data(self.unlab_train_dl)
 
+        #self.train_vaal(optimizers, self.iter+1, n_top_k_obs, len(sample_unlab_subset))
         train_iterations = int( (n_top_k_obs * cycle + subset_len) * EPOCHV / self.batch_size )
 
 
@@ -88,11 +89,11 @@ class TA_VAAL(ActiveLearner):
             for count in range(num_vae_steps): # num_vae_steps
                 recon, _, mu, logvar = self.vae(r_l_s, labelled_imgs)
                 unsup_loss = self.vae_loss(labelled_imgs, recon, mu, logvar, beta)
-                unlab_recon, _, unlab_mu, unlab_logvar = self.vae(r_u_s,unlabelled_imgs)
+                unlab_recon, _, unlab_mu, unlab_logvar = self.vae(r_u_s, unlabelled_imgs)
                 transductive_loss = self.vae_loss(unlabelled_imgs, unlab_recon, unlab_mu, unlab_logvar, beta)
             
-                labelled_preds = self.discriminator(r_l,mu)
-                unlabelled_preds = self.discriminator(r_u,unlab_mu)
+                labelled_preds = self.discriminator(r_l, mu)
+                unlabelled_preds = self.discriminator(r_u, unlab_mu)
                 
                 lab_real_preds = torch.ones(labelled_imgs.size(0))
                 unlab_real_preds = torch.ones(unlabelled_imgs.size(0))
@@ -100,8 +101,8 @@ class TA_VAAL(ActiveLearner):
                 lab_real_preds = lab_real_preds.to(self.device)
                 unlab_real_preds = unlab_real_preds.to(self.device)
 
-                dsc_loss = bce_loss(labelled_preds[:,0], lab_real_preds) + \
-                           bce_loss(unlabelled_preds[:,0], unlab_real_preds)
+                dsc_loss = bce_loss(labelled_preds[:, 0], lab_real_preds) + \
+                           bce_loss(unlabelled_preds[:, 0], unlab_real_preds)
                            
                 total_vae_loss = unsup_loss + transductive_loss + adversary_param * dsc_loss
                 
@@ -122,11 +123,11 @@ class TA_VAAL(ActiveLearner):
             # Discriminator step
             for count in range(num_adv_steps):
                 with torch.no_grad():
-                    _, _, mu, _ = self.vae(r_l_s,labelled_imgs)
-                    _, _, unlab_mu, _ = self.vae(r_u_s,unlabelled_imgs)
+                    _, _, mu, _ = self.vae(r_l_s, labelled_imgs)
+                    _, _, unlab_mu, _ = self.vae(r_u_s, unlabelled_imgs)
                 
-                labelled_preds = self.discriminator(r_l,mu)
-                unlabelled_preds = self.discriminator(r_u,unlab_mu)
+                labelled_preds = self.discriminator(r_l, mu)
+                unlabelled_preds = self.discriminator(r_u, unlab_mu)
                 
                 lab_real_preds = torch.ones(labelled_imgs.size(0))
                 unlab_fake_preds = torch.zeros(unlabelled_imgs.size(0))
@@ -134,8 +135,8 @@ class TA_VAAL(ActiveLearner):
                 lab_real_preds = lab_real_preds.to(self.device)
                 unlab_fake_preds = unlab_fake_preds.to(self.device)
                 
-                dsc_loss = bce_loss(labelled_preds[:,0], lab_real_preds) + \
-                           bce_loss(unlabelled_preds[:,0], unlab_fake_preds)
+                dsc_loss = bce_loss(labelled_preds[:, 0], lab_real_preds) + \
+                           bce_loss(unlabelled_preds[:, 0], unlab_fake_preds)
 
                 optimizers["discriminator"].zero_grad()
                 dsc_loss.backward()
@@ -150,7 +151,7 @@ class TA_VAAL(ActiveLearner):
                     unlabelled_imgs = unlabelled_imgs.to(self.device)
                     labels = labels.to(self.device)
                 if iter_count % 100 == 0:
-                    logger.info("Iteration: " + str(iter_count) + "  vae_loss: " + str(total_vae_loss.item()) + " dsc_loss: " +str(dsc_loss.item()))
+                    logger.info("Iteration: " + str(iter_count) + " / " + str(train_iterations) + "  vae_loss: " + str(total_vae_loss.item()) + " dsc_loss: " +str(dsc_loss.item()))
 
     
     
@@ -184,8 +185,8 @@ class TA_VAAL(ActiveLearner):
             
             with torch.no_grad():
                 _, _, r = self.model(images)              
-                _, _, mu, _ = self.vae(torch.sigmoid(r),images)
-                preds = self.discriminator(r,mu)
+                _, _, mu, _ = self.vae(torch.sigmoid(r), images)
+                preds = self.discriminator(r, mu)
 
             preds = preds.cpu().data
             all_preds.extend(preds)

@@ -314,11 +314,11 @@ class ActiveLearner():
             logger.info(f' Number of observations per class added to the labelled set:\n {d_labels}\n')
             
             # Saving the tsne embeddings plot
-            '''if 'GTG_off' in self.method_name:
+            if 'GTG_off' in self.method_name:
                 # if we are performing GTG Offline plot also the GTG predictions in the TSNE plot 
                 self.save_tsne(idxs_new_labels, d_labels, self.iter, self.gtg_result_prediction) # type: ignore
             
-            else: self.save_tsne(idxs_new_labels, d_labels, self.iter)'''
+            else: self.save_tsne(idxs_new_labels, d_labels, self.iter)
 
             # modify the datasets and dataloader and plot the tsne
             self.update_sets(topk_idx_obs)

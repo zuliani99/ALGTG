@@ -97,7 +97,7 @@ class Cls_TrainWorker():
     def init_opt_sched(self):
         optimizers = self.ds_t_p["optimizers"]
         module_name = self.model.only_module_name
-        self.decay = optimizers["modules"]["decay"][module_name] if module_name != None else None
+        self.decay = optimizers["modules"]["decay"][module_name] if module_name != None and self.method_name != 'TiDAL' else None
         
         dict_optim_bb = {**optimizers["backbone"]["optim_p"][module_name]}
         #if module_name == 'GTGModule':
@@ -110,6 +110,7 @@ class Cls_TrainWorker():
         self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1))
         if module_name != None:
             self.optimizers.append(optimizers["modules"]["type"][module_name](self.model.added_module.parameters(), **optimizers["modules"]["optim_p"][module_name]))
+            if self.method_name == 'TiDAL': self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
             
             
     
@@ -166,8 +167,8 @@ class Cls_TrainWorker():
             log_assert(tidal != None, 'TiDAL parameters are None')
             idxs, moving_prob, epoch = tidal # type: ignore
             moving_prob = moving_prob.to(self.device)
-            
             moving_prob = (moving_prob * epoch + torch.softmax(outputs, dim=1) * 1) / (epoch + 1)
+            
             self.train_dl.dataset.moving_prob[idxs.tolist(), :] = moving_prob.detach().cpu() # type: ignore
                         
             m_module_loss = weight * self.kld_loss_fn(F.log_softmax(module_out, 1), moving_prob.detach())
