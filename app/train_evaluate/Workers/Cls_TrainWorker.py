@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 
-from train_evaluate.PreTrain import PreTrain
+#from train_evaluate.PreTrain import PreTrain
 from models.BBone_Module import Master_Model
 from models.modules.LossNet import LossPredLoss
 from utils import accuracy_score, log_assert
@@ -29,8 +29,10 @@ class Cls_TrainWorker():
         
         self.dataset_name: str = params["ct_p"]["dataset_name"]
         self.strategy_name: str = params["strategy_name"]
+        
+        self.is_gtg_module = self.model.only_module_name == 'GTGModule'
         self.method_name: str = self.strategy_name.split(f'{self.model.name}_')[1]
-        if self.model.only_module_name == 'GTGModule': 
+        if self.is_gtg_module: 
             self.gtg_net_type = self.model.added_module.GTG_Model
             logger.info(f'GTGNet Type: {self.gtg_net_type}')
 
@@ -57,7 +59,7 @@ class Cls_TrainWorker():
         # RETRAIN FROM SCRATCH THE NETWORK (different from what LL4AL have done)
         self.__load_checkpoint(self.init_check_filename)
         
-        '''if self.model.only_module_name == 'GTGModule':
+        '''if self.is_gtg_module:
             logger.info(' => Running BackBone PreTraining')
             # Pretrain our backbone via Binary classification task (labelled, unlabelled)
             pt = PreTrain(
@@ -110,7 +112,8 @@ class Cls_TrainWorker():
         self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1))
         if module_name != None:
             self.optimizers.append(optimizers["modules"]["type"][module_name](self.model.added_module.parameters(), **optimizers["modules"]["optim_p"][module_name]))
-            if self.method_name == 'TiDAL': self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
+            if self.method_name == 'TiDAL':# or (self.is_gtg_module and self.gtg_net_type == 'llmlp_gtg'): 
+                self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
             
             
     
@@ -137,7 +140,7 @@ class Cls_TrainWorker():
         if module_out == None:
             return self.score_fn(outputs, labels), backbone, backbone.item(), 0
         
-        elif self.model.only_module_name == 'GTGModule':
+        elif self.is_gtg_module:
                         
             (pred_entr, true_entr), labelled_mask = module_out
             if self.i%20 == 0: logger.info(f'y_pred {pred_entr}\ny_true {true_entr}') 
@@ -157,7 +160,7 @@ class Cls_TrainWorker():
             return self.score_fn(outputs[labelled_mask], labels[labelled_mask]), loss, lab_ce_loss.item(), entr_loss.item()
             
         
-        elif self.method_name in ['LearningLoss', 'TAVAAL'] or 'GTG_off' in self.method_name:
+        elif self.method_name in ['LearningLoss', 'TA_VAAL'] or 'GTG_off' in self.method_name:
             loss_weird = weight * self.ll_loss_fn(module_out, ce_loss)
             loss = backbone + loss_weird
                 
@@ -218,7 +221,9 @@ class Cls_TrainWorker():
             train_loss, train_loss_ce, train_loss_pred, train_accuracy = .0, .0, .0, .0
             
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore  
-            if self.decay != None and epoch >= self.decay: weight = 0.
+            if self.decay != None and epoch >= self.decay: 
+                if self.method_name != 'TiDAL': weight = 0.
+                #if self.model.only_module_name == 'GTGModule' and self.gtg_net_type != 'llmlp': weight = 0.
             
             if isinstance(self.train_dl, tuple):
                 for b_idx, ((idxs_l, images_l, labels_l, _), (idxs_u, images_u, labels_u, _)) in enumerate(zip(self.lab_train_dl, self.unlab_train_dl)):

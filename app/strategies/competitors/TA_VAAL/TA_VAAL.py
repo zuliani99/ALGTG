@@ -72,8 +72,8 @@ class TA_VAAL(ActiveLearner):
                 r_u_0 = torch.from_numpy(np.random.uniform(0, 1, size=(unlabelled_imgs.shape[0],1))).type('torch.FloatTensor').to(self.device)
             else:
                 with torch.no_grad():
-                    _, _, r_l = self.model(labelled_imgs)
-                    _, _, r_u = self.model(unlabelled_imgs)
+                    r_l = self.model(labelled_imgs, mode = 'module_out')
+                    r_u = self.model(unlabelled_imgs, mode = 'module_out')
                     
             if iter_count == 0:
                 r_l = r_l_0.detach()
@@ -177,6 +177,8 @@ class TA_VAAL(ActiveLearner):
         }
 
         self.train_vaal(optimizers, self.iter+1, n_top_k_obs, len(sample_unlab_subset))
+        
+        self.vae.eval() # <---- since we have finisched our training we can now starts the evaluation step
               
         all_preds, all_indices = [], []
 
@@ -184,7 +186,7 @@ class TA_VAAL(ActiveLearner):
             images = images.to(self.device)
             
             with torch.no_grad():
-                _, _, r = self.model(images)              
+                r = self.model(images, mode = 'module_out')
                 _, _, mu, _ = self.vae(torch.sigmoid(r), images)
                 preds = self.discriminator(r, mu)
 

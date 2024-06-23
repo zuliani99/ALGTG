@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class Module_LS_GTG_LSTM(nn.Module):
     def __init__(self, params: Dict[str, Any], input_size: int, hidden_size: int, num_layers: int, output_size: int, \
-                bidirectional: bool, device: torch.device, gtg_func, is_bin_class=False) -> None:
+                bidirectional: bool, device: torch.device, seq_length: int, gtg_func, is_bin_class=False) -> None:
         super(Module_LS_GTG_LSTM, self).__init__()
 
         self.mod_ls = Module_LS(params)
@@ -25,7 +25,7 @@ class Module_LS_GTG_LSTM(nn.Module):
         self.hidden_size = hidden_size
         self.device = device
         
-        in_features_cls = hidden_size * (2 if bidirectional else 1) #num_layers
+        in_features_cls = seq_length * hidden_size * (2 if bidirectional else 1) #num_layers
         self.hiddens_dim = num_layers * (2 if bidirectional else 1)
         
         self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers,
@@ -40,13 +40,17 @@ class Module_LS_GTG_LSTM(nn.Module):
         if weight == 0: ls_features = [ls.detach() for ls in ls_features]
         ls_features = torch.cat(ls_features, dim=1)
         
-        ent_history = self.gtg_func(ls_features)[1].unsqueeze(dim=1)
+        #ent_history = self.gtg_func(ls_features)[1].unsqueeze(dim=1)
+        ent_history = self.gtg_func(ls_features)[1].unsqueeze(dim=-1)
         
         hiddens = (
             torch.zeros(self.hiddens_dim, ent_history.shape[0], self.hidden_size, device=self.device),
             torch.zeros(self.hiddens_dim, ent_history.shape[0], self.hidden_size, device=self.device)
         )
         out, _ = self.lstm(ent_history, hiddens)
+        #print(out.shape)
+        #out = out.view(out.size(0), -1)
+        out = out.reshape(out.size(0), -1)
         out = self.classifier(out)
         return self.sigmoid(out) if self.is_bin_class else out
         
@@ -156,11 +160,12 @@ class Module_LL(nn.Module):
             self.gaps.append(nn.AvgPool2d(e_d))
             self.linears.append(nn.Sequential(
                 nn.Linear(n_c, interm_dim), nn.ReLU(),
+                nn.Linear(interm_dim, interm_dim//2), nn.ReLU(),
             ))
 
         self.linears = nn.ModuleList(self.linears)
         self.gaps = nn.ModuleList(self.gaps)
-        self.classifier = nn.Linear(interm_dim * len(num_channels), 1)
+        self.classifier = nn.Linear((interm_dim//2) * len(num_channels), 1)
 
 
     def forward(self, features: List[torch.Tensor]) -> torch.Tensor:
@@ -268,8 +273,10 @@ class GTGModule(nn.Module):
                  
         elif self.GTG_Model in ['lstmreg', 'lstmbc']:
             self.gtg_module = Module_LS_GTG_LSTM(
-                params=self.ll_p, input_size=self.gtg_max_iter,
-                hidden_size=self.gtg_max_iter, num_layers=1,
+                params=self.ll_p, input_size=1, #input_size=self.gtg_max_iter,
+                seq_length=self.gtg_max_iter,
+                #hidden_size=self.gtg_max_iter, num_layers=1,
+                hidden_size=1, num_layers=1,
                 output_size=1, bidirectional=True, device=self.device,
                 gtg_func=self.graph_trasduction_game,
                 is_bin_class=self.GTG_Model == 'lstmbc'
@@ -335,12 +342,12 @@ class GTGModule(nn.Module):
         if self.AM_threshold_strategy != None and self.AM_threshold!= None:
             if self.AM_function != 'rbfk': A = torch.where(A < self.get_A_treshold(A), 0, A)
             else: A = torch.where(A > self.get_A_treshold(A), 1, A)
-        if self.GTG_Model == 'llmlp':
-            if self.AM_strategy == 'diversity':
-                A = 1 - A # set the whole matrix as a distance matrix and not similarity matrix
-            elif self.AM_strategy == 'mixed':    
-                if self.AM_function == 'rbfk': A = 1 - A # set the unlabelled submatrix as distance matrix and not similarity matrix
-                A[:self.n_lab_obs, :self.n_lab_obs] = 1 - A[:self.n_lab_obs, :self.n_lab_obs] # -> LL distance
+        #if self.GTG_Model == 'llmlp':
+        if self.AM_strategy == 'diversity':
+            A = 1 - A # set the whole matrix as a distance matrix and not similarity matrix
+        elif self.AM_strategy == 'mixed':    
+            if self.AM_function == 'rbfk': A = 1 - A # set the unlabelled submatrix as distance matrix and not similarity matrix
+            A[:self.n_lab_obs, :self.n_lab_obs] = 1 - A[:self.n_lab_obs, :self.n_lab_obs] # -> LL distance
             
         return A
         
