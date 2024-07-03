@@ -1,5 +1,5 @@
 # ALGTG
-## Active Learning strategy using Graph Trusduction Game
+## Active Learning strategy using Graph Transduction Game
 
 **Active Learning (AL)** aims to leverage the performance of deep models by selecting the most valuable samples to be annotated from a pool of unlabelled data to be annotated and moved into the labeled-training set. On the other hand **Game Theory** deals with the study of strategic interactions between rational decision-makers, which are modeled as games.
 
