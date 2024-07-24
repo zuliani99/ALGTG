@@ -182,9 +182,9 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
         else:
             axes[0].plot(x, array[i], linestyle="-", color=palette[lab])
     
-    axes[0].set_title(f'{title} Classes', fontsize = 15)
-    axes[0].set_ylabel('Entropy', fontsize = 10)
-    axes[0].set_xlabel('GTG Iterations', fontsize = 10)
+    axes[0].set_title(f'{title} - Classes', fontsize = 25)
+    axes[0].set_ylabel('Entropy', fontsize = 20)
+    axes[0].set_xlabel('GTG Iterations', fontsize = 20)
     axes[0].grid()
     axes[0].legend()
     
@@ -205,13 +205,15 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
                 pl2_cls_2.add(label)
             else: axes[1].plot(x, array[i], linestyle=style, color=color)
         
-    axes[1].set_ylabel('Entropy', fontsize = 10)
-    axes[1].set_xlabel('GTG Iterations', fontsize = 10)
-    axes[1].set_title(f'{title} - New_Lab / Unlab', fontsize = 15)
+    axes[1].set_ylabel('Entropy', fontsize = 20)
+    axes[1].set_xlabel('GTG Iterations', fontsize = 20)
+    axes[1].set_title(f'{title} - New_Lab / Unlab', fontsize = 25)
     axes[1].grid()
     axes[1].legend()
     
     plt.suptitle(f'Entropy History - Iteration {iter}', fontsize = 30)
+    #plt.xticks(fontsize=15)
+    #plt.yticks(fontsize=15)
     plt.savefig(f'{path}/gtg_entropies_plots/{dir}/{iter}.png')
     
 
@@ -295,11 +297,11 @@ def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor
         
         sns.scatterplot(x=x_unlab, y=y_unlab, label='unlabelled', color='blue', s=17, ax=axes[idx][0])
         sns.scatterplot(x=x_lab, y=y_lab, label='labelled', color='orange', s=17, ax=axes[idx][0])
-        axes[idx][0].set_title(f'{name} Affinity Matrix', fontsize = 15)
+        axes[idx][0].set_title(f'{name} Affinity Matrix', fontsize = 20)
         axes[idx][0].legend()
         
         sns_p = sns.scatterplot(x=x, y=y, hue=[classes[l] for l in label], s=17, ax=axes[idx][1])
-        axes[idx][1].set_title(f'{name} Affnity Matrix Classes', fontsize = 15)
+        axes[idx][1].set_title(f'{name} Affnity Matrix Classes', fontsize = 20)
         axes[idx][1].legend()
         if len(classes) > 10: sns_p.legend([],[], frameon=False)
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=fmnist    # Job name
+#SBATCH --job-name=tsne    # Job name
 #SBATCH --mail-type=END          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=875532@stud.unive.it     # Where to send mail	
 #SBATCH --nodes=1
@@ -16,7 +16,8 @@
 
 conda activate al_env
 
-#python3 app/main.py -gpus 1 -m ll_gtg -ds cifar10 cifar100 svhn fmnist -tr 1 -am corr -am_ts mean -e_s mean -gtg_iter 30
+#python3 app/main.py -gpus 1 -m ll_gtg -ds cifar10 svhn fmnist -tr 5 -am corr -am_ts mean -e_s mean -gtg_iter 30
+python3 app/main.py -gpus 1 -m ll_gtg -ds cifar10 -tr 5 -am corr -am_ts mean -e_s mean -gtg_iter 30
 #python3 app/main.py -gpus 1 -m lstmbc_gtg -ds cifar10 cifar100 svhn fmnist -tr 1 -am corr -am_ts mean -e_s mean -gtg_iter 10
 #python3 app/main.py -gpus 1 -m llmlp_gtg lsmlps_gtg lstmreg_gtg lstmbc_gtg -ds tinyimagenet -tr 1 -am corr -am_ts mean -e_s mean -gtg_iter 10
 
@@ -25,7 +26,7 @@ conda activate al_env
 #python3 app/main.py -gpus 1 -m ll_gtg -ds cifar100 -tr 4 -am corr -am_ts mean -e_s mean -gtg_iter 30
 #python3 app/main.py -gpus 1 -m random tidal ll -ds tinyimagenet -tr 2
 
-python3 app/main.py -gpus 1 -m random entropy coreset ll tidal alphamix cdal badge bald tavaal -ds fmnist -tr 5
+#python3 app/main.py -gpus 1 -m random entropy coreset ll tidal alphamix cdal badge bald tavaal -ds tinyimagenet -tr 5
 #python3 app/main.py -gpus 1 -m tavaal -ds cifar10 -tr 5
 
 #python3 app/main.py -gpus 1 -m llmlp_gtg -ds cifar10 -tr 5 -am corr -am_ts mean none -am_s mixed -e_s mean -gtg_iter 10
