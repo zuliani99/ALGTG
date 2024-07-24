@@ -88,7 +88,7 @@ def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any
 
 
 
-def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results: Dict[int, Any], strategy_name: str,\
+def plot_cumulative_train_results(list_dict_keys: List[str], cum_train_results: Dict[int, Any], strategy_name: str,\
                                    epochs: int, ts_dir: str, dataset_name: str, cicle_iter: int):
 
     _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
@@ -113,6 +113,48 @@ def print_cumulative_train_results(list_dict_keys: List[str], cum_train_results:
     plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{strategy_name}/train_val_plots/cumulative_train_results.png')
 
 
+def plot_entropy_iterations_classes(count_classes: Dict[int, Dict[str, int]], \
+        strategy_name: str, ts_dir: str, dataset_name: str, cicle_iter: int) -> None:
+    
+    entropy_val_to_plots = []
+    for class_dict in count_classes.values():
+        count = list(class_dict.values())
+        count = torch.tensor(count).float()
+        count = count / count.sum()
+        entropy_val_to_plots.append(entropy(count, dim=0).item())
+    
+    plt.figure(figsize = (14,10))
+    plt.plot(entropy_val_to_plots, label=f'Entropy Labelled Observations - Classes')
+    plt.xlabel('Labelled Observations', fontsize=15)
+    plt.ylabel('Number of Class Observations', fontsize=15)
+    plt.title('Class Observations Count by Iteration', fontsize=30)
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{strategy_name}/entropy_class_iterations.png')
+
+
+
+def plot_classes_count_iterations(count_classes: Dict[int, Dict[str, int]], \
+        strategy_name: str, ts_dir: str, dataset_name: str, cicle_iter: int) -> None:
+    
+    plt.figure(figsize=(14, 10))
+
+    iterations = list(count_classes.keys())
+    class_labels = list(count_classes[iterations[0]].keys())
+
+    for class_counts in count_classes.values():
+        class_counts_values = [class_counts[label] for label in class_labels]
+        
+        plt.plot(iterations, class_counts_values, label=class_labels)
+
+    plt.xlabel('Labelled Observations', fontsize=15)
+    plt.ylabel('Number of Class Observations', fontsize=15)
+    plt.title('Class Observations Count by Iteration', fontsize=30)
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{strategy_name}/classes_count_iterations.png')
+
+
 
 def write_csv(task: str, ts_dir: str, dataset_name: str, head: List[str], values: List[Any]) -> None:
     res_path = os.path.join('results', ts_dir, dataset_name, f'{task}_results.csv')
@@ -128,7 +170,6 @@ def write_csv(task: str, ts_dir: str, dataset_name: str, head: List[str], values
         writer = csv.writer(f)
         writer.writerow(values)
         f.close()
-                 
             
 
 def create_directory(dir: str) -> None: os.makedirs(dir, exist_ok=True)
@@ -212,8 +253,6 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
     axes[1].legend()
     
     plt.suptitle(f'Entropy History - Iteration {iter}', fontsize = 30)
-    #plt.xticks(fontsize=15)
-    #plt.yticks(fontsize=15)
     plt.savefig(f'{path}/gtg_entropies_plots/{dir}/{iter}.png')
     
 
@@ -235,6 +274,9 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
     
     methods = df_grouped["method"].unique()
     shapes = ['o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v']
+
+    df_grouped = df_grouped.drop(columns=["ci"])
+    df_grouped.to_csv(f'results/{timestamp}/{dataset_name}/mean_std_{task}_results.csv', index=False)
 
     lines_handles = []
     palette = get_palette(len(methods))

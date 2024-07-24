@@ -40,7 +40,6 @@ class Module_LS_GTG_LSTM(nn.Module):
         if weight == 0: ls_features = [ls.detach() for ls in ls_features]
         ls_features = torch.cat(ls_features, dim=1)
         
-        #ent_history = self.gtg_func(ls_features)[1].unsqueeze(dim=1)
         ent_history = self.gtg_func(ls_features)[1].unsqueeze(dim=-1)
         
         hiddens = (
@@ -232,7 +231,7 @@ class GTGModule(nn.Module):
         
         gtg_p, ll_p = params
 
-        self.get_A_fn = { 'cos_sim': self.get_A_cos_sim, 'corr': self.get_A_corr, 'rbfk': self.get_A_rbfk, }
+        self.get_A_fn = { 'cos_sim': self.get_A_cos_sim, 'corr': self.get_A_corr, 'rbfk': self.get_A_rbfk }
         
         self.gtg_tol: float = gtg_p["gtg_t"]
         self.gtg_max_iter: int = gtg_p["gtg_i"]
@@ -316,23 +315,23 @@ class GTGModule(nn.Module):
         sigma_T = sigmas.T
         sigma_mm = (torch.mm(sigma_T, sigmas))
         A = torch.exp(A_m_2 / sigma_mm)
-        return torch.clamp(A.to(self.device), min=0., max=1.)#.fill_diagonal_(0.)#(1.)
+        return torch.clamp(A.to(self.device), min=0., max=1.)
     
         
     def get_A_e_d(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         A = torch.cdist(concat_embedds, concat_embedds).to(self.device)
-        return torch.clamp(A, min=0., max=1.)#.fill_diagonal_(0.)#(1.)
+        return torch.clamp(A, min=0., max=1.)
     
 
     def get_A_cos_sim(self, concat_embedds: torch.Tensor) -> torch.Tensor: 
         normalized_embedding = F.normalize(concat_embedds, dim=-1).to(self.device)
         A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device)   
-        return torch.clamp(A, min=0., max=1.)#.fill_diagonal_(1.)#(0.)
+        return torch.clamp(A, min=0., max=1.)
 
         
     def get_A_corr(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         A = torch.corrcoef(concat_embedds).to(self.device)
-        return torch.clamp(A, min=0., max=1.)#.fill_diagonal_(1.)#(0.)
+        return torch.clamp(A, min=0., max=1.)#
     
     
     def get_A(self, embedding: torch.Tensor) -> torch.Tensor:
@@ -342,7 +341,6 @@ class GTGModule(nn.Module):
         if self.AM_threshold_strategy != None and self.AM_threshold!= None:
             if self.AM_function != 'rbfk': A = torch.where(A < self.get_A_treshold(A), 0, A)
             else: A = torch.where(A > self.get_A_treshold(A), 1, A)
-        #if self.GTG_Model == 'llmlp':
         if self.AM_strategy == 'diversity':
             A = 1 - A # set the whole matrix as a distance matrix and not similarity matrix
         elif self.AM_strategy == 'mixed':    

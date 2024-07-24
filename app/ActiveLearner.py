@@ -3,8 +3,9 @@ from models.BBone_Module import Master_Model
 from datasets_creation.Classification import Cls_Datasets
 from datasets_creation.Detection import Det_Dataset
 from train_evaluate.Train_DDP import train, train_ddp
-from utils import count_class_observation, print_cumulative_train_results, set_seeds,\
-    create_class_dir, create_method_res_dir, plot_new_labelled_tsne, save_train_val_curves, write_csv
+from utils import count_class_observation, plot_cumulative_train_results, set_seeds,\
+    create_class_dir, create_method_res_dir, plot_new_labelled_tsne, save_train_val_curves, write_csv,\
+    plot_classes_count_iterations, plot_entropy_iterations_classes
 
 from torch.utils.data import Subset, DataLoader
 import torch.distributed as dist
@@ -58,6 +59,9 @@ class ActiveLearner():
         
         # save initial labelled images
         self.save_labelled_images(self.labelled_indices)
+        
+        self.count_classes = {}
+        self.count_classes[0] = count_class_observation(self.dataset.classes, Subset(self.dataset.train_ds, self.labelled_indices))
         
         
         
@@ -253,11 +257,13 @@ class ActiveLearner():
         # Update the labeeld and unlabelled training set
         logger.info(' => Modifing the labelled and Unlabelled Indices Lists')
         
-        
-        sample_len = len(self.rand_unlab_sample)
-        # the sample have been already removed from the labelled set
-        for idx in overall_topk: self.rand_unlab_sample.remove(idx) # - 1000 = 9000
-        self.temp_unlab_pool.extend(self.rand_unlab_sample) # + 9000
+        # if we are using the temporary unlabelled pool we have to update the unlabelled indices list and temp pool
+        if self.ct_p["temp_unlab_pool"]:
+            sample_len = len(self.rand_unlab_sample)
+            # the sample have been already removed from the labelled set
+            for idx in overall_topk: self.rand_unlab_sample.remove(idx) # - 1000 = 9000
+            self.temp_unlab_pool.extend(self.rand_unlab_sample) # + 9000
+            
         # extend with the overall_topk
         self.labelled_indices.extend(overall_topk) # + 1000
         
@@ -287,7 +293,7 @@ class ActiveLearner():
     def run(self) -> Dict[str, List[float]]:
                 
         results_format = copy.deepcopy(self.t_p["results_dict"])
-        
+                
         # start of the loop
         while self.iter <= self.al_p["al_iters"]:
             
@@ -312,6 +318,8 @@ class ActiveLearner():
             
             d_labels = count_class_observation(self.dataset.classes, self.dataset.train_ds, topk_idx_obs)
             logger.info(f' Number of observations per class added to the labelled set:\n {d_labels}\n')
+            self.count_classes[self.iter * self.al_p["n_top_k_obs"]] = d_labels
+            
             
             # Saving the tsne embeddings plot
             if 'GTG_off' in self.method_name:
@@ -326,9 +334,12 @@ class ActiveLearner():
             self.iter += 1
             
                 
-                
+        # plotting the number of classes in the train dataset for each iteration
+        plot_classes_count_iterations(self.count_classes, self.strategy_name, self.ct_p["timestamp"], self.ct_p["dataset_name"], self.iter)
+        plot_entropy_iterations_classes(self.count_classes, self.strategy_name, self.ct_p["timestamp"], self.ct_p["dataset_name"], self.iter)
+        
         # plotting the cumulative train results
-        print_cumulative_train_results(list(self.t_p["results_dict"]["train"].keys()), 
+        plot_cumulative_train_results(list(self.t_p["results_dict"]["train"].keys()), 
                                        self.train_results, self.strategy_name, len(self.train_results[1]["train_pred_loss"]),
                                        self.ct_p["timestamp"], self.ct_p["dataset_name"], 
                                        self.ct_p["trial"])
