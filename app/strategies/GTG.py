@@ -25,9 +25,10 @@ class GTG(ActiveLearner):
         else: strategy_name = f'{self.__class__.__name__}_{gtg_p["am_s"]}_{gtg_p["am"][gtg_p["id_am"]]}_es-{gtg_p["e_s"]}'#_{gtg_p["gtg_model"]}'
                 
         super().__init__(ct_p, t_p, al_p, strategy_name)
-        self.perc_labelled_batch: int = gtg_p["plb"]
+        #self.perc_labelled_batch: int = gtg_p["plb"]
+        self.batch_size_gtg_online: int = gtg_p["bsgtgo"]
         self.gtg_model = gtg_p["gtg_model"]
-        if self.model.only_module_name != None: self.model.added_module.define_idx_params(gtg_p["id_am_ts"], gtg_p["id_am"]) # -> for GTG module only
+        if self.model.only_module_name != None: self.model.added_module.define_idx_params(gtg_p["id_am_ts"], gtg_p["id_am"]) # type: ignore # -> for GTG module only
         
         
 
@@ -54,7 +55,7 @@ class GTG(ActiveLearner):
             return self.query_llmlp(sample_unlab_subset, n_top_k_obs)
         else:
         
-            query_bs = int(self.batch_size * self.perc_labelled_batch)
+            '''query_bs = int(self.batch_size * self.perc_labelled_batch)
             
             unlab_train_dl = DataLoader(sample_unlab_subset, batch_size=query_bs, shuffle=False, pin_memory=True)
             labelled_subset = Subset(self.dataset.unlab_train_ds, self.labelled_indices)
@@ -62,8 +63,16 @@ class GTG(ActiveLearner):
                 dataset=labelled_subset, batch_size=query_bs,
                 sampler=RandomSampler(labelled_subset, num_samples=len(sample_unlab_subset), replacement=False), 
                 #random sample with replacement, each batch has different set of labelled observation drown ad random from the entire set
-            )        
+            )'''
             
+            query_bs = self.batch_size_gtg_online * self.iter
+            
+            unlab_train_dl = DataLoader(dataset=sample_unlab_subset, batch_size=query_bs, shuffle=True, pin_memory=True)
+            lab_train_dl = DataLoader(
+                dataset=Subset(self.dataset.unlab_train_ds, self.labelled_indices), 
+                batch_size=query_bs * self.al_p["al_iters"], shuffle=True, pin_memory=True
+            )
+                        
             pred = torch.empty(0, dtype=torch.float32, device=self.device)
             true = torch.empty(0, dtype=torch.float32, device=self.device)
             

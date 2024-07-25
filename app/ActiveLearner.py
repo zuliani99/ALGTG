@@ -198,7 +198,8 @@ class ActiveLearner():
             'module_name_only': self.model.only_module_name
         }
         
-        if self.model.only_module_name == 'GTGModule': params["perc_labelled_batch"] = self.perc_labelled_batch
+        #if self.model.only_module_name == 'GTGModule': params["perc_labelled_batch"] = self.perc_labelled_batch
+        if self.model.only_module_name == 'GTGModule': params["batch_size_gtg_online"] = self.batch_size_gtg_online # type: ignore
         
         
         # if we are using multiple gpus
@@ -277,7 +278,7 @@ class ActiveLearner():
             raise Exception('NON EMPTY INDICES INTERSECTION')
         
         
-        if len(self.unlabelled_indices) < sample_len and len(self.temp_unlab_pool) > 0:
+        if self.ct_p["temp_unlab_pool"] and len(self.unlabelled_indices) < sample_len and len(self.temp_unlab_pool) > 0:
             # reinsert all teh observations from the pool inside the original unlabelled pool
             self.unlabelled_indices.extend(self.temp_unlab_pool)
             self.temp_unlab_pool.clear() # empty the temp unlabelled pool list

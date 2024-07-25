@@ -34,7 +34,7 @@ class Cls_TrainWorker():
         self.is_gtg_module = self.model.only_module_name == 'GTGModule'
         self.method_name: str = self.strategy_name.split(f'{self.model.name}_')[1]
         if self.is_gtg_module: 
-            self.gtg_net_type = self.model.added_module.GTG_Model
+            self.gtg_net_type = self.model.added_module.GTG_Model # type: ignore
             logger.info(f'GTGNet Type: {self.gtg_net_type}')
 
         
@@ -55,7 +55,7 @@ class Cls_TrainWorker():
         self.bce_loss_fn = nn.BCELoss(reduction='none').to(self.device)
         
         self.score_fn = accuracy_score
-        self.init_check_filename = f'app/checkpoints/{self.dataset_name}/{self.model.module.name if self.world_size > 1 else self.model.name}_init.pth.tar'
+        self.init_check_filename = f'app/checkpoints/{self.dataset_name}/{self.model.module.name if self.world_size > 1 else self.model.name}_init.pth.tar' # type: ignore
         self.check_best_path = f'app/checkpoints/{self.dataset_name}/best_{self.strategy_name}_{self.device}.pth.tar'
         
         # RETRAIN FROM SCRATCH THE NETWORK (different from what LL4AL have done)
@@ -100,10 +100,10 @@ class Cls_TrainWorker():
         
         self.optimizers: List[torch.optim.SGD | torch.optim.Adam] = []
         self.lr_schedulers = []
-        self.optimizers.append(optimizers["backbone"]["type"][module_name](self.model.backbone.parameters(), **dict_optim_bb))
+        self.optimizers.append(optimizers["backbone"]["type"][module_name](self.model.backbone.parameters(), **dict_optim_bb)) # type: ignore
         self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1))
         if module_name != None:
-            self.optimizers.append(optimizers["modules"]["type"][module_name](self.model.added_module.parameters(), **optimizers["modules"]["optim_p"][module_name]))
+            self.optimizers.append(optimizers["modules"]["type"][module_name](self.model.added_module.parameters(), **optimizers["modules"]["optim_p"][module_name])) # type: ignore
             if self.method_name == 'TiDAL':# or (self.is_gtg_module and self.gtg_net_type == 'llmlp_gtg'): 
                 self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
             
@@ -111,14 +111,14 @@ class Cls_TrainWorker():
     
     def __save_checkpoint(self, filename: str) -> None:
         logger.info(f' => Saving {filename} Checkpoint')
-        checkpoint = dict(state_dict = self.model.module.state_dict() if self.world_size > 1 else self.model.state_dict())
+        checkpoint = dict(state_dict = self.model.module.state_dict() if self.world_size > 1 else self.model.state_dict()) # type: ignore
         torch.save(checkpoint, filename)
     
     
     def __load_checkpoint(self, filename: str) -> None:
         logger.info(f' => Loading {filename} Checkpoint')
         checkpoint = torch.load(filename, map_location=self.device)
-        self.model.module.load_state_dict(checkpoint["state_dict"]) if self.world_size > 1 else self.model.load_state_dict(checkpoint["state_dict"])
+        self.model.module.load_state_dict(checkpoint["state_dict"]) if self.world_size > 1 else self.model.load_state_dict(checkpoint["state_dict"]) # type: ignore
         
 
     def compute_losses(self, weight: float, module_out: torch.Tensor | None, outputs: torch.Tensor, \
