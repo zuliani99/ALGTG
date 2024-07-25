@@ -15,6 +15,8 @@ import pandas as pd
 import numpy as np
 import csv
 import os
+import copy
+import yaml
 import random
 from matplotlib.typing import ColorType
 from typing import List, Dict, Any, Tuple
@@ -455,7 +457,16 @@ def log_assert(condition: bool | torch.Tensor, message: str):
     except AssertionError as err:
         logger.exception(message)
         raise err
-            
+    
+    
+def save_yamal(common_training_params, task_params, al_params, gtg_params, args, timestamp, dataset_name) -> None:
+    yaml_dict = copy.deepcopy(common_training_params)
+    yaml_dict.update(task_params)
+    yaml_dict.update(al_params)
+    yaml_dict.update(gtg_params)
+    yaml_dict['methods'] = args.methods
+    yaml_dict['trials'] = args.trial
+    with open(f'results/{timestamp}/{dataset_name}/yamal_conf.yamal', 'w') as file: yaml.dump(yaml_dict, file)            
     
 
     

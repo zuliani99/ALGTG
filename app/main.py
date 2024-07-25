@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import copy
 import torch
 
 torch.autograd.set_detect_anomaly(True) # type: ignore
@@ -8,7 +9,7 @@ import torch.distributed as dist
 from models.BBone_Module import Master_Model
 
 from init import get_backbone, get_dataset, get_ll_module_params, get_masters, get_strategies_object, dict_backbone
-from utils import create_directory, create_ts_dir, plot_trail_acc, plot_res_std_mean, set_seeds
+from utils import create_directory, create_ts_dir, plot_trail_acc, plot_res_std_mean, set_seeds, save_yamal
 
     	
 from config import cls_config, al_params, det_config
@@ -33,8 +34,7 @@ def get_args() -> argparse.Namespace:
                         help='Possible datasets to choose')
     parser.add_argument('-tr', '--trials', type=int, required=False, default=5, help='AL trials')
     
-    parser.add_argument('-tulp', '--temp_unlab_pool', type=bool, nargs='+', required=False, choices=['corr', 'cos_sim', 'rbfk'], default=['corr', 'cos_sim', 'rbfk'],
-                        help='Affinity matrix to choose')
+    parser.add_argument('-tulp', '--temp_unlab_pool', required=False, action='store_true', help='Affinity matrix to choose')
     parser.add_argument('-am', '--affinity_matrix', type=str, required=False, default=False, help='Temporary Unlabelled Pool')
     parser.add_argument('-am_s', '--affinity_matrix_strategy', type=str, required=False, choices=['uncertanity', 'diversity', 'mixed'], default='mixed', 
                        help='Different affinity matrix modification')
@@ -45,10 +45,8 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('-e_s', '--entropy_strategy', type=str, required=False, choices=['mean', 'integral'], default='mean',
                         help='Entropy strategy to sum up the entropy history')
     
-    parser.add_argument('-gtg_iter', '--gtg_iterations', type=int, required=False, default=30,
-                        help='Maximum GTG iterations to perorm')
-    parser.add_argument('-gtg_t', '--gtg_tollerance', type=float, required=False, default=0.0001,
-                        help='GTG tollerance')
+    parser.add_argument('-gtg_iter', '--gtg_iterations', type=int, required=False, default=30, help='Maximum GTG iterations to perorm')
+    parser.add_argument('-gtg_t', '--gtg_tollerance', type=float, required=False, default=0.0001, help='GTG tollerance')
         
     parser.add_argument('-plb', '--perc_labelled_batch', type=float,  required=False, default=0.5,
                         help='Number of labelled observations to mantain in each batch during GTG end-to-end version')
@@ -181,9 +179,12 @@ def main() -> None:
             plot_trail_acc(dataset_name, trial, results, n_lab_obs, timestamp,
                              list(task_params["results_dict"]["test"].keys())[0],
                              plot_png_name=f'{dataset_name}/{trial}/results.png')
-            
+        
         plot_res_std_mean(task, timestamp, dataset_name)
 
+        # saving yamal configuration file
+        save_yamal(common_training_params, task_params, al_params, gtg_params, args, timestamp, dataset_name)
+            
 
 if __name__ == "__main__":
     
