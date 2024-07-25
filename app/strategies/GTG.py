@@ -16,7 +16,11 @@ class GTG(ActiveLearner):
     def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p) -> None:
                 
         if gtg_p["am_ts"] != None:
-            str_tresh_strat = f'{gtg_p["am_ts"][gtg_p["id_am_ts"]]}_{gtg_p["am_t"]}' if gtg_p["am_ts"][gtg_p["id_am_ts"]] != 'mean' else 'ts-mean'            
+            
+            if gtg_p["am_ts"][gtg_p["id_am_ts"]] == 'mean': str_tresh_strat = 'ts-mean'
+            elif gtg_p["am_ts"][gtg_p["id_am_ts"]] == 'threshold': str_tresh_strat = f'{gtg_p["am_ts"][gtg_p["id_am_ts"]]}_{gtg_p["am_t"]}'
+            else: str_tresh_strat = ''
+            
             strategy_name = f'{self.__class__.__name__}_{gtg_p["am_s"]}_{gtg_p["am"][gtg_p["id_am"]]}_{str_tresh_strat}_es-{gtg_p["e_s"]}'#_{gtg_p["gtg_model"]}'
         else: strategy_name = f'{self.__class__.__name__}_{gtg_p["am_s"]}_{gtg_p["am"][gtg_p["id_am"]]}_es-{gtg_p["e_s"]}'#_{gtg_p["gtg_model"]}'
                 
@@ -76,14 +80,17 @@ class GTG(ActiveLearner):
                     unlab_outs, unlab_embedds = self.model.backbone(unlab_images.to(self.device))
                     unlab_features = self.model.backbone.get_features()
 
-                    (y_pred, y_true) ,_ = self.model.added_module(
-                        features=[
-                            torch.cat((lab_feature, unlab_feature), dim=0) for lab_feature, unlab_feature in zip(lab_features, unlab_features)
-                        ], 
-                        embedds=torch.cat((lab_embedds, unlab_embedds), dim=0), 
-                        outs=torch.cat((lab_outs, unlab_outs), dim=0),
-                        labels=torch.cat((lab_labels, unlab_labels), dim=0)
-                    )
+                    if self.model.added_module == None:
+                        raise ValueError('The model does not have an added module')
+                    else:
+                        (y_pred, y_true) ,_ = self.model.added_module(
+                            features=[
+                                torch.cat((lab_feature, unlab_feature), dim=0) for lab_feature, unlab_feature in zip(lab_features, unlab_features)
+                            ], 
+                            embedds=torch.cat((lab_embedds, unlab_embedds), dim=0), 
+                            outs=torch.cat((lab_outs, unlab_outs), dim=0),
+                            labels=torch.cat((lab_labels, unlab_labels), dim=0)
+                        )
                     
                     # save only the unalbelled entropies
                     pred = torch.cat((pred, y_pred[query_bs:]), dim=0) 
