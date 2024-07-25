@@ -28,6 +28,7 @@ class Cls_TrainWorker():
         self.model: Master_Model | DDP = params["ct_p"]["Master_Model"]
         
         self.dataset_name: str = params["ct_p"]["dataset_name"]
+        self.al_iters: str = params["al_p"]["al_iters"]
         self.strategy_name: str = params["strategy_name"]
         
         self.is_gtg_module = self.model.only_module_name == 'GTGModule'
@@ -40,7 +41,8 @@ class Cls_TrainWorker():
         self.epochs = params["t_p"]["epochs"]
         self.batch_size = params["batch_size"]
         self.ds_t_p = params["t_p"][self.dataset_name]
-        if 'perc_labelled_batch' in params: self.perc_labelled_batch = params['perc_labelled_batch']
+        #if 'perc_labelled_batch' in params: self.perc_labelled_batch = params['perc_labelled_batch']
+        if 'batch_size_gtg_online' in params: self.batch_size_gtg_online = params['batch_size_gtg_online']
         
         self.train_dl: DataLoader | Tuple[Subset, Subset] = params["train_dl"]
         self.test_dl: DataLoader = params["test_dl"]
@@ -72,25 +74,15 @@ class Cls_TrainWorker():
         
         
         if isinstance(self.train_dl, tuple):
+            
+            batch_size = self.batch_size_gtg_online * self.iter
             lab_subset, unlab_subset = self.train_dl
-            batch_size = int(self.batch_size * self.perc_labelled_batch)
             
-            self.unlab_train_dl = DataLoader(dataset=unlab_subset, batch_size=batch_size, shuffle=True, pin_memory=True)#, drop_last=True)
-            self.lab_train_dl = DataLoader(
-                dataset=lab_subset, batch_size=batch_size,
-                sampler=RandomSampler(lab_subset, num_samples=len(unlab_subset), replacement=False),
-                pin_memory=True#, drop_last=True
-            )
+            self.unlab_train_dl = DataLoader(dataset=unlab_subset, batch_size=batch_size, shuffle=True, pin_memory=True)
+            self.lab_train_dl = DataLoader(dataset=lab_subset, batch_size=batch_size * self.al_iters, shuffle=True, pin_memory=True)
 
-            self.len_b_lab_dl = len(self.lab_train_dl)
-            self.len_b_unlab_dl = len(self.unlab_train_dl)
-            
-            self.rateo_unlab_lab_batch = self.len_b_unlab_dl / self.len_b_lab_dl # how many times I see a labelled images in each epoch
-                        
-            logger.info(f'{self.len_b_lab_dl} - {self.len_b_unlab_dl}')
-            self.n_batches = self.len_b_unlab_dl
-        else:
-            self.n_batches = len(self.train_dl)
+            self.n_batches = len(self.lab_train_dl)
+        else: self.n_batches = len(self.train_dl)
             
         self.init_opt_sched()
         self.i = 0
@@ -149,7 +141,9 @@ class Cls_TrainWorker():
             else: entr_loss = weight * self.bce_loss_fn(pred_entr, true_entr.detach())
 
             lab_ce_loss = torch.mean(ce_loss[labelled_mask])
-            lab_ce_loss /= self.rateo_unlab_lab_batch
+            
+            # NO LOSS SCALING SINCE I HAVE REMOVED THE OVERSAMPLING STEP
+            #lab_ce_loss /= self.rateo_unlab_lab_batch
             # ce loss scaled by the ratio between unlabelled and labelled batches
             # es: ma1000 labelled samples, 10000 unlabelled samples 128 batch_size -> scaling factor = (10000/128) / (1000/128) = 9.875
             
