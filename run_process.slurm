@@ -31,4 +31,5 @@ conda activate al_env
 
 #python3 app/main.py -gpus 1 -m lstmreg_gtg lstmbc_gtg -ds cifar10 -tr 5 -am corr -am_s uncertanity -am_ts mean none -e_s mean -gtg_iter 10
 
-python3 app/main.py -gpus 1 -m llmlp_gtg lsmlps_gtg lstmreg_gtg lstmbc_gtg -ds cifar10 -tr 1 -am corr -e_s mean -gtg_iter 30
+python3 app/main.py -gpus 1 -m random -ds cifar10 -tr 1
+#python3 app/main.py -gpus 1 -m llmlp_gtg lsmlps_gtg lstmreg_gtg lstmbc_gtg -ds cifar10 -tr 1 -am corr -e_s mean -gtg_iter 30

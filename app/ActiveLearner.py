@@ -193,7 +193,7 @@ class ActiveLearner():
         train_res_keys = list(results_format["train"].keys())
         
         params = { 
-            'ct_p': self.ct_p, 't_p': self.t_p, 'strategy_name': self.strategy_name, 
+            'ct_p': self.ct_p, 't_p': self.t_p, 'al_p': self.al_p, 'strategy_name': self.strategy_name, 
             'iter': iter, 'labelled_indices': self.labelled_indices, 'rand_unlab_sample': self.rand_unlab_sample,
             'module_name_only': self.model.only_module_name
         }
