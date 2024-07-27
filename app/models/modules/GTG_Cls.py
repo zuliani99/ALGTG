@@ -244,7 +244,8 @@ class GTGModule(nn.Module):
         self.list_AM_function: List[str] = gtg_p["am"]
         
         self.ent_strategy: str = gtg_p["e_s"]
-        self.perc_labelled_batch: int = gtg_p["plb"]
+        #self.perc_labelled_batch: int = gtg_p["plb"]
+        self.batch_size_gtg_online: int = gtg_p["bsgtgo"]
         
         self.n_top_k_obs: int = gtg_p["n_top_k_obs"]
         self.n_classes: int = gtg_p["n_classes"]
@@ -254,6 +255,9 @@ class GTGModule(nn.Module):
         self.GTG_Model = gtg_p["gtg_module"]
         self.name = f'{self.__class__.__name__}_{self.GTG_Model}'
         self.set_additional_module()
+        
+        
+        self.bn1 = nn.BatchNorm1d(512)
         
     
     def set_additional_module(self) -> None:
@@ -320,18 +324,18 @@ class GTGModule(nn.Module):
         
     def get_A_e_d(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         A = torch.cdist(concat_embedds, concat_embedds).to(self.device)
-        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1.)
+        return torch.clamp(A, min=0., max=1.)#.fill_diagonal_(1.)
     
 
     def get_A_cos_sim(self, concat_embedds: torch.Tensor) -> torch.Tensor: 
         normalized_embedding = F.normalize(concat_embedds, dim=-1).to(self.device)
         A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device)   
-        return torch.clamp(A, min=0., max=1.).fill_diagonal_(0.)
+        return torch.clamp(A, min=0., max=1.)#.fill_diagonal_(0.)
 
         
     def get_A_corr(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         A = torch.corrcoef(concat_embedds).to(self.device)
-        return torch.clamp(A, min=0., max=1.).fill_diagonal_(0.)
+        return torch.clamp(A, min=0., max=1.)#.fill_diagonal_(0.)
     
     
     def get_A(self, embedding: torch.Tensor) -> torch.Tensor:
@@ -362,10 +366,17 @@ class GTGModule(nn.Module):
     
     
     def graph_trasduction_game(self, features_embedding: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        
+        logger.info(f'Non zero cell in features_embedding {torch.count_nonzero(features_embedding)} / {features_embedding.numel()}')
+        logger.info(f'NaN cell in features_embedding  {torch.isnan(features_embedding).sum()} / {features_embedding.numel()}')
                         
         entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
         
         A = self.get_A(features_embedding) # -> nxn
+        
+        logger.info(f'Non zero cell in A {torch.count_nonzero(A)} / {A.numel()}')
+        logger.info(f'NaN cell in A  {torch.isnan(A).sum()} / {A.numel()}')
+        
         X = self.X.clone()
         if A.requires_grad: X.requires_grad_(True)
         Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device, dtype=torch.float32, requires_grad=True if A.requires_grad else False)        
@@ -409,6 +420,9 @@ class GTGModule(nn.Module):
     def get_entropies(self, embedding: torch.Tensor) -> torch.Tensor: #Tuple[torch.Tensor, torch.Tensor]:
                   
         entropy_hist = self.graph_trasduction_game(embedding)[1]
+        
+        if torch.any(torch.isnan(entropy_hist)):
+            logger.info(f'NaN cell in entropy_hist {torch.isnan(entropy_hist).sum()} / {entropy_hist.numel()}')
  
         if self.ent_strategy == 'mean': quantity_result = torch.mean(entropy_hist, dim=1)
         # computing the mean of the entropis history    
@@ -422,11 +436,12 @@ class GTGModule(nn.Module):
     
     
     
-    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, outs: torch.Tensor, labels: torch.Tensor, weight: int = 1) \
+    def forward(self, features: List[torch.Tensor], embedds: torch.Tensor, outs: torch.Tensor, labels: torch.Tensor, iteration: int,  weight: int = 1) \
         -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor | None]: 
         
         self.batch_size = len(embedds)
-        self.n_lab_obs = int(self.batch_size * self.perc_labelled_batch)
+        #int(self.batch_size * self.perc_labelled_batch)
+        self.n_lab_obs = self.batch_size_gtg_online * iteration 
         self.lab_labels = labels[:self.n_lab_obs]
         
         self.get_X(F.softmax(outs, dim=1))

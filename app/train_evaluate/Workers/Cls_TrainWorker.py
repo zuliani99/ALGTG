@@ -75,11 +75,10 @@ class Cls_TrainWorker():
         
         if isinstance(self.train_dl, tuple):
             
-            batch_size = self.batch_size_gtg_online * self.iter
             lab_subset, unlab_subset = self.train_dl
             
-            self.unlab_train_dl = DataLoader(dataset=unlab_subset, batch_size=batch_size, shuffle=True, pin_memory=True)
-            self.lab_train_dl = DataLoader(dataset=lab_subset, batch_size=batch_size * self.al_iters, shuffle=True, pin_memory=True)
+            self.unlab_train_dl = DataLoader(dataset=unlab_subset, batch_size=self.batch_size_gtg_online * self.al_iters, shuffle=True, pin_memory=True)            
+            self.lab_train_dl = DataLoader(dataset=lab_subset, batch_size=self.batch_size_gtg_online * self.iter, shuffle=True, pin_memory=True)
 
             self.n_batches = len(self.lab_train_dl)
         else: self.n_batches = len(self.train_dl)
@@ -189,7 +188,8 @@ class Cls_TrainWorker():
                 
         for optimizer in self.optimizers: optimizer.zero_grad(set_to_none=True)
                     
-        outputs, module_out = self.model(images, weight=weight, labels=labels)
+        outputs, module_out = self.model(images, weight=weight, labels=labels) if not self.is_gtg_module \
+            else self.model(images, weight=weight, labels=labels, iteration=self.iter)
                                                                         
         score, loss, train_loss_ce, train_loss_pred = self.compute_losses(
             weight=weight, module_out=module_out, outputs=outputs, labels=labels,
@@ -216,8 +216,8 @@ class Cls_TrainWorker():
             
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore  
             if self.decay != None and epoch >= self.decay: 
-                if self.method_name != 'TiDAL': weight = 0.
-                #if self.model.only_module_name == 'GTGModule' and self.gtg_net_type != 'llmlp': weight = 0.
+                #if self.method_name != 'TiDAL': weight = 0.
+                if self.model.only_module_name == 'GTGModule' and self.gtg_net_type != 'llmlp': weight = 0. # try llmlp to be performed for 200 epochs
             
             if isinstance(self.train_dl, tuple):
                 for b_idx, ((idxs_l, images_l, labels_l, _), (idxs_u, images_u, labels_u, _)) in enumerate(zip(self.lab_train_dl, self.unlab_train_dl)):

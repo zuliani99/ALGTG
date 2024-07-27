@@ -17,12 +17,12 @@ class GTG(ActiveLearner):
                 
         if gtg_p["am_ts"] != None:
             
-            if gtg_p["am_ts"][gtg_p["id_am_ts"]] == 'mean': str_tresh_strat = 'ts-mean'
-            elif gtg_p["am_ts"][gtg_p["id_am_ts"]] == 'threshold': str_tresh_strat = f'{gtg_p["am_ts"][gtg_p["id_am_ts"]]}_{gtg_p["am_t"]}'
-            else: str_tresh_strat = ''
+            if gtg_p["am_ts"][gtg_p["id_am_ts"]] == 'mean': str_tresh_strat = '_ts-mean'
+            elif gtg_p["am_ts"][gtg_p["id_am_ts"]] == 'threshold': str_tresh_strat = f'_{gtg_p["am_ts"][gtg_p["id_am_ts"]]}_{gtg_p["am_t"]}'
+            else: str_tresh_strat = '_'
             
-            strategy_name = f'{self.__class__.__name__}_{gtg_p["am_s"]}_{gtg_p["am"][gtg_p["id_am"]]}_{str_tresh_strat}_es-{gtg_p["e_s"]}'#_{gtg_p["gtg_model"]}'
-        else: strategy_name = f'{self.__class__.__name__}_{gtg_p["am_s"]}_{gtg_p["am"][gtg_p["id_am"]]}_es-{gtg_p["e_s"]}'#_{gtg_p["gtg_model"]}'
+            strategy_name = f'{self.__class__.__name__}_{gtg_p["am_s"]}_{gtg_p["am"][gtg_p["id_am"]]}{str_tresh_strat}_es-{gtg_p["e_s"]}'
+        else: strategy_name = f'{self.__class__.__name__}_{gtg_p["am_s"]}_{gtg_p["am"][gtg_p["id_am"]]}_es-{gtg_p["e_s"]}'
                 
         super().__init__(ct_p, t_p, al_p, strategy_name)
         #self.perc_labelled_batch: int = gtg_p["plb"]
@@ -65,13 +65,18 @@ class GTG(ActiveLearner):
                 #random sample with replacement, each batch has different set of labelled observation drown ad random from the entire set
             )'''
             
-            query_bs = self.batch_size_gtg_online * self.iter
+            lab_query_bs = self.batch_size_gtg_online * self.iter
             
-            unlab_train_dl = DataLoader(dataset=sample_unlab_subset, batch_size=query_bs, shuffle=True, pin_memory=True)
             lab_train_dl = DataLoader(
                 dataset=Subset(self.dataset.unlab_train_ds, self.labelled_indices), 
-                batch_size=query_bs * self.al_p["al_iters"], shuffle=True, pin_memory=True
+                batch_size=lab_query_bs, shuffle=True, pin_memory=True
             )
+            
+            unlab_train_dl = DataLoader(
+                dataset=sample_unlab_subset,
+                batch_size=self.batch_size_gtg_online * self.al_p["al_iters"], shuffle=True, pin_memory=True
+            )
+            
                         
             pred = torch.empty(0, dtype=torch.float32, device=self.device)
             true = torch.empty(0, dtype=torch.float32, device=self.device)
@@ -102,8 +107,8 @@ class GTG(ActiveLearner):
                         )
                     
                     # save only the unalbelled entropies
-                    pred = torch.cat((pred, y_pred[query_bs:]), dim=0) 
-                    true = torch.cat((true, y_true[query_bs:]), dim=0)
+                    pred = torch.cat((pred, y_pred[lab_query_bs:]), dim=0) 
+                    true = torch.cat((true, y_true[lab_query_bs:]), dim=0)
                     
             logger.info(' DONE\n')
             

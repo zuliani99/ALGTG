@@ -13,8 +13,8 @@ import torch.multiprocessing as mp
 from torchvision.utils import save_image
 import torch
 import numpy as np
-
-from typing import List, Dict, Any
+import yaml
+from typing import List, Dict, Any, Tuple
 import copy
 import os
 
@@ -61,7 +61,7 @@ class ActiveLearner():
         self.save_labelled_images(self.labelled_indices)
         
         self.count_classes = {}
-        self.count_classes[0] = count_class_observation(self.dataset.classes, Subset(self.dataset.train_ds, self.labelled_indices))
+        self.count_classes[self.iter * self.al_p["n_top_k_obs"]] = count_class_observation(self.dataset.classes, Subset(self.dataset.train_ds, self.labelled_indices))
         
         
         
@@ -87,12 +87,14 @@ class ActiveLearner():
             set_seeds(seed)
             
             rand_perm = torch.randperm(len(self.unlabelled_indices)).tolist()
+            # it has the indices of the unlabelled sample
             self.rand_unlab_sample = [self.unlabelled_indices[idx] for idx in rand_perm[:self.ds_t_p["unlab_sample_dim"]]]
             
             logger.info(f' SEED: {seed} - Last 10 permuted indices are: {rand_perm[-10:]}')
             
-            # removing the whole observation sample fromt the unlabelled indices list
-            for idx in self.rand_unlab_sample: self.unlabelled_indices.remove(idx) # - 10000
+            if self.ct_p["temp_unlab_pool"]:
+                # removing the whole observation sample fromt the unlabelled indices list
+                for idx in self.rand_unlab_sample: self.unlabelled_indices.remove(idx) # - 10000
             
             #reset the original seed
             set_seeds()
@@ -139,7 +141,7 @@ class ActiveLearner():
                             dict_to_modify["module_out"], 
                             self.model(images, mode='module_out',
                                         labels=labels.to(self.device) if self.model.only_module_name == 'GTGModule'
-                                        else None).cpu().squeeze()
+                                        else None, iteration=self.iter).cpu().squeeze()
                         ), dim=0)    
                     else:
                         raise AttributeError("Can't get the module_out if there is no additional module specified")    
@@ -200,8 +202,7 @@ class ActiveLearner():
         
         #if self.model.only_module_name == 'GTGModule': params["perc_labelled_batch"] = self.perc_labelled_batch
         if self.model.only_module_name == 'GTGModule': params["batch_size_gtg_online"] = self.batch_size_gtg_online # type: ignore
-        
-        
+                
         # if we are using multiple gpus
         if self.world_size > 1:
             
@@ -264,6 +265,8 @@ class ActiveLearner():
             # the sample have been already removed from the labelled set
             for idx in overall_topk: self.rand_unlab_sample.remove(idx) # - 1000 = 9000
             self.temp_unlab_pool.extend(self.rand_unlab_sample) # + 9000
+        else:
+            for idx in overall_topk: self.unlabelled_indices.remove(idx) # - 1000 = 9000
             
         # extend with the overall_topk
         self.labelled_indices.extend(overall_topk) # + 1000
@@ -278,7 +281,7 @@ class ActiveLearner():
             raise Exception('NON EMPTY INDICES INTERSECTION')
         
         
-        if self.ct_p["temp_unlab_pool"] and len(self.unlabelled_indices) < sample_len and len(self.temp_unlab_pool) > 0:
+        if self.ct_p["temp_unlab_pool"] and len(self.unlabelled_indices) < sample_len and len(self.temp_unlab_pool) > 0: # type: ignore
             # reinsert all teh observations from the pool inside the original unlabelled pool
             self.unlabelled_indices.extend(self.temp_unlab_pool)
             self.temp_unlab_pool.clear() # empty the temp unlabelled pool list
@@ -291,7 +294,7 @@ class ActiveLearner():
 
         
         
-    def run(self) -> Dict[str, List[float]]:
+    def run(self) -> Tuple[Dict[str, List[float]], Dict[int, Dict[str, int]]]:
                 
         results_format = copy.deepcopy(self.t_p["results_dict"])
                 
@@ -319,8 +322,6 @@ class ActiveLearner():
             
             d_labels = count_class_observation(self.dataset.classes, self.dataset.train_ds, topk_idx_obs)
             logger.info(f' Number of observations per class added to the labelled set:\n {d_labels}\n')
-            self.count_classes[self.iter * self.al_p["n_top_k_obs"]] = d_labels
-            
             
             # Saving the tsne embeddings plot
             if 'GTG_off' in self.method_name:
@@ -333,11 +334,14 @@ class ActiveLearner():
             self.update_sets(topk_idx_obs)
             
             self.iter += 1
-            
+
+            if self.iter <= 10: self.count_classes[self.iter * self.al_p["n_top_k_obs"]] = d_labels
+
+        with open(f'results/{self.ct_p["timestamp"]}/{self.ct_p["dataset_name"]}/{self.ct_p["trial"]}/{self.strategy_name}/count_classes.yamal', 'w') as file: yaml.dump(self.count_classes, file)            
                 
         # plotting the number of classes in the train dataset for each iteration
-        plot_classes_count_iterations(self.count_classes, self.strategy_name, self.ct_p["timestamp"], self.ct_p["dataset_name"], self.iter)
-        plot_entropy_iterations_classes(self.count_classes, self.strategy_name, self.ct_p["timestamp"], self.ct_p["dataset_name"], self.iter)
+        plot_classes_count_iterations(self.count_classes, self.strategy_name, self.ct_p["timestamp"], self.ct_p["dataset_name"], self.ct_p["trial"])
+        plot_entropy_iterations_classes(self.count_classes, self.strategy_name, self.ct_p["timestamp"], self.ct_p["dataset_name"], self.ct_p["trial"])
         
         # plotting the cumulative train results
         plot_cumulative_train_results(list(self.t_p["results_dict"]["train"].keys()), 
@@ -346,4 +350,4 @@ class ActiveLearner():
                                        self.ct_p["trial"])
         
         
-        return results_format["test"]
+        return results_format["test"], self.count_classes

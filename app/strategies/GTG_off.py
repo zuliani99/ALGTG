@@ -35,11 +35,11 @@ class GTG_off(ActiveLearner):
 
         if self.AM_threshold_strategy != 'none':
             
-            if self.AM_threshold_strategy == 'mean': str_tresh_strat = 'ts-mean'
-            elif self.AM_threshold_strategy == 'threshold': str_tresh_strat = f'{self.AM_threshold_strategy}_{self.AM_threshold}'
-            else: str_tresh_strat = ''
+            if self.AM_threshold_strategy == 'mean': str_tresh_strat = '_ts-mean'
+            elif self.AM_threshold_strategy == 'threshold': str_tresh_strat = f'_{self.AM_threshold_strategy}_{self.AM_threshold}'
+            else: str_tresh_strat = '_'
             
-            strategy_name = f'{self.__class__.__name__}_{self.AM_function}_{self.AM_strategy}_{str_tresh_strat}_es-{self.ent_strategy}'
+            strategy_name = f'{self.__class__.__name__}_{self.AM_function}_{self.AM_strategy}{str_tresh_strat}_es-{self.ent_strategy}'
         else:
             strategy_name = f'{self.__class__.__name__}_{self.AM_function}_{self.AM_strategy}_es-{self.ent_strategy}'
                 
@@ -113,7 +113,7 @@ class GTG_off(ActiveLearner):
         A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(device)
         A = torch.clamp(A, min=0., max=1.)
         
-        return A.fill_diagonal_(1.)
+        return A#.fill_diagonal_(1.)
     
     
     def get_A_e_d(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
@@ -128,12 +128,12 @@ class GTG_off(ActiveLearner):
         A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(device)
         A = torch.clamp(A, min=0., max=1.)
 
-        return A.fill_diagonal_(0.)
+        return A#.fill_diagonal_(0.)
         
         
     def get_A_corr(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         A = torch.corrcoef(concat_embedds).to(torch.device('cpu') if to_cpu else self.device)
-        return torch.clamp(A, min=0., max=1.).fill_diagonal_(0.)
+        return torch.clamp(A, min=0., max=1.)#.fill_diagonal_(0.)
         
 
     def get_X(self) -> None:
