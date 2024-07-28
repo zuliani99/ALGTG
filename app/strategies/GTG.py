@@ -19,7 +19,7 @@ class GTG(ActiveLearner):
             
             if gtg_p["am_ts"][gtg_p["id_am_ts"]] == 'mean': str_tresh_strat = '_ts-mean'
             elif gtg_p["am_ts"][gtg_p["id_am_ts"]] == 'threshold': str_tresh_strat = f'_{gtg_p["am_ts"][gtg_p["id_am_ts"]]}_{gtg_p["am_t"]}'
-            else: str_tresh_strat = '_'
+            else: str_tresh_strat = ''
             
             strategy_name = f'{self.__class__.__name__}_{gtg_p["am_s"]}_{gtg_p["am"][gtg_p["id_am"]]}{str_tresh_strat}_es-{gtg_p["e_s"]}'
         else: strategy_name = f'{self.__class__.__name__}_{gtg_p["am_s"]}_{gtg_p["am"][gtg_p["id_am"]]}_es-{gtg_p["e_s"]}'
@@ -32,7 +32,7 @@ class GTG(ActiveLearner):
         
         
 
-    def query_llmlp(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
+    '''def query_llmlp(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
         self.unlab_train_dl = DataLoader(sample_unlab_subset, batch_size=self.batch_size, shuffle=False, pin_memory=True)
                 
         logger.info(' => Evaluating unlabelled observations')
@@ -46,14 +46,14 @@ class GTG(ActiveLearner):
         overall_topk = torch.topk(embeds_dict["module_out"], n_top_k_obs).indices.tolist()
         logger.info(' DONE\n')
         
-        return overall_topk, [self.rand_unlab_sample[id] for id in overall_topk]
+        return overall_topk, [self.rand_unlab_sample[id] for id in overall_topk]'''
 
 
 
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:
-        if self.gtg_model == 'llmlp':
-            return self.query_llmlp(sample_unlab_subset, n_top_k_obs)
-        else:
+        #if self.gtg_model == 'llmlp':
+        #    return self.query_llmlp(sample_unlab_subset, n_top_k_obs)
+        #else:
         
             '''query_bs = int(self.batch_size * self.perc_labelled_batch)
             
@@ -103,7 +103,8 @@ class GTG(ActiveLearner):
                             ], 
                             embedds=torch.cat((lab_embedds, unlab_embedds), dim=0), 
                             outs=torch.cat((lab_outs, unlab_outs), dim=0),
-                            labels=torch.cat((lab_labels, unlab_labels), dim=0)
+                            labels=torch.cat((lab_labels, unlab_labels), dim=0),
+                            iteration=self.iter
                         )
                     
                     # save only the unalbelled entropies

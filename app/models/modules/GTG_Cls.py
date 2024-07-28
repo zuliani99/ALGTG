@@ -319,37 +319,37 @@ class GTGModule(nn.Module):
         sigma_T = sigmas.T
         sigma_mm = (torch.mm(sigma_T, sigmas))
         A = torch.exp(A_m_2 / sigma_mm)
-        return torch.clamp(A.to(self.device), min=0., max=1.)
+        return torch.clamp(A.to(self.device), min=0., max=1.).fill_diagonal_(0.)
     
         
     def get_A_e_d(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         A = torch.cdist(concat_embedds, concat_embedds).to(self.device)
-        return torch.clamp(A, min=0., max=1.)#.fill_diagonal_(1.)
+        return torch.clamp(A, min=0., max=1.).fill_diagonal_(0.)
     
 
     def get_A_cos_sim(self, concat_embedds: torch.Tensor) -> torch.Tensor: 
         normalized_embedding = F.normalize(concat_embedds, dim=-1).to(self.device)
         A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device)   
-        return torch.clamp(A, min=0., max=1.)#.fill_diagonal_(0.)
+        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1.)
 
         
     def get_A_corr(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         A = torch.corrcoef(concat_embedds).to(self.device)
-        return torch.clamp(A, min=0., max=1.)#.fill_diagonal_(0.)
+        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1.)
     
     
     def get_A(self, embedding: torch.Tensor) -> torch.Tensor:
         if self.AM_function != None: A = self.get_A_fn[self.AM_function](embedding) # compute the affinity matrix
         else: raise AttributeError('A Fucntion is None')
                 
-        if self.AM_threshold_strategy != None and self.AM_threshold!= None:
+        if self.AM_threshold_strategy != 'none':
             if self.AM_function != 'rbfk': A = torch.where(A < self.get_A_treshold(A), 0, A)
             else: A = torch.where(A > self.get_A_treshold(A), 1, A)
         if self.AM_strategy == 'diversity':
             A = 1 - A # set the whole matrix as a distance matrix and not similarity matrix
         elif self.AM_strategy == 'mixed':    
             if self.AM_function == 'rbfk': A = 1 - A # set the unlabelled submatrix as distance matrix and not similarity matrix
-            A[:self.n_lab_obs, :self.n_lab_obs] = 1 - A[:self.n_lab_obs, :self.n_lab_obs] # -> LL distance
+            A[:self.n_lab_obs, :self.n_lab_obs] = 1 - A[:self.n_lab_obs, :self.n_lab_obs] # -> inverse of the similarity matrix / distance matrix
             
         return A
         
@@ -376,6 +376,7 @@ class GTGModule(nn.Module):
         
         logger.info(f'Non zero cell in A {torch.count_nonzero(A)} / {A.numel()}')
         logger.info(f'NaN cell in A  {torch.isnan(A).sum()} / {A.numel()}')
+        #logger.info(A)
         
         X = self.X.clone()
         if A.requires_grad: X.requires_grad_(True)
@@ -384,7 +385,7 @@ class GTGModule(nn.Module):
         err = float('Inf')
         i = 0
         
-        logger.info(f'start {X.argmax(dim=1)}')
+        #logger.info(f'start {X.argmax(dim=1)}')
                         
         while err > self.gtg_tol and i < self.gtg_max_iter:
             
@@ -396,6 +397,8 @@ class GTGModule(nn.Module):
             if X.requires_grad: X.register_hook(lambda grad: logger.info(f'{i} -- 2- X grad: {grad.sum()}'))
             X = X / torch.sum(X, dim=1, keepdim=True)
             if X.requires_grad: X.register_hook(lambda grad: logger.info(f'{i} -- 3- X grad: {grad.sum()}'))
+
+            #logger.info(f'X: {X[self.n_lab_obs:].argmax(dim=1).unique(return_counts=True)}')
             
             entropy_hist[self.n_lab_obs:, i] = entropy(X[self.n_lab_obs:, :]).to(self.device)
 
@@ -410,7 +413,8 @@ class GTGModule(nn.Module):
                 Xs, torch.zeros((self.batch_size, self.n_classes, 1), device=self.device, dtype=torch.float32, requires_grad=True if A.requires_grad else False)
             ), dim=-1)
             
-        logger.info(f'end {X.argmax(dim=1)}')
+        logger.info(f'end X: {X[self.n_lab_obs:].argmax(dim=1).unique(return_counts=True)}')
+        
 
         return Xs, entropy_hist
     

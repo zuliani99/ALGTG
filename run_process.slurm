@@ -20,7 +20,7 @@ conda activate al_env
 
 
 #python3 app/main.py -gpus 1 -m ra -ds cifar10 cifar100 svhn fmnist -tr 1 -am corr -am_ts mean -e_s mean -gtg_iter 30
-#python3 app/main.py -gpus 1 -m ll_gtg -ds cifar100 -tr 4 -am corr -am_ts mean -e_s mean -gtg_iter 30
+#python3 app/main.py -gpus 1 -m ll_gtg -ds cifar100 -tr 4 -am corr -am_ts mean -e_s mean -gtg_iter 30WWWW
 #python3 app/main.py -gpus 1 -m random tidal ll -ds tinyimagenet -tr 2
 
 #python3 app/main.py -gpus 1 -m random entropy coreset ll tidal alphamix cdal badge bald tavaal -ds tinyimagenet -tr 5
@@ -33,4 +33,4 @@ conda activate al_env
 
 #python3 app/main.py -gpus 1 -m random -ds cifar10 -tr 5
 #python3 app/main.py -gpus 1 -m llmlp_gtg lsmlps_gtg lstmreg_gtg lstmbc_gtg -ds cifar10 -tr 2 -am corr -am_ts mean none -e_s mean -gtg_iter 10 -bsgtgo 128 #--temp_unlab_pool
-python3 app/main.py -gpus 1 -m llmlp_gtg -ds cifar10 -tr 2 -am corr -am_ts mean -e_s mean -gtg_iter 10 #--temp_unlab_pool
+python3 app/main.py -gpus 1 -m llmlp_gtg lsmlps_gtg lstmreg_gtg lstmbc_gtg -ds cifar10 -tr 1 -am corr -am_ts none mean -e_s mean #-gtg_iter 30 #-bsgtgo 128 #-am_s uncertanity #--temp_unlab_pool

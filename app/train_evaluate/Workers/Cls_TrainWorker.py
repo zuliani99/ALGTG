@@ -103,7 +103,9 @@ class Cls_TrainWorker():
         self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1))
         if module_name != None:
             self.optimizers.append(optimizers["modules"]["type"][module_name](self.model.added_module.parameters(), **optimizers["modules"]["optim_p"][module_name])) # type: ignore
-            if self.method_name == 'TiDAL':# or (self.is_gtg_module and self.gtg_net_type == 'llmlp_gtg'): 
+            
+            # TiDAL and also LL style model have the scheduler decreasing of a factor of 10 at epoch 160
+            if self.method_name == 'TiDAL' or (self.is_gtg_module and self.gtg_net_type == 'llmlp_gtg'): 
                 self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
             
             
@@ -222,7 +224,7 @@ class Cls_TrainWorker():
             if isinstance(self.train_dl, tuple):
                 for b_idx, ((idxs_l, images_l, labels_l, _), (idxs_u, images_u, labels_u, _)) in enumerate(zip(self.lab_train_dl, self.unlab_train_dl)):
                     
-                    logger.info(len(torch.unique(idxs_l)) < idxs_l.numel()) # true if there are duplicates
+                    #logger.info(len(torch.unique(idxs_l)) < idxs_l.numel()) # true if there are duplicates
                     
                     idxs = torch.cat((idxs_l, idxs_u), dim=0)
                     images = torch.cat((images_l, images_u), dim=0)

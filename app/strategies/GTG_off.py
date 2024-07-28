@@ -37,7 +37,7 @@ class GTG_off(ActiveLearner):
             
             if self.AM_threshold_strategy == 'mean': str_tresh_strat = '_ts-mean'
             elif self.AM_threshold_strategy == 'threshold': str_tresh_strat = f'_{self.AM_threshold_strategy}_{self.AM_threshold}'
-            else: str_tresh_strat = '_'
+            else: str_tresh_strat = ''
             
             strategy_name = f'{self.__class__.__name__}_{self.AM_function}_{self.AM_strategy}{str_tresh_strat}_es-{self.ent_strategy}'
         else:
@@ -66,7 +66,7 @@ class GTG_off(ActiveLearner):
     
         #initial_A = torch.clone(A)
                
-        if self.AM_threshold_strategy != None:
+        if self.AM_threshold_strategy != 'none':
             # remove weak connections with the choosen threshold strategy and value
             logger.info(f' Affinity Matrix Threshold to be used: {self.AM_threshold_strategy} -> {self.get_A_treshold(A) if self.AM_threshold_strategy == "mean" else self.AM_threshold}')
                 
@@ -113,12 +113,12 @@ class GTG_off(ActiveLearner):
         A = torch.exp(-A_matrix.pow(2) / (torch.mm(sigmas.T, sigmas))).to(device)
         A = torch.clamp(A, min=0., max=1.)
         
-        return A#.fill_diagonal_(1.)
+        return A.fill_diagonal_(0.)
     
     
     def get_A_e_d(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         A = torch.cdist(concat_embedds, concat_embedds).to(torch.device('cpu') if to_cpu else self.device)
-        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1.)
+        return torch.clamp(A, min=0., max=1.).fill_diagonal_(0.)
 
 
     def get_A_cos_sim(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
@@ -128,12 +128,12 @@ class GTG_off(ActiveLearner):
         A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(device)
         A = torch.clamp(A, min=0., max=1.)
 
-        return A#.fill_diagonal_(0.)
+        return A.fill_diagonal_(1.)
         
         
     def get_A_corr(self, concat_embedds: torch.Tensor, to_cpu = False) -> torch.Tensor:
         A = torch.corrcoef(concat_embedds).to(torch.device('cpu') if to_cpu else self.device)
-        return torch.clamp(A, min=0., max=1.)#.fill_diagonal_(0.)
+        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1.)
         
 
     def get_X(self) -> None:
@@ -148,10 +148,10 @@ class GTG_off(ActiveLearner):
         for idx, label in enumerate(self.lab_embedds_dict["labels"]): self.X[idx][int(label.item())] = 1.
         
         # Set the initial probabilities for the unlabelled samples
-        initial_prob = 1. / self.dataset.n_classes
-        for idx in range(len(self.labelled_indices), len(self.labelled_indices) + self.len_unlab_sample):
-            for label in range(self.dataset.n_classes):
-                self.X[idx][label] = initial_prob
+        self.X[
+            torch.arange(len(self.labelled_indices), len(self.labelled_indices) + self.len_unlab_sample), :
+        ] = torch.ones(self.dataset.n_classes, device=self.device) * (1. / self.dataset.n_classes)
+        
         
         logger.info(' DONE\n')
         
@@ -161,6 +161,8 @@ class GTG_off(ActiveLearner):
         
         self.get_A()
         self.get_X()
+        
+        #logger.info(f'start {self.X.argmax(dim=1)}')
                         
         err = float('Inf')
         i = 0
@@ -172,14 +174,16 @@ class GTG_off(ActiveLearner):
             X_old = torch.clone(self.X)
             
             self.X *= torch.mm(self.A, self.X)
-            self.X /= torch.sum(self.X, dim=1, keepdim=True)            
+            self.X /= torch.sum(self.X, dim=1, keepdim=True)
+            
+            logger.info(f'X: {self.X[len(self.labelled_indices):].argmax(dim=1).unique(return_counts=True)}')
         
             self.unlab_entropy_hist[:, i] = entropy(self.X)[len(self.labelled_indices):]
                         
             err = torch.norm(self.X - X_old)
             i += 1
             
-        logger.info(f'ending X: {self.X[len(self.labelled_indices):].argmax(dim=1).unique(return_counts=True)}')
+        logger.info(f'end X: {self.X[len(self.labelled_indices):].argmax(dim=1).unique(return_counts=True)}')
         logger.info(' DONE\n')
         
         
