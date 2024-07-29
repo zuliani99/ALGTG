@@ -38,7 +38,7 @@ class Master_Model(nn.Module):
         
         
 
-    def forward(self, x, labels=None, weight=1, mode='all'):
+    def forward(self, x, labels=None, weight=1, mode='all', iteration=None):
         if mode == 'all':
             if self.training:
                 outs, embedds = self.backbone(x)
@@ -51,7 +51,7 @@ class Master_Model(nn.Module):
                     features = self.backbone.get_features()
                     if weight == 0: features = [feature.detach() for feature in features]                        
                     if self.only_module_name == 'GTGModule':
-                        module_out = self.added_module(features=features, embedds=embedds, outs=outs, labels=labels, weight=weight)
+                        module_out = self.added_module(features=features, embedds=embedds, outs=outs, labels=labels, weight=weight, iteration=iteration)
                     else: module_out = self.added_module(features=features)
                     return outs, module_out
                 else: return outs, None
@@ -70,8 +70,8 @@ class Master_Model(nn.Module):
                 if self.added_module != None:
                     outs, embedds = self.backbone(x)
                     features = self.backbone.get_features()
-                    if self.only_module_name == 'GTGModule':
-                        return self.added_module(features=features, embedds=embedds, outs=outs, labels=labels)[0][0]
+                    if self.only_module_name == 'GTGModule' and iteration != None:
+                        return self.added_module(features=features, embedds=embedds, outs=outs, labels=labels, iteration=iteration)[0][0]
                     else: return self.added_module(features=features)
                 else: raise AttributeError("The Master_Model hasn't got any additional module")   
             else: raise AttributeError("The Master_Model is in training mode, so it can't return the module_out")

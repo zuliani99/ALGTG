@@ -34,7 +34,7 @@ def get_args() -> argparse.Namespace:
                         help='Possible datasets to choose')
     parser.add_argument('-tr', '--trials', type=int, required=False, default=5, help='AL trials')
    
-    parser.add_argument('-tulp', '--temp_unlab_pool', required=False, action='store_true', help='Affinity matrix to choose')
+    parser.add_argument('-tulp', '--temp_unlab_pool', required=False, action='store_true', help='Temporary Unlabelled Pool')
     parser.add_argument('-am', '--affinity_matrix', type=str, nargs='+', required=False, choices=['corr', 'cos_sim', 'rbfk'], default=['corr'], help='Affinity matrix to choose')
     
     parser.add_argument('-am_s', '--affinity_matrix_strategy', type=str, required=False, choices=['uncertanity', 'diversity', 'mixed'], default='mixed', 
@@ -49,8 +49,9 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('-gtg_iter', '--gtg_iterations', type=int, required=False, default=30, help='Maximum GTG iterations to perorm')
     parser.add_argument('-gtg_t', '--gtg_tollerance', type=float, required=False, default=0.0001, help='GTG tollerance')
         
-    parser.add_argument('-plb', '--perc_labelled_batch', type=float,  required=False, default=0.5,
-                        help='Number of labelled observations to mantain in each batch during GTG end-to-end version')
+    #parser.add_argument('-plb', '--perc_labelled_batch', type=float,  required=False, default=0.5,
+    #                    help='Number of labelled observations to mantain in each batch during GTG end-to-end version')
+    parser.add_argument('-bsgtgo', '--batch_size_gtg_online', type=int,  required=False, default=32, help='Initial batch size for the online GTG version')
 
     args = parser.parse_args()
     return args
@@ -60,8 +61,10 @@ def get_args() -> argparse.Namespace:
 
 def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any],
                    Masters: Dict[str, Master_Model], methods: List[str]) -> Tuple[Dict[str, Dict[str, List[float]]], List[int]]:
+    #Tuple[Dict[str, Dict[str, List[float]]], Dict[str, Dict[int, Dict[str, int]]], List[int]]:
 
     results = { }
+    #count_classes = { }
     n_lab_obs = [al_p["init_lab_obs"] + (iter * al_p["n_top_k_obs"]) for iter in range(al_p["al_iters"])]
      
     # get the strategis object to run them
@@ -71,9 +74,11 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
     # START THE ACTIVE LEARNING PROECSS
     for strategy in strategies:
         logger.info(f'-------------------------- {strategy.strategy_name} --------------------------\n')
+        #results[strategy.strategy_name], count_classes[strategy.strategy_name] = strategy.run()
         results[strategy.strategy_name] = strategy.run()
     ##########################################################################################################
     
+    #return results, count_classes, n_lab_obs               
     return results, n_lab_obs               
 
 
@@ -123,7 +128,8 @@ def main() -> None:
         'am_t': args.affinity_matrix_threshold,
         'e_s': args.entropy_strategy,
         
-        'plb': args.perc_labelled_batch,
+        #'plb': args.perc_labelled_batch,
+        'bsgtgo': args.batch_size_gtg_online,
     }
     
         
@@ -172,6 +178,7 @@ def main() -> None:
             
             Dataset.get_initial_subsets(al_params["init_lab_obs"], trial) # get the random split of dataset
             
+            #results, count_classes, n_lab_obs = run_strategies(
             results, n_lab_obs = run_strategies(
                 ct_p = common_training_params, t_p = task_params, al_p = al_params,
                 gtg_p = gtg_params, Masters = Masters, methods = args.methods

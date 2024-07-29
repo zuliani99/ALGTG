@@ -144,10 +144,10 @@ def plot_classes_count_iterations(count_classes: Dict[int, Dict[str, int]], \
     iterations = list(count_classes.keys())
     class_labels = list(count_classes[iterations[0]].keys())
 
-    for class_counts in count_classes.values():
+    for key, class_counts in count_classes.items():
         class_counts_values = [class_counts[label] for label in class_labels]
         
-        plt.plot(iterations, class_counts_values, label=class_labels)
+        plt.plot(iterations, class_counts_values, label=key)
 
     plt.xlabel('Labelled Observations', fontsize=15)
     plt.ylabel('Number of Class Observations', fontsize=15)

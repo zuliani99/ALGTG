@@ -69,6 +69,7 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     train_results = [torch.zeros((4, t_p["epochs"]), device=rank) for _ in range(world_size)]
     test_results = [torch.zeros(1, device=rank) for _ in range(world_size)]
     
+    
     train_ds = Subset(ct_p["Dataset"].train_ds, params["labelled_subset"])
     params["train_dl"] = DataLoader(
         train_ds,
