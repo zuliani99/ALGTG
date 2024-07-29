@@ -282,6 +282,7 @@ class ActiveLearner():
         
         
         if self.ct_p["temp_unlab_pool"] and len(self.unlabelled_indices) < sample_len and len(self.temp_unlab_pool) > 0: # type: ignore
+
             # reinsert all teh observations from the pool inside the original unlabelled pool
             self.unlabelled_indices.extend(self.temp_unlab_pool)
             self.temp_unlab_pool.clear() # empty the temp unlabelled pool list
