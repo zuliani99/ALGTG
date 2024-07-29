@@ -34,9 +34,10 @@ class Cls_TrainWorker():
         self.is_gtg_module = self.model.only_module_name == 'GTGModule'
         self.method_name: str = self.strategy_name.split(f'{self.model.name}_')[1]
         if self.is_gtg_module: 
-            self.gtg_net_type = self.model.added_module.GTG_Model # type: ignore
-            logger.info(f'GTGNet Type: {self.gtg_net_type}')
-
+            self.net_type = self.model.added_module.GTG_Model # type: ignore
+            logger.info(f'GTGNet Type: {self.net_type}')
+        else:
+            self.net_type = 'LL'
         
         self.epochs = params["t_p"]["epochs"]
         self.batch_size = params["batch_size"]
@@ -105,7 +106,7 @@ class Cls_TrainWorker():
             self.optimizers.append(optimizers["modules"]["type"][module_name](self.model.added_module.parameters(), **optimizers["modules"]["optim_p"][module_name])) # type: ignore
             
             # TiDAL and also LL style model have the scheduler decreasing of a factor of 10 at epoch 160
-            if self.method_name == 'TiDAL' or (self.is_gtg_module and self.gtg_net_type == 'llmlp_gtg'): 
+            if self.method_name == 'TiDAL' or (self.is_gtg_module and self.net_type == 'llmlp_gtg'): 
                 self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
             
             
@@ -138,7 +139,7 @@ class Cls_TrainWorker():
             (pred_entr, true_entr), labelled_mask = module_out
             if self.i%20 == 0: logger.info(f'y_pred {pred_entr}\ny_true {true_entr}') 
             
-            if self.gtg_net_type != 'lstmbc': entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
+            if self.net_type != 'lstmbc': entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
             else: entr_loss = weight * self.bce_loss_fn(pred_entr, true_entr.detach())
 
             lab_ce_loss = torch.mean(ce_loss[labelled_mask])
@@ -219,7 +220,8 @@ class Cls_TrainWorker():
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore  
             if self.decay != None and epoch >= self.decay: 
                 #if self.method_name != 'TiDAL': weight = 0.
-                if self.model.only_module_name == 'GTGModule' and self.gtg_net_type != 'llmlp': weight = 0. # try llmlp to be performed for 200 epochs
+                #if self.model.only_module_name == 'GTGModule' and self.net_type != 'llmlp': weight = 0. # try llmlp to be performed for 200 epochs
+                if self.net_type != 'llmlp': weight = 0. # try llmlp to be performed for 200 epochs
             
             if isinstance(self.train_dl, tuple):
                 for b_idx, ((idxs_l, images_l, labels_l, _), (idxs_u, images_u, labels_u, _)) in enumerate(zip(self.lab_train_dl, self.unlab_train_dl)):

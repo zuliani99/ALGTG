@@ -294,7 +294,8 @@ class ActiveLearner():
 
         
         
-    def run(self) -> Tuple[Dict[str, List[float]], Dict[int, Dict[str, int]]]:
+    #def run(self) -> Tuple[Dict[str, List[float]], Dict[int, Dict[str, int]]]:
+    def run(self) -> Dict[str, List[float]]:
                 
         results_format = copy.deepcopy(self.t_p["results_dict"])
                 
@@ -350,4 +351,4 @@ class ActiveLearner():
                                        self.ct_p["trial"])
         
         
-        return results_format["test"], self.count_classes
+        return results_format["test"]#, self.count_classes

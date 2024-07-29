@@ -60,10 +60,11 @@ def get_args() -> argparse.Namespace:
 
 
 def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any],
-                   Masters: Dict[str, Master_Model], methods: List[str]) -> Tuple[Dict[str, Dict[str, List[float]]], Dict[str, Dict[int, Dict[str, int]]], List[int]]:
+                   Masters: Dict[str, Master_Model], methods: List[str]) -> Tuple[Dict[str, Dict[str, List[float]]], List[int]]:
+    #Tuple[Dict[str, Dict[str, List[float]]], Dict[str, Dict[int, Dict[str, int]]], List[int]]:
 
     results = { }
-    count_classes = { }
+    #count_classes = { }
     n_lab_obs = [al_p["init_lab_obs"] + (iter * al_p["n_top_k_obs"]) for iter in range(al_p["al_iters"])]
      
     # get the strategis object to run them
@@ -73,10 +74,12 @@ def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, An
     # START THE ACTIVE LEARNING PROECSS
     for strategy in strategies:
         logger.info(f'-------------------------- {strategy.strategy_name} --------------------------\n')
-        results[strategy.strategy_name], count_classes[strategy.strategy_name] = strategy.run()
+        #results[strategy.strategy_name], count_classes[strategy.strategy_name] = strategy.run()
+        results[strategy.strategy_name] = strategy.run()
     ##########################################################################################################
     
-    return results, count_classes, n_lab_obs               
+    #return results, count_classes, n_lab_obs               
+    return results, n_lab_obs               
 
 
 def get_device(args) -> torch.device:
@@ -175,7 +178,8 @@ def main() -> None:
             
             Dataset.get_initial_subsets(al_params["init_lab_obs"], trial) # get the random split of dataset
             
-            results, count_classes, n_lab_obs = run_strategies(
+            #results, count_classes, n_lab_obs = run_strategies(
+            results, n_lab_obs = run_strategies(
                 ct_p = common_training_params, t_p = task_params, al_p = al_params,
                 gtg_p = gtg_params, Masters = Masters, methods = args.methods
             )
