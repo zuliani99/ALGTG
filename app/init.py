@@ -23,7 +23,7 @@ from models.BBone_Module import Master_Model
 from datasets_creation.Classification import Cls_Datasets
 from datasets_creation.Detection import Det_Dataset
 
-#from config import voc_config
+from config import voc_config, al_params
 from typing import Dict, Any, List, Tuple
 
 
@@ -81,7 +81,7 @@ dict_backbone = dict(
 
 
 def get_strategies_object(methods: List[str], Masters: Dict[str, Master_Model], 
-                          ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any]) -> List[Any]:
+                          ct_p: Dict[str, Any], t_p: Dict[str, Any], gtg_p: Dict[str, Any]) -> List[Any]:
     strategies: List[Random | Entropy | CoreSet | AlphaMix | BADGE | BALD | CDAL | GTG_off | LearningLoss | GTG_off | TiDAL | TA_VAAL | GTG] = []
     
     for method in methods:
@@ -96,13 +96,13 @@ def get_strategies_object(methods: List[str], Masters: Dict[str, Master_Model],
                     else: m_model = Masters[f'M_GTG_{method_split[0]}']
 
                     strategies.append(dict_strategies[method](
-                        {**ct_p, 'Master_Model': m_model}, t_p, al_p, {**gtg_p, 'id_am_ts': id_am_ts, 'id_am': id_am, 'gtg_model': method_split[0]})
+                        {**ct_p, 'Master_Model': m_model}, t_p, al_params, {**gtg_p, 'id_am_ts': id_am_ts, 'id_am': id_am, 'gtg_model': method_split[0]})
                     )
                 
         elif method in ['ll', 'tavaal', 'tidal']:
-            strategies.append(dict_strategies[method]({ **ct_p, 'Master_Model': Masters['M_LL'] if method != 'tidal' else Masters['M_LL_tidal']}, t_p, al_p))
+            strategies.append(dict_strategies[method]({ **ct_p, 'Master_Model': Masters['M_LL'] if method != 'tidal' else Masters['M_LL_tidal']}, t_p, al_params))
         else:
-            strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_None']}, t_p, al_p))
+            strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_None']}, t_p, al_params))
     
     return strategies
 

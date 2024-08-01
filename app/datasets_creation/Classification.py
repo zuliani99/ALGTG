@@ -11,7 +11,7 @@ import shutil
 from torchvision import transforms
 
 from utils import count_class_observation, log_assert, set_seeds
-from config import cls_datasets 
+from config import cls_datasets, al_params
 
 import logging
 logger = logging.getLogger(__name__)
@@ -170,7 +170,9 @@ class Cls_Datasets():
         self.classes: List[str] = cls_datasets[dataset_name]["classes"]    
     
     
-    def get_initial_subsets(self, init_lab_obs: int, trial_id: int) -> None:
+    def get_initial_subsets(self, trial_id: int) -> None:
+
+        init_lab_obs = al_params["init_lab_obs"]
 
         train_size = len(self.train_ds)
 

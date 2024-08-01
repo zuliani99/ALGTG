@@ -6,6 +6,7 @@ from train_evaluate.Train_DDP import train, train_ddp
 from utils import count_class_observation, plot_cumulative_train_results, set_seeds,\
     create_class_dir, create_method_res_dir, plot_new_labelled_tsne, save_train_val_curves, write_csv,\
     plot_classes_count_iterations, plot_entropy_iterations_classes
+from config import al_params
 
 from torch.utils.data import Subset, DataLoader
 import torch.distributed as dist
@@ -14,7 +15,7 @@ from torchvision.utils import save_image
 import torch
 import numpy as np
 import yaml
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 import copy
 import os
 
@@ -88,7 +89,7 @@ class ActiveLearner():
             
             rand_perm = torch.randperm(len(self.unlabelled_indices)).tolist()
             # it has the indices of the unlabelled sample
-            self.rand_unlab_sample = [self.unlabelled_indices[idx] for idx in rand_perm[:self.ds_t_p["unlab_sample_dim"]]]
+            self.rand_unlab_sample = [self.unlabelled_indices[idx] for idx in rand_perm[:al_params["unlab_sample_dim"]]]
             
             logger.info(f' SEED: {seed} - Last 10 permuted indices are: {rand_perm[-10:]}')
             

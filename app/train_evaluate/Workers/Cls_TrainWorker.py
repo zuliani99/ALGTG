@@ -7,7 +7,7 @@ from models.BBone_Module import Master_Model
 from models.modules.LossNet import LossPredLoss
 from utils import accuracy_score, log_assert
 
-from torch.utils.data import DataLoader, Subset, RandomSampler
+from torch.utils.data import DataLoader, Subset#, RandomSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.nn.functional as F
 

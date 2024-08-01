@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from utils import entropy
+from config import al_params
 
 from typing import Any, List, Tuple, Dict
 
@@ -357,9 +358,6 @@ class GTGModule(nn.Module):
 
     def get_X(self, probs) -> None:
         self.X: torch.Tensor = torch.zeros((self.batch_size, self.n_classes), dtype=torch.float32, device=self.device)
-        
-        if(len(torch.arange(self.n_lab_obs)) != len(self.lab_labels)):
-            print(len(torch.arange(self.n_lab_obs)), len(self.lab_labels))
        
         if self.GTG_Model != 'lstmbc': self.X[torch.arange(self.n_lab_obs), self.lab_labels] = 1.
         else: self.X[torch.arange(self.n_lab_obs), :] = probs[torch.arange(self.n_lab_obs)]
@@ -448,7 +446,11 @@ class GTGModule(nn.Module):
         
         self.batch_size = len(embedds)
         #int(self.batch_size * self.perc_labelled_batch)
-        self.n_lab_obs = self.batch_size_gtg_online * iteration 
+        
+        if self.batch_size < al_params["al_iters"] * self.batch_size_gtg_online + self.batch_size_gtg_online:
+            self.lab_labels = self.batch_size - (al_params["unlab_sample_dim"] % (al_params["al_iters"] * self.batch_size_gtg_online))
+        else:
+            self.n_lab_obs = self.batch_size_gtg_online * iteration 
         self.lab_labels = labels[:self.n_lab_obs]
         
         self.get_X(F.softmax(outs, dim=1))

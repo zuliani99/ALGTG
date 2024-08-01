@@ -148,6 +148,7 @@ al_params = {
     'init_lab_obs': 1000,
     'al_iters': 10, 
     'n_top_k_obs': 1000,
+    'unlab_sample_dim': 10000,
 }
     
 
@@ -156,7 +157,6 @@ cls_config = {
     'results_dict': { 'train': {'train_accuracy': [], 'train_loss': [], 'train_loss_ce': [], 'train_pred_loss': []},
                      'test': {'test_accuracy': []}},
     'cifar10': {
-        'unlab_sample_dim': 10000,
         'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 256 },
         'optimizers': {
             'backbone':{
@@ -179,7 +179,6 @@ cls_config = {
     },
 
     'cifar100': {
-        'unlab_sample_dim': 10000,
         'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 256 },
         'optimizers': {
             'backbone':{
@@ -201,7 +200,6 @@ cls_config = {
         }
     },
     'svhn': {
-        'unlab_sample_dim': 10000,
         'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 256 },
         'optimizers': {
             'backbone':{
@@ -223,7 +221,6 @@ cls_config = {
         }
     },
     'fmnist': {
-        'unlab_sample_dim': 10000,
         'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 256 },
         'optimizers': {
             'backbone':{
@@ -245,7 +242,6 @@ cls_config = {
         }
     },
     'caltech256': {
-        'unlab_sample_dim': 10000,
         'batch_size': { None: 16, 'LossNet': 16, 'GTGModule': 32 },
         'optimizers': {
             'backbone':{
@@ -267,7 +263,6 @@ cls_config = {
         }
     },
     'tinyimagenet': {
-        'unlab_sample_dim': 10000,
         'batch_size': { None: 128, 'LossNet': 128, 'GTGModule': 126 },
         'optimizers': {
             'backbone':{

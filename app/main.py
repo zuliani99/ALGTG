@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import copy
 import torch
 
 torch.autograd.set_detect_anomaly(True) # type: ignore
@@ -59,16 +58,16 @@ def get_args() -> argparse.Namespace:
 
 
 
-def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any],
+def run_strategies(ct_p: Dict[str, Any], t_p: Dict[str, Any], gtg_p: Dict[str, Any],
                    Masters: Dict[str, Master_Model], methods: List[str]) -> Tuple[Dict[str, Dict[str, List[float]]], List[int]]:
     #Tuple[Dict[str, Dict[str, List[float]]], Dict[str, Dict[int, Dict[str, int]]], List[int]]:
 
     results = { }
     #count_classes = { }
-    n_lab_obs = [al_p["init_lab_obs"] + (iter * al_p["n_top_k_obs"]) for iter in range(al_p["al_iters"])]
+    n_lab_obs = [al_params["init_lab_obs"] + (iter * al_params["n_top_k_obs"]) for iter in range(al_params["al_iters"])]
      
     # get the strategis object to run them
-    strategies = get_strategies_object(methods, Masters, ct_p, t_p, al_p, gtg_p)
+    strategies = get_strategies_object(methods, Masters, ct_p, t_p, gtg_p)
     
     ##########################################################################################################
     # START THE ACTIVE LEARNING PROECSS
@@ -149,9 +148,7 @@ def main() -> None:
 
         # create gtg dictionary parameters
         gtg_module_params = dict(
-            **gtg_params, n_top_k_obs = al_params["n_top_k_obs"], 
-            n_classes = Dataset.n_classes, 
-            init_lab_obs = al_params["init_lab_obs"], 
+            **gtg_params, n_classes = Dataset.n_classes, 
             embedding_dim = BBone.get_rich_features_shape(),
             device = device
         )
@@ -159,8 +156,8 @@ def main() -> None:
         ll_module_params = get_ll_module_params(task, Dataset.image_size, dataset_name) # create learning loss dictionary parameters
             
         Masters = get_masters(args.methods, BBone, ll_module_params, gtg_module_params, dataset_name, Dataset.n_classes) # obtain the master models
-                        
-        logger.info('\n')
+                                    
+        logger.info(f'args.temp_unlab_pool {args.temp_unlab_pool}')
             
         common_training_params = {
             'Dataset': Dataset, 'device': device, 'timestamp': timestamp,
@@ -176,12 +173,11 @@ def main() -> None:
             
             create_ts_dir(timestamp, dataset_name, str(trial))
             
-            Dataset.get_initial_subsets(al_params["init_lab_obs"], trial) # get the random split of dataset
+            Dataset.get_initial_subsets(trial) # get the random split of dataset
             
             #results, count_classes, n_lab_obs = run_strategies(
             results, n_lab_obs = run_strategies(
-                ct_p = common_training_params, t_p = task_params, al_p = al_params,
-                gtg_p = gtg_params, Masters = Masters, methods = args.methods
+                ct_p = common_training_params, t_p = task_params, gtg_p = gtg_params, Masters = Masters, methods = args.methods
             )
             
             plot_trail_acc(dataset_name, trial, results, n_lab_obs, timestamp,

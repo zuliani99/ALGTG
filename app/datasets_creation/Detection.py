@@ -5,6 +5,7 @@ from torchvision import datasets
 from utils import set_seeds
 from datasets_creation.detection_ds.voc.voc0712 import VOCAnnotationTransform, VOCDetection
 from datasets_creation.detection_ds.voc.voc_utils import BaseTransform, SSDAugmentation
+from config import al_params
 
 from config import det_datasets, voc_config
 
@@ -81,7 +82,9 @@ class Det_Dataset():
             
 
     
-    def get_initial_subsets(self, init_lab_obs: int, trial_id: int) -> None:
+    def get_initial_subsets(self, trial_id: int) -> None:
+
+        init_lab_obs = al_params["init_lab_obs"]
 
         train_size = len(self.train_ds)
         
