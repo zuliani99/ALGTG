@@ -357,6 +357,9 @@ class GTGModule(nn.Module):
 
     def get_X(self, probs) -> None:
         self.X: torch.Tensor = torch.zeros((self.batch_size, self.n_classes), dtype=torch.float32, device=self.device)
+        
+        if(len(torch.arange(self.n_lab_obs)) != len(self.lab_labels)):
+            print(len(torch.arange(self.n_lab_obs)), len(self.lab_labels))
        
         if self.GTG_Model != 'lstmbc': self.X[torch.arange(self.n_lab_obs), self.lab_labels] = 1.
         else: self.X[torch.arange(self.n_lab_obs), :] = probs[torch.arange(self.n_lab_obs)]

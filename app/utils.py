@@ -141,13 +141,14 @@ def plot_classes_count_iterations(count_classes: Dict[int, Dict[str, int]], \
     
     plt.figure(figsize=(14, 10))
 
-    iterations = list(count_classes.keys())
-    class_labels = list(count_classes[iterations[0]].keys())
+    #iterations = list(count_classes.keys())
+    #class_labels = list(count_classes[iterations[0]].keys())
+    class_labels = list(count_classes[1000].keys())
 
-    for key, class_counts in count_classes.items():
-        class_counts_values = [class_counts[label] for label in class_labels]
-        
-        plt.plot(iterations, class_counts_values, label=key)
+    for iter, class_counts in count_classes.items():
+        for label in class_labels:
+        #class_counts_values = [class_counts[label] for label in class_labels]
+            plt.plot(iter, class_counts[label], label=label)
 
     plt.xlabel('Labelled Observations', fontsize=15)
     plt.ylabel('Number of Class Observations', fontsize=15)
@@ -465,7 +466,7 @@ def save_yamal(common_training_params, task_params, al_params, gtg_params, args,
     yaml_dict.update(al_params)
     yaml_dict.update(gtg_params)
     yaml_dict['methods'] = args.methods
-    yaml_dict['trials'] = args.trial
+    yaml_dict['trials'] = args.trials
     with open(f'results/{timestamp}/{dataset_name}/yamal_conf.yamal', 'w') as file: yaml.dump(yaml_dict, file)            
     
 
