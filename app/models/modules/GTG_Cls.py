@@ -248,7 +248,7 @@ class GTGModule(nn.Module):
         #self.perc_labelled_batch: int = gtg_p["plb"]
         self.batch_size_gtg_online: int = gtg_p["bsgtgo"]
         
-        self.n_top_k_obs: int = gtg_p["n_top_k_obs"]
+        self.n_top_k_obs: int = al_params["n_top_k_obs"]
         self.n_classes: int = gtg_p["n_classes"]
         self.device: torch.device = torch.device(gtg_p["device"])
         

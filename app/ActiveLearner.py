@@ -358,8 +358,9 @@ class ActiveLearner():
         )
                 
         # plotting the number of classes in the train dataset for each iteration
-        if self.dataset.n_classes <= 10: plot_classes_count_iterations(self.count_classes, self.dataset.classes, self.strategy_name, self.ct_p["timestamp"], self.ct_p["dataset_name"], self.ct_p["trial"])
-        plot_entropy_iterations_classes(self.count_classes, self.strategy_name, self.ct_p["timestamp"], self.ct_p["dataset_name"], self.ct_p["trial"])
+        if al_params["al_iters"] > 1:
+            if self.dataset.n_classes <= 10: plot_classes_count_iterations(self.count_classes, self.dataset.classes, self.strategy_name, self.ct_p["timestamp"], self.ct_p["dataset_name"], self.ct_p["trial"])
+            plot_entropy_iterations_classes(self.count_classes, self.strategy_name, self.ct_p["timestamp"], self.ct_p["dataset_name"], self.ct_p["trial"])
         
         # plotting the cumulative train results
         plot_cumulative_train_results(list(self.t_p["results_dict"]["train"].keys()), 
