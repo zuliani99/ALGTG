@@ -115,12 +115,11 @@ def plot_cumulative_train_results(list_dict_keys: List[str], cum_train_results: 
     plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{strategy_name}/train_val_plots/cumulative_train_results.png')
 
 
-def plot_entropy_iterations_classes(count_classes: Dict[int, Dict[str, int]], \
-        strategy_name: str, ts_dir: str, dataset_name: str, cicle_iter: int) -> None:
+def plot_entropy_iterations_classes(count_classes: Dict[int, List[int]], strategy_name: str, \
+        ts_dir: str, dataset_name: str, cicle_iter: int) -> None:
     
     entropy_val_to_plots = []
-    for class_dict in count_classes.values():
-        count = list(class_dict.values())
+    for count in count_classes.values():
         count = torch.tensor(count).float()
         count = count / count.sum()
         entropy_val_to_plots.append(entropy(count, dim=0).item())
@@ -136,19 +135,16 @@ def plot_entropy_iterations_classes(count_classes: Dict[int, Dict[str, int]], \
 
 
 
-def plot_classes_count_iterations(count_classes: Dict[int, Dict[str, int]], \
+def plot_classes_count_iterations(count_classes: Dict[int, List[int]], class_labels: List[str], \
         strategy_name: str, ts_dir: str, dataset_name: str, cicle_iter: int) -> None:
     
     plt.figure(figsize=(14, 10))
-
-    #iterations = list(count_classes.keys())
-    #class_labels = list(count_classes[iterations[0]].keys())
-    class_labels = list(count_classes[1000].keys())
-
-    for iter, class_counts in count_classes.items():
-        for label in class_labels:
-        #class_counts_values = [class_counts[label] for label in class_labels]
-            plt.plot(iter, class_counts[label], label=label)
+    iters = list(count_classes.keys())
+    for label_id in range(len(class_labels)):
+        plt.plot(
+            iters, [count_classes[it][label_id] for it in iters], 
+            label=class_labels[label_id]
+        )
 
     plt.xlabel('Labelled Observations', fontsize=15)
     plt.ylabel('Number of Class Observations', fontsize=15)
@@ -159,8 +155,8 @@ def plot_classes_count_iterations(count_classes: Dict[int, Dict[str, int]], \
 
 
 
-def write_csv(task: str, ts_dir: str, dataset_name: str, head: List[str], values: List[Any]) -> None:
-    res_path = os.path.join('results', ts_dir, dataset_name, f'{task}_results.csv')
+def write_csv(filename: str, ts_dir: str, dataset_name: str, head: List[str], values: List[Any]) -> None:
+    res_path = os.path.join('results', ts_dir, dataset_name, filename)
     
     if (not os.path.exists(res_path)):
         
@@ -235,14 +231,12 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
     
     for array, color, style, label in [(unlabelled, 'lightblue', '--', 'unlabelled'),
                                        (new_labelled, None, '-', new_labelled_lab)]:
-        if style == '-':
-            labels_array = label
         
         for i in range(len(array)):
             
             if style == '-':
-                color = palette[labels_array[i]]
-                label = classes[labels_array[i]]
+                color = palette[label[i]]
+                label = classes[label[i]]
                         
             if label not in pl2_cls_2 and len(classes) <= 10:
                 axes[1].plot(x, array[i], linestyle=style, label=label, color=color)

@@ -60,9 +60,15 @@ class ActiveLearner():
         # save initial labelled images
         self.save_labelled_images(self.labelled_indices)
         
-        self.count_classes = {}
-        self.count_classes[self.iter * al_params["n_top_k_obs"]] = count_class_observation(self.dataset.classes, Subset(self.dataset.train_ds, self.labelled_indices))
-        
+        self.count_classes: Dict[int, List[int]] = {}
+        self.count_classes[self.iter * al_params["n_top_k_obs"]] = list(count_class_observation(self.dataset.classes, Subset(self.dataset.train_ds, self.labelled_indices)).values())
+        write_csv(
+            filename = f'{self.ct_p["task"]}_count_classes.csv',
+            ts_dir = self.ct_p["timestamp"],
+            dataset_name = self.ct_p["dataset_name"],
+            head = ['method', 'iter', 'lab_obs'] + self.dataset.classes,
+            values = [self.strategy_name, self.ct_p["trial"], self.iter * al_params["n_top_k_obs"]] + self.count_classes[self.iter * al_params["n_top_k_obs"]]
+        )
         
         
     
@@ -239,7 +245,7 @@ class ActiveLearner():
         logger.info(f'TESTING RESULTS -> {iter_test_results}')
         
         write_csv(
-            task = self.ct_p["task"],
+            filename = f'{self.ct_p["task"]}_resutls.csv',
             ts_dir = self.ct_p["timestamp"],
             dataset_name = self.ct_p["dataset_name"],
             head = ['method', 'iter', 'lab_obs'] + test_res_keys,
@@ -338,12 +344,21 @@ class ActiveLearner():
             
             self.iter += 1
 
-            if self.iter <= 10: self.count_classes[self.iter * al_params["n_top_k_obs"]] = d_labels
+            #if self.iter <= 10: self.count_classes[self.iter * al_params["n_top_k_obs"]] = list(d_labels.values())
+            self.count_classes[self.iter * al_params["n_top_k_obs"]] = list(d_labels.values())
 
+        
         with open(f'results/{self.ct_p["timestamp"]}/{self.ct_p["dataset_name"]}/{self.ct_p["trial"]}/{self.strategy_name}/count_classes.yamal', 'w') as file: yaml.dump(self.count_classes, file)            
+        write_csv(
+            filename = f'{self.ct_p["task"]}_count_classes.csv',
+            ts_dir = self.ct_p["timestamp"],
+            dataset_name = self.ct_p["dataset_name"],
+            head = ['method', 'iter', 'lab_obs'] + self.dataset.classes,
+            values = [self.strategy_name, self.ct_p["trial"], self.dataset.classes] + list(self.count_classes.values())
+        )
                 
         # plotting the number of classes in the train dataset for each iteration
-        plot_classes_count_iterations(self.count_classes, self.strategy_name, self.ct_p["timestamp"], self.ct_p["dataset_name"], self.ct_p["trial"])
+        if self.dataset.n_classes <= 10: plot_classes_count_iterations(self.count_classes, self.dataset.classes, self.strategy_name, self.ct_p["timestamp"], self.ct_p["dataset_name"], self.ct_p["trial"])
         plot_entropy_iterations_classes(self.count_classes, self.strategy_name, self.ct_p["timestamp"], self.ct_p["dataset_name"], self.ct_p["trial"])
         
         # plotting the cumulative train results
