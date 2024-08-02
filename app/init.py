@@ -23,7 +23,7 @@ from models.BBone_Module import Master_Model
 from datasets_creation.Classification import Cls_Datasets
 from datasets_creation.Detection import Det_Dataset
 
-from config import voc_config, al_params
+#from config import voc_config
 from typing import Dict, Any, List, Tuple
 
 
@@ -66,12 +66,17 @@ def get_ll_module_params(task: str, image_size: int, dataset_name: str) -> Dict[
             
             
 
-dict_strategies = dict(
-    random = Random, entropy = Entropy, coreset = CoreSet, badge = BADGE, bald = BALD, # -> BB
-    cdal = CDAL, gtg = GTG_off, alphamix = AlphaMix, # -> BB
-    
-    ll = LearningLoss, ll_gtg = GTG_off, tavaal = TA_VAAL, tidal = TiDAL,# -> BB + LL
-    llmlp_gtg = GTG, lsmlps_gtg = GTG, lstmreg_gtg = GTG, lstmbc_gtg = GTG # -> BB + GTG
+dict_strategies_BB = dict(
+    random = Random, entropy = Entropy, coreset = CoreSet, badge = BADGE, # -> BB
+    bald = BALD, cdal = CDAL, alphamix = AlphaMix, # -> BB
+)
+
+dict_strategies_LL = dict( ll = LearningLoss, tavaal = TA_VAAL, tidal = TiDAL ) # -> BB + LL
+
+dict_strategies_GTG = dict(
+    llmlp_gtg = GTG, lsmlps_gtg = GTG, lstmreg_gtg = GTG, lstmbc_gtg = GTG, # -> BB + GTG
+    gtg = GTG_off, # -> BB
+    ll_gtg = GTG_off # -> BB + LL
 )
 
 dict_backbone = dict(
@@ -95,14 +100,17 @@ def get_strategies_object(methods: List[str], Masters: Dict[str, Master_Model],
                     elif method_split[0] == 'll': m_model = Masters['M_LL']
                     else: m_model = Masters[f'M_GTG_{method_split[0]}']
 
-                    strategies.append(dict_strategies[method](
-                        {**ct_p, 'Master_Model': m_model}, t_p, al_params, {**gtg_p, 'id_am_ts': id_am_ts, 'id_am': id_am, 'gtg_model': method_split[0]})
+                    strategies.append(
+                        dict_strategies_GTG[method](
+                            {**ct_p, 'Master_Model': m_model}, t_p,
+                            {**gtg_p, 'id_am_ts': id_am_ts, 'id_am': id_am, 'gtg_model': method_split[0]}
+                        )
                     )
                 
         elif method in ['ll', 'tavaal', 'tidal']:
-            strategies.append(dict_strategies[method]({ **ct_p, 'Master_Model': Masters['M_LL'] if method != 'tidal' else Masters['M_LL_tidal']}, t_p, al_params))
+            strategies.append(dict_strategies_LL[method]({ **ct_p, 'Master_Model': Masters['M_LL'] if method != 'tidal' else Masters['M_LL_tidal']}, t_p))
         else:
-            strategies.append(dict_strategies[method]({**ct_p, 'Master_Model': Masters['M_None']}, t_p, al_params))
+            strategies.append(dict_strategies_BB[method]({**ct_p, 'Master_Model': Masters['M_None']}, t_p))
     
     return strategies
 
@@ -126,7 +134,9 @@ def get_masters(methods: List[str], BBone: ResNet | VGG,
             ll_tidal = True
         elif method in ['llmlp_gtg', 'lsmlps_gtg', 'lstmreg_gtg', 'lstmbc_gtg']:
             gtg_module = method.split('_')[0]
-            Masters[f'M_GTG_{gtg_module}'] = Master_Model(BBone, get_module('GTG', ({**gtg_module_params, 'gtg_module': gtg_module}, {**ll_module_params, 'module_out': 1})), dataset_name)
+            Masters[f'M_GTG_{gtg_module}'] = Master_Model(BBone, get_module(
+                    'GTG', ({**gtg_module_params, 'gtg_module': gtg_module}, {**ll_module_params, 'module_out': 1})
+                ), dataset_name)
         elif not only_bb:
             Masters['M_None'] = Master_Model(BBone, None, dataset_name)
             only_bb = True

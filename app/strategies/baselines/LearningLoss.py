@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 class LearningLoss(ActiveLearner):
     
-    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any]) -> None:
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any]) -> None:
         
-        super().__init__(ct_p, t_p, al_p, self.__class__.__name__)
+        super().__init__(ct_p, t_p, self.__class__.__name__)
                 
                 
     def query(self, sample_unlab_subset: Subset, n_top_k_obs: int) -> Tuple[List[int], List[int]]:

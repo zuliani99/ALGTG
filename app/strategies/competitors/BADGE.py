@@ -1,7 +1,6 @@
 
 import torch
 from torch.utils.data import DataLoader, Subset
-
 from torch.distributions import Categorical
 import pdb
 
@@ -16,10 +15,9 @@ logger = logging.getLogger(__name__)
 
 class BADGE(ActiveLearner):
     
-    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any]) -> None:
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any]) -> None:
                 
-        super().__init__(ct_p, t_p, al_p, self.__class__.__name__)
-                
+        super().__init__(ct_p, t_p, self.__class__.__name__)
     
     
     def init_centers(self, n_top_k_obs: int) -> List[int]:
@@ -28,6 +26,7 @@ class BADGE(ActiveLearner):
         indsAll = [int(ind.item())]
         centInds = [0] * len(self.embedds_dict["embedds"])
         cent = 0
+        D2 = torch.Tensor()
         while len(mu) < n_top_k_obs:
             if len(mu) == 1:
                 D2 = torch.cdist(self.embedds_dict["embedds"], mu).ravel().float()

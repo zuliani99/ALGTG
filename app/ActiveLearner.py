@@ -25,11 +25,10 @@ logger = logging.getLogger(__name__)
 
 
 class ActiveLearner():
-    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], method_name: str) -> None:
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], method_name: str) -> None:
         
         self.iter = 1
         
-        self.al_p: Dict[str, Any] = al_p
         self.ct_p: Dict[str, Any] = ct_p
         self.t_p: Dict[str, Any] = t_p
         
@@ -62,7 +61,7 @@ class ActiveLearner():
         self.save_labelled_images(self.labelled_indices)
         
         self.count_classes = {}
-        self.count_classes[self.iter * self.al_p["n_top_k_obs"]] = count_class_observation(self.dataset.classes, Subset(self.dataset.train_ds, self.labelled_indices))
+        self.count_classes[self.iter * al_params["n_top_k_obs"]] = count_class_observation(self.dataset.classes, Subset(self.dataset.train_ds, self.labelled_indices))
         
         
         
@@ -84,7 +83,7 @@ class ActiveLearner():
     def get_rand_unlab_sample(self) -> None:
         if self.ct_p["task"] == 'clf':
             # set seed for reproducibility            
-            seed = self.dataset.dataset_id * (self.ct_p["trial"] * self.al_p["al_iters"] + (self.iter - 1))
+            seed = self.dataset.dataset_id * (self.ct_p["trial"] * al_params["al_iters"] + (self.iter - 1))
             set_seeds(seed)
             
             rand_perm = torch.randperm(len(self.unlabelled_indices)).tolist()
@@ -196,11 +195,11 @@ class ActiveLearner():
         train_res_keys = list(results_format["train"].keys())
         
         params = { 
-            'ct_p': self.ct_p, 't_p': self.t_p, 'al_p': self.al_p, 'strategy_name': self.strategy_name, 
+            'ct_p': self.ct_p, 't_p': self.t_p, 'strategy_name': self.strategy_name, 
             'iter': iter, 'labelled_indices': self.labelled_indices, 'rand_unlab_sample': self.rand_unlab_sample,
             'module_name_only': self.model.only_module_name
         }
-        
+                
         #if self.model.only_module_name == 'GTGModule': params["perc_labelled_batch"] = self.perc_labelled_batch
         if self.model.only_module_name == 'GTGModule': params["batch_size_gtg_online"] = self.batch_size_gtg_online # type: ignore
                 
@@ -230,9 +229,10 @@ class ActiveLearner():
         logger.info(' DONE\n')
         
         iter_train_results, iter_test_results = {}, {}
-        for idx, metrics in enumerate(train_recv): iter_train_results[train_res_keys[idx]] = metrics
+        for idx, metrics in enumerate(train_recv):  # type: ignore
+            iter_train_results[train_res_keys[idx]] = metrics
             
-        for idx, metrics in enumerate(test_recv): 
+        for idx, metrics in enumerate(test_recv):  # type: ignore
             iter_test_results[test_res_keys[idx]] = metrics
             results_format["test"][test_res_keys[idx]].append(metrics)
         
@@ -302,25 +302,25 @@ class ActiveLearner():
         results_format = copy.deepcopy(self.t_p["results_dict"])
                 
         # start of the loop
-        while self.iter <= self.al_p["al_iters"]:
+        while self.iter <= al_params["al_iters"]:
             
             #self.iter += 1
             
-            logger.info(f'----------------------- ITERATION {self.iter} / {self.al_p["al_iters"]} -----------------------\n')
+            logger.info(f'----------------------- ITERATION {self.iter} / {al_params["al_iters"]} -----------------------\n')
             
             logger.info(f' => Getting the sampled unalbeled indices for the current iteration...')
             self.get_rand_unlab_sample()
             logger.info(' DONE\n')
             
             self.train_results[self.iter] = self.train_evaluate_save(
-                self.al_p["init_lab_obs"] + ((self.iter - 1) * self.al_p["n_top_k_obs"]), self.iter, results_format
+                al_params["init_lab_obs"] + ((self.iter - 1) * al_params["n_top_k_obs"]), self.iter, results_format
             )
             
             logger.info(' START QUERY PROCESS\n')
             
             # run method query strategy
             idxs_new_labels, topk_idx_obs = self.query( # type: ignore
-                Subset(self.dataset.unlab_train_ds, self.rand_unlab_sample), self.al_p["n_top_k_obs"]
+                Subset(self.dataset.unlab_train_ds, self.rand_unlab_sample), al_params["n_top_k_obs"]
             )
             
             d_labels = count_class_observation(self.dataset.classes, self.dataset.train_ds, topk_idx_obs)
@@ -338,7 +338,7 @@ class ActiveLearner():
             
             self.iter += 1
 
-            if self.iter <= 10: self.count_classes[self.iter * self.al_p["n_top_k_obs"]] = d_labels
+            if self.iter <= 10: self.count_classes[self.iter * al_params["n_top_k_obs"]] = d_labels
 
         with open(f'results/{self.ct_p["timestamp"]}/{self.ct_p["dataset_name"]}/{self.ct_p["trial"]}/{self.strategy_name}/count_classes.yamal', 'w') as file: yaml.dump(self.count_classes, file)            
                 

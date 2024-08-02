@@ -135,11 +135,8 @@ def main() -> None:
     for dataset_name in args.datasets:
         
         if dataset_name in ['cifar10', 'cifar100', 'svhn', 'caltech256', 'tinyimagenet', 'fmnist']: 
-            task = 'clf'
-            task_params = cls_config
-        else: 
-            task = 'detection'
-            task_params = det_config
+            task, task_params = 'clf', cls_config
+        else: task, task_params = 'detection', det_config
 
         logger.info(f'----------------------- RUNNING ACTIVE LEARNING BENCHMARK ON {dataset_name} -----------------------\n')
         

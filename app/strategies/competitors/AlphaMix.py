@@ -1,5 +1,4 @@
 
-import copy
 import math
 
 import numpy as np
@@ -19,9 +18,9 @@ logger = logging.getLogger(__name__)
 
 class AlphaMix(ActiveLearner):
   
-    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any]) -> None:
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any]) -> None:
         
-        super().__init__(ct_p, t_p, al_p, self.__class__.__name__)
+        super().__init__(ct_p, t_p, self.__class__.__name__)
         
         self.alpha_closed_form_approx = False
         self.alpha_cap = 0.03125
@@ -103,8 +102,10 @@ class AlphaMix(ActiveLearner):
 
             c_alpha = F.normalize(self.unlab_embedds_dict["embedds"][candidate].view(int(candidate.sum()), -1), p=2, dim=1).detach().cpu()
 
-            selected_idxs = self.sample(min(n_top_k_obs, candidate.sum().item()), feats=c_alpha)
-            selected_idxs = idxs_unlabelled[candidate.bool().cpu()][selected_idxs]
+            selected_idxs = torch.as_tensor(
+                self.sample(min(n_top_k_obs, candidate.sum().item()), feats=c_alpha)
+            )
+            selected_idxs = np.array(idxs_unlabelled[candidate.bool().cpu()][selected_idxs].numpy(), dtype=np.int32)
         else:
             selected_idxs = np.array([], dtype=np.int32)
 
@@ -114,12 +115,12 @@ class AlphaMix(ActiveLearner):
             remained = n_top_k_obs - len(selected_idxs)
             bool_idx_unlb = np.zeros(len(self.rand_unlab_sample))
                     
-            bool_idx_unlb[[self.rand_unlab_sample.index(idx) for idx in selected_idxs]] = 1           
+            bool_idx_unlb[[self.rand_unlab_sample.index(int(idx)) for idx in selected_idxs]] = 1           
                     
             selected_idxs = np.concatenate([
                 selected_idxs, 
                 np.random.choice(
-                    np.array(self.rand_unlab_sample)[np.where(bool_idx_unlb == 0)[0]], 
+                    np.array(self.rand_unlab_sample, dtype=np.int32)[np.where(bool_idx_unlb == 0)[0]], 
                     remained, replace=False
                 )
             ])

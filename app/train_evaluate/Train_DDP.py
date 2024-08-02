@@ -14,7 +14,7 @@ from models.BBone_Module import Master_Model
 from utils import set_seeds
 from datasets_creation.Detection import detection_collate
 from .Workers.Cls_TrainWorker import Cls_TrainWorker
-#from .Workers.Det_TrainWorker import Det_TrainWorker
+from .Workers.Det_TrainWorker import Det_TrainWorker
 
 import os
 import gc
@@ -55,19 +55,16 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     ct_p["Model_train"] = moved_model
     
     dict_dl = dict(
-        batch_size=batch_size,
-        shuffle=False, 
-        pin_memory=True, 
-        persistent_workers=True, 
-        num_workers=num_workers
+        batch_size=batch_size, shuffle=False, pin_memory=True, 
+        persistent_workers=True, num_workers=num_workers
     )
     
     if ct_p["task"] == 'detection': dict_dl["collate_fn"] = detection_collate
         
     if world_size % 2 != 0: dict_dl["drop_last"] = True
     
-    train_results = [torch.zeros((4, t_p["epochs"]), device=rank) for _ in range(world_size)]
-    test_results = [torch.zeros(1, device=rank) for _ in range(world_size)]
+    train_results = [torch.zeros((4, t_p["epochs"]), device=torch.device(rank)) for _ in range(world_size)]
+    test_results = [torch.zeros(1, device=torch.device(rank)) for _ in range(world_size)]
     
     
     train_ds = Subset(ct_p["Dataset"].train_ds, params["labelled_subset"])
@@ -95,7 +92,7 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
         t_p["epoch_size"] = len(params["train_dl"].dataset) // batch_size # type: ignore
         t_p["max_iter"] = t_p["epochs"] * t_p["epoch_size"]
         
-        #train_test = Det_TrainWorker(rank, params, world_size)
+        train_test = Det_TrainWorker(rank, params, world_size)
         
     else: train_test = Cls_TrainWorker(rank, params, world_size)
         
@@ -107,7 +104,7 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
         dist.gather(train_test.train())
         dist.gather(train_test.test())     
     
-    dist.barrier()    
+    dist.barrier()
     
     
     # shutdown the worker
@@ -146,7 +143,7 @@ def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
         t_p["epoch_size"] = len(params["labelled_subset"]) // batch_size
         t_p["max_iter"] = t_p["epochs"] * t_p["epoch_size"]
         
-        #TrainWorker = Det_TrainWorker
+        TrainWorker = Det_TrainWorker
     
     else: TrainWorker = Cls_TrainWorker
     

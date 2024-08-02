@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class GTG_off(ActiveLearner):
     
-    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p: Dict[str, Any]) -> None:
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], gtg_p: Dict[str, Any]) -> None:
         
         self.get_A_fn = {
             'cos_sim': self.get_A_cos_sim,
@@ -43,7 +43,7 @@ class GTG_off(ActiveLearner):
         else:
             strategy_name = f'{self.__class__.__name__}_{self.AM_function}_{self.AM_strategy}_es-{self.ent_strategy}'
                 
-        super().__init__(ct_p, t_p, al_p, strategy_name)
+        super().__init__(ct_p, t_p, strategy_name)
         
         create_directory(self.path + '/gtg_entropies_plots')
         

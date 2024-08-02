@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 class TA_VAAL(ActiveLearner):
     
-    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any]) -> None:
-        super().__init__(ct_p, t_p, al_p, self.__class__.__name__)
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any]) -> None:
+        super().__init__(ct_p, t_p, self.__class__.__name__)
         
         
     def read_data(self, dataloader: DataLoader, labels=True):
@@ -70,20 +70,19 @@ class TA_VAAL(ActiveLearner):
             if iter_count == 0 :
                 r_l_0 = torch.from_numpy(np.random.uniform(0, 1, size=(labelled_imgs.shape[0],1))).type('torch.FloatTensor').to(self.device)
                 r_u_0 = torch.from_numpy(np.random.uniform(0, 1, size=(unlabelled_imgs.shape[0],1))).type('torch.FloatTensor').to(self.device)
-            else:
-                with torch.no_grad():
-                    r_l = self.model(labelled_imgs, mode = 'module_out')
-                    r_u = self.model(unlabelled_imgs, mode = 'module_out')
-                    
-            if iter_count == 0:
+
                 r_l = r_l_0.detach()
                 r_u = r_u_0.detach()
                 r_l_s = r_l_0.detach()
                 r_u_s = r_u_0.detach()
             else:
+                with torch.no_grad():
+                    r_l = self.model(labelled_imgs, mode = 'module_out')
+                    r_u = self.model(unlabelled_imgs, mode = 'module_out')
+                    
                 r_l_s = torch.sigmoid(r_l).detach()
-                r_u_s = torch.sigmoid(r_u).detach()      
-                      
+                r_u_s = torch.sigmoid(r_u).detach()
+                    
                            
             # VAE step
             for count in range(num_vae_steps): # num_vae_steps
@@ -151,7 +150,8 @@ class TA_VAAL(ActiveLearner):
                     unlabelled_imgs = unlabelled_imgs.to(self.device)
                     labels = labels.to(self.device)
                 if iter_count % 100 == 0:
-                    logger.info("Iteration: " + str(iter_count) + " / " + str(train_iterations) + "  vae_loss: " + str(total_vae_loss.item()) + " dsc_loss: " +str(dsc_loss.item()))
+                    logger.info("Iteration: " + str(iter_count) + " / " + str(train_iterations) + \
+                        " vae_loss: " + str(total_vae_loss.item()) + " dsc_loss: " + str(dsc_loss.item())) # type: ignore
 
     
     

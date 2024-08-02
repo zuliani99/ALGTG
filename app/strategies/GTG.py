@@ -1,9 +1,10 @@
 
 import torch
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Subset, RandomSampler
+from torch.utils.data import DataLoader, Subset#, RandomSampler
 
 from ActiveLearner import ActiveLearner
+from config import al_params
 
 from typing import Dict, Any, List, Tuple
 
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class GTG(ActiveLearner):
     
-    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], al_p: Dict[str, Any], gtg_p) -> None:
+    def __init__(self, ct_p: Dict[str, Any], t_p: Dict[str, Any], gtg_p) -> None:
                 
         if gtg_p["am_ts"] != None:
             
@@ -24,7 +25,7 @@ class GTG(ActiveLearner):
             strategy_name = f'{self.__class__.__name__}_{gtg_p["am_s"]}_{gtg_p["am"][gtg_p["id_am"]]}{str_tresh_strat}_es-{gtg_p["e_s"]}'
         else: strategy_name = f'{self.__class__.__name__}_{gtg_p["am_s"]}_{gtg_p["am"][gtg_p["id_am"]]}_es-{gtg_p["e_s"]}'
                 
-        super().__init__(ct_p, t_p, al_p, strategy_name)
+        super().__init__(ct_p, t_p, strategy_name)
         #self.perc_labelled_batch: int = gtg_p["plb"]
         self.batch_size_gtg_online: int = gtg_p["bsgtgo"]
         self.gtg_model = gtg_p["gtg_model"]
@@ -74,7 +75,7 @@ class GTG(ActiveLearner):
             
             unlab_train_dl = DataLoader(
                 dataset=sample_unlab_subset,
-                batch_size=self.batch_size_gtg_online * self.al_p["al_iters"], shuffle=True, pin_memory=True
+                batch_size=self.batch_size_gtg_online * al_params["al_iters"], shuffle=True, pin_memory=True
             )
             
                         

@@ -6,6 +6,7 @@ import torch.nn as nn
 from models.BBone_Module import Master_Model
 from models.modules.LossNet import LossPredLoss
 from utils import accuracy_score, log_assert
+from config import al_params
 
 from torch.utils.data import DataLoader, Subset#, RandomSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -28,7 +29,7 @@ class Cls_TrainWorker():
         self.model: Master_Model | DDP = params["ct_p"]["Master_Model"]
         
         self.dataset_name: str = params["ct_p"]["dataset_name"]
-        self.al_iters: str = params["al_p"]["al_iters"]
+        #self.al_iters: str = params["al_p"]["al_iters"]
         self.strategy_name: str = params["strategy_name"]
         
         self.is_gtg_module = self.model.only_module_name == 'GTGModule'
@@ -36,8 +37,7 @@ class Cls_TrainWorker():
         if self.is_gtg_module: 
             self.net_type = self.model.added_module.GTG_Model # type: ignore
             logger.info(f'GTGNet Type: {self.net_type}')
-        else:
-            self.net_type = 'LL'
+        else: self.net_type = 'LL'
         
         self.epochs = params["t_p"]["epochs"]
         self.batch_size = params["batch_size"]
@@ -62,6 +62,7 @@ class Cls_TrainWorker():
         # RETRAIN FROM SCRATCH THE NETWORK (different from what LL4AL have done)
         self.__load_checkpoint(self.init_check_filename)
         
+        # BACKBONE PRETRAINING
         '''if self.is_gtg_module:
             logger.info(' => Running BackBone PreTraining')
             # Pretrain our backbone via Binary classification task (labelled, unlabelled)
@@ -78,7 +79,7 @@ class Cls_TrainWorker():
             
             lab_subset, unlab_subset = self.train_dl
             
-            self.unlab_train_dl = DataLoader(dataset=unlab_subset, batch_size=self.batch_size_gtg_online * self.al_iters, shuffle=True, pin_memory=True)            
+            self.unlab_train_dl = DataLoader(dataset=unlab_subset, batch_size=self.batch_size_gtg_online * al_params["al_iters"], shuffle=True, pin_memory=True)            
             self.lab_train_dl = DataLoader(dataset=lab_subset, batch_size=self.batch_size_gtg_online * self.iter, shuffle=True, pin_memory=True)
 
             self.n_batches = len(self.lab_train_dl)
@@ -94,6 +95,7 @@ class Cls_TrainWorker():
         self.decay = optimizers["modules"]["decay"][module_name] if module_name != None and self.method_name != 'TiDAL' else None
         
         dict_optim_bb = {**optimizers["backbone"]["optim_p"][module_name]}
+        # DEFINING THELOSS SCALING FACTOR
         #if module_name == 'GTGModule':
         #    dict_optim_bb['lr'] = dict_optim_bb['lr'] / (self.len_unlab_ds / self.len_lab_ds)
         
