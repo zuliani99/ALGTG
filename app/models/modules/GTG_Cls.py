@@ -447,12 +447,12 @@ class GTGModule(nn.Module):
         self.batch_size = len(embedds)
         #int(self.batch_size * self.perc_labelled_batch)
         
-        if self.batch_size < al_params["al_iters"] * self.batch_size_gtg_online + self.batch_size_gtg_online:
-            self.lab_labels = self.batch_size - (al_params["unlab_sample_dim"] % (al_params["al_iters"] * self.batch_size_gtg_online))
-        else:
+        if self.batch_size == al_params["al_iters"] * self.batch_size_gtg_online + self.batch_size_gtg_online * iteration:
             self.n_lab_obs = self.batch_size_gtg_online * iteration 
-        self.lab_labels = labels[:self.n_lab_obs]
+        else:
+            self.n_lab_obs = self.batch_size - (al_params["unlab_sample_dim"] % (al_params["al_iters"] * self.batch_size_gtg_online)) # batch_size - (10000 % (10 * batch_size_gtg_online)) 
         
+        self.lab_labels = labels[:self.n_lab_obs]
         self.get_X(F.softmax(outs, dim=1))
         
         if self.GTG_Model == 'llmlp': y_pred = self.gtg_module(features).squeeze()

@@ -245,7 +245,7 @@ class ActiveLearner():
         logger.info(f'TESTING RESULTS -> {iter_test_results}')
         
         write_csv(
-            filename = f'{self.ct_p["task"]}_resutls.csv',
+            filename = f'{self.ct_p["task"]}_results.csv',
             ts_dir = self.ct_p["timestamp"],
             dataset_name = self.ct_p["dataset_name"],
             head = ['method', 'iter', 'lab_obs'] + test_res_keys,
