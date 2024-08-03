@@ -15,3 +15,4 @@ conda activate al_env
 
 #python3 app/main.py -gpus 1 -m random entropy ll -ds cifar10 -tr 5 --temp_unlab_pool
 #python3 app/main.py -gpus 1 -m llmlp_gtg lsmlps_gtg lstmreg_gtg lstmbc_gtg -ds cifar10 -tr 5 -am corr -am_ts none mean -e_s mean --temp_unlab_pool
+python3 app/main.py -gpus 1 -m random -ds cifar10 -tr 1
