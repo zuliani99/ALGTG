@@ -38,7 +38,7 @@ def entropy(tensor: torch.Tensor, dim=1) -> torch.Tensor:
     return -torch.sum(x * torch.log2(x), dim=dim)
 
 
-def plot_trail_acc(dataset_name: str, trial: int, methods_results: Dict[str, Dict[str, List[float]]], n_lab_obs: List[int], ts_dir: str, \
+def plot_trail_acc(dataset_name: str, trial: int, methods_results: Dict[str, Dict[str, List[float]]], n_lab_obs: List[int], exp_path: str, \
     key: str, save_plot=True, plot_png_name=None) -> None:
     
     if key == 'test_map': measure = 'mAP'
@@ -62,13 +62,13 @@ def plot_trail_acc(dataset_name: str, trial: int, methods_results: Dict[str, Dic
     plt.grid(True)
     plt.legend(handles=lines_handles)
     
-    if save_plot: plt.savefig(f'results/{ts_dir}/{plot_png_name}')
+    if save_plot: plt.savefig(f'results/{exp_path}/{plot_png_name}')
     else: plt.show()
     
     
     
 def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any], strategy_name: str, \
-                          ts_dir: str, dataset_name: str, al_iter: int, cicle_iter: int) -> None:
+                          exp_path: str, dataset_name: str, al_iter: int, cicle_iter: int) -> None:
 
     epochs = range(1, len(results_info[list_dict_keys[0]]) + 1)
 
@@ -86,12 +86,12 @@ def save_train_val_curves(list_dict_keys: List[str], results_info: Dict[str, Any
         
 
     plt.suptitle(f'Iteration: {al_iter} - {strategy_name}', fontsize = 30)
-    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{strategy_name}/train_val_plots/{al_iter}.png')
+    plt.savefig(f'results/{exp_path}/{dataset_name}/{cicle_iter}/{strategy_name}/train_val_plots/{al_iter}.png')
 
 
 
 def plot_cumulative_train_results(list_dict_keys: List[str], cum_train_results: Dict[int, Any], strategy_name: str,\
-                                   epochs: int, ts_dir: str, dataset_name: str, cicle_iter: int):
+                                   epochs: int, exp_path: str, dataset_name: str, cicle_iter: int):
 
     _, ax = plt.subplots(nrows = 2, ncols = 2, figsize = (28,18))
         
@@ -112,11 +112,11 @@ def plot_cumulative_train_results(list_dict_keys: List[str], cum_train_results: 
 
 
     plt.suptitle(f'Cumulative Train Results - {strategy_name}', fontsize = 30)
-    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{strategy_name}/train_val_plots/cumulative_train_results.png')
+    plt.savefig(f'results/{exp_path}/{dataset_name}/{cicle_iter}/{strategy_name}/train_val_plots/cumulative_train_results.png')
 
 
 def plot_entropy_iterations_classes(count_classes: Dict[int, List[int]], strategy_name: str, \
-        ts_dir: str, dataset_name: str, cicle_iter: int) -> None:
+        exp_path: str, dataset_name: str, cicle_iter: int) -> None:
     
     entropy_val_to_plots = []
     for count in count_classes.values():
@@ -131,12 +131,12 @@ def plot_entropy_iterations_classes(count_classes: Dict[int, List[int]], strateg
     plt.title('Class Observations Count by Iteration', fontsize=30)
     plt.legend()
     plt.grid(True)
-    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{strategy_name}/entropy_class_iterations.png')
+    plt.savefig(f'results/{exp_path}/{dataset_name}/{cicle_iter}/{strategy_name}/entropy_class_iterations.png')
 
 
 
 def plot_classes_count_iterations(count_classes: Dict[int, List[int]], class_labels: List[str], \
-        strategy_name: str, ts_dir: str, dataset_name: str, cicle_iter: int) -> None:
+        strategy_name: str, exp_path: str, dataset_name: str, cicle_iter: int) -> None:
     
     plt.figure(figsize=(14, 10))
     iters = list(count_classes.keys())
@@ -151,12 +151,12 @@ def plot_classes_count_iterations(count_classes: Dict[int, List[int]], class_lab
     plt.title('Class Observations Count by Iteration', fontsize=30)
     plt.legend()
     plt.grid(True)
-    plt.savefig(f'results/{ts_dir}/{dataset_name}/{cicle_iter}/{strategy_name}/classes_count_iterations.png')
+    plt.savefig(f'results/{exp_path}/{dataset_name}/{cicle_iter}/{strategy_name}/classes_count_iterations.png')
 
 
 
-def write_csv(filename: str, ts_dir: str, dataset_name: str, head: List[str], values: List[Any]) -> None:
-    res_path = os.path.join('results', ts_dir, dataset_name, filename)
+def write_csv(filename: str, exp_path: str, dataset_name: str, head: List[str], values: List[Any]) -> None:
+    res_path = os.path.join('results', exp_path, dataset_name, filename)
     
     if (not os.path.exists(res_path)):
         
@@ -173,8 +173,8 @@ def write_csv(filename: str, ts_dir: str, dataset_name: str, head: List[str], va
 
 def create_directory(dir: str) -> None: os.makedirs(dir, exist_ok=True)
 
-def create_ts_dir(timestamp: str, dataset_name: str, iter: str) -> None:
-    create_directory(os.path.join('results', timestamp, dataset_name, iter))
+def create_exp_path(exp_path: str, dataset_name: str, iter: str) -> None:
+    create_directory(os.path.join('results', exp_path, dataset_name, iter))
     
 def create_method_res_dir(path: str) -> None:
     for dir in ['train_val_plots', 'tsne_plots', 'new_labelled_images']:
@@ -255,8 +255,8 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
 
 
 
-def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
-    df = pd.read_csv(f'results/{timestamp}/{dataset_name}/{task}_results.csv')
+def plot_res_std_mean(task: str, exp_path: str, dataset_name: str) -> None:
+    df = pd.read_csv(f'results/{exp_path}/{dataset_name}/{task}_results.csv')
 
     df_grouped = (
         df[
@@ -273,7 +273,7 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
     shapes = ['o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v', 'o', 's', '^', 'D', 'v']
 
     df_grouped = df_grouped.drop(columns=["ci"])
-    df_grouped.to_csv(f'results/{timestamp}/{dataset_name}/mean_std_{task}_results.csv', index=False)
+    df_grouped.to_csv(f'results/{exp_path}/{dataset_name}/mean_std_{task}_results.csv', index=False)
 
     lines_handles = []
     palette = get_palette(len(methods))
@@ -295,7 +295,7 @@ def plot_res_std_mean(task: str, timestamp: str, dataset_name: str) -> None:
     plt.legend(handles=lines_handles)
     plt.grid(True)
     
-    plt.savefig(f'results/{timestamp}/{dataset_name}/mean_std_results.png') 
+    plt.savefig(f'results/{exp_path}/{dataset_name}/mean_std_results.png') 
     
 
 
@@ -454,14 +454,14 @@ def log_assert(condition: bool | torch.Tensor, message: str):
         raise err
     
     
-def save_yamal(common_training_params, task_params, al_params, gtg_params, args, timestamp, dataset_name) -> None:
+def save_yamal(common_training_params, task_params, al_params, gtg_params, args, exp_path, dataset_name) -> None:
     yaml_dict = copy.deepcopy(common_training_params)
     yaml_dict.update(task_params)
     yaml_dict.update(al_params)
     yaml_dict.update(gtg_params)
     yaml_dict['methods'] = args.methods
     yaml_dict['trials'] = args.trials
-    with open(f'results/{timestamp}/{dataset_name}/yamal_conf.yamal', 'w') as file: yaml.dump(yaml_dict, file)            
+    with open(f'results/{exp_path}/{dataset_name}/yamal_conf.yamal', 'w') as file: yaml.dump(yaml_dict, file)            
     
 
     

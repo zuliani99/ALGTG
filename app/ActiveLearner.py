@@ -54,7 +54,7 @@ class ActiveLearner():
         
         self.world_size: int = self.ct_p["gpus"]
         
-        self.path = f'results/{self.ct_p["timestamp"]}/{self.ct_p["dataset_name"]}/{self.ct_p["trial"]}/{self.strategy_name}'
+        self.path = f'results/{self.ct_p["exp_path"]}/{self.ct_p["dataset_name"]}/{self.ct_p["trial"]}/{self.strategy_name}'
         create_method_res_dir(self.path)
         
         # save initial labelled images
@@ -64,7 +64,7 @@ class ActiveLearner():
         self.count_classes[self.iter * al_params["n_top_k_obs"]] = list(count_class_observation(self.dataset.classes, Subset(self.dataset.train_ds, self.labelled_indices)).values())
         write_csv(
             filename = f'{self.ct_p["task"]}_count_classes.csv',
-            ts_dir = self.ct_p["timestamp"],
+            exp_path = self.ct_p["exp_path"],
             dataset_name = self.ct_p["dataset_name"],
             head = ['method', 'iter', 'lab_obs'] + self.dataset.classes,
             values = [self.strategy_name, self.ct_p["trial"], self.iter * al_params["n_top_k_obs"]] + self.count_classes[self.iter * al_params["n_top_k_obs"]]
@@ -187,7 +187,7 @@ class ActiveLearner():
             lab_embedds_dict, unlab_embedds_dict,
             al_iter, self.strategy_name,
             self.ct_p["dataset_name"], idxs_new_labels, self.dataset.classes, 
-            self.ct_p["timestamp"], self.ct_p["trial"], d_labels,
+            self.ct_p["exp_path"], self.ct_p["trial"], d_labels,
             gtg_result_prediction
         )
         
@@ -246,14 +246,14 @@ class ActiveLearner():
         
         write_csv(
             filename = f'{self.ct_p["task"]}_results.csv',
-            ts_dir = self.ct_p["timestamp"],
+            exp_path = self.ct_p["exp_path"],
             dataset_name = self.ct_p["dataset_name"],
             head = ['method', 'iter', 'lab_obs'] + test_res_keys,
             values = [self.strategy_name, self.ct_p["trial"], lab_obs] + list(iter_test_results.values())
         )
         
         save_train_val_curves(list(self.t_p["results_dict"]["train"].keys()), iter_train_results, self.strategy_name,
-                              self.ct_p["timestamp"], self.ct_p["dataset_name"], iter, self.ct_p["trial"])
+                              self.ct_p["exp_path"], self.ct_p["dataset_name"], iter, self.ct_p["trial"])
 
         return iter_train_results
         
@@ -348,10 +348,9 @@ class ActiveLearner():
             self.count_classes[self.iter * al_params["n_top_k_obs"]] = list(d_labels.values())
 
         
-        with open(f'results/{self.ct_p["timestamp"]}/{self.ct_p["dataset_name"]}/{self.ct_p["trial"]}/{self.strategy_name}/count_classes.yamal', 'w') as file: yaml.dump(self.count_classes, file)            
         write_csv(
             filename = f'{self.ct_p["task"]}_count_classes.csv',
-            ts_dir = self.ct_p["timestamp"],
+            exp_path = self.ct_p["exp_path"],
             dataset_name = self.ct_p["dataset_name"],
             head = ['method', 'iter', 'lab_obs'] + self.dataset.classes,
             values = [self.strategy_name, self.ct_p["trial"], self.dataset.classes] + list(self.count_classes.values())
@@ -359,13 +358,13 @@ class ActiveLearner():
                 
         # plotting the number of classes in the train dataset for each iteration
         if al_params["al_iters"] > 1:
-            if self.dataset.n_classes <= 10: plot_classes_count_iterations(self.count_classes, self.dataset.classes, self.strategy_name, self.ct_p["timestamp"], self.ct_p["dataset_name"], self.ct_p["trial"])
-            plot_entropy_iterations_classes(self.count_classes, self.strategy_name, self.ct_p["timestamp"], self.ct_p["dataset_name"], self.ct_p["trial"])
+            if self.dataset.n_classes <= 10: plot_classes_count_iterations(self.count_classes, self.dataset.classes, self.strategy_name, self.ct_p["exp_path"], self.ct_p["dataset_name"], self.ct_p["trial"])
+            plot_entropy_iterations_classes(self.count_classes, self.strategy_name, self.ct_p["exp_path"], self.ct_p["dataset_name"], self.ct_p["trial"])
         
         # plotting the cumulative train results
         plot_cumulative_train_results(list(self.t_p["results_dict"]["train"].keys()), 
                                        self.train_results, self.strategy_name, len(self.train_results[1]["train_pred_loss"]),
-                                       self.ct_p["timestamp"], self.ct_p["dataset_name"], 
+                                       self.ct_p["exp_path"], self.ct_p["dataset_name"], 
                                        self.ct_p["trial"])
         
         

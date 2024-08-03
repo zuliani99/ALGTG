@@ -8,7 +8,7 @@ import torch.distributed as dist
 from models.BBone_Module import Master_Model
 
 from init import get_backbone, get_dataset, get_ll_module_params, get_masters, get_strategies_object, dict_backbone
-from utils import create_directory, create_ts_dir, plot_trail_acc, plot_res_std_mean, set_seeds, save_yamal
+from utils import create_directory, create_exp_path, plot_trail_acc, plot_res_std_mean, set_seeds, save_yamal
 
     	
 from config import cls_config, al_params, det_config
@@ -17,6 +17,7 @@ import argparse
 import time
 from typing import Dict, Any, List, Tuple
 
+import os
 import logging
 logger = logging.getLogger(__name__)
 
@@ -100,10 +101,10 @@ def get_device(args) -> torch.device:
 def main() -> None:
     args = get_args()
     
-    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    create_directory(f'results/{timestamp}')
+    exp_path = f'{os.environ["SLURM_JOB_ID"]}_{os.environ["SLURM_JOB_NAME"]}__{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
+    create_directory(f'results/{exp_path}')
     
-    logging.basicConfig(filename = f'results/{timestamp}/AL_DDP.log',
+    logging.basicConfig(filename = f'results/{exp_path}/exp_log.log',
                     filemode = 'a',
                     format = '%(asctime)s - %(levelname)s: %(message)s',
                     datefmt = '%H:%M:%S',
@@ -157,7 +158,7 @@ def main() -> None:
         logger.info(f'args.temp_unlab_pool {args.temp_unlab_pool}')
             
         common_training_params = {
-            'Dataset': Dataset, 'device': device, 'timestamp': timestamp,
+            'Dataset': Dataset, 'device': device, 'exp_path': exp_path,
             'dataset_name': dataset_name, 'task': task, 'gpus': args.gpus,
             'temp_unlab_pool': args.temp_unlab_pool,
             
@@ -168,7 +169,7 @@ def main() -> None:
             
             logger.info(f'----------------------- SAMPLE ITERATION {trial + 1} / {args.trials} -----------------------\n')
             
-            create_ts_dir(timestamp, dataset_name, str(trial))
+            create_exp_path(exp_path, dataset_name, str(trial))
             
             Dataset.get_initial_subsets(trial) # get the random split of dataset
             
@@ -177,14 +178,14 @@ def main() -> None:
                 ct_p = common_training_params, t_p = task_params, gtg_p = gtg_params, Masters = Masters, methods = args.methods
             )
             
-            plot_trail_acc(dataset_name, trial, results, n_lab_obs, timestamp,
+            plot_trail_acc(dataset_name, trial, results, n_lab_obs, exp_path,
                              list(task_params["results_dict"]["test"].keys())[0],
                              plot_png_name=f'{dataset_name}/{trial}/results.png')
         
-        plot_res_std_mean(task, timestamp, dataset_name)
+        plot_res_std_mean(task, exp_path, dataset_name)
 
         # saving yamal configuration file
-        save_yamal(common_training_params, task_params, al_params, gtg_params, args, timestamp, dataset_name)
+        save_yamal(common_training_params, task_params, al_params, gtg_params, args, exp_path, dataset_name)
             
 
 if __name__ == "__main__":
