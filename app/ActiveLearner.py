@@ -98,12 +98,13 @@ class ActiveLearner():
             
             logger.info(f' SEED: {seed} - Last 10 permuted indices are: {rand_perm[-10:]}')
             
+            #reset the original seed
+            set_seeds()
+            
             if self.ct_p["temp_unlab_pool"]:
                 # removing the whole observation sample fromt the unlabelled indices list
                 for idx in self.rand_unlab_sample: self.unlabelled_indices.remove(idx) # - 10000
             
-            #reset the original seed
-            set_seeds()
         
         else: self.rand_unlab_sample = self.unlabelled_indices
             
@@ -296,7 +297,8 @@ class ActiveLearner():
 
 
         
-        logger.info(f' New labelled_indices lenght: {len(self.labelled_indices)} - new unlabelled_indices lenght: {len(self.unlabelled_indices)}')
+        logger.info(f' New labelled_indices lenght: {len(self.labelled_indices)} - new unlabelled_indices lenght: {len(self.unlabelled_indices)}' + \
+            f' - new temp_unlab_pool lenght: {len(self.temp_unlab_pool)}' if self.ct_p["temp_unlab_pool"] else '')
         
         logger.info(' DONE\n')
 
@@ -348,15 +350,15 @@ class ActiveLearner():
             self.count_classes[self.iter * al_params["n_top_k_obs"]] = list(d_labels.values())
 
         
-        write_csv(
-            filename = f'{self.ct_p["task"]}_count_classes.csv',
-            exp_path = self.ct_p["exp_path"],
-            dataset_name = self.ct_p["dataset_name"],
-            head = ['method', 'iter', 'lab_obs'] + self.dataset.classes,
-            values = [self.strategy_name, self.ct_p["trial"], self.dataset.classes] + list(self.count_classes.values())
-        )
+            write_csv(
+                filename = f'{self.ct_p["task"]}_count_classes.csv',
+                exp_path = self.ct_p["exp_path"],
+                dataset_name = self.ct_p["dataset_name"],
+                head = ['method', 'iter', 'lab_obs'] + self.dataset.classes,
+                values = [self.strategy_name, self.ct_p["trial"], self.dataset.classes] + list(self.count_classes.values())
+            )
                 
-        # plotting the number of classes in the train dataset for each iteration
+        # plotting the number of classes in the train dataset for each trial
         if al_params["al_iters"] > 1:
             if self.dataset.n_classes <= 10: plot_classes_count_iterations(self.count_classes, self.dataset.classes, self.strategy_name, self.ct_p["exp_path"], self.ct_p["dataset_name"], self.ct_p["trial"])
             plot_entropy_iterations_classes(self.count_classes, self.strategy_name, self.ct_p["exp_path"], self.ct_p["dataset_name"], self.ct_p["trial"])

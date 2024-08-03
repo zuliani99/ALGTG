@@ -142,7 +142,6 @@ cls_datasets = {
 
 
 
-# later added to argparser
 
 al_params = {
     'init_lab_obs': 1000,

@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 
-#from train_evaluate.PreTrain import PreTrain
+from train_evaluate.PreTrain import PreTrain
 from models.BBone_Module import Master_Model
 from models.modules.LossNet import LossPredLoss
 from utils import accuracy_score, log_assert
@@ -42,6 +42,7 @@ class Cls_TrainWorker():
         self.epochs = params["t_p"]["epochs"]
         self.batch_size = params["batch_size"]
         self.ds_t_p = params["t_p"][self.dataset_name]
+        self.pre_train = params["ct_p"]["bbone_pre_train"]
         #if 'perc_labelled_batch' in params: self.perc_labelled_batch = params['perc_labelled_batch']
         if 'batch_size_gtg_online' in params: self.batch_size_gtg_online = params['batch_size_gtg_online']
         
@@ -63,7 +64,7 @@ class Cls_TrainWorker():
         self.__load_checkpoint(self.init_check_filename)
         
         # BACKBONE PRETRAINING
-        '''if self.is_gtg_module:
+        if self.is_gtg_module and self.pre_train:
             logger.info(' => Running BackBone PreTraining')
             # Pretrain our backbone via Binary classification task (labelled, unlabelled)
             pt = PreTrain(
@@ -71,8 +72,9 @@ class Cls_TrainWorker():
                 lab_subset=Subset(params["ct_p"]["Dataset"].train_ds, params["labelled_indices"]),
                 unlab_subset=Subset(params["ct_p"]["Dataset"].train_ds, params["unlabelled_indices"])
             )
-            self.model.backbone.load_state_dict(pt.train())
-            logger.info(' => DONE\n')'''
+            self.model.module.load_state_dict(pt.train()) if self.world_size > 1 else self.model.load_state_dict(pt.train()) # type: ignore
+            
+            logger.info(' => DONE\n')
         
         
         if isinstance(self.train_dl, tuple):

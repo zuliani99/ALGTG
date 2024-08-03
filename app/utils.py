@@ -454,13 +454,11 @@ def log_assert(condition: bool | torch.Tensor, message: str):
         raise err
     
     
-def save_yamal(common_training_params, task_params, al_params, gtg_params, args, exp_path, dataset_name) -> None:
+def save_yamal(common_training_params, task_params, al_params, gtg_params, exp_path, dataset_name) -> None:
     yaml_dict = copy.deepcopy(common_training_params)
     yaml_dict.update(task_params)
     yaml_dict.update(al_params)
     yaml_dict.update(gtg_params)
-    yaml_dict['methods'] = args.methods
-    yaml_dict['trials'] = args.trials
     with open(f'results/{exp_path}/{dataset_name}/yamal_conf.yamal', 'w') as file: yaml.dump(yaml_dict, file)            
     
 

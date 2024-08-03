@@ -33,6 +33,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('-ds', '--datasets', type=str, nargs='+', required=True, choices=['cifar10', 'cifar100', 'svhn', 'fmnist', 'caltech256', 'tinyimagenet'], #'voc', 'coco'
                         help='Possible datasets to choose')
     parser.add_argument('-tr', '--trials', type=int, required=False, default=5, help='AL trials')
+    parser.add_argument('-bbone', '--bbone_pre_train', required=False, action='store_true', help='BackBone pre-train (binary calssification task) for GTG Module')
    
     parser.add_argument('-tulp', '--temp_unlab_pool', required=False, action='store_true', help='Temporary Unlabelled Pool')
     parser.add_argument('-am', '--affinity_matrix', type=str, nargs='+', required=False, choices=['corr', 'cos_sim', 'rbfk'], default=['corr'], help='Affinity matrix to choose')
@@ -158,10 +159,9 @@ def main() -> None:
         logger.info(f'args.temp_unlab_pool {args.temp_unlab_pool}')
             
         common_training_params = {
-            'Dataset': Dataset, 'device': device, 'exp_path': exp_path,
+            'device': device, 'exp_path': exp_path,
             'dataset_name': dataset_name, 'task': task, 'gpus': args.gpus,
-            'temp_unlab_pool': args.temp_unlab_pool,
-            
+            'temp_unlab_pool': args.temp_unlab_pool, 'bbone_pre_train': args.bbone_pre_train,
         }
         
         for trial in range(args.trials):
@@ -175,7 +175,7 @@ def main() -> None:
             
             #results, count_classes, n_lab_obs = run_strategies(
             results, n_lab_obs = run_strategies(
-                ct_p = common_training_params, t_p = task_params, gtg_p = gtg_params, Masters = Masters, methods = args.methods
+                ct_p = {**common_training_params, 'Dataset': Dataset}, t_p = task_params, gtg_p = gtg_params, Masters = Masters, methods = args.methods
             )
             
             plot_trail_acc(dataset_name, trial, results, n_lab_obs, exp_path,
@@ -185,7 +185,11 @@ def main() -> None:
         plot_res_std_mean(task, exp_path, dataset_name)
 
         # saving yamal configuration file
-        save_yamal(common_training_params, task_params, al_params, gtg_params, args, exp_path, dataset_name)
+        save_yamal(
+            common_training_params, 
+            {'epochs': task_params['epochs'], 'datasets_optim': task_params[dataset_name]}, 
+            al_params, gtg_params, exp_path, dataset_name
+        )
             
 
 if __name__ == "__main__":
