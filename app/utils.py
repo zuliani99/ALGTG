@@ -314,7 +314,7 @@ def set_seeds(seed: int = 10001) -> None:
 
 
 def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor, torch.Tensor],
-                classes: List[str], time_stamp: str, ds_name: str, samp_iter: int, method: str,
+                classes: List[str], exp_path: str, ds_name: str, samp_iter: int, method: str,
                 affinity: str, strategy: str, iter: int) -> None:
     
     A_1, A_2 = A
@@ -346,8 +346,8 @@ def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor
 
     plt.suptitle(f'Affinity Matrix TSNE Plots - Iteration {iter}', fontsize=30)
     
-    create_directory(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{affinity}_matrix')
-    plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{affinity}_matrix/{iter}.png')
+    create_directory(f'results/{exp_path}/{ds_name}/{samp_iter}/{method}/tsne_plots/{affinity}_matrix')
+    plt.savefig(f'results/{exp_path}/{ds_name}/{samp_iter}/{method}/tsne_plots/{affinity}_matrix/{iter}.png')
     
     
     
@@ -355,7 +355,7 @@ def plot_tsne_A(A: Tuple[torch.Tensor, torch.Tensor], labels: Tuple[torch.Tensor
     
 def plot_new_labelled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.Tensor],
                            iter: int, method: str, ds_name: str, idxs_new_labels: List[int], 
-                           classes: List[str], time_stamp: str, samp_iter: int, d_labels: Dict[str, int],
+                           classes: List[str], exp_path: str, samp_iter: int, d_labels: Dict[str, int],
                            gtg_result_prediction=None):
     
     tsne = TSNE().fit_transform(np.vstack((lab["embedds"].numpy(), unlab["embedds"].numpy())))
@@ -413,7 +413,7 @@ def plot_new_labelled_tsne(lab: Dict[str, torch.Tensor], unlab: Dict[str, torch.
         sns_p.legend([], [], frameon=False)
     
     plt.suptitle(f'TSNE Plot - Iteration {iter}', fontsize=30)
-    plt.savefig(f'results/{time_stamp}/{ds_name}/{samp_iter}/{method}/tsne_plots/{iter}.png')
+    plt.savefig(f'results/{exp_path}/{ds_name}/{samp_iter}/{method}/tsne_plots/{iter}.png')
 
     
     
