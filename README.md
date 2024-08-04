@@ -1,14 +1,12 @@
 # ALGTG
 ## Active Learning strategy using Graph Transduction Game
+In recent years, internet technology development has led to an era of abundant data, sparking strong interest in **Deep Learning (DL)** which is known to be greedy for data and requires a large amount of information supply to optimize a massive number of parameters. In the same period **Active learning (AL)** which attempts to maximize a model’s performance gain while annotating the fewest samples possible, was set aside, since traditional machine learning required few labeled samples before DL's rise, making AL undervalued. DL's success relies on existing annotated datasets, however acquiring high-quality annotations demands significant manpower, posing challenges in specialized fields like speech recognition and medical imaging. Consequently, AL is now gaining the attention it deserves.
 
-**Active Learning (AL)** aims to leverage the performance of deep models by selecting the most valuable samples to be annotated from a pool of unlabelled data to be annotated and moved into the labeled-training set. On the other hand **Game Theory** deals with the study of strategic interactions between rational decision-makers, which are modeled as games.
+In this thesis we want to exploit the combination of these two fields by leveraging a non-cooperative game that aims to classify unlabelled objects starting from a small set of labelled ones, the **Graph Transduction Game (GTG)**. We introduce **Active Learning through Graph Transduction Game} (ALGTG)**, a novel query-acquisition function that based its behavior on the sudden GTG algorithm.
 
-Our work wants to connects these two fields by applying the **Graph Trasduction Game** which formulates the classification task as an *evolutionary non-cooperative game* between *N players* (samples) with *M strategies* (labels). Reaching a **Nash Equilibria** corresponds to find stable point of a dynamical system, one reached, all the samples are labeled consistently. To this end, the selection of samples to be labelled in the AL model, is based on:
+GTG formulates the classification task as an evolutionary non-cooperative game between *N* players (samples) with *M* strategies (labels) and aims to assign the most suitable pseudo-label to unmarked observations. Once we reach this situation we are in a situation of Nash Equilibria since all the samples are labeled consistently.
 
-1. Tracking the evolution of the **entropy** along the iteration of the aforementioned dynamical system
-2. Creating an ad-hoc payoff function such that similar samples (already seen) are discouraged to emerge in the subsequent iterations.
-
-We exploit the performance of our approach on five publicly available image classification benchmark: **CIFAR10/100**, **SVHN**, **Fashion-MNIST** and **Tiny-ImageNET**.
+To this end, the selection of samples to be labeled in our AL model is based on: tracking the evolution of the entropy along the iteration of the aforementioned dynamical system and creating an ad-hoc payoff function such that similar samples (already seen) are discouraged to emerge in the subsequent iterations. We exploit the performance of our approach on five publicly available image classification benchmarks: *CIFAR10/100*, *SVHN*, *Fashion-MNIST*, and *Tiny-ImageNET*.
 
 ## Requirements
 
@@ -18,7 +16,7 @@ conda create --name <env> --file requirements.txt
 conda activate <env>
 ```
 
-## Applciation Start Up
+## Application Start-Up
 Example of application start-up:
 ```
 python3 app/main.py -gpus 1 -m random entropy coreset badge bald cdal tavaal ll ll_gtg -ds cifar10 -tr 5 -am corr -am_s mixed -am_ts mean -e_s mean
