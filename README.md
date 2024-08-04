@@ -2,7 +2,7 @@
 ## Active Learning strategy using Graph Transduction Game
 In recent years, internet technology development has led to an era of abundant data, sparking strong interest in **Deep Learning (DL)** which is known to be greedy for data and requires a large amount of information supply to optimize a massive number of parameters. In the same period **Active learning (AL)** which attempts to maximize a model’s performance gain while annotating the fewest samples possible, was set aside, since traditional machine learning required few labeled samples before DL's rise, making AL undervalued. DL's success relies on existing annotated datasets, however acquiring high-quality annotations demands significant manpower, posing challenges in specialized fields like speech recognition and medical imaging. Consequently, AL is now gaining the attention it deserves.
 
-In this thesis we want to exploit the combination of these two fields by leveraging a non-cooperative game that aims to classify unlabelled objects starting from a small set of labelled ones, the **Graph Transduction Game (GTG)**. We introduce **Active Learning through Graph Transduction Game} (ALGTG)**, a novel query-acquisition function that based its behavior on the sudden GTG algorithm.
+In this thesis we want to exploit the combination of these two fields by leveraging a non-cooperative game that aims to classify unlabelled objects starting from a small set of labelled ones, the **Graph Transduction Game (GTG)**. We introduce **Active Learning through Graph Transduction Game (ALGTG)**, a novel query-acquisition function that based its behavior on the sudden GTG algorithm.
 
 GTG formulates the classification task as an evolutionary non-cooperative game between *N* players (samples) with *M* strategies (labels) and aims to assign the most suitable pseudo-label to unmarked observations. Once we reach this situation we are in a situation of Nash Equilibria since all the samples are labeled consistently.
 
@@ -14,6 +14,13 @@ Change the last row of **requirements.txt** to the path of yout conda enviroment
 ```
 conda create --name <env> --file requirements.txt
 conda activate <env>
+```
+
+### Multi GPUs
+If you want to perform experiments leveraging multiple gpus, you should edit **ActiveLearner.py** file, *train_evaluate* function, more precisely:
+```python
+os.environ["MASTER_ADDR"] = "xxxxxxxxxx" # -> replace with the correct address
+os.environ["MASTER_PORT"] = "yyyyyyyyyy" # -> repalce with a free port
 ```
 
 ## Application Start-Up

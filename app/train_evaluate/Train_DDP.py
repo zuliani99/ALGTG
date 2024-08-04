@@ -67,13 +67,13 @@ def train_ddp(rank: int, world_size: int, params: Dict[str, Any], conn: connecti
     test_results = [torch.zeros(1, device=torch.device(rank)) for _ in range(world_size)]
     
     
-    train_ds = Subset(ct_p["Dataset"].train_ds, params["labelled_subset"])
+    lab_train_ds = Subset(ct_p["Dataset"].lab_train_ds, params["labelled_subset"])
     params["train_dl"] = DataLoader(
-        train_ds,
+        lab_train_ds,
         #sampler=DistributedSampler(params["labelled_subset"], num_replicas=world_size,
         
         # TiDAL WON'T WORK SINCE MMOVING_PROBS IS NOT ACCESSIBLE FROM SUBSET
-        sampler=DistributedSampler(train_ds, num_replicas=world_size,
+        sampler=DistributedSampler(lab_train_ds, num_replicas=world_size,
                                    rank=rank, shuffle=True, seed=100001),
         **dict_dl
     )

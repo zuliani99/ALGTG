@@ -159,7 +159,7 @@ class Cls_Datasets():
         self.dataset_id: int = cls_datasets[dataset_name]["id"]
         self.image_size: int = cls_datasets[dataset_name]["image_size"]
         
-        self.train_ds = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=True, n_classes=self.n_classes)
+        self.lab_train_ds = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=True, n_classes=self.n_classes)
         self.unlab_train_ds = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=False)
         
         self.test_ds = Cls_Dataset(dataset_name=dataset_name, bool_train=False, bool_transform=False)
@@ -174,7 +174,7 @@ class Cls_Datasets():
 
         init_lab_obs = al_params["init_lab_obs"]
 
-        train_size = len(self.train_ds)
+        train_size = len(self.lab_train_ds)
 
         set_seeds(self.dataset_id * trial_id)
         
@@ -188,7 +188,7 @@ class Cls_Datasets():
         self.labelled_indices: List[int] = shuffled_indices[:init_lab_obs].tolist()
         self.unlabelled_indices: List[int] = shuffled_indices[init_lab_obs:].tolist()
         
-        logger.info(f' Initial subset of labelled observations composed with: {count_class_observation(self.classes, Subset(self.train_ds, self.labelled_indices))}')
+        logger.info(f' Initial subset of labelled observations composed with: {count_class_observation(self.classes, Subset(self.lab_train_ds, self.labelled_indices))}')
 
 
 

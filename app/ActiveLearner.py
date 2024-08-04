@@ -61,7 +61,7 @@ class ActiveLearner():
         self.save_labelled_images(self.labelled_indices)
         
         self.count_classes: Dict[int, List[int]] = {}
-        self.count_classes[self.iter * al_params["n_top_k_obs"]] = list(count_class_observation(self.dataset.classes, Subset(self.dataset.train_ds, self.labelled_indices)).values())
+        self.count_classes[self.iter * al_params["n_top_k_obs"]] = list(count_class_observation(self.dataset.classes, Subset(self.dataset.lab_train_ds, self.labelled_indices)).values())
         write_csv(
             filename = f'{self.ct_p["task"]}_count_classes.csv',
             exp_path = self.ct_p["exp_path"],
@@ -282,7 +282,8 @@ class ActiveLearner():
         
         # sanity check
         if len(list(set(self.unlabelled_indices) & set(self.labelled_indices))) == 0 and \
-            len(list(set(self.temp_unlab_pool) & set(self.labelled_indices))) == 0 :
+                len(list(set(self.temp_unlab_pool) & set(self.labelled_indices))) == 0 and \
+                len(list(set(self.unlabelled_indices) & set(self.temp_unlab_pool))) == 0:
             logger.info(' Intersection between indices lists are EMPTY')
         else: 
             logger.exception('NON EMPTY INDICES INTERSECTION')
@@ -331,7 +332,7 @@ class ActiveLearner():
                 Subset(self.dataset.unlab_train_ds, self.rand_unlab_sample), al_params["n_top_k_obs"]
             )
             
-            d_labels = count_class_observation(self.dataset.classes, self.dataset.train_ds, topk_idx_obs)
+            d_labels = count_class_observation(self.dataset.classes, self.dataset.lab_train_ds, topk_idx_obs)
             logger.info(f' Number of observations per class added to the labelled set:\n {d_labels}\n')
             
             # Saving the tsne embeddings plot

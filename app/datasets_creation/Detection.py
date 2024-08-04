@@ -33,16 +33,16 @@ def get_voc_data(dataset_path:str) -> Tuple[VOCDetection, VOCDetection, VOCDetec
     datasets.VOCDetection(root=dataset_path, year='2007', image_set='test', download=True)
 
     
-    train = VOCDetection(root=f'{dataset_path}/VOCdevkit',
+    lab_train = VOCDetection(root=f'{dataset_path}/VOCdevkit',
                                     transform=SSDAugmentation(voc_config["min_dim"], voc_means))
-    unlabelled = VOCDetection(root=f'{dataset_path}/VOCdevkit',
+    unlab_train = VOCDetection(root=f'{dataset_path}/VOCdevkit',
                                         transform=BaseTransform(300, voc_means),
                                         target_transform=VOCAnnotationTransform())
     test = VOCDetection(root=f'{dataset_path}/VOCdevkit',
                                    image_sets=[('2007', 'test')],
                                    transform=BaseTransform(300, voc_means),
                                    target_transform=VOCAnnotationTransform())
-    return train, unlabelled, test
+    return lab_train, unlab_train, test
 
 
 
@@ -71,7 +71,7 @@ def detection_collate(batch):
 class Det_Dataset():
     def __init__(self, dataset_name: str) -> None:
 
-        self.train_ds, self.unlab_train_ds, self.test_ds = get_detection_dataset(dataset_name, 'datasets/voc')
+        self.lab_train_ds, self.unlab_train_ds, self.test_ds = get_detection_dataset(dataset_name, 'datasets/voc')
         
         self.n_classes: int = det_datasets[dataset_name]["n_classes"]
         self.dataset_id: int = det_datasets[dataset_name]["id"]
@@ -86,7 +86,7 @@ class Det_Dataset():
 
         init_lab_obs = al_params["init_lab_obs"]
 
-        train_size = len(self.train_ds)
+        train_size = len(self.lab_train_ds)
         
         set_seeds(self.dataset_id * trial_id)
         

@@ -125,10 +125,10 @@ def plot_entropy_iterations_classes(count_classes: Dict[int, List[int]], strateg
         entropy_val_to_plots.append(entropy(count, dim=0).item())
     
     plt.figure(figsize = (14,10))
-    plt.plot(entropy_val_to_plots, label=f'Entropy Labelled Observations - Classes')
+    plt.plot(entropy_val_to_plots)
     plt.xlabel('Labelled Observations', fontsize=15)
-    plt.ylabel('Number of Class Observations', fontsize=15)
-    plt.title('Class Observations Count by Iteration', fontsize=30)
+    plt.ylabel('Entropy', fontsize=15)
+    plt.title('Class Counts Entropy through Iteration', fontsize=30)
     plt.legend()
     plt.grid(True)
     plt.savefig(f'results/{exp_path}/{dataset_name}/{cicle_iter}/{strategy_name}/entropy_class_iterations.png')

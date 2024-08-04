@@ -74,6 +74,6 @@ class PreTrain:
             loss /= len(self.train_dl)
             
             logger.info(f' Epoch: {epoch} | loss -> {loss}')
-        
-        return self.pt_bb.backbone.state_dict()
+
+        return self.pt_bb.backbone.state_dict() # return the backbone weights
     
