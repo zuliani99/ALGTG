@@ -193,9 +193,12 @@ def main() -> None:
             
 
 if __name__ == "__main__":
-    
-    start = time.time()
-    main()
-    end = time.time()
-    
-    logger.info(f'####################################################### TOTAL ELAPSED SECONDS: {end-start} #######################################################')
+    try:
+        start = time.time()
+        main()
+        end = time.time()
+        
+        logger.info(f'####################################################### TOTAL ELAPSED SECONDS: {end-start} #######################################################')
+    except Exception as e:
+        logger.exception("main.py has crashed. Error: %s", e)
+        raise e

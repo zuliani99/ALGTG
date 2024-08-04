@@ -140,6 +140,51 @@ class Module_LS(nn.Module):
                 out = self.linears[i](out)
                 outs.append(out)
             return outs
+        
+
+'''class CNN_MLP(nn.Module):
+    def __init__(self, params: Dict[str, Any]):
+        super(CNN_MLP, self).__init__()
+        
+        # same parameters of loss net
+        feature_sizes = params["feature_sizes"]
+        num_channels = params["num_channels"]
+        interm_dim = params["interm_dim"]
+
+        self.convs, self.linears = [], []
+        dim_class = interm_dim * len(num_channels)
+
+        for n_c, e_d in zip(num_channels, feature_sizes):
+            out_features = n_c // (e_d // 2)
+            self.convs.append(nn.Sequential(
+                nn.Conv2d(n_c ,out_features, kernel_size=3, stride=2, padding=1), # instead og GAP of LL_Module
+                nn.BatchNorm2d(out_features),
+                nn.ReLU(),
+            ))
+            self.linears.append(nn.Sequential(
+                nn.Linear(n_c * (e_d // 2), interm_dim), # same dimension of the LL_Module latent space
+                nn.ReLU(),
+            ))
+
+        self.convs = nn.ModuleList(self.convs)
+        self.linears = nn.ModuleList(self.linears)
+        self.regressor = nn.Sequential(
+            nn.Linear(dim_class, dim_class//2), nn.ReLU(),
+            nn.Linear(dim_class//2, dim_class//4 ), nn.ReLU(),
+            nn.Linear(dim_class//4, 1)
+        )
+        
+
+    def forward(self, features):
+        outs = []
+        for i in range(len(features)):
+            out = self.convs[i](features[i])
+            out = out.view(out.size(0), -1)
+            out = self.linears[i](out)
+            outs.append(out)
+
+        out = self.regressor(torch.cat(outs, 1))
+        return out'''
     
     
     
@@ -288,7 +333,7 @@ class GTGModule(nn.Module):
             logger.exception(' Invalid GTG Model') 
             raise AttributeError(' Invalid GTG Model')
 
-        self.gtg_module.apply(init_weights_apply)
+        #self.gtg_module.apply(init_weights_apply)
 
         
     def define_idx_params(self, id_am_ts: int, id_am: int) -> None: # in order to define the indices of AM_threshold_strategy and AM_function
