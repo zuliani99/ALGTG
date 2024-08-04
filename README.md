@@ -31,52 +31,46 @@ usage: main.py [-h] [-gpus GPUS] -m
                [{random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,llmlp_gtg,lsmlps_gtg,lstmreg_gtg,lstmbc_gtg} ...]
                -ds {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet}
                [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet} ...]
-               [-tr TRIALS]
+               [-tr TRIALS] [-bbone] [-tulp]
                [-am {corr,cos_sim,rbfk} [{corr,cos_sim,rbfk} ...]]
                [-am_s {uncertanity,diversity,mixed}]
                [-am_ts {threshold,mean,none} [{threshold,mean,none} ...]]
                [-am_t AFFINITY_MATRIX_THRESHOLD] [-e_s {mean,integral}]
                [-gtg_iter GTG_ITERATIONS] [-gtg_t GTG_TOLLERANCE]
-               [-plb PERC_LABELLED_BATCH]
+               [-bsgtgo BATCH_SIZE_GTG_ONLINE]
 
 options:
   -h, --help            show this help message and exit
   -gpus GPUS, --gpus GPUS
                         Number of GPUs to use during training
-  -m {random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,llmlp_gtg,lsmlps_gtg,lstmreg_gtg,lstmbc_gtg}
-      [{random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,llmlp_gtg,lsmlps_gtg,lstmreg_gtg,lstmbc_gtg} ...],
+  -m {random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,llmlp_gtg,lsmlps_gtg,lstmreg_gtg,lstmbc_gtg} [{random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,llmlp_gtg,lsmlps_gtg,lstmreg_gtg,lstmbc_gtg} ...], 
       --methods {random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,llmlp_gtg,lsmlps_gtg,lstmreg_gtg,lstmbc_gtg} [{random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,llmlp_gtg,lsmlps_gtg,lstmreg_gtg,lstmbc_gtg} ...]
                         Possible methods to choose
-  
   -ds {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet} [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet} ...], 
       --datasets {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet} [{cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet} ...]
                         Possible datasets to choose
-  
   -tr TRIALS, --trials TRIALS
                         AL trials
-  
+  -bbone, --bbone_pre_train
+                        BackBone pre-train (binary calssification task) for GTG Module
+  -tulp, --temp_unlab_pool
+                        Temporary Unlabelled Pool
   -am {corr,cos_sim,rbfk} [{corr,cos_sim,rbfk} ...], --affinity_matrix {corr,cos_sim,rbfk} [{corr,cos_sim,rbfk} ...]
                         Affinity matrix to choose
-  
   -am_s {uncertanity,diversity,mixed}, --affinity_matrix_strategy {uncertanity,diversity,mixed}
                         Different affinity matrix modification
-  
   -am_ts {threshold,mean,none} [{threshold,mean,none} ...], --affinity_matrix_threshold_strategies {threshold,mean,none} [{threshold,mean,none} ...]
                         Possible treshold strategy types to choose to apply in the affinity matrix
-  
   -am_t AFFINITY_MATRIX_THRESHOLD, --affinity_matrix_threshold AFFINITY_MATRIX_THRESHOLD
                         Affinity Matrix Threshold for our method, when threshold_strategy = mean, this is ignored
-  
   -e_s {mean,integral}, --entropy_strategy {mean,integral}
                         Entropy strategy to sum up the entropy history
-  
   -gtg_iter GTG_ITERATIONS, --gtg_iterations GTG_ITERATIONS
                         Maximum GTG iterations to perorm
-  
   -gtg_t GTG_TOLLERANCE, --gtg_tollerance GTG_TOLLERANCE
                         GTG tollerance
-  
-  -plb PERC_LABELLED_BATCH, --perc_labelled_batch PERC_LABELLED_BATCH
-                        Number of labelled observations to mantain in each batch during GTG end-to-end version
+  -bsgtgo BATCH_SIZE_GTG_ONLINE, --batch_size_gtg_online BATCH_SIZE_GTG_ONLINE
+                        Initial batch size for the online GTG version
+
 ```
 

@@ -355,7 +355,7 @@ class ActiveLearner():
                 exp_path = self.ct_p["exp_path"],
                 dataset_name = self.ct_p["dataset_name"],
                 head = ['method', 'iter', 'lab_obs'] + self.dataset.classes,
-                values = [self.strategy_name, self.ct_p["trial"], self.dataset.classes] + list(self.count_classes.values())
+                values = [self.strategy_name, self.ct_p["trial"], self.iter * al_params["n_top_k_obs"]] + self.count_classes[self.iter * al_params["n_top_k_obs"]]
             )
                 
         # plotting the number of classes in the train dataset for each trial
