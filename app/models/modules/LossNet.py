@@ -24,8 +24,8 @@ class LossPredLoss(nn.Module):
         
         input = input.view(input.size(0))
         
-        input = (input - input.flip(0))[:len(input)//2] # [l_1 - l_2B, l_2 - l_2B-1, ... , l_B - l_B+1], where batch_size = 2B
-        target = (target - target.flip(0))[:len(target)//2]
+        input = (input - input.flip(0))[:len(input) // 2] # [l_1 - l_2B, l_2 - l_2B-1, ... , l_B - l_B+1], where batch_size = 2B
+        target = (target - target.flip(0))[:len(target) // 2]
         target = target.detach()
         
         diff = torch.sigmoid(input)
@@ -59,6 +59,8 @@ class LossNet(nn.Module):
         self.FC = nn.ModuleList(self.FC)
 
         self.linear = nn.Linear(len(num_channels) * interm_dim, LL_params["module_out"])
+        
+        self.apply(init_weights_apply)
         
 
     def forward(self, features):

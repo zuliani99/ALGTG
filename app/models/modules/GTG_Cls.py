@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import entropy
+from utils import entropy, init_weights_apply
 from config import al_params
 
 from typing import Any, List, Tuple, Dict
@@ -48,8 +48,6 @@ class Module_LS_GTG_LSTM(nn.Module):
             torch.zeros(self.hiddens_dim, ent_history.shape[0], self.hidden_size, device=self.device)
         )
         out, _ = self.lstm(ent_history, hiddens)
-        #print(out.shape)
-        #out = out.view(out.size(0), -1)
         out = out.reshape(out.size(0), -1)
         out = self.classifier(out)
         return self.sigmoid(out) if self.is_bin_class else out
@@ -86,9 +84,9 @@ class Module_LSs_GTGs_MLPs(nn.Module):
         
         #self.seq_linears = nn.ModuleList([nn.Sequential(nn.Linear(in_feat, 1)) for _ in range(4)])
         self.seq_linears = nn.ModuleList([nn.Sequential(
-            nn.Linear(in_feat, in_feat//2), nn.ReLU(),
-            nn.Linear(in_feat//2, in_feat//4), nn.ReLU(),
-            nn.Linear(in_feat//4, 1), 
+            nn.Linear(in_feat, in_feat // 2), nn.ReLU(),
+            nn.Linear(in_feat // 2, in_feat // 4), nn.ReLU(),
+            nn.Linear(in_feat // 4, 1), 
         ) for _ in range(4)])
         
         self.linear = nn.Linear(len(self.seq_linears), 1)        
@@ -160,12 +158,12 @@ class Module_LL(nn.Module):
             self.gaps.append(nn.AvgPool2d(e_d))
             self.linears.append(nn.Sequential(
                 nn.Linear(n_c, interm_dim), nn.ReLU(),
-                nn.Linear(interm_dim, interm_dim//2), nn.ReLU(),
+                nn.Linear(interm_dim, interm_dim // 2), nn.ReLU(),
             ))
 
         self.linears = nn.ModuleList(self.linears)
         self.gaps = nn.ModuleList(self.gaps)
-        self.classifier = nn.Linear((interm_dim//2) * len(num_channels), 1)
+        self.classifier = nn.Linear((interm_dim // 2) * len(num_channels), 1)
 
 
     def forward(self, features: List[torch.Tensor]) -> torch.Tensor:
@@ -207,9 +205,9 @@ class Module_CNN_MLP(nn.Module):
         self.convs = nn.ModuleList(self.convs)
         self.linears = nn.ModuleList(self.linears)
         self.regressor = nn.Sequential(
-            nn.Linear(dim_class, dim_class//2), nn.ReLU(),
-            nn.Linear(dim_class//2, dim_class//4 ), nn.ReLU(),
-            nn.Linear(dim_class//4, 1)
+            nn.Linear(dim_class, dim_class // 2), nn.ReLU(),
+            nn.Linear(dim_class // 2, dim_class // 4 ), nn.ReLU(),
+            nn.Linear(dim_class // 4, 1)
         )
         
 
@@ -290,6 +288,7 @@ class GTGModule(nn.Module):
             logger.exception(' Invalid GTG Model') 
             raise AttributeError(' Invalid GTG Model')
 
+        self.gtg_module.apply(init_weights_apply)
 
         
     def define_idx_params(self, id_am_ts: int, id_am: int) -> None: # in order to define the indices of AM_threshold_strategy and AM_function
@@ -450,7 +449,8 @@ class GTGModule(nn.Module):
         if self.batch_size == al_params["al_iters"] * self.batch_size_gtg_online + self.batch_size_gtg_online * iteration:
             self.n_lab_obs = self.batch_size_gtg_online * iteration 
         else:
-            self.n_lab_obs = self.batch_size - (al_params["unlab_sample_dim"] % (al_params["al_iters"] * self.batch_size_gtg_online)) # batch_size - (10000 % (10 * batch_size_gtg_online)) 
+            #                   batch_size   - (           10000              % (          10          *    batch_size_gtg_online  )) 
+            self.n_lab_obs = self.batch_size - (al_params["unlab_sample_dim"] % (al_params["al_iters"] * self.batch_size_gtg_online)) 
         
         self.lab_labels = labels[:self.n_lab_obs]
         self.get_X(F.softmax(outs, dim=1))
