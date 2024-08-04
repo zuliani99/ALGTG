@@ -224,9 +224,7 @@ class Cls_TrainWorker():
             
             if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore  
             if self.decay != None and epoch >= self.decay: 
-                #if self.method_name != 'TiDAL': weight = 0.
-                #if self.model.only_module_name == 'GTGModule' and self.net_type != 'llmlp': weight = 0. # try llmlp to be performed for 200 epochs
-                if self.net_type != 'llmlp': weight = 0. # try llmlp to be performed for 200 epochs
+                if self.net_type != 'llmlp' or self.method_name != 'TiDAL': weight = 0. # try llmlp to be performed for 200 epochs
             
             if isinstance(self.train_dl, tuple):
                 for b_idx, ((idxs_l, images_l, labels_l, _), (idxs_u, images_u, labels_u, _)) in enumerate(zip(self.lab_train_dl, self.unlab_train_dl)):

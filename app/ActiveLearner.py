@@ -14,7 +14,6 @@ import torch.multiprocessing as mp
 from torchvision.utils import save_image
 import torch
 import numpy as np
-import yaml
 from typing import List, Dict, Any
 import copy
 import os
@@ -267,9 +266,10 @@ class ActiveLearner():
         # Update the labeeld and unlabelled training set
         logger.info(' => Modifing the labelled and Unlabelled Indices Lists')
         
+        sample_len = len(self.rand_unlab_sample)
+                
         # if we are using the temporary unlabelled pool we have to update the unlabelled indices list and temp pool
         if self.ct_p["temp_unlab_pool"]:
-            sample_len = len(self.rand_unlab_sample)
             # the sample have been already removed from the labelled set
             for idx in overall_topk: self.rand_unlab_sample.remove(idx) # - 1000 = 9000
             self.temp_unlab_pool.extend(self.rand_unlab_sample) # + 9000
@@ -290,7 +290,7 @@ class ActiveLearner():
             raise Exception('NON EMPTY INDICES INTERSECTION')
         
         
-        if self.ct_p["temp_unlab_pool"] and len(self.unlabelled_indices) < sample_len and len(self.temp_unlab_pool) > 0: # type: ignore
+        if self.ct_p["temp_unlab_pool"] and len(self.unlabelled_indices) < sample_len and len(self.temp_unlab_pool) > 0: 
 
             # reinsert all teh observations from the pool inside the original unlabelled pool
             self.unlabelled_indices.extend(self.temp_unlab_pool)
