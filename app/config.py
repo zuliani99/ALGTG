@@ -171,9 +171,11 @@ cls_config = {
                 'decay': { 'LossNet': 120, 'GTGModule': 120 },
                 'optim_p': {
                     'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
-                    'GTGModule': { 'lr': 0.001, }
+                    'GTGModule': { 'lr': 0.0001, } 
+                    #'GTGModule': { 'lr': 0.01, 'momentum': 0.9, 'weight_decay': 5e-4 }, # SGD
                 }
-            }
+            },
+            'milestones': { 'backbone': 160, 'LossNet': 160, 'GTGModule': 60 },
         }
     },
 
@@ -193,9 +195,10 @@ cls_config = {
                 'decay': { 'LossNet': 120, 'GTGModule': 120, },
                 'optim_p': {
                     'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
-                    'GTGModule': { 'lr': 0.001, }
+                    'GTGModule': { 'lr': 0.0001, }
                 }
-            }
+            },
+            'milestones': { 'backbone': 160, 'LossNet': 160, 'GTGModule': 60 },
         }
     },
     'svhn': {
@@ -214,9 +217,10 @@ cls_config = {
                 'decay': { 'LossNet': 120, 'GTGModule': 120, },
                 'optim_p': {
                     'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
-                    'GTGModule': { 'lr': 0.001, }
+                    'GTGModule': { 'lr': 0.0001, }
                 }
-            }
+            },
+            'milestones': { 'backbone': 160, 'LossNet': 160, 'GTGModule': 60 },
         }
     },
     'fmnist': {
@@ -235,9 +239,10 @@ cls_config = {
                 'decay': { 'LossNet': 120, 'GTGModule': 120, },
                 'optim_p': {
                     'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
-                    'GTGModule': { 'lr': 0.001, }
+                    'GTGModule': { 'lr': 0.0001, }
                 }
-            }
+            },
+            'milestones': { 'backbone': 160, 'LossNet': 160, 'GTGModule': 60 },
         }
     },
     'caltech256': {
@@ -256,9 +261,10 @@ cls_config = {
                 'decay': { 'LossNet': 120, 'GTGModule': 120, },
                 'optim_p': {
                     'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
-                    'GTGModule': { 'lr': 0.001, }
+                    'GTGModule': { 'lr': 0.0001, }
                 }
-            }
+            },
+            'milestones': { 'backbone': 160, 'LossNet': 160, 'GTGModule': 60 },
         }
     },
     'tinyimagenet': {
@@ -277,9 +283,10 @@ cls_config = {
                 'decay': { 'LossNet': 120, 'GTGModule': 120, },
                 'optim_p': {
                     'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
-                    'GTGModule': { 'lr': 0.001, }
+                    'GTGModule': { 'lr': 0.0001, }
                 }
-            }
+            },
+            'milestones': { 'backbone': 160, 'LossNet': 160, 'GTGModule': 60 },
         }
     }
 }
@@ -324,7 +331,7 @@ voc_config = {
 
 det_config = {
     'lr_steps': (80000, 100000, 120000),
-    'epochs': 300,
+    '3s': 300,
     'batch_size': 32,
     'results_dict': { 'train': { 'train_loss': [] , 'train_loc_loss': [], 'train_conf_loss': [], 'train_pred_loss': []},
                      'test': {'test_map': []}

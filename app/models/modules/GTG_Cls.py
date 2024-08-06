@@ -35,13 +35,13 @@ class Module_LS_GTG_LSTM(nn.Module):
         self.classifier = nn.Linear(in_features_cls, output_size)
         
         
-    def forward(self, features: List[torch.Tensor], weight: int) -> torch.Tensor:
+    def forward(self, features: List[torch.Tensor], weight: int, labels: torch.Tensor) -> torch.Tensor:
         
         ls_features = self.mod_ls(features)
         if weight == 0: ls_features = [ls.detach() for ls in ls_features]
         ls_features = torch.cat(ls_features, dim=1)
         
-        ent_history = self.gtg_func(ls_features)[1].unsqueeze(dim=-1)
+        ent_history = self.gtg_func(ls_features, labels)[1].unsqueeze(dim=-1)
         
         hiddens = (
             torch.zeros(self.hiddens_dim, ent_history.shape[0], self.hidden_size, device=self.device),
@@ -91,12 +91,12 @@ class Module_LSs_GTGs_MLPs(nn.Module):
         
         self.linear = nn.Linear(len(self.seq_linears), 1)        
         
-    def forward(self, features: List[torch.Tensor], weight: int) -> torch.Tensor:
+    def forward(self, features: List[torch.Tensor], weight: int, labels: torch.Tensor) -> torch.Tensor:
         outs = [ ]
         for id, features_embedding in enumerate(features):
             emb_ls = self.mod_ls(features_embedding, id)
             if weight == 0: emb_ls = emb_ls.detach()
-            latent_feature = self.gtg_func(emb_ls)[0]
+            latent_feature = self.gtg_func(emb_ls, labels)[0]
             out = latent_feature.view(latent_feature.size(0), -1)
             out = self.seq_linears[id](out)
             outs.append(out)
@@ -120,7 +120,7 @@ class Module_LS(nn.Module):
         for n_c, e_d in zip(num_channels, feature_sizes):
             self.gaps.append(nn.AvgPool2d(e_d))
             self.linears.append(nn.Sequential(
-                nn.Linear(n_c, interm_dim), nn.ReLU()#, nn.BatchNorm1d(interm_dim)
+                nn.Linear(n_c, interm_dim), nn.ReLU(), #nn.BatchNorm1d(interm_dim)
             ))
 
         self.linears = nn.ModuleList(self.linears)
@@ -202,8 +202,8 @@ class Module_LL(nn.Module):
         for n_c, e_d in zip(num_channels, feature_sizes):
             self.gaps.append(nn.AvgPool2d(e_d))
             self.linears.append(nn.Sequential(
-                nn.Linear(n_c, interm_dim), nn.ReLU(),
-                nn.Linear(interm_dim, interm_dim // 2), nn.ReLU(),
+                nn.Linear(n_c, interm_dim), nn.ReLU(),# nn.BatchNorm1d(interm_dim),
+                nn.Linear(interm_dim, interm_dim // 2), nn.ReLU(),# nn.BatchNorm1d(interm_dim // 2),
             ))
 
         self.linears = nn.ModuleList(self.linears)
@@ -299,16 +299,14 @@ class GTGModule(nn.Module):
         self.GTG_Model = gtg_p["gtg_module"]
         self.name = f'{self.__class__.__name__}_{self.GTG_Model}'
         self.set_additional_module()
-        
-        
-        self.bn1 = nn.BatchNorm1d(512)
-        
+                
     
     def set_additional_module(self) -> None:
         logger.info(self.GTG_Model)
         
         if self.GTG_Model == 'llmlp':
             self.gtg_module = Module_LL(self.ll_p).to(self.device)
+            #self.gtg_module = Module_CNN_MLP(self.ll_p).to(self.device)
             
         elif self.GTG_Model == 'lsmlps':
             self.gtg_module = Module_LSs_GTGs_MLPs(
@@ -410,21 +408,25 @@ class GTGModule(nn.Module):
     
     
     
-    def graph_trasduction_game(self, features_embedding: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def graph_trasduction_game(self, features_embedding: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         
         logger.info(f'Non zero cell in features_embedding {torch.count_nonzero(features_embedding)} / {features_embedding.numel()}')
-        logger.info(f'NaN cell in features_embedding  {torch.isnan(features_embedding).sum()} / {features_embedding.numel()}')
+        if torch.any(torch.isnan(features_embedding)):  logger.info(f'NaN cell in features_embedding  {torch.isnan(features_embedding).sum()} / {features_embedding.numel()}')
                         
         entropy_hist = torch.zeros((self.batch_size, self.gtg_max_iter), device=self.device)        
         
         A = self.get_A(features_embedding) # -> nxn
         
         logger.info(f'Non zero cell in A {torch.count_nonzero(A)} / {A.numel()}')
-        logger.info(f'NaN cell in A  {torch.isnan(A).sum()} / {A.numel()}')
-        #logger.info(A)
+        if torch.any(torch.isnan(A)): logger.info(f'NaN cell in A {torch.isnan(A).sum()} / {A.numel()}')
         
-        X = self.X.clone()
-        if A.requires_grad: X.requires_grad_(True)
+        if(torch.isnan(A).sum()):
+            nan_indices = torch.isnan(A).nonzero(as_tuple=True)
+            for i, j in zip(nan_indices[0], nan_indices[1]):
+                logger.info(f'NaN cell in A: {i} {j} {A[i, j]}')
+        
+        #X = self.X.clone()
+        if A.requires_grad: self.X.requires_grad_(True)
         Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device, dtype=torch.float32, requires_grad=True if A.requires_grad else False)        
         
         err = float('Inf')
@@ -434,21 +436,21 @@ class GTGModule(nn.Module):
                         
         while err > self.gtg_tol and i < self.gtg_max_iter:
             
-            if X.requires_grad: X.register_hook(lambda grad: logger.info(f'{i} -- 1- X grad: {grad.sum()}'))
+            if self.X.requires_grad: self.X.register_hook(lambda grad: logger.info(f'{i} -- 1- X grad: {grad.sum()}'))
             
-            X_old = X.detach().clone()
+            X_old = self.X.detach().clone()
                         
-            X = X * torch.mm(A, X)
-            if X.requires_grad: X.register_hook(lambda grad: logger.info(f'{i} -- 2- X grad: {grad.sum()}'))
-            X = X / torch.sum(X, dim=1, keepdim=True)
-            if X.requires_grad: X.register_hook(lambda grad: logger.info(f'{i} -- 3- X grad: {grad.sum()}'))
+            self.X = self.X * torch.mm(A, self.X)
+            if self.X.requires_grad: self.X.register_hook(lambda grad: logger.info(f'{i} -- 2- X grad: {grad.sum()}'))
+            self.X = self.X / torch.sum(self.X, dim=1, keepdim=True)
+            if self.X.requires_grad: self.X.register_hook(lambda grad: logger.info(f'{i} -- 3- X grad: {grad.sum()}'))
 
-            #logger.info(f'X: {X[self.n_lab_obs:].argmax(dim=1).unique(return_counts=True)}')
+            logger.info(f'self.X: {self.X[self.n_lab_obs:].argmax(dim=1).unique(return_counts=True)}')
             
-            entropy_hist[self.n_lab_obs:, i] = entropy(X[self.n_lab_obs:, :]).to(self.device)
+            entropy_hist[self.n_lab_obs:, i] = entropy(self.X[self.n_lab_obs:, :]).to(self.device)
 
-            err = torch.norm(X.detach() - X_old)
-            Xs = torch.cat((Xs, X.unsqueeze(dim=-1)), dim=-1)
+            err = torch.norm(self.X.detach() - X_old)
+            Xs = torch.cat((Xs, self.X.unsqueeze(dim=-1)), dim=-1)
             
             i += 1
         
@@ -458,17 +460,17 @@ class GTGModule(nn.Module):
                 Xs, torch.zeros((self.batch_size, self.n_classes, 1), device=self.device, dtype=torch.float32, requires_grad=True if A.requires_grad else False)
             ), dim=-1)
             
-        logger.info(f'end X: {X[self.n_lab_obs:].argmax(dim=1).unique(return_counts=True)}')
-        
+        logger.info(f'end self.X: {self.X[self.n_lab_obs:].argmax(dim=1).unique(return_counts=True)}')
+        logger.info(f'GTG accuracy: {self.X[self.n_lab_obs:].argmax(dim=1).eq(labels[self.n_lab_obs:]).sum().item() / (self.batch_size - self.n_lab_obs)}')
 
         return Xs, entropy_hist
     
           
         
     # List[torch.Tensor] -> detection
-    def get_entropies(self, embedding: torch.Tensor) -> torch.Tensor: #Tuple[torch.Tensor, torch.Tensor]:
+    def get_entropies(self, embedding: torch.Tensor, labels: torch.Tensor) -> torch.Tensor: #Tuple[torch.Tensor, torch.Tensor]:
                   
-        entropy_hist = self.graph_trasduction_game(embedding)[1]
+        entropy_hist = self.graph_trasduction_game(embedding, labels)[1]
         
         if torch.any(torch.isnan(entropy_hist)):
             logger.info(f'NaN cell in entropy_hist {torch.isnan(entropy_hist).sum()} / {entropy_hist.numel()}')
@@ -490,7 +492,7 @@ class GTGModule(nn.Module):
         
         self.batch_size = len(embedds)
         #int(self.batch_size * self.perc_labelled_batch)
-        
+        #                          10               *            32              +          32                * iteration
         if self.batch_size == al_params["al_iters"] * self.batch_size_gtg_online + self.batch_size_gtg_online * iteration:
             self.n_lab_obs = self.batch_size_gtg_online * iteration 
         else:
@@ -501,7 +503,7 @@ class GTGModule(nn.Module):
         self.get_X(F.softmax(outs, dim=1))
         
         if self.GTG_Model == 'llmlp': y_pred = self.gtg_module(features).squeeze()
-        else: y_pred = self.gtg_module(features, weight).squeeze()
+        else: y_pred = self.gtg_module(features, weight, labels).squeeze()
 
         if weight == 0: y_pred = y_pred.detach()
 
@@ -512,7 +514,7 @@ class GTGModule(nn.Module):
         
         
         if self.GTG_Model != 'lstmbc':
-            y_true = self.get_entropies(embedds.detach())
+            y_true = self.get_entropies(embedds.detach(), labels)
         else: 
             y_true = torch.zeros(self.batch_size, device=self.device)
             y_true[:self.n_lab_obs] = 1.
@@ -527,9 +529,13 @@ class GTGModule(nn.Module):
             if self.GTG_Model != 'lstmbc':
                 labelled_mask = torch.zeros(self.batch_size, device=self.device)
                 labelled_mask[:self.n_lab_obs] = 1.
-                return (y_pred, y_true), labelled_mask.bool()
+                labelled_mask = labelled_mask.bool()
             else:
-                return (y_pred, y_true), y_true.bool()
+                labelled_mask = y_true.bool()
             
-        else: return (y_pred, y_true), None
+        else: labelled_mask = None
+        
+        if y_pred.requires_grad: y_pred.register_hook(lambda grad: logger.info(f'y_pred grad: {grad.sum()}'))
+        
+        return (y_pred, y_true), labelled_mask
 

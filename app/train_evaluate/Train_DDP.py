@@ -154,6 +154,7 @@ def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
         )
     else: 
         train_dl = DataLoader(ct_p["Dataset"].lab_train_ds, sampler=SubsetRandomSampler(params["labelled_indices"]), **dict_dl)
+        
     params["train_dl"] = train_dl
     params["test_dl"] = DataLoader(ct_p["Dataset"].test_ds, shuffle=False, **dict_dl)
     

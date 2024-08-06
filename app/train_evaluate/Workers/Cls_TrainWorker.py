@@ -98,21 +98,21 @@ class Cls_TrainWorker():
         self.decay = optimizers["modules"]["decay"][module_name] if module_name != None and self.method_name != 'TiDAL' else None
         
         dict_optim_bb = {**optimizers["backbone"]["optim_p"][module_name]}
+        
         # DEFINING THELOSS SCALING FACTOR
         #if module_name == 'GTGModule':
         #    dict_optim_bb['lr'] = dict_optim_bb['lr'] / (self.len_unlab_ds / self.len_lab_ds)
         
-        
         self.optimizers: List[torch.optim.SGD | torch.optim.Adam] = []
         self.lr_schedulers = []
         self.optimizers.append(optimizers["backbone"]["type"][module_name](self.model.backbone.parameters(), **dict_optim_bb)) # type: ignore
-        self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[160], gamma=0.1))
+        self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[0], milestones=[optimizers["milestones"]["backbone"]], gamma=0.1))
         if module_name != None:
             self.optimizers.append(optimizers["modules"]["type"][module_name](self.model.added_module.parameters(), **optimizers["modules"]["optim_p"][module_name])) # type: ignore
             
             # TiDAL and also LL style model have the scheduler decreasing of a factor of 10 at epoch 160
-            if self.method_name == 'TiDAL' or (self.is_gtg_module and self.net_type == 'llmlp_gtg'): 
-                self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[160], gamma=0.1))
+            if self.method_name == 'TiDAL' or self.net_type == 'llmlp_gtg': 
+                self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[optimizers["milestones"][module_name]], gamma=0.1))
             
             
     
@@ -142,19 +142,24 @@ class Cls_TrainWorker():
         elif self.is_gtg_module:
                         
             (pred_entr, true_entr), labelled_mask = module_out
-            if self.i%20 == 0: logger.info(f'y_pred {pred_entr}\ny_true {true_entr}') 
+            if self.i % 20 == 0: logger.info(f'y_pred {pred_entr}\ny_true {true_entr}') 
             
             if self.net_type != 'lstmbc': entr_loss = weight * self.mse_loss_fn(pred_entr, true_entr.detach())
             else: entr_loss = weight * self.bce_loss_fn(pred_entr, true_entr.detach())
 
             lab_ce_loss = torch.mean(ce_loss[labelled_mask])
             
+            ############################################################################################################################
             # NO LOSS SCALING SINCE I HAVE REMOVED THE OVERSAMPLING STEP
             #lab_ce_loss /= self.rateo_unlab_lab_batch
             # ce loss scaled by the ratio between unlabelled and labelled batches
             # es: ma1000 labelled samples, 10000 unlabelled samples 128 batch_size -> scaling factor = (10000/128) / (1000/128) = 9.875
+            ############################################################################################################################
             
-            entr_loss = torch.mean(entr_loss[labelled_mask]) + torch.mean(entr_loss[~labelled_mask])
+            # if the predicted entropy on the labelled ssample is close to zero it means the model can distinguish labelled samples from unlabelled ones
+            #scaling_factor = torch.mean(entr_loss[labelled_mask]) + 1 
+            entr_loss = torch.mean(entr_loss[labelled_mask]) + torch.mean(entr_loss[~labelled_mask])# * scaling_factor
+            #logger.info(f'scaling_factor -> {scaling_factor}')
             
             loss = lab_ce_loss + entr_loss
             
@@ -204,7 +209,7 @@ class Cls_TrainWorker():
             epoch=epoch, tidal=(idxs, moving_prob, epoch),
         )
                 
-        loss.backward()                
+        loss.backward()
         for optimizer in self.optimizers: optimizer.step()
 
         return score, loss.item(), train_loss_ce, train_loss_pred
@@ -222,9 +227,9 @@ class Cls_TrainWorker():
                         
             train_loss, train_loss_ce, train_loss_pred, train_accuracy = .0, .0, .0, .0
             
-            if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore  
+            if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore
             if self.decay != None and epoch >= self.decay: 
-                if self.net_type != 'llmlp' or self.method_name != 'TiDAL': weight = 0. # try llmlp to be performed for 200 epochs
+                if self.net_type != 'llmlp_gtg' or self.method_name != 'TiDAL': weight = 0. # try llmlp_gtg to be performed for 200 epochs
             
             if isinstance(self.train_dl, tuple):
                 for b_idx, ((idxs_l, images_l, labels_l, _), (idxs_u, images_u, labels_u, _)) in enumerate(zip(self.lab_train_dl, self.unlab_train_dl)):

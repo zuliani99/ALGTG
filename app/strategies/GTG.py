@@ -104,7 +104,7 @@ class GTG(ActiveLearner):
                             ], 
                             embedds=torch.cat((lab_embedds, unlab_embedds), dim=0), 
                             outs=torch.cat((lab_outs, unlab_outs), dim=0),
-                            labels=torch.cat((lab_labels, unlab_labels), dim=0),
+                            labels=torch.cat((lab_labels, unlab_labels), dim=0).to(self.device),
                             iteration=self.iter
                         )
                     
