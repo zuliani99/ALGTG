@@ -171,7 +171,7 @@ cls_config = {
                 'decay': { 'LossNet': 120, 'GTGModule': 120 },
                 'optim_p': {
                     'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
-                    'GTGModule': { 'lr': 0.0001, } 
+                    'GTGModule': { 'lr': 0.01, } 
                     #'GTGModule': { 'lr': 0.01, 'momentum': 0.9, 'weight_decay': 5e-4 }, # SGD
                 }
             },

@@ -232,11 +232,14 @@ def plot_gtg_entropy_tensor(tensor: torch.Tensor, topk: List[int], lab_unlabels:
     for array, color, style, label in [(unlabelled, 'lightblue', '--', 'unlabelled'),
                                        (new_labelled, None, '-', new_labelled_lab)]:
         
+        labels_array = None
+        if style == '-': labels_array = label
+        
         for i in range(len(array)):
             
-            if style == '-':
-                color = palette[label[i]]
-                label = classes[label[i]]
+            if style == '-' and labels_array is not None:
+                color = palette[labels_array[i]]
+                label = classes[labels_array[i]]
                         
             if label not in pl2_cls_2 and len(classes) <= 10:
                 axes[1].plot(x, array[i], linestyle=style, label=label, color=color)

@@ -110,8 +110,9 @@ class Cls_TrainWorker():
         if module_name != None:
             self.optimizers.append(optimizers["modules"]["type"][module_name](self.model.added_module.parameters(), **optimizers["modules"]["optim_p"][module_name])) # type: ignore
             
-            # TiDAL and also LL style model have the scheduler decreasing of a factor of 10 at epoch 160
-            if self.method_name == 'TiDAL' or self.net_type == 'llmlp_gtg': 
+            #if self.method_name == 'TiDAL' or self.net_type == 'llmlp_gtg': 
+            # TiDAL has milestone 160 and runs until epoch 200, all GTG Module have milestone to 60 and run until epoch 120
+            if self.method_name == 'TiDAL' or module_name == 'GTGModule': 
                 self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[optimizers["milestones"][module_name]], gamma=0.1))
             
             

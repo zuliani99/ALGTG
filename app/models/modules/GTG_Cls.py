@@ -120,7 +120,7 @@ class Module_LS(nn.Module):
         for n_c, e_d in zip(num_channels, feature_sizes):
             self.gaps.append(nn.AvgPool2d(e_d))
             self.linears.append(nn.Sequential(
-                nn.Linear(n_c, interm_dim), nn.ReLU(), #nn.BatchNorm1d(interm_dim)
+                nn.Linear(n_c, interm_dim), nn.ReLU(), nn.BatchNorm1d(interm_dim)
             ))
 
         self.linears = nn.ModuleList(self.linears)
@@ -425,8 +425,8 @@ class GTGModule(nn.Module):
             for i, j in zip(nan_indices[0], nan_indices[1]):
                 logger.info(f'NaN cell in A: {i} {j} {A[i, j]}')
         
-        #X = self.X.clone()
-        if A.requires_grad: self.X.requires_grad_(True)
+        X = self.X.clone()
+        if A.requires_grad: X.requires_grad_(True)
         Xs = torch.empty((self.batch_size, self.n_classes, 0), device=self.device, dtype=torch.float32, requires_grad=True if A.requires_grad else False)        
         
         err = float('Inf')
@@ -436,21 +436,21 @@ class GTGModule(nn.Module):
                         
         while err > self.gtg_tol and i < self.gtg_max_iter:
             
-            if self.X.requires_grad: self.X.register_hook(lambda grad: logger.info(f'{i} -- 1- X grad: {grad.sum()}'))
+            if X.requires_grad: X.register_hook(lambda grad: logger.info(f'{i} -- 1- X grad: {grad.sum()}'))
             
-            X_old = self.X.detach().clone()
+            X_old = X.detach().clone()
                         
-            self.X = self.X * torch.mm(A, self.X)
-            if self.X.requires_grad: self.X.register_hook(lambda grad: logger.info(f'{i} -- 2- X grad: {grad.sum()}'))
-            self.X = self.X / torch.sum(self.X, dim=1, keepdim=True)
-            if self.X.requires_grad: self.X.register_hook(lambda grad: logger.info(f'{i} -- 3- X grad: {grad.sum()}'))
+            X = X * torch.mm(A, X)
+            if X.requires_grad: X.register_hook(lambda grad: logger.info(f'{i} -- 2- X grad: {grad.sum()}'))
+            X = X / torch.sum(X, dim=1, keepdim=True)
+            if X.requires_grad: X.register_hook(lambda grad: logger.info(f'{i} -- 3- X grad: {grad.sum()}'))
 
-            logger.info(f'self.X: {self.X[self.n_lab_obs:].argmax(dim=1).unique(return_counts=True)}')
+            logger.info(f'X: {X[self.n_lab_obs:].argmax(dim=1).unique(return_counts=True)}')
             
-            entropy_hist[self.n_lab_obs:, i] = entropy(self.X[self.n_lab_obs:, :]).to(self.device)
+            entropy_hist[self.n_lab_obs:, i] = entropy(X[self.n_lab_obs:, :]).to(self.device)
 
-            err = torch.norm(self.X.detach() - X_old)
-            Xs = torch.cat((Xs, self.X.unsqueeze(dim=-1)), dim=-1)
+            err = torch.norm(X.detach() - X_old)
+            Xs = torch.cat((Xs, X.unsqueeze(dim=-1)), dim=-1)
             
             i += 1
         
@@ -460,8 +460,8 @@ class GTGModule(nn.Module):
                 Xs, torch.zeros((self.batch_size, self.n_classes, 1), device=self.device, dtype=torch.float32, requires_grad=True if A.requires_grad else False)
             ), dim=-1)
             
-        logger.info(f'end self.X: {self.X[self.n_lab_obs:].argmax(dim=1).unique(return_counts=True)}')
-        logger.info(f'GTG accuracy: {self.X[self.n_lab_obs:].argmax(dim=1).eq(labels[self.n_lab_obs:]).sum().item() / (self.batch_size - self.n_lab_obs)}')
+        logger.info(f'end X: {X[self.n_lab_obs:].argmax(dim=1).unique(return_counts=True)}')
+        logger.info(f'GTG accuracy: {X[self.n_lab_obs:].argmax(dim=1).eq(labels[self.n_lab_obs:]).sum().item() / (self.batch_size - self.n_lab_obs)}')
 
         return Xs, entropy_hist
     

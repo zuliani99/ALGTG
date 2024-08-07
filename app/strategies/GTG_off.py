@@ -184,7 +184,7 @@ class GTG_off(ActiveLearner):
             i += 1
             
         logger.info(f'end X: {self.X[len(self.labelled_indices):].argmax(dim=1).unique(return_counts=True)}')
-        logger.info(f'GTG accuracy: {self.X[n_lab_obs:].argmax(dim=1).eq(self.unlab_embedds_dict["labels"]).sum().item() / len(self.unlab_embedds_dict["embedds"])}')
+        logger.info(f'GTG accuracy: {self.X[n_lab_obs:].cpu().argmax(dim=1).eq(self.unlab_embedds_dict["labels"]).sum().item() / len(self.unlab_embedds_dict["embedds"])}')
         
         logger.info(' DONE\n')
         
