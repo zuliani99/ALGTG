@@ -2,8 +2,6 @@
 import pickle
 import torch
 
-from torch.nn.parallel import DistributedDataParallel as DDP
-
 from models.backbones.ssd_pytorch.detect_eval import do_python_eval, write_voc_results_file
 from models.backbones.ssd_pytorch.ssd_layers.modules.multibox_loss import MultiBoxLoss
 from models.modules.LossNet import LossPredLoss
@@ -24,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class Det_TrainWorker():
-    def __init__(self, gpu_id: int, params: Dict[str, Any], world_size: int = 1) -> None:
+    def __init__(self, gpu_id: int, params: Dict[str, Any]) -> None:
         
         self.device = torch.device(gpu_id)
         self.iter: int = params["iter"]
@@ -33,10 +31,9 @@ class Det_TrainWorker():
         self.dataset: Det_Dataset = self.ct_p["Dataset"]
         
         self.LL = params["LL"]
-        self.world_size: int = world_size
         self.wandb_run = params["wandb_p"] if 'wandb_p' in params else None
         
-        self.model: Master_Model | DDP = params["ct_p"]["Master_Model"]
+        self.model: Master_Model = params["ct_p"]["Master_Model"]
         
         self.strategy_name: str = params["strategy_name"]
         
@@ -48,7 +45,7 @@ class Det_TrainWorker():
 
 
         self.best_check_filename = f'app/checkpoints/{self.ct_p["dataset_name"]}'
-        self.init_check_filename = f'{self.best_check_filename}/{self.model.module.name if self.world_size > 1 else self.model.name}_init.pth.tar'
+        self.init_check_filename = f'{self.best_check_filename}/{self.model.name}_init.pth.tar'
         self.check_best_path = f'{self.best_check_filename}/best_{self.strategy_name}_{self.device}.pth.tar'
         
         if self.iter > 1: 
@@ -60,8 +57,7 @@ class Det_TrainWorker():
         logger.info(' DONE')
         
         # set device for priors
-        if self.world_size > 1: self.model.module.backbone.set_device_priors(self.device) 
-        else: self.model.backbone.set_device_priors(self.device)
+        self.model.backbone.set_device_priors(self.device) # type: ignore
         
         self.__load_checkpoint(self.init_check_filename)
     
@@ -72,13 +68,13 @@ class Det_TrainWorker():
     
     
     def __save_checkpoint(self, filename: str) -> None:
-        checkpoint = dict(state_dict = self.model.module.state_dict() if self.world_size > 1 else self.model.state_dict())
+        checkpoint = dict(state_dict = self.model.state_dict())
         torch.save(checkpoint, filename)
     
 
     def __load_checkpoint(self, filename: str) -> None:
         checkpoint = torch.load(filename, map_location=self.device)
-        self.model.module.load_state_dict(checkpoint["state_dict"]) if self.world_size > 1 else self.model.load_state_dict(checkpoint["state_dict"])
+        self.model.load_state_dict(checkpoint["state_dict"])
         self.init_opt_sched()
         
         
@@ -162,7 +158,7 @@ class Det_TrainWorker():
 
             loss.backward()
             
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1., norm_type=2)
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1., norm_type=2) # type: ignore
             
             self.optimizer.step()
 
@@ -187,8 +183,7 @@ class Det_TrainWorker():
 
     def test(self) -> torch.Tensor:
         
-        if self.world_size > 1: self.model.module.backbone.change_phase() 
-        else: self.model.backbone.change_phase()
+        self.model.backbone.change_phase()  # type: ignore
         
         self.model.eval()
 

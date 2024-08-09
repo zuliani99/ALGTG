@@ -9,7 +9,6 @@ from utils import accuracy_score, log_assert
 from config import al_params
 
 from torch.utils.data import DataLoader, Subset#, RandomSampler
-from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.nn.functional as F
 
 from typing import Tuple, Dict, Any, List
@@ -19,14 +18,12 @@ logger = logging.getLogger(__name__)
 
 
 class Cls_TrainWorker():
-    def __init__(self, gpu_id: int, params: Dict[str, Any], world_size: int = 1) -> None:
+    def __init__(self, gpu_id: int, params: Dict[str, Any]) -> None:
         
         self.device = torch.device(gpu_id)
         self.iter: int = params["iter"]
         
-        self.world_size: int = world_size
-
-        self.model: Master_Model | DDP = params["ct_p"]["Master_Model"]
+        self.model: Master_Model = params["ct_p"]["Master_Model"]
         
         self.dataset_name: str = params["ct_p"]["dataset_name"]
         #self.al_iters: str = params["al_p"]["al_iters"]
@@ -57,7 +54,7 @@ class Cls_TrainWorker():
         self.bce_loss_fn = nn.BCELoss(reduction='none').to(self.device)
         
         self.score_fn = accuracy_score
-        self.init_check_filename = f'app/checkpoints/{self.dataset_name}/{self.model.module.name if self.world_size > 1 else self.model.name}_init.pth.tar' # type: ignore
+        self.init_check_filename = f'app/checkpoints/{self.dataset_name}/{ else self.model.name}_init.pth.tar' # type: ignore
         self.check_best_path = f'app/checkpoints/{self.dataset_name}/{self.strategy_name}_{self.device}.pth.tar'
         
         # RETRAIN FROM SCRATCH THE NETWORK (different from what LL4AL have done)
@@ -66,7 +63,7 @@ class Cls_TrainWorker():
         # BACKBONE PRETRAINING
         if self.is_gtg_module and self.pre_train:
             checkpoint = torch.load(f'app/checkpoints/{self.dataset_name}/pratrained_BB.pth.tar', map_location=self.device)
-            self.model.backbone.module.load_state_dict(checkpoint["state_dict"]) if self.world_size > 1 else self.model.backbone.load_state_dict(checkpoint["state_dict"]) # type: ignore
+            self.model.backbone.load_state_dict(checkpoint["state_dict"])
             
             '''logger.info(' => Running BackBone PreTraining')
             # Pretrain our backbone via Binary classification task (labelled, unlabelled)
@@ -125,14 +122,14 @@ class Cls_TrainWorker():
     
     def __save_checkpoint(self, filename: str) -> None:
         logger.info(f' => Saving {filename} Checkpoint')
-        checkpoint = dict(state_dict = self.model.module.state_dict() if self.world_size > 1 else self.model.state_dict()) # type: ignore
+        checkpoint = dict(state_dict = self.model.state_dict())
         torch.save(checkpoint, filename)
     
     
     def __load_checkpoint(self, filename: str) -> None:
         logger.info(f' => Loading {filename} Checkpoint')
         checkpoint = torch.load(filename, map_location=self.device)
-        self.model.module.load_state_dict(checkpoint["state_dict"]) if self.world_size > 1 else self.model.load_state_dict(checkpoint["state_dict"]) # type: ignore
+        self.model.load_state_dict(checkpoint["state_dict"])
         
 
     def compute_losses(self, weight: float, module_out: torch.Tensor | None, outputs: torch.Tensor, labels: torch.Tensor, epoch: int,
@@ -194,16 +191,9 @@ class Cls_TrainWorker():
         else: raise AttributeError('Invalid method_name')
     
     
-    def return_moved_imgs_labs(self, images: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        if self.world_size > 1:
-            images = images.to(self.device, non_blocking=True)
-            labels = labels.to(self.device, non_blocking=True)
-        else: images, labels = images.to(self.device), labels.to(self.device)
-        return images, labels
-    
     
     def train_batch(self, images, labels,  weight, idxs, moving_prob, epoch, train_loss_ce, train_loss_pred) -> Tuple[float, float, float, float]:
-        images, labels = self.return_moved_imgs_labs(images, labels)
+        images, labels = images.to(self.device), labels.to(self.device)
                 
         for optimizer in self.optimizers: optimizer.zero_grad(set_to_none=True)
                     
@@ -233,7 +223,6 @@ class Cls_TrainWorker():
                         
             train_loss, train_loss_ce, train_loss_pred, train_accuracy = .0, .0, .0, .0
             
-            if self.world_size > 1: self.train_dl.sampler.set_epoch(epoch) # type: ignore
             if self.decay != None and epoch >= self.decay: 
                 if self.net_type != 'llmlp_gtg' or self.method_name != 'TiDAL': weight = 0. # try llmlp_gtg to be performed for 200 epochs
             
@@ -298,9 +287,9 @@ class Cls_TrainWorker():
         with torch.inference_mode():
             for _, images, labels in self.test_dl:
                 
-                images, labels = self.return_moved_imgs_labs(images, labels)
+                images, labels = images.to(self.device), labels.to(self.device)
                 #outputs = self.model(images, mode='outs')
-                outputs, _ = self.model.backbone(images) # type: ignore
+                outputs, _ = self.model.backbone(images)
                 test_accuracy += self.score_fn(outputs, labels)
 
             test_accuracy /= len(self.test_dl)

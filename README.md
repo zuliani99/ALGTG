@@ -16,22 +16,15 @@ conda create --name <env> --file requirements.txt
 conda activate <env>
 ```
 
-### Multi GPUs
-If you want to perform experiments leveraging multiple gpus, you should edit **ActiveLearner.py** file, *train_evaluate* function, more precisely:
-```python
-os.environ["MASTER_ADDR"] = "xxxxxxxxxx" # -> replace with the correct address
-os.environ["MASTER_PORT"] = "yyyyyyyyyy" # -> repalce with a free port
-```
-
 ## Application Start-Up
 Example of application start-up:
 ```
-python3 app/main.py -gpus 1 -m random entropy coreset badge bald cdal tavaal ll ll_gtg -ds cifar10 -tr 5 -am corr -am_s mixed -am_ts mean -e_s mean
+python3 app/main.py -m random entropy coreset badge bald cdal tavaal ll ll_gtg -ds cifar10 -tr 5 -am corr -am_s mixed -am_ts mean -e_s mean
 ```
 
 Accepted Arguments:
 ```
-usage: main.py [-h] [-gpus GPUS] -m
+usage: main.py [-h] -m
                {random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,llmlp_gtg,lsmlps_gtg,lstmreg_gtg,lstmbc_gtg}
                [{random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,llmlp_gtg,lsmlps_gtg,lstmreg_gtg,lstmbc_gtg} ...]
                -ds {cifar10,cifar100,svhn,fmnist,caltech256,tinyimagenet}
@@ -46,8 +39,6 @@ usage: main.py [-h] [-gpus GPUS] -m
 
 options:
   -h, --help            show this help message and exit
-  -gpus GPUS, --gpus GPUS
-                        Number of GPUs to use during training
   -m {random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,llmlp_gtg,lsmlps_gtg,lstmreg_gtg,lstmbc_gtg} [{random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,llmlp_gtg,lsmlps_gtg,lstmreg_gtg,lstmbc_gtg} ...], 
       --methods {random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,llmlp_gtg,lsmlps_gtg,lstmreg_gtg,lstmbc_gtg} [{random,entropy,coreset,badge,bald,cdal,tavaal,alphamix,tidal,ll,gtg,ll_gtg,llmlp_gtg,lsmlps_gtg,lstmreg_gtg,lstmbc_gtg} ...]
                         Possible methods to choose

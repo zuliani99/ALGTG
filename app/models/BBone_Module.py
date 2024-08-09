@@ -18,7 +18,7 @@ class Master_Model(nn.Module):
         
         super(Master_Model, self).__init__()
         
-        self.backbone = backbone
+        self.backbone: ResNet | VGG = backbone
         self.added_module = added_module
         if added_module != None:
             self.added_module_name = added_module.name

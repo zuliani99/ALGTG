@@ -26,7 +26,6 @@ logger = logging.getLogger(__name__)
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument('-gpus', '--gpus', type=int, required=False, default=1, help='Number of GPUs to use during training')
     parser.add_argument('-m', '--methods', type=str, nargs='+', required=True, choices=[
             'random', 'entropy', 'coreset', 'badge', 'bald', 'cdal', 'tavaal', 'alphamix', 'tidal',
             'll', 'gtg', 'll_gtg', 'llmlp_gtg', 'lsmlps_gtg', 'lstmreg_gtg', 'lstmbc_gtg'
@@ -162,7 +161,7 @@ def main() -> None:
             
         common_training_params = {
             'device': device, 'exp_path': exp_path,
-            'dataset_name': dataset_name, 'task': task, 'gpus': args.gpus,
+            'dataset_name': dataset_name, 'task': task,
             'temp_unlab_pool': args.temp_unlab_pool, 'bbone_pre_train': args.bbone_pre_train,
             'cold_start': args.cold_start
         }

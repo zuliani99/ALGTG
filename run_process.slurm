@@ -13,11 +13,11 @@
 
 conda activate al_env
 
- lsmlps_gtg lstmreg_gtg lstmbc_gtg
+#lsmlps_gtg lstmreg_gtg lstmbc_gtg
 
-#python3 app/main.py -gpus 1 -m random entropy ll -ds cifar10 -tr 5 --temp_unlab_pool
-python3 app/main.py -gpus 1 -m llmlp_gtg -ds cifar10 -tr 1 -am corr -am_ts mean -e_s mean -gtg_iter 10 #-am_s uncertanity #--temp_unlab_pool
-#python3 app/main.py -gpus 1 -m lsmlps_gtg -ds cifar10 -tr 1 -am corr -am_ts mean -e_s mean -gtg_iter 10 #-am_s uncertanity #--temp_unlab_pool
+#python3 app/main.py -m random entropy ll -ds cifar10 -tr 5 --temp_unlab_pool
+python3 app/main.py -m llmlp_gtg -ds cifar10 -tr 1 -am corr -am_ts mean -e_s mean -gtg_iter 10 #-am_s uncertanity #--temp_unlab_pool
+#python3 app/main.py -m lsmlps_gtg -ds cifar10 -tr 1 -am corr -am_ts mean -e_s mean -gtg_iter 10 #-am_s uncertanity #--temp_unlab_pool
 
-#python3 app/main.py -gpus 1 -m ll_gtg -ds cifar10 -tr 1 -am corr -am_ts none mean -e_s mean #--temp_unlab_pool
-#python3 app/main.py -gpus 1 -m coreset badge bald cdal tavaal alphamix tidal -ds cifar10 -tr 5 --temp_unlab_pool
+#python3 app/main.py -m ll_gtg -ds cifar10 -tr 1 -am corr -am_ts none mean -e_s mean #--temp_unlab_pool
+#python3 app/main.py -m coreset badge bald cdal tavaal alphamix tidal -ds cifar10 -tr 5 --temp_unlab_pool

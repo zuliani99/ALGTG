@@ -2,7 +2,7 @@
 from models.BBone_Module import Master_Model
 from datasets_creation.Classification import Cls_Datasets
 from datasets_creation.Detection import Det_Dataset
-from train_evaluate.Train_DDP import train, train_ddp
+from train_evaluate.Train import train
 from utils import count_class_observation, plot_cumulative_train_results, set_seeds,\
     create_class_dir, create_method_res_dir, plot_new_labelled_tsne, save_train_val_curves, write_csv,\
     plot_classes_count_iterations, plot_entropy_iterations_classes
@@ -210,26 +210,11 @@ class ActiveLearner():
         if self.model.only_module_name == 'GTGModule': params["batch_size_gtg_online"] = self.batch_size_gtg_online # type: ignore
                 
         # if we are using multiple gpus
-        if self.world_size > 1:
-            
-            os.environ["MASTER_ADDR"] = "xxxxxxxxxx" # -> replace with the correct address
-            os.environ["MASTER_PORT"] = "yyyyyyyyyy" # -> repalce with a free port
-            
-            # Pipe for the itra-process communication of the results
-            parent_conn, child_conn = mp.Pipe()
-            
-            logger.info(' => RUNNING DISTRIBUTED TRAINING')
-            
-            # spawn the process
-            mp.spawn(fn=train_ddp, args=(self.world_size, params, child_conn, ), nprocs=self.world_size, join=True) # type: ignore
-            # obtain the results
-            while parent_conn.poll(): train_recv, test_recv = parent_conn.recv()
-                            
-        else:
-            logger.info(' => RUNNING TRAINING')
-            # add the already created labeeld train dataloader
+        
+        logger.info(' => RUNNING TRAINING')
+        # add the already created labeeld train dataloader
                 
-            train_recv, test_recv = train(params)
+        train_recv, test_recv = train(params)
             
         
         logger.info(' DONE\n')
