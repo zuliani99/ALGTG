@@ -49,7 +49,7 @@ class ActiveLearner():
         
         self.method_name = method_name
         self.strategy_name = f'{self.model.name}_{method_name}' # define strategy name    
-        self.best_check_filename: str = f'app/checkpoints/{self.ct_p["dataset_name"]}/best_{self.strategy_name}'
+        self.best_check_filename: str = f'app/checkpoints/{self.ct_p["dataset_name"]}/{self.strategy_name}'
         
         self.world_size: int = self.ct_p["gpus"]
         
@@ -60,7 +60,7 @@ class ActiveLearner():
         self.save_labelled_images(self.labelled_indices)
         
         self.count_classes: Dict[int, List[int]] = {}
-        self.count_classes[self.iter * al_params["n_top_k_obs"]] = list(count_class_observation(self.dataset.classes, Subset(self.dataset.lab_train_ds, self.labelled_indices)).values())
+        self.count_classes[self.iter * al_params["n_top_k_obs"]] = list(count_class_observation(self.dataset.classes, Subset(self.dataset.train_ds, self.labelled_indices)).values())
         write_csv(
             filename = f'{self.ct_p["task"]}_count_classes.csv',
             exp_path = self.ct_p["exp_path"],
@@ -332,7 +332,7 @@ class ActiveLearner():
                 Subset(self.dataset.unlab_train_ds, self.rand_unlab_sample), al_params["n_top_k_obs"]
             )
             
-            d_labels = count_class_observation(self.dataset.classes, self.dataset.lab_train_ds, topk_idx_obs)
+            d_labels = count_class_observation(self.dataset.classes, self.dataset.train_ds, topk_idx_obs)
             logger.info(f' Number of observations per class added to the labelled set:\n {d_labels}\n')
             
             # Saving the tsne embeddings plot

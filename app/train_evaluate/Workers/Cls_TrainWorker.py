@@ -58,14 +58,17 @@ class Cls_TrainWorker():
         
         self.score_fn = accuracy_score
         self.init_check_filename = f'app/checkpoints/{self.dataset_name}/{self.model.module.name if self.world_size > 1 else self.model.name}_init.pth.tar' # type: ignore
-        self.check_best_path = f'app/checkpoints/{self.dataset_name}/best_{self.strategy_name}_{self.device}.pth.tar'
+        self.check_best_path = f'app/checkpoints/{self.dataset_name}/{self.strategy_name}_{self.device}.pth.tar'
         
         # RETRAIN FROM SCRATCH THE NETWORK (different from what LL4AL have done)
         self.__load_checkpoint(self.init_check_filename)
         
         # BACKBONE PRETRAINING
         if self.is_gtg_module and self.pre_train:
-            logger.info(' => Running BackBone PreTraining')
+            checkpoint = torch.load(f'app/checkpoints/{self.dataset_name}/pratrained_BB.pth.tar', map_location=self.device)
+            self.model.backbone.module.load_state_dict(checkpoint["state_dict"]) if self.world_size > 1 else self.model.backbone.load_state_dict(checkpoint["state_dict"]) # type: ignore
+            
+            '''logger.info(' => Running BackBone PreTraining')
             # Pretrain our backbone via Binary classification task (labelled, unlabelled)
             pt = PreTrain(
                 device=self.device, backbone=self.model.backbone,
@@ -76,6 +79,8 @@ class Cls_TrainWorker():
             self.model.module.load_state_dict(pt.train()) if self.world_size > 1 else self.model.load_state_dict(pt.train()) # type: ignore
             
             logger.info(' => DONE\n')
+            self.model.module.load_state_dict('') if self.world_size > 1 else self.model.load_state_dict('') # type: ignore
+            '''
         
         
         if isinstance(self.train_dl, tuple):
@@ -112,8 +117,9 @@ class Cls_TrainWorker():
             
             #if self.method_name == 'TiDAL' or self.net_type == 'llmlp_gtg': 
             # TiDAL has milestone 160 and runs until epoch 200, all GTG Module have milestone to 60 and run until epoch 120
-            if self.method_name == 'TiDAL' or module_name == 'GTGModule': 
-                self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[1], milestones=[optimizers["milestones"][module_name]], gamma=0.1))
+            logger.info(f'module_name {module_name}')
+            #if self.method_name == 'TiDAL' or module_name == 'GTGModule': 
+            self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[-1], milestones=[optimizers["milestones"][module_name]], gamma=0.1))
             
             
     
@@ -129,8 +135,7 @@ class Cls_TrainWorker():
         self.model.module.load_state_dict(checkpoint["state_dict"]) if self.world_size > 1 else self.model.load_state_dict(checkpoint["state_dict"]) # type: ignore
         
 
-    def compute_losses(self, weight: float, module_out: torch.Tensor | None, outputs: torch.Tensor, \
-                       labels: torch.Tensor, epoch: int,
+    def compute_losses(self, weight: float, module_out: torch.Tensor | None, outputs: torch.Tensor, labels: torch.Tensor, epoch: int,
                        tidal: None | Tuple[torch.Tensor, torch.Tensor, int] = None,) -> Tuple[float, torch.Tensor, float, float]:
                 
         ce_loss = self.ce_loss_fn(outputs, labels)
@@ -287,13 +292,15 @@ class Cls_TrainWorker():
         self.__load_checkpoint(self.check_best_path)
         test_accuracy = .0
         
-        self.model.eval()    
+        #self.model.eval()    
+        self.model.backbone.eval() # type: ignore
 
         with torch.inference_mode():
             for _, images, labels in self.test_dl:
                 
                 images, labels = self.return_moved_imgs_labs(images, labels)
-                outputs  = self.model(images, mode='outs')
+                #outputs = self.model(images, mode='outs')
+                outputs, _ = self.model.backbone(images) # type: ignore
                 test_accuracy += self.score_fn(outputs, labels)
 
             test_accuracy /= len(self.test_dl)

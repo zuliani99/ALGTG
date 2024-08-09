@@ -1,15 +1,17 @@
 
-from torch.utils.data import Dataset, Subset
+from torch.utils.data import Dataset, Subset, DataLoader
 from torchvision import datasets
 import torch
 import numpy as np
 
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Any
 import os
 import shutil
 
 from torchvision import transforms
 
+from auto_encoder.train_AE import fit_ae, get_initial_sample_higher_MSE, get_initial_sample_farthest_KMeans
+from auto_encoder.BackBone_Decoder import BackBone_Decoder
 from utils import count_class_observation, log_assert, set_seeds
 from config import cls_datasets, al_params
 
@@ -30,24 +32,27 @@ def download_tinyimagenet() -> None:
         
         
 def create_val_img_folder(dataset_dir):
-    val_dir = os.path.join(dataset_dir, 'val')
-    img_dir = os.path.join(val_dir, 'images')
+    if not os.path.exists(dataset_dir):
+        val_dir = os.path.join(dataset_dir, 'val')
+        img_dir = os.path.join(val_dir, 'images')
 
-    fp = open(os.path.join(val_dir, 'val_annotations.txt'), 'r')
-    data = fp.readlines()
-    val_img_dict = {}
-    for line in data:
-        words = line.split('\t')
-        val_img_dict[words[0]] = words[1]
-    fp.close()
+        fp = open(os.path.join(val_dir, 'val_annotations.txt'), 'r')
+        data = fp.readlines()
+        val_img_dict = {}
+        for line in data:
+            words = line.split('\t')
+            val_img_dict[words[0]] = words[1]
+        fp.close()
 
-    # Create folder if not present and move images into proper folders
-    for img, folder in val_img_dict.items():
-        newpath = (os.path.join(img_dir, folder))
-        if not os.path.exists(newpath):
-            os.makedirs(newpath)
-        if os.path.exists(os.path.join(img_dir, img)):
-            os.rename(os.path.join(img_dir, img), os.path.join(newpath, img))
+        # Create folder if not present and move images into proper folders
+        for img, folder in val_img_dict.items():
+            newpath = (os.path.join(img_dir, folder))
+            if not os.path.exists(newpath):
+                os.makedirs(newpath)
+            if os.path.exists(os.path.join(img_dir, img)):
+                os.rename(os.path.join(img_dir, img), os.path.join(newpath, img))
+    else:
+        logger.info(f'{dataset_dir} already exists')
 
 
 def preprocess_caltech256_dir(caltech256_path):
@@ -159,7 +164,7 @@ class Cls_Datasets():
         self.dataset_id: int = cls_datasets[dataset_name]["id"]
         self.image_size: int = cls_datasets[dataset_name]["image_size"]
         
-        self.lab_train_ds = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=True, n_classes=self.n_classes)
+        self.train_ds = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=True, n_classes=self.n_classes)
         self.unlab_train_ds = Cls_Dataset(dataset_name=dataset_name, bool_train=True, bool_transform=False)
         
         self.test_ds = Cls_Dataset(dataset_name=dataset_name, bool_train=False, bool_transform=False)
@@ -167,14 +172,30 @@ class Cls_Datasets():
         if dataset_name == 'tinyimagenet':
             cls_datasets[dataset_name]["classes"] = os.listdir('./datasets/tiny-imagenet-200/train')
             
-        self.classes: List[str] = cls_datasets[dataset_name]["classes"]    
+        self.classes: List[str] = cls_datasets[dataset_name]["classes"]
+        
+        
+        
+    def get_initial_subsets_cold_start(self, device: torch.device, batch_size: int = 128, n_obs_per_class = 100) -> None: #Dict[str, Any]:
+
+        auto_encoder = BackBone_Decoder(classes=self.n_classes, n_channels=self.n_channels, image_size=self.image_size)
+        
+        fit_ae(auto_encoder, device, self.train_ds)
+        
+        dl = DataLoader(self.train_ds, shuffle=True, pin_memory=True, batch_size=batch_size)
+        self.labelled_indices = get_initial_sample_higher_MSE(auto_encoder, dl, device, al_params["init_lab_obs"])
+        #self.labelled_indices = get_initial_sample_farthest_KMeans(auto_encoder, dl, device, al_params["init_lab_obs"], n_obs_per_class)
+        self.unlabelled_indices = [idx for idx in self.train_ds.ds.indices if idx not in self.labelled_indices] # type: ignore
+        
+        #return auto_encoder.encoder.state_dict()
+    
     
     
     def get_initial_subsets(self, trial_id: int) -> None:
 
         init_lab_obs = al_params["init_lab_obs"]
 
-        train_size = len(self.lab_train_ds)
+        train_size = len(self.train_ds)
 
         set_seeds(self.dataset_id * trial_id)
         
@@ -188,7 +209,7 @@ class Cls_Datasets():
         self.labelled_indices: List[int] = shuffled_indices[:init_lab_obs].tolist()
         self.unlabelled_indices: List[int] = shuffled_indices[init_lab_obs:].tolist()
         
-        logger.info(f' Initial subset of labelled observations composed with: {count_class_observation(self.classes, Subset(self.lab_train_ds, self.labelled_indices))}')
+        logger.info(f' Initial subset of labelled observations composed with: {count_class_observation(self.classes, Subset(self.train_ds, self.labelled_indices))}')
 
 
 
@@ -196,51 +217,35 @@ class Cls_Datasets():
 class Cls_Dataset(Dataset):
     def __init__(self, dataset_name: str, bool_train: bool, bool_transform: bool, n_classes: int = -1) -> None:
         
-        if bool_train and bool_transform:            
-            # train
-            if dataset_name == 'tinyimagenet':
-                download_tinyimagenet()
-                create_val_img_folder('./datasets/tiny-imagenet-200')
-                self.ds: Dataset = datasets.ImageFolder('./datasets/tiny-imagenet-200/train',
-                    transform=cls_datasets["tinyimagenet"]["transforms"]["train"]
-                )
-            elif dataset_name == 'svhn':
-                self.ds: Dataset = cls_datasets["svhn"]["method"]('./datasets/svhn', 
-                    split='train', download=True,
-                    transform=cls_datasets["svhn"]["transforms"]["train"]
-                )
-            elif dataset_name == 'caltech256':
-                init_caltech256()
-                self.ds: Dataset = datasets.ImageFolder('./datasets/caltech256/256_ObjectCategories/train',
-                    transform=cls_datasets["caltech256"]["transforms"]["train"]
-                )
-            else:
-                self.ds: Dataset = cls_datasets[dataset_name]["method"](f'./datasets/{dataset_name}',
-                    train=True, download=True,
-                    transform=cls_datasets[dataset_name]["transforms"]["train"]
-                ) 
-
+        str_train = 'train' if bool_train else 'test'
+        str_transform = 'train' if bool_transform else 'test'
+        
+        if dataset_name == 'tinyimagenet':
+            download_tinyimagenet()
+            create_val_img_folder('./datasets/tiny-imagenet-200')
+            self.ds: Dataset = datasets.ImageFolder(f'./datasets/tiny-imagenet-200/{str_train}',
+                transform=cls_datasets["tinyimagenet"]["transforms"][str_transform]
+            )
+        elif dataset_name == 'svhn':
+            self.ds: Dataset = cls_datasets["svhn"]["method"]('./datasets/svhn', 
+                split=str_train, download=True,
+                transform=cls_datasets["svhn"]["transforms"][str_transform]
+            )
+        elif dataset_name == 'caltech256':
+            init_caltech256()
+            self.ds: Dataset = datasets.ImageFolder(f'./datasets/caltech256/256_ObjectCategories/{str_train}',
+                transform=cls_datasets["caltech256"]["transforms"][str_transform]
+            )
+        else:
+            self.ds: Dataset = cls_datasets[dataset_name]["method"](f'./datasets/{dataset_name}',
+                train=bool_train, download=True,
+                transform=cls_datasets[dataset_name]["transforms"][str_transform]
+            )
+        
+        if bool_train and bool_transform: 
             log_assert(n_classes != -1, 'Invalid n_classes')
             self.moving_prob = torch.zeros((len(self.ds), n_classes), dtype=torch.float32, device=torch.device('cpu')) # type: ignore  # -> for TiDAL
-               
-        else:
-            # unlabelled or test dataset
-            if dataset_name == 'tinyimagenet':
-                self.ds: Dataset = datasets.ImageFolder(f'./datasets/tiny-imagenet-200/{"train" if bool_train else "val/images"}', 
-                    transform=cls_datasets["tinyimagenet"]["transforms"]["test"]
-                )
-            elif dataset_name == 'svhn':
-                self.ds: Dataset = cls_datasets["svhn"]["method"]('./datasets/svhn', split='train' if bool_train else 'test', 
-                    download=True, transform=cls_datasets["svhn"]["transforms"]["test"]
-                )
-            elif dataset_name == 'caltech256':
-                self.ds: Dataset = datasets.ImageFolder(f'./datasets/caltech256/256_ObjectCategories/{"train" if bool_train else "test"}', 
-                    transform=cls_datasets["caltech256"]["transforms"]["test"]
-                )            
-            else:
-                self.ds: Dataset = cls_datasets[dataset_name]["method"](f'./datasets/{dataset_name}', train=bool_train, 
-                    download=True, transform=cls_datasets[dataset_name]["transforms"]["test"]
-                )           
+        
         
         
     def __len__(self) -> int:

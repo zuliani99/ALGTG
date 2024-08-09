@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from ast import arg
 import torch
 
 torch.autograd.set_detect_anomaly(True) # type: ignore
@@ -34,6 +35,7 @@ def get_args() -> argparse.Namespace:
                         help='Possible datasets to choose')
     parser.add_argument('-tr', '--trials', type=int, required=False, default=5, help='AL trials')
     parser.add_argument('-bbone', '--bbone_pre_train', required=False, action='store_true', help='BackBone pre-train (binary calssification task) for GTG Module')
+    parser.add_argument('-cs', '--cold_start', required=False, action='store_true', help='Use our cold start strategy')
    
     parser.add_argument('-tulp', '--temp_unlab_pool', required=False, action='store_true', help='Temporary Unlabelled Pool')
     parser.add_argument('-am', '--affinity_matrix', type=str, nargs='+', required=False, choices=['corr', 'cos_sim', 'rbfk'], default=['corr'], help='Affinity matrix to choose')
@@ -162,7 +164,10 @@ def main() -> None:
             'device': device, 'exp_path': exp_path,
             'dataset_name': dataset_name, 'task': task, 'gpus': args.gpus,
             'temp_unlab_pool': args.temp_unlab_pool, 'bbone_pre_train': args.bbone_pre_train,
+            'cold_start': args.cold_start
         }
+        
+        if args.cold_start: args.trials = 1
         
         for trial in range(args.trials):
             common_training_params["trial"] = trial
@@ -171,7 +176,14 @@ def main() -> None:
             
             create_exp_path(exp_path, dataset_name, str(trial))
             
-            Dataset.get_initial_subsets(trial) # get the random split of dataset
+            #Dataset.get_initial_subsets(trial) # get the random split of dataset
+            
+            #intial_weights = Dataset.get_initial_subsets(device)  # type: ignore
+            if args.cold_start: Dataset.get_initial_subsets_cold_start(device) # type: ignore
+            else: Dataset.get_initial_subsets(trial)  # type: ignore
+            
+            # adding the initial weights to the common_training_params to be loaded in the backbnone
+            #common_training_params["init_weights"] = intial_weights
             
             #results, count_classes, n_lab_obs = run_strategies(
             results, n_lab_obs = run_strategies(
@@ -184,6 +196,7 @@ def main() -> None:
         
         plot_res_std_mean(task, exp_path, dataset_name)
 
+        del common_training_params["trial"]
         # saving yamal configuration file
         save_yamal(
             common_training_params, 

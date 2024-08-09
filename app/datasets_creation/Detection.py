@@ -71,7 +71,7 @@ def detection_collate(batch):
 class Det_Dataset():
     def __init__(self, dataset_name: str) -> None:
 
-        self.lab_train_ds, self.unlab_train_ds, self.test_ds = get_detection_dataset(dataset_name, 'datasets/voc')
+        self.train_ds, self.unlab_train_ds, self.test_ds = get_detection_dataset(dataset_name, 'datasets/voc')
         
         self.n_classes: int = det_datasets[dataset_name]["n_classes"]
         self.dataset_id: int = det_datasets[dataset_name]["id"]
@@ -86,7 +86,7 @@ class Det_Dataset():
 
         init_lab_obs = al_params["init_lab_obs"]
 
-        train_size = len(self.lab_train_ds)
+        train_size = len(self.train_ds)
         
         set_seeds(self.dataset_id * trial_id)
         
