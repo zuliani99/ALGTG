@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 
 from models.backbones.ResNet18 import ResNet
-#from models.backbones.ssd_pytorch.SSD import SSD
+from models.backbones.ssd_pytorch.SSD import SSD
 from models.backbones.VGG import VGG
 
 from models.modules.GTG_Cls import GTGModule
@@ -14,11 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 class Master_Model(nn.Module):
-    def __init__(self, backbone: ResNet | VGG, added_module: LossNet | GTGModule | None, dataset_name: str) -> None:
+    def __init__(self, backbone: ResNet | VGG | SSD, added_module: LossNet | GTGModule | None, dataset_name: str) -> None:
         
         super(Master_Model, self).__init__()
         
-        self.backbone: ResNet | VGG = backbone
+        self.backbone = backbone
         self.added_module = added_module
         if added_module != None:
             self.added_module_name = added_module.name

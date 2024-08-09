@@ -46,7 +46,7 @@ class Det_TrainWorker():
 
         self.best_check_filename = f'app/checkpoints/{self.ct_p["dataset_name"]}'
         self.init_check_filename = f'{self.best_check_filename}/{self.model.name}_init.pth.tar'
-        self.check_best_path = f'{self.best_check_filename}/best_{self.strategy_name}_{self.device}.pth.tar'
+        self.check_best_path = f'{self.best_check_filename}/{self.strategy_name}_{self.device}.pth.tar'
         
         if self.iter > 1: 
             self.__load_checkpoint(self.check_best_path)

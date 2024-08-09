@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import entropy, init_weights_apply
+from utils import entropy
 from config import al_params
 
 from typing import Any, List, Tuple, Dict
@@ -331,7 +331,6 @@ class GTGModule(nn.Module):
             logger.exception(' Invalid GTG Model') 
             raise AttributeError(' Invalid GTG Model')
 
-        #self.gtg_module.apply(init_weights_apply)
 
         
     def define_idx_params(self, id_am_ts: int, id_am: int) -> None: # in order to define the indices of AM_threshold_strategy and AM_function
