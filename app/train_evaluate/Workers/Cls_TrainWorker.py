@@ -29,7 +29,6 @@ class Cls_TrainWorker():
         self.model: Master_Model | DDP = params["ct_p"]["Master_Model"]
         
         self.dataset_name: str = params["ct_p"]["dataset_name"]
-        #self.al_iters: str = params["al_p"]["al_iters"]
         self.strategy_name: str = params["strategy_name"]
         
         self.is_gtg_module = self.model.only_module_name == 'GTGModule'
@@ -163,9 +162,9 @@ class Cls_TrainWorker():
             ############################################################################################################################
             
             # if the predicted entropy on the labelled ssample is close to zero it means the model can distinguish labelled samples from unlabelled ones
-            #scaling_factor = torch.mean(entr_loss[labelled_mask]) + 1 
-            entr_loss = torch.mean(entr_loss[labelled_mask]) + torch.mean(entr_loss[~labelled_mask])# * scaling_factor
-            #logger.info(f'scaling_factor -> {scaling_factor}')
+            #labelled_weight_factor = torch.mean(entr_loss[labelled_mask]) + 1 
+            entr_loss = torch.mean(entr_loss[labelled_mask]) + torch.mean(entr_loss[~labelled_mask])
+            #logger.info(f'scaling_factor -> {labelled_weight_factor}')
             
             loss = lab_ce_loss + entr_loss
             

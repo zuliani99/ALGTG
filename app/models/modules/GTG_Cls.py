@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import entropy, init_weights_apply
+from utils import entropy
 from config import al_params
 
 from typing import Any, List, Tuple, Dict
@@ -79,19 +79,24 @@ class Module_LSs_GTGs_MLPs(nn.Module):
         super(Module_LSs_GTGs_MLPs, self).__init__()
 
         self.mod_ls = Module_LS(params)
+        in_feat = gtg_iter * n_classes        
         self.gtg_func = gtg_func
-        in_feat = gtg_iter * n_classes
         
         #self.seq_linears = nn.ModuleList([nn.Sequential(nn.Linear(in_feat, 1)) for _ in range(4)])
-        self.seq_linears = nn.ModuleList([nn.Sequential(
+        '''self.seq_linears = nn.ModuleList([nn.Sequential(
             nn.Linear(in_feat, in_feat // 2), nn.ReLU(),
             nn.Linear(in_feat // 2, in_feat // 4), nn.ReLU(),
             nn.Linear(in_feat // 4, 1), 
-        ) for _ in range(4)])
+        ) for _ in range(4)])'''
         
-        self.linear = nn.Linear(len(self.seq_linears), 1)        
+        '''self.linears = nn.Sequential(
+            nn.Linear(in_feat, in_feat // 2), nn.ReLU(),
+            nn.Linear(in_feat // 2, in_feat // 4), nn.ReLU(),
+            nn.Linear(in_feat // 4, 1), 
+        )'''
+        self.linear = nn.Linear(in_feat, 1)
         
-    def forward(self, features: List[torch.Tensor], weight: int, labels: torch.Tensor) -> torch.Tensor:
+    '''def forward(self, features: List[torch.Tensor], weight: int, labels: torch.Tensor) -> torch.Tensor:
         outs = [ ]
         for id, features_embedding in enumerate(features):
             emb_ls = self.mod_ls(features_embedding, id)
@@ -102,6 +107,19 @@ class Module_LSs_GTGs_MLPs(nn.Module):
             outs.append(out)
         
         out = self.linear(torch.cat(outs, 1))
+        return out'''
+        
+    def forward(self, features: List[torch.Tensor], weight: int, labels: torch.Tensor) -> torch.Tensor:
+        ls_features = [self.mod_ls(features[i], i) for i in range(len(features)-1)] # exclude the last one with the embeddings
+        #ls_features = self.mod_ls(features)
+        if weight == 0: ls_features = [ls.detach() for ls in ls_features]
+        ls_features = torch.cat(ls_features, dim=1)
+        
+        latent_feature = self.gtg_func(ls_features, labels)[0]
+        out = latent_feature.view(latent_feature.size(0), -1)
+        #out = self.linears(out)
+        out = self.linear(out)
+        
         return out
 
 
@@ -120,7 +138,7 @@ class Module_LS(nn.Module):
         for n_c, e_d in zip(num_channels, feature_sizes):
             self.gaps.append(nn.AvgPool2d(e_d))
             self.linears.append(nn.Sequential(
-                nn.Linear(n_c, interm_dim), nn.ReLU(), #nn.BatchNorm1d(interm_dim)
+                nn.Linear(n_c, interm_dim), nn.ReLU(),# nn.BatchNorm1d(interm_dim)
             ))
 
         self.linears = nn.ModuleList(self.linears)
@@ -140,51 +158,6 @@ class Module_LS(nn.Module):
                 out = self.linears[i](out)
                 outs.append(out)
             return outs
-        
-
-'''class CNN_MLP(nn.Module):
-    def __init__(self, params: Dict[str, Any]):
-        super(CNN_MLP, self).__init__()
-        
-        # same parameters of loss net
-        feature_sizes = params["feature_sizes"]
-        num_channels = params["num_channels"]
-        interm_dim = params["interm_dim"]
-
-        self.convs, self.linears = [], []
-        dim_class = interm_dim * len(num_channels)
-
-        for n_c, e_d in zip(num_channels, feature_sizes):
-            out_features = n_c // (e_d // 2)
-            self.convs.append(nn.Sequential(
-                nn.Conv2d(n_c ,out_features, kernel_size=3, stride=2, padding=1), # instead og GAP of LL_Module
-                nn.BatchNorm2d(out_features),
-                nn.ReLU(),
-            ))
-            self.linears.append(nn.Sequential(
-                nn.Linear(n_c * (e_d // 2), interm_dim), # same dimension of the LL_Module latent space
-                nn.ReLU(),
-            ))
-
-        self.convs = nn.ModuleList(self.convs)
-        self.linears = nn.ModuleList(self.linears)
-        self.regressor = nn.Sequential(
-            nn.Linear(dim_class, dim_class//2), nn.ReLU(),
-            nn.Linear(dim_class//2, dim_class//4 ), nn.ReLU(),
-            nn.Linear(dim_class//4, 1)
-        )
-        
-
-    def forward(self, features):
-        outs = []
-        for i in range(len(features)):
-            out = self.convs[i](features[i])
-            out = out.view(out.size(0), -1)
-            out = self.linears[i](out)
-            outs.append(out)
-
-        out = self.regressor(torch.cat(outs, 1))
-        return out'''
     
     
     
@@ -203,12 +176,15 @@ class Module_LL(nn.Module):
             self.gaps.append(nn.AvgPool2d(e_d))
             self.linears.append(nn.Sequential(
                 nn.Linear(n_c, interm_dim), nn.ReLU(),# nn.BatchNorm1d(interm_dim),
-                nn.Linear(interm_dim, interm_dim // 2), nn.ReLU(),# nn.BatchNorm1d(interm_dim // 2),
+                #nn.Linear(interm_dim, interm_dim // 2), nn.ReLU(), nn.BatchNorm1d(interm_dim // 2),
+                #nn.Linear(interm_dim // 2, interm_dim // 4), nn.ReLU(), nn.BatchNorm1d(interm_dim // 4),
+                #nn.Linear(interm_dim // 4, interm_dim // 8), nn.ReLU(), nn.BatchNorm1d(interm_dim // 8),
             ))
 
         self.linears = nn.ModuleList(self.linears)
         self.gaps = nn.ModuleList(self.gaps)
-        self.classifier = nn.Linear((interm_dim // 2) * len(num_channels), 1)
+        #self.classifier = nn.Linear((interm_dim // 8) * len(num_channels), 1)
+        self.classifier = nn.Linear(interm_dim * len(num_channels), 1)
 
 
     def forward(self, features: List[torch.Tensor]) -> torch.Tensor:
@@ -221,51 +197,6 @@ class Module_LL(nn.Module):
         out = torch.cat(outs, 1)
         return self.classifier(out)
 
-
-class Module_CNN_MLP(nn.Module):
-    def __init__(self, params: Dict[str, Any]):
-        super(Module_CNN_MLP, self).__init__()
-        
-        # same parameters of loss net
-        feature_sizes = params["feature_sizes"]
-        num_channels = params["num_channels"]
-        interm_dim = params["interm_dim"]
-
-        self.convs, self.linears = [], []
-        dim_class = interm_dim * len(num_channels)
-
-        for n_c, e_d in zip(num_channels, feature_sizes):
-            out_features = n_c // (e_d // 2)
-            self.convs.append(nn.Sequential(
-                nn.Conv2d(n_c ,out_features, kernel_size=3, stride=2, padding=1), # instead og GAP of LL_Module
-                # we have learnable parameters instead of doing the average
-                nn.BatchNorm2d(out_features),
-                nn.ReLU(),
-            ))
-            self.linears.append(nn.Sequential(
-                nn.Linear(n_c * (e_d // 2), interm_dim), # same dimension of the LL_Module latent space
-                nn.ReLU(),
-            ))
-
-        self.convs = nn.ModuleList(self.convs)
-        self.linears = nn.ModuleList(self.linears)
-        self.regressor = nn.Sequential(
-            nn.Linear(dim_class, dim_class // 2), nn.ReLU(),
-            nn.Linear(dim_class // 2, dim_class // 4 ), nn.ReLU(),
-            nn.Linear(dim_class // 4, 1)
-        )
-        
-
-    def forward(self, features):
-        outs = []
-        for i in range(len(features)):
-            out = self.convs[i](features[i])
-            out = out.view(out.size(0), -1)
-            out = self.linears[i](out)
-            outs.append(out)
-
-        out = self.regressor(torch.cat(outs, 1))
-        return out
 
         
 
@@ -331,7 +262,6 @@ class GTGModule(nn.Module):
             logger.exception(' Invalid GTG Model') 
             raise AttributeError(' Invalid GTG Model')
 
-        #self.gtg_module.apply(init_weights_apply)
 
         
     def define_idx_params(self, id_am_ts: int, id_am: int) -> None: # in order to define the indices of AM_threshold_strategy and AM_function
@@ -403,7 +333,7 @@ class GTGModule(nn.Module):
        
         if self.GTG_Model != 'lstmbc': self.X[torch.arange(self.n_lab_obs), self.lab_labels] = 1.
         else: self.X[torch.arange(self.n_lab_obs), :] = probs[torch.arange(self.n_lab_obs)]
-
+        
         self.X[self.n_lab_obs:, :] = torch.ones(self.n_classes, device=self.device) * (1. / self.n_classes)
     
     
@@ -432,8 +362,7 @@ class GTGModule(nn.Module):
         err = float('Inf')
         i = 0
         
-        #logger.info(f'start {X.argmax(dim=1)}')
-                        
+                             
         while err > self.gtg_tol and i < self.gtg_max_iter:
             
             if X.requires_grad: X.register_hook(lambda grad: logger.info(f'1- X grad: {grad.sum()}\n'))

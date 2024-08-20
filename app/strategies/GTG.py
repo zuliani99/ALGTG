@@ -102,9 +102,9 @@ class GTG(ActiveLearner):
             
             
         logger.info(f' => Extracting the Top-k unlabelled observations')
-        #overall_topk = top_k_pred.tolist()
+        overall_topk = top_k_pred.tolist()
         ######################################################
-        overall_topk = top_k_true.tolist() # -> DEBUB PORPUSE
+        #overall_topk = top_k_true.tolist() # -> DEBUB PORPUSE
         ######################################################
         logger.info(' DONE\n')
             

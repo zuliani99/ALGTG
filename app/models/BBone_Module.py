@@ -26,10 +26,8 @@ class Master_Model(nn.Module):
         else: self.added_module_name, self.only_module_name = None, None
         
         
-        if added_module != None:
-            self.name = f'{self.backbone.__class__.__name__}_{self.added_module_name}' # type: ignore
-        else: 
-            self.name = f'{self.backbone.__class__.__name__}'
+        if added_module != None: self.name = f'{self.backbone.__class__.__name__}_{self.added_module_name}' # type: ignore
+        else: self.name = f'{self.backbone.__class__.__name__}'
             
         # backbone and additional module have initialized their respecive layers, so I can save the initial checkpoint
         logger.info(f' => Saving Initial {self.name} checkpoint app/checkpoints/{dataset_name}/{self.name}_init.pth.tar')

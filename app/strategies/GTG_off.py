@@ -31,6 +31,8 @@ class GTG_off(ActiveLearner):
         self.AM_threshold_strategy: str = gtg_p["am_ts"][gtg_p["id_am_ts"]]
         self.AM_threshold: float = gtg_p["am_t"]
         
+        self.AM_mixed_distance = gtg_p["am_m_d"]
+        
         self.ent_strategy: str = gtg_p["e_s"]
 
         if self.AM_threshold_strategy != 'none':
@@ -81,8 +83,13 @@ class GTG_off(ActiveLearner):
             n_lab_obs = len(self.labelled_indices)
             
             # LL -> DISTANCE
-            if self.AM_function == 'rbfk': A = 1 - A 
-            A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs]
+            if self.AM_function == 'rbfk': A = 1 - A
+            for AM_m_d in self.AM_mixed_distance:
+                if AM_m_d == 'LL': A[:n_lab_obs, :n_lab_obs] = 1 - A[:n_lab_obs, :n_lab_obs] # LL -> DISTANCE
+                elif AM_m_d == 'UU': A[n_lab_obs:, n_lab_obs:] = 1 - A[n_lab_obs:, n_lab_obs:] # UU -> DISTANCE
+                elif AM_m_d == 'LU': A[:n_lab_obs, n_lab_obs:] = 1 - A[:n_lab_obs, n_lab_obs:] # LU -> DISTANCE
+                else: A[n_lab_obs:, :n_lab_obs] = 1 - A[n_lab_obs:, :n_lab_obs] # UL -> DISTANCE
+            
                
                 
         # plot the TSNE fo the original and modified affinity matrix
@@ -234,20 +241,18 @@ class GTG_off(ActiveLearner):
                             
         logger.info(f' => Extracting the Top-k unlabelled observations using {self.ent_strategy}')
         
-        if self.ent_strategy == 'mean':
-            # computing the mean of the entropis history
-            mean_ent = torch.mean(self.unlab_entropy_hist, dim=1)
-            overall_topk = torch.topk(mean_ent, k=n_top_k_obs).indices.tolist()
-          
-        elif self.ent_strategy == 'integral':
-            # computing the area of the entropis history using trapezoid formula 
-            area = torch.trapezoid(self.unlab_entropy_hist, dim=1)
-            overall_topk = torch.topk(area, k=n_top_k_obs).indices.tolist()
-        
-        else: 
+        if self.ent_strategy not in ['mean', 'integral']:
             logger.exception('Unrecognized derivates computation strategy')
             raise Exception('Unrecognized derivates computation strategy')
         
+        if self.ent_strategy == 'mean': # computing the mean of the entropis history
+            entropy_measures = torch.mean(self.unlab_entropy_hist, dim=1)
+          
+        else: # computing the area of the entropis history using trapezoid formula 
+            entropy_measures = torch.trapezoid(self.unlab_entropy_hist, dim=1)
+           
+        overall_topk = torch.topk(entropy_measures, k=n_top_k_obs).indices.tolist()
+                
         # plot entropy history tensor
         plot_gtg_entropy_tensor(
             tensor=self.unlab_entropy_hist, topk=overall_topk, lab_unlabels=self.unlab_embedds_dict["labels"].tolist(), classes=self.dataset.classes, 

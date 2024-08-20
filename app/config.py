@@ -167,15 +167,15 @@ cls_config = {
                 }
             },
             'modules': {
-                'type': { 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.SGD, },
-                'decay': { 'LossNet': 120, 'GTGModule': None },
+                'type': { 'LossNet': torch.optim.SGD, 'GTGModule': torch.optim.AdamW, },
+                'decay': { 'LossNet': 120, 'GTGModule': 120 },
                 'optim_p': {
                     'LossNet': { 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4 },
                     #'GTGModule': { 'lr': 0.001 }#, 'weight_decay': 5e-4} 
-                    'GTGModule': { 'lr': 0.001, 'momentum': 0.9, 'weight_decay': 5e-4 }, # SGD
+                    'GTGModule': { 'lr': 0.001 ,}, #'momentum': 0.9, 'weight_decay': 5e-4 }, # SGD
                 }
             },
-            'milestones': { 'backbone': 160, 'LossNet': 160, 'GTGModule': 160 },
+            'milestones': { 'backbone': 160, 'LossNet': 160, 'GTGModule': 60 },
         }
     },
 
