@@ -40,7 +40,8 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('-tulp', '--temp_unlab_pool', required=False, action='store_true', help='Temporary Unlabelled Pool')
     parser.add_argument('-am', '--affinity_matrix', type=str, nargs='+', required=False, choices=['corr', 'cos_sim', 'rbfk'], default=['corr'], help='Affinity matrix to choose')
     
-    parser.add_argument('-am_m_d', '--affinity_matrix_midex_distance', type=str, nargs='+', required=False, choices=['LL', 'UU', 'LU', 'UL'], default=['LL'], help='Affinity matrix portion to convert into distance measure')
+    parser.add_argument('-am_md', '--affinity_matrix_mixed_distance', type=str, nargs='+', required=False, choices=['LL', 'UU', 'LU', 'UL'], default=['LL'], help='Affinity matrix portion to convert into distance measure')
+    parser.add_argument('-am_sl', '--affnity_matrix_self_loop', required=False, action='store_false', help='Affinity matrix cells self loop')
     
     parser.add_argument('-am_s', '--affinity_matrix_strategy', type=str, required=False, choices=['uncertanity', 'diversity', 'mixed'], default='mixed', 
                        help='Different affinity matrix modification')
@@ -132,7 +133,8 @@ def main() -> None:
         'am_ts': args.affinity_matrix_threshold_strategies,
         'am_t': args.affinity_matrix_threshold,
         'e_s': args.entropy_strategy,
-        'am_m_d': args.affinity_matrix_midex_distance,
+        'am_md': args.affinity_matrix_mixed_distance,
+        'am_sl': args.affnity_matrix_self_loop,
         
         #'plb': args.perc_labelled_batch,
         'bsgtgo': args.batch_size_gtg_online,

@@ -19,5 +19,6 @@ conda activate al_env
 #python3 app/main.py -gpus 1 -m lsmlps_gtg -ds cifar10 -tr 1 -am corr -am_ts mean -e_s mean -gtg_iter 10 #-am_s uncertanity #--temp_unlab_pool
 #python3 app/main.py -gpus 1 -m lsmlps_gtg llmlp_gtg lstmreg_gtg lstmbc_gtg -ds cifar10 -tr 1 -am corr -am_ts mean -e_s mean -gtg_iter 10 #-am_s uncertanity #--temp_unlab_pool
 
-#python3 app/main.py -gpus 1 -m ll_gtg -ds cifar10 -tr 1 -am corr -am_s mixed -am_ts mean -e_s mean -am_m_d LU UL UU #--temp_unlab_pool
+#python3 app/main.py -gpus 1 -m ll_gtg -ds cifar10 -tr 1 -am corr -am_s uncertanity -am_ts mean -e_s mean #--temp_unlab_pool
+python3 app/main.py -gpus 1 -m ll_gtg -ds cifar10 -tr 1 -am corr -am_s uncertanity -am_ts none -e_s mean -am_md UU #--affnity_matrix_self_loop #--temp_unlab_pool
 #python3 app/main.py -gpus 1 -m coreset badge bald cdal tavaal alphamix tidal -ds cifar10 -tr 5 --temp_unlab_pool
