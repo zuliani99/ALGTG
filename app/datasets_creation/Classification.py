@@ -10,7 +10,7 @@ import shutil
 
 from torchvision import transforms
 
-from auto_encoder.train_AE import fit_ae, get_initial_sample_higher_MSE, get_initial_sample_farthest_KMeans
+from auto_encoder.Train_AE import fit_ae, get_initial_sample_higher_MSE, get_initial_sample_farthest_KMeans
 from auto_encoder.BackBone_Decoder import BackBone_Decoder
 from utils import count_class_observation, log_assert, set_seeds
 from config import cls_datasets, al_params
@@ -176,18 +176,18 @@ class Cls_Datasets():
         
         
         
-    def get_initial_subsets_cold_start(self, device: torch.device, batch_size: int = 128, n_obs_per_class = 100) -> None: #Dict[str, Any]:
+    def get_initial_subsets_cold_start(self, device: torch.device, strategy: str, batch_size: int = 128, n_obs_per_class = 100) -> Dict[str, Any]:
 
         auto_encoder = BackBone_Decoder(classes=self.n_classes, n_channels=self.n_channels, image_size=self.image_size)
-        
         fit_ae(auto_encoder, device, self.train_ds)
-        
         dl = DataLoader(self.train_ds, shuffle=True, pin_memory=True, batch_size=batch_size)
-        self.labelled_indices = get_initial_sample_higher_MSE(auto_encoder, dl, device, al_params["init_lab_obs"])
-        #self.labelled_indices = get_initial_sample_farthest_KMeans(auto_encoder, dl, device, al_params["init_lab_obs"], n_obs_per_class)
+        
+        self.labelled_indices = get_initial_sample_higher_MSE(auto_encoder, dl, device, al_params["init_lab_obs"]) if strategy == 'mse' \
+            else get_initial_sample_farthest_KMeans(auto_encoder, dl, device, al_params["init_lab_obs"], n_obs_per_class)
+        
         self.unlabelled_indices = [idx for idx in self.train_ds.ds.indices if idx not in self.labelled_indices] # type: ignore
         
-        #return auto_encoder.encoder.state_dict()
+        return auto_encoder.encoder.state_dict()
     
     
     

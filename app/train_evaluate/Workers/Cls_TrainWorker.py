@@ -2,13 +2,12 @@
 import torch
 import torch.nn as nn
 
-from train_evaluate.PreTrain import PreTrain
 from models.BBone_Module import Master_Model
 from models.modules.LossNet import LossPredLoss
 from utils import accuracy_score, log_assert
 from config import al_params
 
-from torch.utils.data import DataLoader, Subset#, RandomSampler
+from torch.utils.data import DataLoader, Subset
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.nn.functional as F
 
@@ -41,7 +40,7 @@ class Cls_TrainWorker():
         self.epochs = params["t_p"]["epochs"]
         self.batch_size = params["batch_size"]
         self.ds_t_p = params["t_p"][self.dataset_name]
-        self.pre_train = params["ct_p"]["bbone_pre_train"]
+        self.bbone_pt = params["ct_p"]["bbone_init_weights"]
         #if 'perc_labelled_batch' in params: self.perc_labelled_batch = params['perc_labelled_batch']
         if 'batch_size_gtg_online' in params: self.batch_size_gtg_online = params['batch_size_gtg_online']
         
@@ -63,24 +62,12 @@ class Cls_TrainWorker():
         self.__load_checkpoint(self.init_check_filename)
         
         # BACKBONE PRETRAINING
-        if self.is_gtg_module and self.pre_train:
+        if self.is_gtg_module and self.bbone_pt:
+            self.model.backbone.module.load_state_dict(params["ct_p"]["init_weights"]) if self.world_size > 1 else self.model.backbone.load_state_dict(params["ct_p"]["init_weights"]) # type: ignore
+        else:
             checkpoint = torch.load(f'app/checkpoints/{self.dataset_name}/pratrained_BB.pth.tar', map_location=self.device)
             self.model.backbone.module.load_state_dict(checkpoint["state_dict"]) if self.world_size > 1 else self.model.backbone.load_state_dict(checkpoint["state_dict"]) # type: ignore
             
-            '''logger.info(' => Running BackBone PreTraining')
-            # Pretrain our backbone via Binary classification task (labelled, unlabelled)
-            pt = PreTrain(
-                device=self.device, backbone=self.model.backbone,
-                # I ahve to uise the labelled dataset since I need to combine both labeleld and unlabeleld indices to create the dataloader for the binary classification task
-                lab_subset=Subset(params["ct_p"]["Dataset"].lab_train_ds, params["labelled_indices"]),
-                unlab_subset=Subset(params["ct_p"]["Dataset"].lab_train_ds, params["unlabelled_indices"])
-            )
-            self.model.module.load_state_dict(pt.train()) if self.world_size > 1 else self.model.load_state_dict(pt.train()) # type: ignore
-            
-            logger.info(' => DONE\n')
-            self.model.module.load_state_dict('') if self.world_size > 1 else self.model.load_state_dict('') # type: ignore
-            '''
-        
         
         if isinstance(self.train_dl, tuple):
             
@@ -239,7 +226,6 @@ class Cls_TrainWorker():
             if isinstance(self.train_dl, tuple):
                 for b_idx, ((idxs_l, images_l, labels_l, _), (idxs_u, images_u, labels_u, _)) in enumerate(zip(self.lab_train_dl, self.unlab_train_dl)):
                     
-                    #logger.info(len(torch.unique(idxs_l)) < idxs_l.numel()) # true if there are duplicates
                     
                     idxs = torch.cat((idxs_l, idxs_u), dim=0)
                     images = torch.cat((images_l, images_u), dim=0)
@@ -291,14 +277,12 @@ class Cls_TrainWorker():
         self.__load_checkpoint(self.check_best_path)
         test_accuracy = .0
         
-        #self.model.eval()    
         self.model.backbone.eval() # type: ignore
 
         with torch.inference_mode():
             for _, images, labels in self.test_dl:
                 
                 images, labels = self.return_moved_imgs_labs(images, labels)
-                #outputs = self.model(images, mode='outs')
                 outputs, _ = self.model.backbone(images) # type: ignore
                 test_accuracy += self.score_fn(outputs, labels)
 

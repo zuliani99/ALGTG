@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from ast import arg
 import torch
 
 torch.autograd.set_detect_anomaly(True) # type: ignore
@@ -34,8 +33,9 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('-ds', '--datasets', type=str, nargs='+', required=True, choices=['cifar10', 'cifar100', 'svhn', 'fmnist', 'caltech256', 'tinyimagenet'], #'voc', 'coco'
                         help='Possible datasets to choose')
     parser.add_argument('-tr', '--trials', type=int, required=False, default=5, help='AL trials')
-    parser.add_argument('-bbone', '--bbone_pre_train', required=False, action='store_true', help='BackBone pre-train (binary calssification task) for GTG Module')
-    parser.add_argument('-cs', '--cold_start', required=False, action='store_true', help='Use our cold start strategy')
+    parser.add_argument('-bbone', '--bbone_pre_train', required=False, action='store_true', help='BackBone pre-train for GTG Module')
+    parser.add_argument('-cs_s', '--cold_start_strategy', type=str, required=False, choices=['none', 'mse', 'kmeans'], default='none', help='Cold start strategy')
+    
    
     parser.add_argument('-tulp', '--temp_unlab_pool', required=False, action='store_true', help='Temporary Unlabelled Pool')
     parser.add_argument('-am', '--affinity_matrix', type=str, nargs='+', required=False, choices=['corr', 'cos_sim', 'rbfk'], default=['corr'], help='Affinity matrix to choose')
@@ -162,17 +162,15 @@ def main() -> None:
         ll_module_params = get_ll_module_params(task, Dataset.image_size, dataset_name) # create learning loss dictionary parameters
             
         Masters = get_masters(args.methods, BBone, ll_module_params, gtg_module_params, dataset_name, Dataset.n_classes) # obtain the master models
-                                    
-        logger.info(f'args.temp_unlab_pool {args.temp_unlab_pool}')
-            
+                                                
         common_training_params = {
             'device': device, 'exp_path': exp_path,
             'dataset_name': dataset_name, 'task': task, 'gpus': args.gpus,
             'temp_unlab_pool': args.temp_unlab_pool, 'bbone_pre_train': args.bbone_pre_train,
-            'cold_start': args.cold_start
         }
         
-        if args.cold_start: args.trials = 1
+        if args.cold_start_strategy == 'none' and args.bbone_pre_train: raise ValueError('You must specify a cold start strategy to pre-train the backbone')
+        if args.cold_start_strategy != 'none': args.trials = 1
         
         for trial in range(args.trials):
             common_training_params["trial"] = trial
@@ -181,16 +179,14 @@ def main() -> None:
             
             create_exp_path(exp_path, dataset_name, str(trial))
             
-            #Dataset.get_initial_subsets(trial) # get the random split of dataset
-            
             #intial_weights = Dataset.get_initial_subsets(device)  # type: ignore
-            if args.cold_start: Dataset.get_initial_subsets_cold_start(device) # type: ignore
+            if args.cold_start_strategy != 'none':
+                # adding the initial weights to the common_training_params to be loaded in the backbnone
+                bbone_init_weights = Dataset.get_initial_subsets_cold_start(device, args.cold_start_strategy) # type: ignore
+                if args.bbone_pre_train: common_training_params["bbone_init_weights"] = bbone_init_weights
             else: Dataset.get_initial_subsets(trial)  # type: ignore
             
-            # adding the initial weights to the common_training_params to be loaded in the backbnone
-            #common_training_params["init_weights"] = intial_weights
-            
-            #results, count_classes, n_lab_obs = run_strategies(
+
             results, n_lab_obs = run_strategies(
                 ct_p = {**common_training_params, 'Dataset': Dataset}, t_p = task_params, gtg_p = gtg_params, Masters = Masters, methods = args.methods
             )

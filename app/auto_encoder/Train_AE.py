@@ -1,8 +1,8 @@
+
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset, random_split
 
-#from datasets_creation.Classification import Cls_Dataset
 from auto_encoder.BackBone_Decoder import BackBone_Decoder
 
 from typing import List, Tuple
@@ -35,7 +35,6 @@ def fit_ae(model: BackBone_Decoder, device: torch.device, train_ds: Dataset, per
 
     assert 0 < lr < 1 and num_epochs > 0 and bs > 0 and 0 <= momentum < 1
     
-    #model = DeepConvAutoencoder(inp_side_len=dataset.image_size)
     model = model.to(device)
 
     # set optimizer, loss type and datasets (depending on the type of AE)
@@ -52,7 +51,7 @@ def fit_ae(model: BackBone_Decoder, device: torch.device, train_ds: Dataset, per
         model.train()
         tr_loss = 0
 
-        for _, images, _ in train_dl:
+        for _, images, _, _ in train_dl:
             # zero the gradient
             optimizer.zero_grad()
                     
@@ -60,7 +59,8 @@ def fit_ae(model: BackBone_Decoder, device: torch.device, train_ds: Dataset, per
             
             _, outputs = model(images)
             # compute loss (flatten output in case of ConvAE. targets already flat)
-            loss = criterion(torch.flatten(outputs, 1), images)
+            
+            loss = criterion(torch.flatten(outputs, 1), torch.flatten(images, 1))
             tr_loss += loss.item()
             # propagate back the loss
             loss.backward()
@@ -77,10 +77,10 @@ def fit_ae(model: BackBone_Decoder, device: torch.device, train_ds: Dataset, per
         logger.info(f'AE Epoch {epoch} | tr_loss: {round(tr_loss, 5)} | val_loss: {round(val_loss, 5)}')
 
         # simple early stopping mechanism
-        if epoch >= 10:
+        '''if epoch >= 10:
             last_values = history['val_loss'][-10:]
             if (abs(last_values[-10] - last_values[-1]) <= 2e-5) or (last_values[-3] < last_values[-2] < last_values[-1]):
-                return 
+                return''' 
 
 
 
@@ -90,12 +90,12 @@ def evaluate(model: BackBone_Decoder, criterion: nn.MSELoss, device: torch.devic
 
     with torch.no_grad():
         val_loss = 0
-        for _, images, _ in val_dl:
+        for _, images, _, _ in val_dl:
             images = images.to(device)
             
             _, outputs = model(images)
             
-            loss = criterion(torch.flatten(outputs, 1), images)
+            loss = criterion(torch.flatten(outputs, 1), torch.flatten(images, 1))
             val_loss += loss.item()
             
     return val_loss / len(val_dl)
@@ -112,13 +112,15 @@ def get_initial_sample_higher_MSE(model: BackBone_Decoder, dl: DataLoader, devic
     losses = torch.empty((0,), dtype=torch.float32, device=torch.device('cpu'))
 
     with torch.no_grad():
-        for idxs, images, _ in dl:
+        for idxs, images, _, _ in dl:
             idxs_to_sort = torch.cat((idxs_to_sort, idxs.cpu()), dim=0)
             
             images = images.to(device)
             _, outputs = model(images)
-            loss = criterion(torch.flatten(outputs, 1), images)
+            
+            loss = criterion(torch.flatten(outputs, 1), torch.flatten(images, 1))
             losses = torch.cat((losses, loss.cpu), dim=0)
+            
     harder_sample = torch.topk(losses, k=n_lab_obs, largest=True, sorted=False).indices
     
     return [int(idxs_to_sort[id].item()) for id in harder_sample]
@@ -129,11 +131,11 @@ def get_initial_sample_farthest_KMeans(model: BackBone_Decoder, dl: DataLoader, 
      
     model = model.to(device)
     model.eval()
-
-    unlab_embedding = torch.empty((0, 100), dtype=torch.float32, device=torch.device('cpu'))
+    
+    unlab_embedding = torch.empty((0, model.encoder.get_embedding_dim()), dtype=torch.float32, device=torch.device('cpu'))
 
     with torch.no_grad():
-        for _, images, _ in dl:
+        for _, images, _, _ in dl:
             images = images.to(device)
             embedds, _ = model(images)
             unlab_embedding = torch.cat((unlab_embedding, embedds.cpu()), dim=0)
@@ -155,14 +157,3 @@ def get_initial_sample_farthest_KMeans(model: BackBone_Decoder, dl: DataLoader, 
     return initial_samples
     
     
-''' # Find the closest points to each centroid
-    closest_indices, _ = pairwise_distances_argmin_min(kmeans.cluster_centers_, unlab_embedding)
-    
-    top_closest_points = []
-    for centroid_index in closest_indices:
-        distances = np.linalg.norm(unlab_embedding - kmeans.cluster_centers_[centroid_index], axis=1)
-        closest_indices = np.argsort(distances)[:n_obs_per_class].tolist()
-        top_closest_points.extend(unlab_embedding[closest_indices])
-    
-    random.shuffle(top_closest_points)
-    return top_closest_points'''

@@ -10,8 +10,6 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 
-from models.backbones.ResNet18 import ResNet18
-from train_evaluate.PreTrain import PreTrain
 from models.BBone_Module import Master_Model
 from utils import set_seeds
 from datasets_creation.Detection import detection_collate
@@ -162,7 +160,6 @@ def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
     
     train_test = TrainWorker(params["ct_p"]["device"], params)
     
-    if ct_p["bbone_pre_train"]: pre_train(params["ct_p"]["device"], params)
         
     train_results = train_test.train().cpu().tolist()
     test_results = train_test.test().cpu().tolist()
@@ -170,13 +167,3 @@ def train(params: Dict[str, Any]) -> Tuple[List[float], List[float]]:
     return train_results, test_results
 
 
-def pre_train(device, params):
-    # Pretrain our backbone via Binary classification task (labelled, unlabelled)
-    pt = PreTrain(
-        device=device, backbone=ResNet18(),
-        # I ahve to uise the labelled dataset since I need to combine both labeleld and unlabeleld indices to create the dataloader for the binary classification task
-        lab_subset=Subset(params["ct_p"]["Dataset"].lab_train_ds, params["labelled_indices"]),
-        unlab_subset=Subset(params["ct_p"]["Dataset"].lab_train_ds, params["unlabelled_indices"])
-    )
-    
-    torch.save(dict(state_dict = pt.train()), f'app/checkpoints/{params["Dataset"]["dataset_name"]}/pratrained_BB.pth.tar')
