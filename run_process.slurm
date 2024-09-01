@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=test    # Job name
+#SBATCH --job-name=sl    # Job name
 #SBATCH --mail-type=END          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=875532@stud.unive.it     # Where to send mail	
 #SBATCH --nodes=1
@@ -23,4 +23,7 @@ conda activate al_env
 #python3 app/main.py -gpus 1 -m ll_gtg -ds cifar10 -tr 1 -am corr -am_s uncertanity -am_ts none -e_s mean -am_md UU #--affnity_matrix_self_loop #--temp_unlab_pool
 #python3 app/main.py -gpus 1 -m coreset badge bald cdal tavaal alphamix tidal -ds cifar10 -tr 5 --temp_unlab_pool
 
-python3 app/main.py -gpus 1 -m random entropy ll -ds cifar10 -tr 5 -cs_s kmeans
+#python3 app/main.py -gpus 1 -m random entropy ll -ds cifar10 -tr 5 -cs_s kmeans
+
+#python3 app/main.py -gpus 1 -m ll_gtg -ds cifar10 -tr 1 -am corr -am_s uncertanity -am_ts mean -e_s mean
+python3 app/main.py -gpus 1 -m ll_gtg -ds cifar10 -tr 1 -am corr -am_s uncertanity -am_ts mean -e_s mean --affnity_matrix_self_loop

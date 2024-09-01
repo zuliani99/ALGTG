@@ -31,14 +31,16 @@ def make_random_split(dataset: Dataset, perc_val: float, batch_size: int) -> Tup
     return train_dl, val_dl
     
 
-def fit_ae(model: BackBone_Decoder, device: torch.device, train_ds: Dataset, perc_val=0.2, num_epochs=200, bs=128, lr=0.1, momentum=0.5):
+def fit_ae(model: BackBone_Decoder, device: torch.device, train_ds: Dataset, perc_val=0.2, num_epochs=200, bs=128, lr=0.001, momentum=0.5):
 
     assert 0 < lr < 1 and num_epochs > 0 and bs > 0 and 0 <= momentum < 1
     
     model = model.to(device)
 
     # set optimizer, loss type and datasets (depending on the type of AE)
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum, weight_decay=5e-5)
+    #optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum, weight_decay=5e-5)
+    
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-5)
     criterion = nn.MSELoss()
     
     train_dl, val_dl = make_random_split(train_ds, perc_val, bs)

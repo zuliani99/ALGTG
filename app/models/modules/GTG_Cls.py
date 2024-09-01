@@ -52,76 +52,27 @@ class Module_LS_GTG_LSTM(nn.Module):
         out = self.classifier(out)
         return self.sigmoid(out) if self.is_bin_class else out
         
-             
-'''class Module_LS_GTG_MLP(nn.Module):
-    def __init__(self, params: Dict[str, Any], gtg_iter, gtg_func) -> None:
-        super(Module_LS_GTG_MLP, self).__init__()
 
-        self.mod_ls = Module_LS(params)
-        self.gtg_func = gtg_func        
-        self.classifier = nn.Linear(gtg_iter, 1)
-        
-        
-    def forward(self, features: List[torch.Tensor], weight: int) -> torch.Tensor:
-        
-        ls_features = self.mod_ls(features)
-        if weight == 0: ls_features = [ls.detach() for ls in ls_features]
-        ls_features = torch.cat(ls_features, dim=1)
-        
-        ent_history = self.gtg_func(ls_features)[1].unsqueeze(dim=1)
-        ent_history = ent_history.view(ent_history.size(0), -1)
-        
-        return self.classifier(ent_history)'''
-        
-
-class Module_LSs_GTGs_MLPs(nn.Module):
+class Module_LSs_GTG_MLP(nn.Module):
     def __init__(self, params: Dict[str, Any], gtg_iter: int, n_classes: int, gtg_func) -> None:
-        super(Module_LSs_GTGs_MLPs, self).__init__()
+        super(Module_LSs_GTG_MLP, self).__init__()
 
         self.mod_ls = Module_LS(params)
-        in_feat = gtg_iter * n_classes        
-        self.gtg_func = gtg_func
-        
-        #self.seq_linears = nn.ModuleList([nn.Sequential(nn.Linear(in_feat, 1)) for _ in range(4)])
-        '''self.seq_linears = nn.ModuleList([nn.Sequential(
-            nn.Linear(in_feat, in_feat // 2), nn.ReLU(),
-            nn.Linear(in_feat // 2, in_feat // 4), nn.ReLU(),
-            nn.Linear(in_feat // 4, 1), 
-        ) for _ in range(4)])'''
-        
-        '''self.linears = nn.Sequential(
-            nn.Linear(in_feat, in_feat // 2), nn.ReLU(),
-            nn.Linear(in_feat // 2, in_feat // 4), nn.ReLU(),
-            nn.Linear(in_feat // 4, 1), 
-        )'''
+        in_feat = gtg_iter * n_classes
         self.linear = nn.Linear(in_feat, 1)
-        
-    '''def forward(self, features: List[torch.Tensor], weight: int, labels: torch.Tensor) -> torch.Tensor:
-        outs = [ ]
-        for id, features_embedding in enumerate(features):
-            emb_ls = self.mod_ls(features_embedding, id)
-            if weight == 0: emb_ls = emb_ls.detach()
-            latent_feature = self.gtg_func(emb_ls, labels)[0]
-            out = latent_feature.view(latent_feature.size(0), -1)
-            out = self.seq_linears[id](out)
-            outs.append(out)
-        
-        out = self.linear(torch.cat(outs, 1))
-        return out'''
+        self.gtg_func = gtg_func\
+
         
     def forward(self, features: List[torch.Tensor], weight: int, labels: torch.Tensor) -> torch.Tensor:
-        ls_features = [self.mod_ls(features[i], i) for i in range(len(features)-1)] # exclude the last one with the embeddings
-        #ls_features = self.mod_ls(features)
+        ls_features = self.mod_ls(features)
         if weight == 0: ls_features = [ls.detach() for ls in ls_features]
         ls_features = torch.cat(ls_features, dim=1)
         
         latent_feature = self.gtg_func(ls_features, labels)[0]
         out = latent_feature.view(latent_feature.size(0), -1)
-        #out = self.linears(out)
         out = self.linear(out)
         
         return out
-
 
 
 class Module_LS(nn.Module):
@@ -175,15 +126,11 @@ class Module_LL(nn.Module):
         for n_c, e_d in zip(num_channels, feature_sizes):
             self.gaps.append(nn.AvgPool2d(e_d))
             self.linears.append(nn.Sequential(
-                nn.Linear(n_c, interm_dim), nn.ReLU(),# nn.BatchNorm1d(interm_dim),
-                #nn.Linear(interm_dim, interm_dim // 2), nn.ReLU(), nn.BatchNorm1d(interm_dim // 2),
-                #nn.Linear(interm_dim // 2, interm_dim // 4), nn.ReLU(), nn.BatchNorm1d(interm_dim // 4),
-                #nn.Linear(interm_dim // 4, interm_dim // 8), nn.ReLU(), nn.BatchNorm1d(interm_dim // 8),
+                nn.Linear(n_c, interm_dim), nn.ReLU(),
             ))
 
         self.linears = nn.ModuleList(self.linears)
         self.gaps = nn.ModuleList(self.gaps)
-        #self.classifier = nn.Linear((interm_dim // 8) * len(num_channels), 1)
         self.classifier = nn.Linear(interm_dim * len(num_channels), 1)
 
 
@@ -212,7 +159,7 @@ class GTGModule(nn.Module):
         self.gtg_max_iter: int = gtg_p["gtg_i"]
         
         self.AM_strategy: str = gtg_p["am_s"]
-        
+        self.AM_self_loop = gtg_p["am_sl"]
         self.AM_threshold: float = gtg_p["am_t"]
         
         self.list_AM_threshold_strategy: List[str] = gtg_p["am_ts"]
@@ -240,7 +187,7 @@ class GTGModule(nn.Module):
             #self.gtg_module = Module_CNN_MLP(self.ll_p).to(self.device)
             
         elif self.GTG_Model == 'lsmlps':
-            self.gtg_module = Module_LSs_GTGs_MLPs(
+            self.gtg_module = Module_LSs_GTG_MLP(
                 params=self.ll_p, 
                 gtg_iter=self.gtg_max_iter, 
                 n_classes=self.n_classes, 
@@ -292,23 +239,23 @@ class GTGModule(nn.Module):
         sigma_T = sigmas.T
         sigma_mm = (torch.mm(sigma_T, sigmas))
         A = torch.exp(A_m_2 / sigma_mm)
-        return torch.clamp(A.to(self.device), min=0., max=1.).fill_diagonal_(0.)
+        return torch.clamp(A.to(self.device), min=0., max=1.).fill_diagonal_(1. if self.AM_self_loop else 0.)
     
         
     def get_A_e_d(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         A = torch.cdist(concat_embedds, concat_embedds).to(self.device)
-        return torch.clamp(A, min=0., max=1.).fill_diagonal_(0.)
+        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1. if self.AM_self_loop else 0.)
     
 
     def get_A_cos_sim(self, concat_embedds: torch.Tensor) -> torch.Tensor: 
         normalized_embedding = F.normalize(concat_embedds, dim=-1).to(self.device)
         A = torch.matmul(normalized_embedding, normalized_embedding.transpose(-1, -2)).to(self.device)   
-        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1.)
+        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1. if self.AM_self_loop else 0.)
 
         
     def get_A_corr(self, concat_embedds: torch.Tensor) -> torch.Tensor:
         A = torch.corrcoef(concat_embedds).to(self.device)
-        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1.)
+        return torch.clamp(A, min=0., max=1.).fill_diagonal_(1. if self.AM_self_loop else 0.)
     
     
     def get_A(self, embedding: torch.Tensor) -> torch.Tensor:
@@ -468,3 +415,55 @@ class GTGModule(nn.Module):
         
         return (y_pred, y_true), labelled_mask
 
+
+
+
+
+             
+'''class Module_LS_GTG_MLP(nn.Module):
+    def __init__(self, params: Dict[str, Any], gtg_iter, gtg_func) -> None:
+        super(Module_LS_GTG_MLP, self).__init__()
+
+        self.mod_ls = Module_LS(params)
+        self.gtg_func = gtg_func        
+        self.classifier = nn.Linear(gtg_iter, 1)
+        
+        
+    def forward(self, features: List[torch.Tensor], weight: int) -> torch.Tensor:
+        
+        ls_features = self.mod_ls(features)
+        if weight == 0: ls_features = [ls.detach() for ls in ls_features]
+        ls_features = torch.cat(ls_features, dim=1)
+        
+        ent_history = self.gtg_func(ls_features)[1].unsqueeze(dim=1)
+        ent_history = ent_history.view(ent_history.size(0), -1)
+        
+        return self.classifier(ent_history)'''
+
+
+# Module_LSs_GTsG_MLPs
+#self.seq_linears = nn.ModuleList([nn.Sequential(nn.Linear(in_feat, 1)) for _ in range(4)])
+'''self.seq_linears = nn.ModuleList([nn.Sequential(
+            nn.Linear(in_feat, in_feat // 2), nn.ReLU(),
+            nn.Linear(in_feat // 2, in_feat // 4), nn.ReLU(),
+            nn.Linear(in_feat // 4, 1), 
+        ) for _ in range(4)])'''
+        
+'''self.linears = nn.Sequential(
+            nn.Linear(in_feat, in_feat // 2), nn.ReLU(),
+            nn.Linear(in_feat // 2, in_feat // 4), nn.ReLU(),
+            nn.Linear(in_feat // 4, 1), 
+        )'''
+        
+'''def forward(self, features: List[torch.Tensor], weight: int, labels: torch.Tensor) -> torch.Tensor:
+        outs = [ ]
+        for id, features_embedding in enumerate(features):
+            emb_ls = self.mod_ls(features_embedding, id)
+            if weight == 0: emb_ls = emb_ls.detach()
+            latent_feature = self.gtg_func(emb_ls, labels)[0]
+            out = latent_feature.view(latent_feature.size(0), -1)
+            out = self.seq_linears[id](out)
+            outs.append(out)
+        
+        out = self.linear(torch.cat(outs, 1))
+        return out'''        

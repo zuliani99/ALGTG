@@ -185,7 +185,8 @@ class Cls_Datasets():
         self.labelled_indices = get_initial_sample_higher_MSE(auto_encoder, dl, device, al_params["init_lab_obs"]) if strategy == 'mse' \
             else get_initial_sample_farthest_KMeans(auto_encoder, dl, device, al_params["init_lab_obs"], n_obs_per_class)
         
-        self.unlabelled_indices = [idx for idx in self.train_ds.ds.indices if idx not in self.labelled_indices] # type: ignore
+        # the indices are created my araging
+        self.unlabelled_indices = [idx for idx in np.arange(len(self.train_ds)) if idx not in self.labelled_indices]
         
         return auto_encoder.encoder.state_dict()
     

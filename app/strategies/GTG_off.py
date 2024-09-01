@@ -67,7 +67,7 @@ class GTG_off(ActiveLearner):
         # compute the affinity matrix
         A = self.get_A_fn[self.AM_function](concat_embedds, to_cpu=True)
     
-        #initial_A = torch.clone(A)
+        initial_A = torch.clone(A)
                
         if self.AM_threshold_strategy != 'none':
             # remove weak connections with the choosen threshold strategy and value
@@ -94,12 +94,12 @@ class GTG_off(ActiveLearner):
                
                 
         # plot the TSNE fo the original and modified affinity matrix
-        '''logger.info('Plotting TSNE of the original and modified Affinity Matrix...')
+        logger.info('Plotting TSNE of the original and modified Affinity Matrix...')
         plot_tsne_A(
             (initial_A, A),
             (self.lab_embedds_dict["labels"], self.unlab_embedds_dict["labels"]), self.dataset.classes,
             self.ct_p["timestamp"], self.ct_p["dataset_name"], self.ct_p["trial"], self.strategy_name, self.AM_function, self.AM_strategy, self.iter
-        )'''
+        )
         
         self.A = A.to(self.device)
         logger.info(' DONE\n')

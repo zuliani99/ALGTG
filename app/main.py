@@ -182,10 +182,11 @@ def main() -> None:
             #intial_weights = Dataset.get_initial_subsets(device)  # type: ignore
             if args.cold_start_strategy != 'none':
                 # adding the initial weights to the common_training_params to be loaded in the backbnone
-                bbone_init_weights = Dataset.get_initial_subsets_cold_start(device, args.cold_start_strategy) # type: ignore
-                if args.bbone_pre_train: common_training_params["bbone_init_weights"] = bbone_init_weights
-            else: Dataset.get_initial_subsets(trial)  # type: ignore
-            
+                bbone_init_weights = Dataset.get_initial_subsets_cold_start(device, args.cold_start_strategy) # type: ignore 
+                common_training_params["bbone_init_weights"] = bbone_init_weights if args.bbone_pre_train else None
+            else: 
+                Dataset.get_initial_subsets(trial)
+                common_training_params["bbone_init_weights"] = None
 
             results, n_lab_obs = run_strategies(
                 ct_p = {**common_training_params, 'Dataset': Dataset}, t_p = task_params, gtg_p = gtg_params, Masters = Masters, methods = args.methods

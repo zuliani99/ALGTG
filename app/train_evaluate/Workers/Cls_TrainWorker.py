@@ -62,13 +62,10 @@ class Cls_TrainWorker():
         self.__load_checkpoint(self.init_check_filename)
         
         # BACKBONE PRETRAINING
-        if self.is_gtg_module and self.bbone_pt:
-            self.model.backbone.module.load_state_dict(params["ct_p"]["init_weights"]) if self.world_size > 1 else self.model.backbone.load_state_dict(params["ct_p"]["init_weights"]) # type: ignore
-        else:
-            checkpoint = torch.load(f'app/checkpoints/{self.dataset_name}/pratrained_BB.pth.tar', map_location=self.device)
-            self.model.backbone.module.load_state_dict(checkpoint["state_dict"]) if self.world_size > 1 else self.model.backbone.load_state_dict(checkpoint["state_dict"]) # type: ignore
+        if self.bbone_pt != None and self.is_gtg_module:
+            self.model.backbone.module.load_state_dict(self.bbone_pt) if self.world_size > 1 else self.model.backbone.load_state_dict(self.bbone_pt) # type: ignore
             
-        
+        #########################################################################################################################################################
         if isinstance(self.train_dl, tuple):
             
             lab_subset, unlab_subset = self.train_dl
@@ -77,8 +74,10 @@ class Cls_TrainWorker():
             self.lab_train_dl = DataLoader(dataset=lab_subset, batch_size=self.batch_size_gtg_online * self.iter, shuffle=True, pin_memory=True)
 
             self.n_batches = len(self.lab_train_dl)
-        else: self.n_batches = len(self.train_dl)
             
+        else: self.n_batches = len(self.train_dl)
+        #########################################################################################################################################################
+        
         self.init_opt_sched()
         self.i = 0
         
