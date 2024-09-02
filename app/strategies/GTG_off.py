@@ -98,7 +98,7 @@ class GTG_off(ActiveLearner):
         plot_tsne_A(
             (initial_A, A),
             (self.lab_embedds_dict["labels"], self.unlab_embedds_dict["labels"]), self.dataset.classes,
-            self.ct_p["timestamp"], self.ct_p["dataset_name"], self.ct_p["trial"], self.strategy_name, self.AM_function, self.AM_strategy, self.iter
+            self.ct_p["exp_path"], self.ct_p["dataset_name"], self.ct_p["trial"], self.strategy_name, self.AM_function, self.AM_strategy, self.iter
         )
         
         self.A = A.to(self.device)

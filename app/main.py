@@ -150,7 +150,7 @@ def main() -> None:
         logger.info(f'----------------------- RUNNING ACTIVE LEARNING BENCHMARK ON {dataset_name} -----------------------\n')
         
         Dataset = get_dataset(task, dataset_name) # get the dataset
-        BBone = get_backbone(Dataset.n_classes, Dataset.n_channels, dict_backbone[dataset_name]) # the backbone is the same for all
+        BBone = get_backbone(Dataset.n_classes, Dataset.n_channels, dict_backbone[dataset_name], Dataset.image_size) # the backbone is the same for all
 
         # create gtg dictionary parameters
         gtg_module_params = dict(

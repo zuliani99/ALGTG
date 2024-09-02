@@ -8,9 +8,8 @@ class BackBone_Decoder(nn.Module):
         super().__init__()
 
         # initial checks
-        self.encoder = ResNet18(n_classes=classes, n_channels=n_channels)
+        self.encoder = ResNet18(n_classes=classes, n_channels=n_channels, img_size=image_size)
         self.decoder = ResNet18_Decoder()
-        self.image_size = image_size
         
         
     def forward(self, x):

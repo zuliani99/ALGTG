@@ -89,10 +89,6 @@ class Cls_TrainWorker():
         
         dict_optim_bb = {**optimizers["backbone"]["optim_p"][module_name]}
         
-        # DEFINING THELOSS SCALING FACTOR
-        #if module_name == 'GTGModule':
-        #    dict_optim_bb['lr'] = dict_optim_bb['lr'] / (self.len_unlab_ds / self.len_lab_ds)
-        
         self.optimizers: List[torch.optim.SGD | torch.optim.Adam] = []
         self.lr_schedulers = []
         self.optimizers.append(optimizers["backbone"]["type"][module_name](self.model.backbone.parameters(), **dict_optim_bb)) # type: ignore
@@ -103,7 +99,6 @@ class Cls_TrainWorker():
             #if self.method_name == 'TiDAL' or self.net_type == 'llmlp_gtg': 
             # TiDAL has milestone 160 and runs until epoch 200, all GTG Module have milestone to 60 and run until epoch 120
             logger.info(f'module_name {module_name}')
-            #if self.method_name == 'TiDAL' or module_name == 'GTGModule': 
             self.lr_schedulers.append(torch.optim.lr_scheduler.MultiStepLR(self.optimizers[-1], milestones=[optimizers["milestones"][module_name]], gamma=0.1))
             
             
@@ -147,10 +142,7 @@ class Cls_TrainWorker():
             # es: ma1000 labelled samples, 10000 unlabelled samples 128 batch_size -> scaling factor = (10000/128) / (1000/128) = 9.875
             ############################################################################################################################
             
-            # if the predicted entropy on the labelled ssample is close to zero it means the model can distinguish labelled samples from unlabelled ones
-            #labelled_weight_factor = torch.mean(entr_loss[labelled_mask]) + 1 
             entr_loss = torch.mean(entr_loss[labelled_mask]) + torch.mean(entr_loss[~labelled_mask])
-            #logger.info(f'scaling_factor -> {labelled_weight_factor}')
             
             loss = lab_ce_loss + entr_loss
             

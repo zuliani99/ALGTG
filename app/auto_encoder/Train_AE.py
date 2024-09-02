@@ -39,7 +39,6 @@ def fit_ae(model: BackBone_Decoder, device: torch.device, train_ds: Dataset, per
 
     # set optimizer, loss type and datasets (depending on the type of AE)
     #optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum, weight_decay=5e-5)
-    
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-5)
     criterion = nn.MSELoss()
     

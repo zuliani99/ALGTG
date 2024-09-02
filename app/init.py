@@ -32,8 +32,8 @@ def get_dataset(task: str, dataset_name: str) -> Cls_Datasets | Det_Dataset:
     else: return Det_Dataset(dataset_name)
 
     
-def get_backbone(n_classes: int, n_channels: int, bbone: str) -> ResNet | VGG:# | SSD:
-    if bbone == 'ResNet': return ResNet18(n_classes=n_classes, n_channels=n_channels)
+def get_backbone(n_classes: int, n_channels: int, bbone: str, img_size: int) -> ResNet | VGG:# | SSD:
+    if bbone == 'ResNet': return ResNet18(n_classes=n_classes, n_channels=n_channels, img_size=img_size)
     else: return VGG16_bn(n_classes=n_classes,  n_channels=n_channels) #bbone == 'VGG':
     #else: return build_ssd('train', voc_config, num_classes=n_classes)
     

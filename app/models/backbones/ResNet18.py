@@ -13,7 +13,6 @@ from utils import init_weights_apply
 
 
 
-
 class BasicBlock(nn.Module):
     expansion = 1
 
@@ -40,9 +39,10 @@ class BasicBlock(nn.Module):
     
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, n_channels=3, num_classes=10):
+    def __init__(self, block, num_blocks, img_size, n_channels=3, num_classes=10):
         super(ResNet, self).__init__()
         self.in_planes = 64
+        self.img_size = img_size
 
         self.conv1 = nn.Conv2d(n_channels, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
@@ -73,7 +73,8 @@ class ResNet(nn.Module):
             out4 = self.layer4(out3)
             self.features = [out1, out2, out3, out4]
             
-            out = F.avg_pool2d(out4, 4)
+            out = F.avg_pool2d(out4, 4 if self.img_size == 32 else 8)
+
             embedds = out.view(out.size(0), -1)
         
         out = self.linear(embedds)
@@ -92,5 +93,5 @@ class ResNet(nn.Module):
 
 
 
-def ResNet18(n_classes=10, n_channels=3) -> ResNet:
-    return ResNet(BasicBlock, [2,2,2,2], n_channels, n_classes) # type: ignore
+def ResNet18(n_classes=10, n_channels=3, img_size=32) -> ResNet:
+    return ResNet(block=BasicBlock, num_blocks=[2,2,2,2], n_channels=n_channels, num_classes=n_classes, img_size=img_size)
