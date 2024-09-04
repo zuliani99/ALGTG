@@ -51,16 +51,39 @@ class Module_LS_GTG_LSTM(nn.Module):
         out = out.reshape(out.size(0), -1)
         out = self.classifier(out)
         return self.sigmoid(out) if self.is_bin_class else out
+      
+
+
+
+class Module_LSs_GTG_MLP_alternative(nn.Module):
+    def __init__(self, params: Dict[str, Any], gtg_func) -> None:
+        super(Module_LSs_GTG_MLP_alternative, self).__init__()
+
+        self.mod_ls = Module_LS(params)
+        self.linear = nn.Linear(4, 1)
+        self.gtg_func = gtg_func
+
         
+    def forward(self, features: List[torch.Tensor], weight: int, labels: torch.Tensor) -> torch.Tensor:
+        outs = [ ]
+        for id, features_embedding in enumerate(features):
+            emb_ls = self.mod_ls(features_embedding, id)
+            if weight == 0: emb_ls = emb_ls.detach()
+            latent_feature = self.gtg_func(emb_ls, labels)[0]
+            out = latent_feature.view(latent_feature.size(0), -1)
+            out = torch.mean(out, dim=1)
+            outs.append(out)
+        
+        out = self.linear(torch.cat(outs, 1))
+        return out
+
 
 class Module_LSs_GTG_MLP(nn.Module):
-    def __init__(self, params: Dict[str, Any], gtg_iter: int, n_classes: int, gtg_func) -> None:
+    def __init__(self, params: Dict[str, Any], gtg_func) -> None:
         super(Module_LSs_GTG_MLP, self).__init__()
 
         self.mod_ls = Module_LS(params)
-        in_feat = gtg_iter * n_classes
-        self.linear = nn.Linear(in_feat, 1)
-        self.gtg_func = gtg_func\
+        self.gtg_func = gtg_func
 
         
     def forward(self, features: List[torch.Tensor], weight: int, labels: torch.Tensor) -> torch.Tensor:
@@ -70,7 +93,7 @@ class Module_LSs_GTG_MLP(nn.Module):
         
         latent_feature = self.gtg_func(ls_features, labels)[0]
         out = latent_feature.view(latent_feature.size(0), -1)
-        out = self.linear(out)
+        out = torch.mean(out, dim=1)
         
         return out
 
@@ -187,10 +210,11 @@ class GTGModule(nn.Module):
             #self.gtg_module = Module_CNN_MLP(self.ll_p).to(self.device)
             
         elif self.GTG_Model == 'lsmlps':
+            #self.gtg_module = Module_LSs_GTG_MLP_alternative(
             self.gtg_module = Module_LSs_GTG_MLP(
                 params=self.ll_p, 
-                gtg_iter=self.gtg_max_iter, 
-                n_classes=self.n_classes, 
+                #gtg_iter=self.gtg_max_iter, 
+                #n_classes=self.n_classes, 
                 gtg_func=self.graph_trasduction_game
             ).to(self.device)
                  
@@ -440,30 +464,3 @@ class GTGModule(nn.Module):
         
         return self.classifier(ent_history)'''
 
-
-# Module_LSs_GTsG_MLPs
-#self.seq_linears = nn.ModuleList([nn.Sequential(nn.Linear(in_feat, 1)) for _ in range(4)])
-'''self.seq_linears = nn.ModuleList([nn.Sequential(
-            nn.Linear(in_feat, in_feat // 2), nn.ReLU(),
-            nn.Linear(in_feat // 2, in_feat // 4), nn.ReLU(),
-            nn.Linear(in_feat // 4, 1), 
-        ) for _ in range(4)])'''
-        
-'''self.linears = nn.Sequential(
-            nn.Linear(in_feat, in_feat // 2), nn.ReLU(),
-            nn.Linear(in_feat // 2, in_feat // 4), nn.ReLU(),
-            nn.Linear(in_feat // 4, 1), 
-        )'''
-        
-'''def forward(self, features: List[torch.Tensor], weight: int, labels: torch.Tensor) -> torch.Tensor:
-        outs = [ ]
-        for id, features_embedding in enumerate(features):
-            emb_ls = self.mod_ls(features_embedding, id)
-            if weight == 0: emb_ls = emb_ls.detach()
-            latent_feature = self.gtg_func(emb_ls, labels)[0]
-            out = latent_feature.view(latent_feature.size(0), -1)
-            out = self.seq_linears[id](out)
-            outs.append(out)
-        
-        out = self.linear(torch.cat(outs, 1))
-        return out'''        
