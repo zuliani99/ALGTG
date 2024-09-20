@@ -28,7 +28,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('-gpus', '--gpus', type=int, required=False, default=1, help='Number of GPUs to use during training')
     parser.add_argument('-m', '--methods', type=str, nargs='+', required=True, choices=[
             'random', 'entropy', 'coreset', 'badge', 'bald', 'cdal', 'tavaal', 'alphamix', 'tidal',
-            'll', 'gtg', 'll_gtg', 'llmlp_gtg', 'lsmlps_gtg', 'lstmreg_gtg', 'lstmbc_gtg'
+            'll', 'gtg', 'll_gtg', 'llmlp_gtg', 'lsmlps_gtg', 'lsmlpsA_gtg', 'lstmreg_gtg', 'lstmbc_gtg'
         ], help='Possible methods to choose')
     parser.add_argument('-ds', '--datasets', type=str, nargs='+', required=True, choices=['cifar10', 'cifar100', 'svhn', 'fmnist', 'caltech256', 'tinyimagenet'], #'voc', 'coco'
                         help='Possible datasets to choose')

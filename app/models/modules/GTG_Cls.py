@@ -65,16 +65,16 @@ class Module_LSs_GTG_MLP_alternative(nn.Module):
 
         
     def forward(self, features: List[torch.Tensor], weight: int, labels: torch.Tensor) -> torch.Tensor:
-        outs = [ ]
+        outs = []
         for id, features_embedding in enumerate(features):
             emb_ls = self.mod_ls(features_embedding, id)
             if weight == 0: emb_ls = emb_ls.detach()
             latent_feature = self.gtg_func(emb_ls, labels)[0]
-            out = latent_feature.view(latent_feature.size(0), -1)
-            out = torch.mean(out, dim=1)
-            outs.append(out)
-        
-        out = self.linear(torch.cat(outs, 1))
+            out1 = latent_feature.view(latent_feature.size(0), -1)
+            out2 = torch.mean(out1, dim=1)
+            outs.append(out2.unsqueeze(1))
+        outs = torch.cat(outs, dim=1)
+        out = self.linear(outs)
         return out
 
 
@@ -207,22 +207,18 @@ class GTGModule(nn.Module):
         
         if self.GTG_Model == 'llmlp':
             self.gtg_module = Module_LL(self.ll_p).to(self.device)
-            #self.gtg_module = Module_CNN_MLP(self.ll_p).to(self.device)
-            
-        elif self.GTG_Model == 'lsmlps':
-            #self.gtg_module = Module_LSs_GTG_MLP_alternative(
-            self.gtg_module = Module_LSs_GTG_MLP(
-                params=self.ll_p, 
-                #gtg_iter=self.gtg_max_iter, 
-                #n_classes=self.n_classes, 
+        
+        elif self.GTG_Model in ['lsmlps', 'lsmlpsA']:
+            module = Module_LSs_GTG_MLP if self.GTG_Model == 'lsmlps' else Module_LSs_GTG_MLP_alternative
+            self.gtg_module = module(
+                params=self.ll_p,  
                 gtg_func=self.graph_trasduction_game
             ).to(self.device)
-                 
+        
         elif self.GTG_Model in ['lstmreg', 'lstmbc']:
             self.gtg_module = Module_LS_GTG_LSTM(
-                params=self.ll_p, input_size=1, #input_size=self.gtg_max_iter,
+                params=self.ll_p, input_size=1,
                 seq_length=self.gtg_max_iter,
-                #hidden_size=self.gtg_max_iter, num_layers=1,
                 hidden_size=1, num_layers=1,
                 output_size=1, bidirectional=True, device=self.device,
                 gtg_func=self.graph_trasduction_game,

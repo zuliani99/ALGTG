@@ -74,7 +74,7 @@ dict_strategies_BB = dict(
 dict_strategies_LL = dict( ll = LearningLoss, tavaal = TA_VAAL, tidal = TiDAL ) # -> BB + LL
 
 dict_strategies_GTG = dict(
-    llmlp_gtg = GTG, lsmlps_gtg = GTG, lstmreg_gtg = GTG, lstmbc_gtg = GTG, # -> BB + GTG
+    llmlp_gtg = GTG, lsmlps_gtg = GTG, lsmlpsA_gtg = GTG, lstmreg_gtg = GTG, lstmbc_gtg = GTG, # -> BB + GTG
     gtg = GTG_off, # -> BB
     ll_gtg = GTG_off # -> BB + LL
 )
@@ -132,7 +132,7 @@ def get_masters(methods: List[str], BBone: ResNet | VGG,
         elif method == 'tidal' and not ll_tidal:
             Masters['M_LL_tidal'] = Master_Model(BBone, get_module('LL', {**ll_module_params, 'module_out': n_classes}), dataset_name)
             ll_tidal = True
-        elif method in ['llmlp_gtg', 'lsmlps_gtg', 'lstmreg_gtg', 'lstmbc_gtg']:
+        elif method in ['llmlp_gtg', 'lsmlps_gtg', 'lsmlpsA_gtg', 'lstmreg_gtg', 'lstmbc_gtg']:
             gtg_module = method.split('_')[0]
             Masters[f'M_GTG_{gtg_module}'] = Master_Model(BBone, get_module(
                     'GTG', ({**gtg_module_params, 'gtg_module': gtg_module}, {**ll_module_params, 'module_out': 1})
